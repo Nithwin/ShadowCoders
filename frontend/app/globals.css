@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+body{
+    overflow-x: hidden;
+}
+
+@theme {
+    --color-primary:#1a1a1a;
+    --color-secondary:#F5F5F5;
+    --font-poppins: var(--font-poppins);
+    --font-inter: var(--font-inter);
+    --font-alan-sans: var(--font-alan-sans);
+    --font-aerospace: var(--font-aerospace);
+}
+
+@utility flex-center{
+    @apply flex justify-center items-center w-full h-full
+}
+
+@layer components {
+    #login{
+        h1{
+            @apply text-center text-3xl text-gray-900 font-bold font-alan-sans text-shadow-black text-shadow-2xs
+        }
+
+        .box{
+            @apply bg-secondary rounded-2xl p-6 shadow-lg flex flex-col gap-5 lg:min-w-[24rem]
+        }
+
+        #form {
+            @apply  flex flex-col gap-5
+        }
+
+        input {
+            @apply border outline-0 px-2 py-1 rounded-xl w-full
+        }
+
+        button{
+            @apply bg-primary text-secondary w-full py-2 rounded-2xl font-alan-sans font-semibold text-xl
+        }
+    }
+
+    #nav{
+        ul{
+            @apply fixed inset-0 top-[10dvh] bg-white/20 md:bg-transparent backdrop-blur-lg md:backdrop-blur-none left-0 bottom-0 flex flex-col items-center justify-evenly lg:static lg:flex-row lg:w-full z-10
+        }
+
+        li{
+            @apply text-2xl text-secondary/70 font-alan-sans lg:text-lg 
+        }
+    }
+}

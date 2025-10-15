@@ -1,0 +1,412 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  STUDENT
+  STAFF
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+enum QType {
+  MCQ
+  CODING
+  ESSAY
+  SPEAKING
+  LISTENING
+  FILL
+  READING
+}
+
+enum GradingMode {
+  AUTO
+  MANUAL
+  AI
+  HYBRID
+}
+
+enum EvaluationKind {
+  MANUAL
+  AI
+}
+
+enum AssetKind {
+  AUDIO
+  VIDEO
+  IMAGE
+  FILE
+  TEXT
+}
+
+enum QuestionStatus {
+  ACTIVE
+  INVALIDATED
+}
+
+enum TimingMode {
+  OVERALL_ONLY
+  PER_SECTION_ONLY
+  BOTH
+}
+
+enum SectionLockPolicy {
+  NONE
+  LOCK_ON_COMPLETE
+  LINEAR_NO_BACKTRACK
+}
+
+enum SectionAttemptStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  LOCKED
+}
+
+model User {
+  id         String  @id @default(cuid())
+  reg_no     String? @unique
+  email      String  @unique
+  name       String?
+  password   String?
+  pictureUrl String?
+  role       Role    @default(STUDENT)
+  year       Int?
+  department String?
+  section    String?
+  googleId   String? @unique
+
+  attempts Attempt[]
+
+  // back-relations with explicit names
+  invalidatedQuestions Question[]   @relation("QuestionInvalidator")
+  assessments          Evaluation[] @relation("EvaluationAssessor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([year, department, section])
+}
+
+model Exam {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime
+
+  timingMode        TimingMode        @default(OVERALL_ONLY)
+  durationMins      Int
+  sectionLockPolicy SectionLockPolicy @default(NONE)
+
+  randomizeQuestions   Boolean    @default(false)
+  negativeMarkPerWrong Decimal?   @db.Decimal(5, 2)
+  status               ExamStatus @default(DRAFT)
+
+  questions   Question[]
+  assignments ExamAssignment[]
+  attempts    Attempt[]
+  sections    ExamSection[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([startAt, endAt])
+}
+
+model ExamAssignment {
+  id               String  @id @default(uuid())
+  examId           String
+  exam             Exam    @relation(fields: [examId], references: [id])
+  cohortYear       Int?
+  cohortDepartment String?
+  cohortSection    String?
+  studentIds       Json?
+
+  @@index([examId])
+  @@index([cohortYear, cohortDepartment, cohortSection])
+}
+
+model ExamSection {
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id])
+
+  title        String
+  order        Int
+  description  String?
+  durationMins Int?
+  startsAt     DateTime?
+  endsAt       DateTime?
+
+  sectionQuestions SectionQuestion[]
+  attempts         AttemptSection[] // back-rel
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([examId])
+  @@index([order])
+}
+
+model SectionQuestion {
+  id         String      @id @default(cuid())
+  sectionId  String
+  section    ExamSection @relation(fields: [sectionId], references: [id])
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id])
+  order      Int
+
+  @@unique([sectionId, questionId])
+  @@index([questionId])
+}
+
+model Question {
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id])
+
+  // If not using sections, use this order; otherwise SectionQuestion.order applies
+  order  Int
+  type   QType
+  points Decimal @db.Decimal(6, 2)
+  prompt String?
+
+  // MCQ
+  options          Json?
+  correctOptionIds Json?
+
+  // CODING
+  starterCode   String?
+  testcases     Json?
+  languageHints Json?
+
+  // ESSAY
+  wordLimit Int?
+
+  // SPEAKING/LISTENING/READING media/passage
+  mediaAssetId String?
+  mediaAsset   Asset?  @relation("Question_mediaAsset", fields: [mediaAssetId], references: [id])
+
+  passageAssetId String?
+  passageAsset   Asset?  @relation("Question_passageAsset", fields: [passageAssetId], references: [id])
+
+  maxDurationSec Int?
+
+  // FILL (cloze)
+  clozeTemplate String?
+  blanks        Json?
+  clozeConfig   Json?
+
+  // Generic per-type add-ons
+  config Json?
+
+  // Rubric for subjective grading
+  rubricId String?
+  rubric   Rubric? @relation("QuestionRubric", fields: [rubricId], references: [id])
+
+  // Invalidation
+  status             QuestionStatus @default(ACTIVE)
+  invalidationReason String?
+  invalidatedAt      DateTime?
+  invalidatedById    String?
+  invalidatedBy      User?          @relation("QuestionInvalidator", fields: [invalidatedById], references: [id])
+
+  responses    Response[]
+  sectionLinks SectionQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([examId])
+  @@index([type])
+  @@index([status])
+}
+
+model Attempt {
+  id        String @id @default(cuid())
+  examId    String
+  exam      Exam   @relation(fields: [examId], references: [id])
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id])
+
+  attemptNo Int @default(1)
+
+  startedAt    DateTime      @default(now())
+  submittedAt  DateTime?
+  status       AttemptStatus @default(IN_PROGRESS)
+  score        Decimal?      @db.Decimal(8, 2)
+  maxScore     Decimal?      @db.Decimal(8, 2)
+  timeSpentSec Int           @default(0)
+
+  orderMap Json?
+
+  sections  AttemptSection[]
+  responses Response[]
+
+  @@unique([examId, studentId, attemptNo])
+  @@index([examId])
+  @@index([studentId])
+}
+
+model AttemptSection {
+  id        String      @id @default(cuid())
+  attemptId String
+  attempt   Attempt     @relation(fields: [attemptId], references: [id])
+  sectionId String
+  section   ExamSection @relation(fields: [sectionId], references: [id])
+
+  status      SectionAttemptStatus @default(NOT_STARTED)
+  startedAt   DateTime?
+  submittedAt DateTime?
+
+  timeSpentSec Int     @default(0)
+  remainingSec Int?
+  lockReason   String?
+
+  @@unique([attemptId, sectionId])
+  @@index([attemptId])
+  @@index([sectionId])
+}
+
+model Response {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id])
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  type       QType
+
+  // Generic answer payload (works for all types)
+  answer Json?
+
+  // Quick-access (optional)
+  chosenOptionIds Json?
+  code            String?
+  language        String?
+  textAnswer      String?
+
+  audioAssetId String?
+  audioAsset   Asset?  @relation("Response_audioAsset", fields: [audioAssetId], references: [id])
+
+  // Final/aggregated grading
+  gradingMode      GradingMode?
+  verdict          String?
+  earnedPoints     Decimal?     @db.Decimal(6, 2)
+  manualAdjustment Decimal?     @db.Decimal(6, 2)
+  feedback         String?
+
+  evaluations Evaluation[]
+  artifacts   ResponseArtifact[]
+
+  judgeRunId  String?
+  gradingJobs GradingJob[] // back-rel
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([attemptId, questionId])
+  @@index([type])
+}
+
+model Evaluation {
+  id         String   @id @default(cuid())
+  responseId String
+  response   Response @relation(fields: [responseId], references: [id])
+
+  kind       EvaluationKind
+  assessorId String?
+  assessor   User?          @relation("EvaluationAssessor", fields: [assessorId], references: [id])
+
+  rubricId String?
+  rubric   Rubric? @relation("EvaluationRubric", fields: [rubricId], references: [id])
+
+  score     Decimal? @db.Decimal(6, 2)
+  breakdown Json?
+  comments  String?
+  isFinal   Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([responseId])
+  @@index([kind])
+  @@index([assessorId])
+}
+
+model Rubric {
+  id        String   @id @default(cuid())
+  name      String
+  criteria  Json
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  questions   Question[]   @relation("QuestionRubric")
+  evaluations Evaluation[] @relation("EvaluationRubric")
+}
+
+model Asset {
+  id                  String     @id @default(cuid())
+  kind                AssetKind
+  url                 String
+  durationSec         Int?
+  meta                Json?
+  createdAt           DateTime   @default(now())
+  mediaForQuestions   Question[] @relation("Question_mediaAsset")
+  passageForQuestions Question[] @relation("Question_passageAsset")
+  responseAudioFor    Response[] @relation("Response_audioAsset")
+
+  artifacts ResponseArtifact[]
+}
+
+model ResponseArtifact {
+  id         String   @id @default(cuid())
+  responseId String
+  response   Response @relation(fields: [responseId], references: [id])
+  assetId    String
+  asset      Asset    @relation(fields: [assetId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([responseId])
+  @@index([assetId])
+}
+
+model GradingJob {
+  id         String   @id @default(cuid())
+  responseId String
+  response   Response @relation(fields: [responseId], references: [id])
+  provider   String
+  status     String   @default("QUEUED")
+  payload    Json?
+  result     Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([responseId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
