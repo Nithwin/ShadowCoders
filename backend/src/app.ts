@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
 import { errorHandler } from './middleware/error';
+import { registerQuestionRoutes } from './modules/questions/question.routes';
 
 export const createApp = () => {
     const app = express();
@@ -20,6 +21,7 @@ export const createApp = () => {
 
     registerAuthRoutes(app);
     registerExamRoutes(app);
+    registerQuestionRoutes(app);
 
     app.use(errorHandler);
 

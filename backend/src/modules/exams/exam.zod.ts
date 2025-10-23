@@ -25,3 +25,29 @@ export const createExamSchema = z.object({
     negativeMarkPerWrong: z.number().optional(),
   }),
 });
+
+
+export const assignExamSchema = z.object({
+  body: z.object({
+    cohortYear: z.number().int().min(1).max(6).optional(),
+    cohortDepartment: z.string().max(50).optional(),
+    cohortSection: z.string().max(10).optional(),
+    studentIds: z.array(z.string().cuid()).max(1000).optional(),
+  })
+  .refine(
+    (data) => {
+      const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
+      const hasStudentIds = data.studentIds && data.studentIds.length > 0;
+      return hasCohort || hasStudentIds; // Must have one or the other
+    },
+    { message: 'Assignment requires either cohort details or a list of student IDs' }
+  )
+  .refine(
+    (data) => {
+      const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
+      const hasStudentIds = data.studentIds && data.studentIds.length > 0;
+      return !(hasCohort && hasStudentIds); // Cannot have both
+    },
+    { message: 'Cannot assign by both cohort and specific student IDs simultaneously' }
+  ),
+})

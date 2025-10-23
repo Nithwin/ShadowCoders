@@ -9,3 +9,36 @@ export const createExamHandler: RequestHandler = async (req,res,next) => {
         next(error);
     }
 }
+
+export const assignExamHandler: RequestHandler = async (req,res,next) => {
+    try{
+        const examId = req.params.examId;
+        const assignmentData = req.body;
+
+        if(!examId){
+            return res.status(400).json({ error: 'Exam ID is required' });
+        }
+
+        const assignment = await examService.assignExam(examId, assignmentData);
+        
+        res.status(201).json(assignment);
+    } catch(error){
+        next(error);
+    }
+}
+
+export const publishExamHandler: RequestHandler = async (req,res,next) => {
+    try{
+        const examId = req.params.examId;
+
+        if(!examId){
+            return res.status(400).json({ error: 'Exam ID is required' });
+        }
+
+        const updatedExam = await examService.pubishExam(examId);
+        res.status(200).json(updatedExam);
+    }
+    catch(error){
+        next(error);
+    }
+}

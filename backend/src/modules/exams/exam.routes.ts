@@ -12,5 +12,20 @@ export const registerExamRoutes = (app: Express) => {
         requireRole('STAFF'),
         validate(createExamSchema),
         examController.createExamHandler
-    )
+    );
+
+    app.post(
+        '/api/admin/exams/:examId/assign',
+        verifyAccess,
+        requireRole('STAFF'),
+        validate(createExamSchema),
+        examController.assignExamHandler
+    );
+    
+    app.post(
+        '/api/admin/exams/:examId/publish',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.publishExamHandler
+    );
 }

@@ -1,6 +1,7 @@
 import z from "zod";
-import { createExamSchema } from "./exam.zod";
+import { createExamSchema, assignExamSchema } from "./exam.zod";
 import * as examRepo from "./exam.repo";
+import { ExamStatus, Prisma } from "@prisma/client";
 
 type CreateExamInput = z.infer<typeof createExamSchema>["body"];
 
@@ -25,3 +26,37 @@ export const createExam = async (input: CreateExamInput) => {
   const newExam = await examRepo.createExam(dataToSave);
   return newExam;
 };
+
+type AssignExamInput = z.infer<typeof assignExamSchema>["body"];
+
+export const assignExam = async (examId: string, input: AssignExamInput) => {
+    const dataToSave = {
+        cohortYear: input.cohortYear ?? null,
+        cohortDepartment: input.cohortDepartment ?? null,
+        cohortSection: input.cohortSection ?? null,
+        studentIds: input.studentIds ? (input.studentIds as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+    };
+    const assignment = await examRepo.createExamAssignment(examId, dataToSave);
+  return assignment;
+};
+
+export const pubishExam = async (examId: string) => {
+    const exam = await examRepo.findExamById(examId);
+
+    if(!exam) {
+        throw {
+            status: 404,
+            message: 'Exam not found',
+        };
+    }
+
+    if(exam.status !== ExamStatus.DRAFT) {
+        throw {
+            status: 400,
+            message: `Exam cannot be published. Current status: ${exam.status}`,
+        };
+    }
+
+    const updatedExam = await examRepo.updateExamStatus(examId, ExamStatus.PUBLISHED);
+    return updatedExam;
+}
