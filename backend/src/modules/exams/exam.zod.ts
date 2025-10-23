@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TimingMode, SectionLockPolicy } from '@prisma/client';
+import { TimingMode, SectionLockPolicy, ExamStatus } from '@prisma/client';
 
 export const createExamSchema = z.object({
   body: z.object({
@@ -26,7 +26,6 @@ export const createExamSchema = z.object({
   }),
 });
 
-
 export const assignExamSchema = z.object({
   body: z.object({
     cohortYear: z.number().int().min(1).max(6).optional(),
@@ -50,4 +49,26 @@ export const assignExamSchema = z.object({
     },
     { message: 'Cannot assign by both cohort and specific student IDs simultaneously' }
   ),
+})
+
+export const listExamsSchema = z.object({
+  query: z.object({
+    page:z.coerce
+    .number()
+    .int()
+    .min(1, 'Page must be at least 1')
+    .optional()
+    .default(1),
+    pageSize: z.coerce
+    .number()
+    .int()
+    .min(1, 'Page size must be at least 1')
+    .max(100, 'Page size cannot exceed 100')
+    .optional() 
+    .default(10),
+    status: z.enum(ExamStatus, {
+      message: 'Invalid exam status filter',
+    }).optional(),
+    q: z.string().optional()
+  })
 })

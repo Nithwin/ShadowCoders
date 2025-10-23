@@ -30,3 +30,41 @@ export const findExamById = (examId: string) => {
         where: { id: examId },
     });
 }
+
+export const listExams = async (params: {
+    status?: ExamStatus;
+    searchQuery?: string;
+    page: number;
+    pageSize: number;
+}) => {
+    const { status, searchQuery, page, pageSize } = params;
+
+    const skip = (page - 1) * pageSize;
+
+    const whereClause: Prisma.ExamWhereInput = {};
+    if (status) {
+        whereClause.status = status;
+    }
+    if (searchQuery) {
+        whereClause.OR = [
+            { title: { contains: searchQuery, mode: 'insensitive' } },
+            { description: { contains: searchQuery, mode: 'insensitive' } },
+        ];
+    }
+
+    const exams = await prisma.exam.findMany({
+        where: whereClause,
+        skip: skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+    });
+
+    const totalCount = await prisma.exam.count({
+        where: whereClause,
+    });
+
+    return {
+        exams,
+        totalCount,
+    };
+};

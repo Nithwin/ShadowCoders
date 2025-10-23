@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import * as examService from './exam.service';
+import { listExamsSchema } from './exam.zod';
+import { z } from 'zod';
 
 export const createExamHandler: RequestHandler = async (req,res,next) => {
     try{
@@ -39,6 +41,16 @@ export const publishExamHandler: RequestHandler = async (req,res,next) => {
         res.status(200).json(updatedExam);
     }
     catch(error){
+        next(error);
+    }
+}
+
+export const listExamsHandler: RequestHandler = async (req,res,next) => {
+    try{
+        const queryParams = req.query as unknown as z.infer<typeof listExamsSchema>['query'];
+        const result = await examService.listExams(queryParams);
+        res.status(200).json(result);
+    } catch(error){
         next(error);
     }
 }
