@@ -1,7 +1,7 @@
 // hash-password.js
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
-const plainTextPassword = ''; // The password you want to hash
+const plainTextPassword = 'shadowadmin'; // The password you want to hash
 
 bcrypt.hash(plainTextPassword, saltRounds, function(err, hash) {
     if (err) {

@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
+import { registerExamRoutes } from './modules/exams/exam.routes';
+import { errorHandler } from './middleware/error';
 
 export const createApp = () => {
     const app = express();
@@ -17,6 +19,9 @@ export const createApp = () => {
     })
 
     registerAuthRoutes(app);
+    registerExamRoutes(app);
+
+    app.use(errorHandler);
 
     return app;
 }

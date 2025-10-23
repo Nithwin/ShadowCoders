@@ -34,10 +34,12 @@ export const verifyAccess: RequestHandler = (req, res, next) => {
 export const requireRole = (role:Role): RequestHandler => {
     return (req, res, next) => {
         const user = req.user;
+        
+        
         if(!user || user.role != role){
             return next({status:403, message:'Forbidden'});
         }
-
+        
         next();
     };
 };
