@@ -1,11 +1,13 @@
-import z from "zod";
+import { z } from 'zod';
 import {
   createExamSchema,
   assignExamSchema,
   listExamsSchema,
+  studentListExamsSchema,
 } from "./exam.zod";
 import * as examRepo from "./exam.repo";
-import { ExamStatus, Prisma } from "@prisma/client";
+import { ExamStatus, Prisma, User } from "@prisma/client";
+import * as userRepo from '../auth/auth.repo'; 
 
 type CreateExamInput = z.infer<typeof createExamSchema>["body"];
 
@@ -35,6 +37,7 @@ type AssignExamInput = z.infer<typeof assignExamSchema>["body"];
 
 export const assignExam = async (examId: string, input: AssignExamInput) => {
   const dataToSave = {
+    assignToAll: input.assignToAll ?? false,
     cohortYear: input.cohortYear ?? null,
     cohortDepartment: input.cohortDepartment ?? null,
     cohortSection: input.cohortSection ?? null,
@@ -88,12 +91,55 @@ export const listExams = async (query: ListExamQuery) => {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return {
-    data:exams,
+    data: exams,
     meta: {
         page,
         pageSize,
         totalCount,
         totalPages,
     }
+  };
+};
+
+type StudentListExamsQuery = z.infer<typeof studentListExamsSchema>['query'];
+
+export const listExamsForStudent = async (studentId: string, query: StudentListExamsQuery) => {
+  const page = query.page ?? 1;
+  const pageSize = query.pageSize ?? 10;
+  const { filter, q } = query;
+
+  // 1. Fetch the student's details (needed for cohort matching)
+  const student = await userRepo.findStudentWithCohortInfo(studentId);
+  
+  if (!student) {
+    throw { status: 404, message: 'Student not found' };
   }
+
+  // 2. Call the repository to get exams and the total count
+  const { exams, totalCount } = await examRepo.listExamsForStudent({
+    student: {
+      id: student.id,
+      year: student.year, 
+      department: student.department,
+      section: student.section,
+    },
+    ...(filter && { filter }),
+    ...(q && { searchQuery: q }),
+    page,
+    pageSize,
+  });
+
+  // 3. Calculate pagination metadata
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // 4. Return the data and metadata
+  return {
+    data: exams,
+    meta: {
+      page,
+      pageSize,
+      totalCount,
+      totalPages,
+    },
+  };
 };

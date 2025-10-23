@@ -135,6 +135,7 @@ model ExamAssignment {
   id               String  @id @default(uuid())
   examId           String
   exam             Exam    @relation(fields: [examId], references: [id])
+  assignToAll      Boolean @default(false)
   cohortYear       Int?
   cohortDepartment String?
   cohortSection    String?

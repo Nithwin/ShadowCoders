@@ -58,3 +58,15 @@ export const findUserById = (id: string) => {
         }
     })
 }
+
+export const findStudentWithCohortInfo = (id: string) => {
+    return prisma.user.findUnique({
+        where: { id },
+        select: {
+            id: true,
+            year: true,
+            department: true,
+            section: true,
+        }
+    })
+}

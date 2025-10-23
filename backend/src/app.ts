@@ -6,6 +6,7 @@ import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
 import { errorHandler } from './middleware/error';
 import { registerQuestionRoutes } from './modules/questions/question.routes';
+import { registerAttemptRoutes } from './modules/attempts/attempt.routes';
 
 export const createApp = () => {
     const app = express();
@@ -22,6 +23,7 @@ export const createApp = () => {
     registerAuthRoutes(app);
     registerExamRoutes(app);
     registerQuestionRoutes(app);
+    registerAttemptRoutes(app);
 
     app.use(errorHandler);
 

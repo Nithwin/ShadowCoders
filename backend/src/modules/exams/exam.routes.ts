@@ -1,7 +1,7 @@
 import { Express } from "express";
 import { requireRole, verifyAccess } from "../../middleware/auth";
 import { validate } from "../../middleware/validate";
-import { createExamSchema, listExamsSchema } from "./exam.zod";
+import { assignExamSchema, createExamSchema, listExamsSchema, studentListExamsSchema } from "./exam.zod";
 import * as examController from "./exam.controller";
 
 
@@ -18,7 +18,7 @@ export const registerExamRoutes = (app: Express) => {
         '/api/admin/exams/:examId/assign',
         verifyAccess,
         requireRole('STAFF'),
-        validate(createExamSchema),
+        validate(assignExamSchema),
         examController.assignExamHandler
     );
     
@@ -35,5 +35,12 @@ export const registerExamRoutes = (app: Express) => {
         requireRole('STAFF'),
         validate(listExamsSchema),
         examController.listExamsHandler
+    )
+
+    app.get(
+        '/api/student/exams',
+        verifyAccess,
+        validate(studentListExamsSchema),
+        examController.listExamsForStudentHandler
     )
 }

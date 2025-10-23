@@ -28,26 +28,32 @@ export const createExamSchema = z.object({
 
 export const assignExamSchema = z.object({
   body: z.object({
-    cohortYear: z.number().int().min(1).max(6).optional(),
-    cohortDepartment: z.string().max(50).optional(),
-    cohortSection: z.string().max(10).optional(),
-    studentIds: z.array(z.string().cuid()).max(1000).optional(),
+  assignToAll: z.boolean().optional(),
+  cohortYear: z.number().int().min(1).max(6).optional(),
+  cohortDepartment: z.string().max(50).optional(),
+  cohortSection: z.string().max(10).optional(),
+  studentIds: z.array(z.string().cuid()).max(1000).optional(),
   })
   .refine(
     (data) => {
+      // Must provide assignToAll OR cohort OR studentIds
       const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
       const hasStudentIds = data.studentIds && data.studentIds.length > 0;
-      return hasCohort || hasStudentIds; // Must have one or the other
+      return data.assignToAll === true || hasCohort || hasStudentIds; 
     },
-    { message: 'Assignment requires either cohort details or a list of student IDs' }
+    { message: 'Assignment requires setting assignToAll, providing cohort details, or a list of student IDs' }
   )
   .refine(
     (data) => {
+      // Cannot use assignToAll WITH cohort/studentIds
       const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
       const hasStudentIds = data.studentIds && data.studentIds.length > 0;
-      return !(hasCohort && hasStudentIds); // Cannot have both
+      if (data.assignToAll === true) {
+        return !(hasCohort || hasStudentIds); // If assignToAll is true, others must be empty
+      }
+      return true; // Otherwise, this specific rule passes
     },
-    { message: 'Cannot assign by both cohort and specific student IDs simultaneously' }
+    { message: 'Cannot use assignToAll with cohort details or specific student IDs' }
   ),
 })
 
@@ -70,5 +76,27 @@ export const listExamsSchema = z.object({
       message: 'Invalid exam status filter',
     }).optional(),
     q: z.string().optional()
+  })
+})
+
+
+const studentExamFilter = z.enum(['UPCOMING', 'LIVE', 'COMPLETED']).optional();
+export const studentListExamsSchema = z.object({
+  query: z.object({
+    page: z.coerce
+    .number()
+    .int()
+    .min(1, 'Page number must be 1 or greater')
+      .optional()
+      .default(1),
+    pageSize: z.coerce
+      .number()
+      .int()
+      .min(1, 'Page size must be at least 1')
+      .max(100, 'Page size cannot exceed 100')
+      .optional()
+      .default(10),
+    filter: studentExamFilter,
+    q: z.string().optional(),
   })
 })
