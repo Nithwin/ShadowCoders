@@ -28,33 +28,31 @@ export const createExamSchema = z.object({
 
 export const assignExamSchema = z.object({
   body: z.object({
-  assignToAll: z.boolean().optional(),
-  cohortYear: z.number().int().min(1).max(6).optional(),
-  cohortDepartment: z.string().max(50).optional(),
-  cohortSection: z.string().max(10).optional(),
-  studentIds: z.array(z.string().cuid()).max(1000).optional(),
+    assignToAll: z.boolean().optional(),
+    cohortYear: z.number().int().min(1).max(6).optional(),
+    cohortDepartment: z.string().max(50).optional(),
+    cohortSection: z.string().max(10).optional(),
+    studentIds: z.array(z.string().cuid()).max(1000).optional(),
   })
-  .refine(
-    (data) => {
-      // Must provide assignToAll OR cohort OR studentIds
-      const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
-      const hasStudentIds = data.studentIds && data.studentIds.length > 0;
-      return data.assignToAll === true || hasCohort || hasStudentIds; 
-    },
-    { message: 'Assignment requires setting assignToAll, providing cohort details, or a list of student IDs' }
-  )
-  .refine(
-    (data) => {
-      // Cannot use assignToAll WITH cohort/studentIds
-      const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
-      const hasStudentIds = data.studentIds && data.studentIds.length > 0;
-      if (data.assignToAll === true) {
-        return !(hasCohort || hasStudentIds); // If assignToAll is true, others must be empty
-      }
-      return true; // Otherwise, this specific rule passes
-    },
-    { message: 'Cannot use assignToAll with cohort details or specific student IDs' }
-  ),
+    .refine(
+      (data) => {
+        const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
+        const hasStudentIds = data.studentIds && data.studentIds.length > 0;
+        return data.assignToAll === true || hasCohort || hasStudentIds;
+      },
+      { message: 'Assignment requires setting assignToAll, providing cohort details, or a list of student IDs' }
+    )
+    .refine(
+      (data) => {
+        const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
+        const hasStudentIds = data.studentIds && data.studentIds.length > 0;
+        if (data.assignToAll === true) {
+          return !(hasCohort || hasStudentIds);
+        }
+        return !(hasCohort && hasStudentIds); // Cannot have both cohort and studentIds
+      },
+      { message: 'Cannot use assignToAll with other assignment methods, or mix cohort with specific student IDs' }
+    ),
 })
 
 export const listExamsSchema = z.object({

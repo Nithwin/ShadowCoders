@@ -96,11 +96,15 @@ export const listExamsForStudent = async (params: {
         { description: { contains: searchQuery, mode: "insensitive" } },
       ],
     }),
-    // CRITICAL: Filter by assignment
+    // Filter by assignment
     assignments: {
       some: {
         OR: [
-          // Condition 1: Assigned via cohort match (only if student has cohort info)
+          // Condition 1: Assigned to all students
+          {
+            assignToAll: true,
+          },
+          // Condition 2: Assigned via cohort match (only if student has cohort info)
           ...(student.year && student.department && student.section
             ? [
                 {
@@ -110,7 +114,7 @@ export const listExamsForStudent = async (params: {
                 },
               ]
             : []),
-          // Condition 2: Assigned directly via student ID
+          // Condition 3: Assigned directly via student ID
           {
             studentIds: {
               path: ["$"],
