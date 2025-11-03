@@ -24,3 +24,17 @@ export const createSection = (
     },
   });
 };
+
+export const addQuestionsToSection = (
+  sectionId: string,
+  questionsData: Prisma.SectionQuestionCreateManyInput[]
+) => {
+  // Use createMany for efficient bulk insertion
+  return prisma.sectionQuestion.createMany({
+    data: questionsData.map((q) => ({
+      ...q,
+      sectionId: sectionId, // Ensure the sectionId is correctly set
+    })),
+    skipDuplicates: true, // In case a link already exists
+  });
+};

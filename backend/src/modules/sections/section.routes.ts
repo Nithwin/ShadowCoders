@@ -2,7 +2,7 @@ import { Express } from 'express';
 import { verifyAccess } from '../../middleware/auth';
 import { requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { createSectionSchema } from './section.zod';
+import { addQuestionsToSectionSchema, createSectionSchema } from './section.zod';
 import * as sectionController from './section.controller';
 
 export const registerSectionRoutes = (app: Express) => {
@@ -14,5 +14,13 @@ export const registerSectionRoutes = (app: Express) => {
     sectionController.createSectionHandler // 4. Run the controller
   );
 
+  app.post(
+    '/api/admin/sections/:sectionId/questions',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(addQuestionsToSectionSchema),
+    sectionController.addQuestionsToSectionHandler
+  );
   // We can add routes for GET, PUT, DELETE for sections here later
 };
+

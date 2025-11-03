@@ -13,3 +13,16 @@ export const createSectionSchema = z.object({
       .optional(),
   }),
 });
+
+export const addQuestionsToSectionSchema = z.object({
+  body: z.object({
+    questions: z
+      .array(
+        z.object({
+          questionId: z.string().cuid('Invalid question ID format'),
+          order: z.number().int().min(1, 'Order must be 1 or greater'),
+        })
+      )
+      .min(1, 'At least one question must be provided'),
+  }),
+});
