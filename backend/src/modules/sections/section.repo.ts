@@ -55,3 +55,24 @@ export const updateSection = (
     },
   });
 };
+
+export const deleteSection = (sectionId: string) => {
+  return prisma.$transaction(async (tx) => {
+    // 1. Delete all links from questions to this section
+    await tx.sectionQuestion.deleteMany({
+      where: { sectionId: sectionId },
+    });
+
+    // 2. Delete all student attempt progress for this section
+    await tx.attemptSection.deleteMany({
+      where: { sectionId: sectionId },
+    });
+
+    // 3. Finally, delete the section itself
+    const deletedSection = await tx.examSection.delete({
+      where: { id: sectionId },
+    });
+
+    return deletedSection;
+  });
+};

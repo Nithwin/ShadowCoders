@@ -122,3 +122,32 @@ export const updateSection = async (
 
   return updatedSection;
 };
+
+export const deleteSection = async (sectionId: string) => {
+  // 1. --- Validation: Check if the section exists ---
+  const existingSection = await prisma.examSection.findUnique({
+    where: { id: sectionId },
+    include: {
+      _count: {
+        select: { attempts: true }, // Count how many AttemptSection records exist
+      },
+    },
+  });
+
+  if (!existingSection) {
+    throw { status: 404, message: 'Section not found' };
+  }
+
+  // 2. --- Business Logic: Prevent deleting a section with student progress ---
+  if (existingSection._count.attempts > 0) {
+    throw {
+      status: 400,
+      message: 'Cannot delete a section that students have already started. Please delete the parent exam instead if no attempts exist.',
+    };
+  }
+
+  // 3. --- Call Repository (if safe) ---
+  await sectionRepo.deleteSection(sectionId);
+
+  return { message: 'Section and all related question links deleted successfully' };
+};

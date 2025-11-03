@@ -29,6 +29,14 @@ export const registerSectionRoutes = (app: Express) => {
     validate(updateSectionSchema),
     sectionController.updateSectionHandler
   );
+
+  app.delete(
+  '/api/admin/sections/:sectionId',
+  verifyAccess,
+  requireRole('STAFF'),
+  // No Zod validation needed for a simple delete
+  sectionController.deleteSectionHandler
+);
   // We can add routes for GET, PUT, DELETE for sections here later
 };
 

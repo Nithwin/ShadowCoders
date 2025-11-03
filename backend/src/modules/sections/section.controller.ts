@@ -66,3 +66,19 @@ export const updateSectionHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteSectionHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const sectionId = req.params.sectionId;
+
+    if (!sectionId) {
+      return next({ status: 400, message: 'Section ID parameter is required' });
+    }
+
+    const result = await sectionService.deleteSection(sectionId);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
