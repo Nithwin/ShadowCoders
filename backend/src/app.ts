@@ -7,6 +7,8 @@ import { registerExamRoutes } from './modules/exams/exam.routes';
 import { errorHandler } from './middleware/error';
 import { registerQuestionRoutes } from './modules/questions/question.routes';
 import { registerAttemptRoutes } from './modules/attempts/attempt.routes';
+import { registerEvaluationRoutes } from './modules/evaluations/evaluation.routes';
+import { registerRubricRoutes } from './modules/rubrics/rubric.routes';
 
 export const createApp = () => {
     const app = express();
@@ -24,6 +26,8 @@ export const createApp = () => {
     registerExamRoutes(app);
     registerQuestionRoutes(app);
     registerAttemptRoutes(app);
+    registerEvaluationRoutes(app);
+    registerRubricRoutes(app);
 
     app.use(errorHandler);
 
