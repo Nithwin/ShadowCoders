@@ -201,7 +201,7 @@ export const submitAttempt = async (studentId: string, attemptId: string) => {
               // You could add logic for negative marking here
             }
           } catch (e) {
-            console.error(`Failed to grade MCQ ${question.id}:`, e);
+            // Failed to auto-grade MCQ; skip and continue. Details: removed debug logging.
           }
           break;
 

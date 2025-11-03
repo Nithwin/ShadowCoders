@@ -71,7 +71,6 @@ export const generateQuestions = async (input: GenerateInput) => {
   try {
     parsedJson = JSON.parse(aiResponseString);
   } catch (error) {
-    console.error('AI returned invalid JSON:', aiResponseString);
     throw { status: 500, message: 'AI returned malformed data' };
   }
 
@@ -80,7 +79,6 @@ export const generateQuestions = async (input: GenerateInput) => {
   const validationResult = addQuestionsSchema.shape.body.safeParse(parsedJson);
 
   if (!validationResult.success) {
-    console.error('AI output failed our validation:', validationResult.error.flatten());
     throw { status: 500, message: 'AI output did not match expected question structure' };
   }
 

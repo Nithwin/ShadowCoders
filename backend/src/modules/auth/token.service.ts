@@ -47,9 +47,7 @@ export const generateAndSaveRefreshToken = async (userId: string): Promise<strin
   try {
     await authRepo.saveRefreshToken(userId, tokenHash, expiresAt);
   } catch (error) {
-    // This might fail if the tokenHash is not unique,
-    // though that is extremely unlikely with bcrypt.
-    console.error('Failed to save refresh token:', error);
+    // Failed to save refresh token to DB. Let caller handle the error.
     throw new Error('Could not save refresh token.');
   }
 

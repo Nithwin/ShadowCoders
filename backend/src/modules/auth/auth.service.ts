@@ -89,8 +89,7 @@ export const handleLogout = async (rawRefreshToken: string) => {
   const success = await tokenService.findAndRemoveRefreshToken(rawRefreshToken);
 
   if (!success) {
-    // This isn't a critical error, just means the token was already invalid
-    console.warn('Logout: Could not find matching refresh token to delete.');
+    // This isn't a critical error; token may already be invalid or removed.
   }
 
   return true;

@@ -79,7 +79,7 @@ export const createManualEvaluation = async (
     return transactionResult;
     
   } catch (error) {
-    console.error('Failed to create evaluation transaction:', error);
+    // Transaction failed while creating evaluation; let the caller handle this error
     throw { status: 500, message: 'Failed to save evaluation' };
   }
 };

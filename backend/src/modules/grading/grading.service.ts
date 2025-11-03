@@ -25,7 +25,6 @@ const executeCodeInJudge = async (
   const isSuccess = Math.random() > 0.3; // 70% chance of success
 
   if (isSuccess) {
-    console.log('Simulation: Code Accepted');
     return {
       status: 'SUCCEEDED',
       result: {
@@ -34,7 +33,7 @@ const executeCodeInJudge = async (
       },
     };
   } else {
-    console.log('Simulation: Code Failed');
+    // Simulation indicated failure
     return {
       status: 'FAILED',
       result: {

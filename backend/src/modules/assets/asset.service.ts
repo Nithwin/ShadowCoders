@@ -17,7 +17,6 @@ type CreateAssetInput = z.infer<typeof createAssetSchema>['body'];
  * (This part is unchanged)
  */
 const uploadFileToCloudStorage = async (file: Express.Multer.File) => {
-  console.log(`Simulating upload for file: ${file.originalname}...`);
   await new Promise(resolve => setTimeout(resolve, 100)); 
   
   const mockUrl = `/uploads/mock/${file.filename}-${Date.now()}`;
@@ -27,7 +26,6 @@ const uploadFileToCloudStorage = async (file: Express.Multer.File) => {
     sizeInBytes: file.size,
   };
   
-  console.log(`Simulated upload complete. URL: ${mockUrl}`);
   return { url: mockUrl, meta: meta };
 };
 // --- END OF MOCK UPLOAD FUNCTION ---
