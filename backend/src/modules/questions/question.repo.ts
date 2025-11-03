@@ -12,3 +12,34 @@ export const createManyQuestions = (examId:string, questionsData: Prisma.Questio
         ))
     })
 }
+
+export const getQuestionById = (questionId: string) => {
+  return prisma.question.findUnique({
+    where: { id: questionId },
+    select: {
+      id: true,
+      examId: true,
+      type: true,
+      prompt: true,
+      points: true,
+      // Include all fields a student might need
+      options: true,
+      starterCode: true,
+      languageHints: true,
+      wordLimit: true,
+      mediaAssetId: true,
+      passageAssetId: true,
+      maxDurationSec: true,
+      clozeTemplate: true,
+      
+      // Explicitly select fields needed for scrubbing
+      testcases: true, 
+      // We do NOT select correctOptionIds or blanks, 
+      // as the service layer will handle scrubbing.
+      // Or, we can select them and trust the service layer to remove them.
+      // Let's select them for now.
+      correctOptionIds: true,
+      blanks: true
+    },
+  });
+};

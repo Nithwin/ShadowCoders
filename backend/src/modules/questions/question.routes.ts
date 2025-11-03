@@ -12,4 +12,11 @@ export const registerQuestionRoutes = (app: Express) => {
         validate(addQuestionsSchema),
         questionController.addQuestionsHandler
     )
+
+    app.get(
+    '/api/student/attempts/:attemptId/question/:questionId',
+    verifyAccess, // 1. Ensures user is logged in (provides studentId)
+    // No validation needed for params, handled in controller/service
+    questionController.getQuestionHandler // 2. Run the controller
+  );
 }

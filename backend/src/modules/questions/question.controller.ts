@@ -18,3 +18,30 @@ export const addQuestionsHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getQuestionHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub;
+    const { attemptId, questionId } = req.params;
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+    if (!attemptId || !questionId) {
+      return next({ status: 400, message: 'Attempt ID and Question ID are required' });
+    }
+
+    // Call the service to get the scrubbed question
+    const scrubbedQuestion = await questionService.getQuestionForStudent(
+      studentId,
+      attemptId,
+      questionId
+    );
+
+    res.status(200).json(scrubbedQuestion);
+
+  } catch (error) {
+    // Pass errors (404, 403) to the central handler
+    next(error);
+  }
+};

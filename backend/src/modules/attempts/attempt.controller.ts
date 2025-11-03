@@ -55,6 +55,7 @@ export const submitAnswerHandler: RequestHandler = async (req, res, next) => {
   }
 };
 
+
 export const submitAttemptHandler: RequestHandler = async (req, res, next) => {
   try {
     const studentId = req.user?.sub; // From verifyAccess middleware
