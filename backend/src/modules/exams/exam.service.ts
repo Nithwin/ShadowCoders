@@ -4,6 +4,7 @@ import {
   assignExamSchema,
   listExamsSchema,
   studentListExamsSchema,
+  updateExamSchema,
 } from "./exam.zod";
 import * as examRepo from "./exam.repo";
 import { ExamStatus, Prisma, User } from "@prisma/client";
@@ -142,4 +143,53 @@ export const listExamsForStudent = async (studentId: string, query: StudentListE
       totalPages,
     },
   };
+};
+
+
+
+type UpdateExamInput = z.infer<typeof updateExamSchema>['body'];
+
+export const updateExam = async (examId: string, input: UpdateExamInput) => {
+  // 1. --- Validation ---
+  const existingExam = await examRepo.findExamById(examId);
+  if (!existingExam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+
+  // 2. --- Prepare Data for Repository ---
+  // Manually build the update object to satisfy exactOptionalPropertyTypes
+  const dataToUpdate: Prisma.ExamUpdateInput = {};
+
+  if (input.title !== undefined) {
+    dataToUpdate.title = input.title;
+  }
+  if (input.description !== undefined) {
+    dataToUpdate.description = input.description ?? null;
+  }
+  if (input.startAt !== undefined) {
+    dataToUpdate.startAt = new Date(input.startAt);
+  }
+  if (input.endAt !== undefined) {
+    dataToUpdate.endAt = new Date(input.endAt);
+  }
+  if (input.durationMins !== undefined) {
+    dataToUpdate.durationMins = input.durationMins;
+  }
+  if (input.timingMode !== undefined) {
+    dataToUpdate.timingMode = input.timingMode;
+  }
+  if (input.sectionLockPolicy !== undefined) {
+    dataToUpdate.sectionLockPolicy = input.sectionLockPolicy;
+  }
+  if (input.randomizeQuestions !== undefined) {
+    dataToUpdate.randomizeQuestions = input.randomizeQuestions;
+  }
+  if (input.negativeMarkPerWrong !== undefined) {
+    dataToUpdate.negativeMarkPerWrong = input.negativeMarkPerWrong ?? null;
+  }
+
+  // 3. --- Call Repository ---
+  const updatedExam = await examRepo.updateExam(examId, dataToUpdate);
+
+  return updatedExam;
 };

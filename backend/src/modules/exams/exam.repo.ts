@@ -154,3 +154,24 @@ export const listExamsForStudent = async (params: {
 
   return { exams, totalCount };
 };
+
+export const updateExam = (
+  examId: string,
+  data: Prisma.ExamUpdateInput // Use the generic update input type
+) => {
+  return prisma.exam.update({
+    where: { id: examId },
+    data: data,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startAt: true,
+      endAt: true,
+      durationMins: true,
+      timingMode: true,
+      sectionLockPolicy: true,
+      status: true,
+    },
+  });
+};
