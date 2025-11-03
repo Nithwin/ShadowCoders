@@ -82,3 +82,29 @@ export const deleteSectionHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const removeQuestionFromSectionHandler: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { sectionId, questionId } = req.params;
+
+    if (!sectionId || !questionId) {
+      return next({
+        status: 400,
+        message: 'Section ID and Question ID are required',
+      });
+    }
+
+    const result = await sectionService.removeQuestionFromSection(
+      sectionId,
+      questionId
+    );
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

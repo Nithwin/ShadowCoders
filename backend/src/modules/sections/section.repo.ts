@@ -76,3 +76,17 @@ export const deleteSection = (sectionId: string) => {
     return deletedSection;
   });
 };
+
+export const removeQuestionFromSection = (
+  sectionId: string,
+  questionId: string
+) => {
+  return prisma.sectionQuestion.delete({
+    where: {
+      sectionId_questionId: { // Use the @@unique constraint
+        sectionId: sectionId,
+        questionId: questionId,
+      },
+    },
+  });
+};

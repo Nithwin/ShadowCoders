@@ -151,3 +151,23 @@ export const deleteSection = async (sectionId: string) => {
 
   return { message: 'Section and all related question links deleted successfully' };
 };
+export const removeQuestionFromSection = async (
+  sectionId: string,
+  questionId: string
+) => {
+  try {
+    // Call the repository to delete the link
+    await sectionRepo.removeQuestionFromSection(sectionId, questionId);
+    return { message: 'Question removed from section successfully' };
+  } catch (error) {
+    // Handle cases where the link doesn't exist (P2025: Record not found)
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      throw { status: 404, message: 'Link between section and question not found' };
+    }
+    // Re-throw other errors
+    throw error;
+  }
+};
