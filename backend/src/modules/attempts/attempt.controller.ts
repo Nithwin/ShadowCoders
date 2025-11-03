@@ -54,3 +54,29 @@ export const submitAnswerHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+
+
+export const submitAttemptHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub; // From verifyAccess middleware
+    const attemptId = req.params.attemptId;   // From URL parameter
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+    if (!attemptId) {
+      return next({ status: 400, message: 'Attempt ID parameter is required' });
+    }
+
+    // Call the service to validate, grade, and submit the attempt
+    const submittedAttempt = await attemptService.submitAttempt(studentId, attemptId);
+
+    // Send back the details of the submitted attempt (score, status, etc.)
+    res.status(200).json(submittedAttempt);
+
+  } catch (error) {
+    // Pass errors (like 'Attempt not in progress') to the central handler
+    next(error);
+  }
+};

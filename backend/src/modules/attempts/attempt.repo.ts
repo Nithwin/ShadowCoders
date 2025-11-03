@@ -1,4 +1,4 @@
-import { Prisma, QType } from "@prisma/client";
+import { AttemptStatus, Prisma, QType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 
 
@@ -54,3 +54,56 @@ export const upsertResponse = async (data: {
     });
   }
 };
+
+export const getAttemptForSubmission = (attemptId: string) => {
+  return prisma.attempt.findUnique({
+    where:{id: attemptId},
+    select : {
+      id:true,
+      studentId:true,
+      status:true,
+      examId:true,
+      responses : {
+        select: {
+          questionId:true,
+          answer:true,
+          type:true,
+        },
+      },
+      exam: {
+        select: {
+          questions: {
+            select: {
+              id: true,
+              type: true,
+              points: true,
+              correctOptionIds: true,
+            },
+          },
+        },
+      },
+    }
+  })
+}
+
+export const updateAttemptOnSubmit = (
+  attemptId: string,
+  score: number,
+  maxScore: number
+) => {
+  return prisma.attempt.update({
+    where: { id: attemptId },
+    data: {
+      status: AttemptStatus.SUBMITTED,
+      submittedAt: new Date(),
+      score: score,
+      maxScore: maxScore,
+    },
+    select: {
+      id: true,
+      status: true,
+      score: true,
+      submittedAt: true,
+    },
+  });
+}
