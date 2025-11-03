@@ -67,3 +67,19 @@ export const updateQuestionHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteQuestionHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const questionId = req.params.questionId;
+
+    if (!questionId) {
+      return next({ status: 400, message: 'Question ID parameter is required' });
+    }
+
+    const result = await questionService.deleteQuestion(questionId);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

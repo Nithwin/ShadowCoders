@@ -154,3 +154,33 @@ export const updateQuestion = async (
 
   return updatedQuestion;
 };
+
+export const deleteQuestion = async (questionId: string) => {
+  // 1. --- Validation: Check if the question exists AND has responses ---
+  const existingQuestion = await prisma.question.findUnique({
+    where: { id: questionId },
+    include: {
+      _count: {
+        select: { responses: true }, // Count how many responses it has
+      },
+    },
+  });
+
+  if (!existingQuestion) {
+    throw { status: 404, message: 'Question not found' };
+  }
+
+  // 2. --- Business Logic: PREVENT DELETING A QUESTION WITH SUBMISSIONS ---
+  if (existingQuestion._count.responses > 0) {
+    throw {
+      status: 400,
+      message: 'Cannot delete a question that has already been answered by students.',
+    };
+  }
+
+  // 3. --- Call Repository (if safe) ---
+  // If there are no responses, it's safe to delete the question and its links
+  await questionRepo.deleteQuestion(questionId);
+
+  return { message: 'Question deleted successfully' };
+};

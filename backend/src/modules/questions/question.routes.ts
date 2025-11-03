@@ -27,4 +27,12 @@ export const registerQuestionRoutes = (app: Express) => {
     validate(updateQuestionSchema),
     questionController.updateQuestionHandler
   );
+
+  app.delete(
+    '/api/admin/questions/:questionId',
+    verifyAccess,
+    requireRole('STAFF'),
+    // No Zod validation needed for a simple delete
+    questionController.deleteQuestionHandler
+  );
 }
