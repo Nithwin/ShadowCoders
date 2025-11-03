@@ -177,3 +177,46 @@ export const getAttemptDetails = (attemptId: string) => {
     },
   });
 };
+
+export const getAttemptResults = (attemptId: string) => {
+  return prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: {
+      id: true,
+      studentId: true, // For verification
+      status: true,
+      score: true,
+      maxScore: true,
+      submittedAt: true,
+      exam: {
+        select: {
+          title: true,
+        },
+      },
+      // Get all responses
+      responses: {
+        select: {
+          questionId: true,
+          answer: true,
+          earnedPoints: true,
+          feedback: true,
+          verdict: true,
+          // Get all evaluations (from AI or Staff) for each response
+          evaluations: {
+            select: {
+              kind: true,
+              score: true,
+              comments: true,
+              breakdown: true,
+              isFinal: true,
+            },
+            where: { isFinal: true }, // Only fetch the final, published evaluation
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+        },
+      },
+    },
+  });
+};

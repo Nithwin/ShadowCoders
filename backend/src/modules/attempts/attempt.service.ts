@@ -286,3 +286,31 @@ export const getQuestionById = (questionId: string) => {
     },
   });
 };
+
+export const getAttemptResults = async (
+  studentId: string,
+  attemptId: string
+) => {
+  // 1. Fetch all result data from the repository
+  const attemptResults = await attemptRepo.getAttemptResults(attemptId);
+
+  // 2. --- Validation Checks ---
+  if (!attemptResults) {
+    throw { status: 404, message: 'Attempt not found' };
+  }
+
+  // 3. --- Security Check ---
+  // Ensure the logged-in student is the one who owns this attempt
+  if (attemptResults.studentId !== studentId) {
+    throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
+  }
+
+  // 4. --- Business Logic Check ---
+  // Ensure the student can only see results for a submitted exam
+  if (attemptResults.status !== AttemptStatus.SUBMITTED) {
+    throw { status: 403, message: 'Forbidden: Results are not available for this attempt yet' };
+  }
+
+  // 5. Return the full results
+  return attemptResults;
+};
