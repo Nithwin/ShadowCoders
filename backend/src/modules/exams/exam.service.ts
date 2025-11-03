@@ -9,6 +9,7 @@ import {
 import * as examRepo from "./exam.repo";
 import { ExamStatus, Prisma, User } from "@prisma/client";
 import * as userRepo from '../auth/auth.repo'; 
+import { prisma } from '../../lib/prisma';
 
 type CreateExamInput = z.infer<typeof createExamSchema>["body"];
 
@@ -192,4 +193,34 @@ export const updateExam = async (examId: string, input: UpdateExamInput) => {
   const updatedExam = await examRepo.updateExam(examId, dataToUpdate);
 
   return updatedExam;
+};
+
+export const deleteExam = async (examId: string) => {
+  // 1. --- Validation: Check if the exam exists AND has attempts ---
+  const existingExam = await prisma.exam.findUnique({
+    where: { id: examId },
+    include: {
+      _count: {
+        select: { attempts: true }, // Count how many attempts it has
+      },
+    },
+  });
+
+  if (!existingExam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+
+  // 2. --- Business Logic: PREVENT DELETING EXAM WITH SUBMISSIONS ---
+  if (existingExam._count.attempts > 0) {
+    throw {
+      status: 400,
+      message: 'Cannot delete an exam that has student attempts. Please archive it instead.',
+    };
+  }
+
+  // 3. --- Call Repository (if safe) ---
+  // If there are no attempts, it's safe to delete the exam and its children.
+  await examRepo.deleteExamAndChildren(examId);
+
+  return { message: 'Exam and all related questions/sections deleted successfully' };
 };

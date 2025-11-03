@@ -91,3 +91,20 @@ export const updateExamHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteExamHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+
+    if (!examId) {
+      return next({ status: 400, message: 'Exam ID parameter is required' });
+    }
+
+    const result = await examService.deleteExam(examId);
+
+    // Send a 200 OK or 204 No Content response
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

@@ -58,4 +58,12 @@ export const registerExamRoutes = (app: Express) => {
     validate(studentListExamsSchema),
     examController.listExamsForStudentHandler
   );
+
+  app.delete(
+    '/api/admin/exams/:examId',
+    verifyAccess,
+    requireRole('STAFF'),
+    // No Zod validation needed for a simple delete
+    examController.deleteExamHandler
+  );
 }

@@ -175,3 +175,37 @@ export const updateExam = (
     },
   });
 };
+
+export const deleteExamAndChildren = (examId: string) => {
+  return prisma.$transaction(async (tx) => {
+    // 1. Delete links from sections to questions
+    await tx.sectionQuestion.deleteMany({
+      where: { section: { examId: examId } },
+    });
+
+    // 2. Delete all questions for this exam
+    await tx.question.deleteMany({
+      where: { examId: examId },
+    });
+
+    // 3. Delete all sections for this exam
+    await tx.examSection.deleteMany({
+      where: { examId: examId },
+    });
+
+    // 4. Delete all assignments for this exam
+    await tx.examAssignment.deleteMany({
+      where: { examId: examId },
+    });
+    
+    // NOTE: We assume attempts are checked in the service.
+    // If an attempt exists, this will fail.
+
+    // 5. Finally, delete the exam itself
+    const deletedExam = await tx.exam.delete({
+      where: { id: examId },
+    });
+
+    return deletedExam;
+  });
+};
