@@ -9,6 +9,8 @@ import { registerQuestionRoutes } from './modules/questions/question.routes';
 import { registerAttemptRoutes } from './modules/attempts/attempt.routes';
 import { registerEvaluationRoutes } from './modules/evaluations/evaluation.routes';
 import { registerRubricRoutes } from './modules/rubrics/rubric.routes';
+import { registerAssetRoutes } from './modules/assets/asset.routes';
+import { registerSectionRoutes } from './modules/sections/section.routes';
 
 export const createApp = () => {
     const app = express();
@@ -28,7 +30,8 @@ export const createApp = () => {
     registerAttemptRoutes(app);
     registerEvaluationRoutes(app);
     registerRubricRoutes(app);
-
+    registerAssetRoutes(app);
+    registerSectionRoutes(app);
     app.use(errorHandler);
 
     return app;
