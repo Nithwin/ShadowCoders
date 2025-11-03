@@ -61,3 +61,53 @@ export const addQuestionsSchema = z.object({
       .min(1, 'At least one question must be provided'),
   }),
 });
+
+const mcqUpdateSchema = z.object({
+  type: z.literal(QType.MCQ).optional(), // Type change isn't really supported, but good for structure
+  prompt: z.string().min(1).optional(),
+  options: z.array(z.object({ id: z.string(), text: z.string() })).min(2).optional(),
+  correctOptionIds: z.array(z.string()).min(1).optional(),
+});
+
+const codingUpdateSchema = z.object({
+  type: z.literal(QType.CODING).optional(),
+  prompt: z.string().min(1).optional(),
+  starterCode: z.string().optional(),
+  testcases: z.array(z.object({
+    input: z.string(),
+    expectedOutput: z.string(),
+    isHidden: z.boolean().default(false),
+    timeoutMs: z.number().int().positive().default(2000),
+  })).min(1).optional(),
+});
+
+const essayUpdateSchema = z.object({
+  type: z.literal(QType.ESSAY).optional(),
+  prompt: z.string().min(1).optional(),
+  wordLimit: z.number().int().positive().optional(),
+});
+
+// --- existing addQuestionsSchema ---
+
+// --- Add schema for updating a single question ---
+export const updateQuestionSchema = z.object({
+  body: z.object({
+    // Common fields
+    order: z.number().int().min(1).optional(),
+    points: z.number().positive().optional(),
+    
+    // Type-specific fields
+    // We can't use discriminatedUnion because we don't know the type beforehand.
+    // Instead, we'll just validate all possible optional fields.
+    // The service layer will need to ensure only relevant fields are updated.
+    prompt: z.string().min(1).optional(),
+    options: z.array(z.object({ id: z.string(), text: z.string() })).min(2).optional(),
+    correctOptionIds: z.array(z.string()).min(1).optional(),
+    starterCode: z.string().optional(),
+    testcases: z.array(z.any()).min(1).optional(), // Simplified for update
+    wordLimit: z.number().int().positive().optional(),
+    // Add other fields (mediaAssetId, passageAssetId, etc.) as optional
+    mediaAssetId: z.string().cuid().optional(),
+    passageAssetId: z.string().cuid().optional(),
+  }),
+});

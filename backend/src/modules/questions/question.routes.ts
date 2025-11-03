@@ -1,6 +1,6 @@
 import { requireRole, verifyAccess } from "../../middleware/auth"
 import { validate } from "../../middleware/validate"
-import { addQuestionsSchema } from "./question.zod"
+import { addQuestionsSchema, updateQuestionSchema } from "./question.zod"
 import * as questionController from './question.controller';
 import { Express } from "express";
 
@@ -18,5 +18,13 @@ export const registerQuestionRoutes = (app: Express) => {
     verifyAccess, // 1. Ensures user is logged in (provides studentId)
     // No validation needed for params, handled in controller/service
     questionController.getQuestionHandler // 2. Run the controller
+  );
+
+  app.put(
+    '/api/admin/questions/:questionId',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(updateQuestionSchema),
+    questionController.updateQuestionHandler
   );
 }

@@ -1,5 +1,7 @@
 import { RequestHandler } from 'express';
 import * as questionService from './question.service';
+import { updateQuestionSchema } from './question.zod';
+import z from 'zod';
 
 export const addQuestionsHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -42,6 +44,26 @@ export const getQuestionHandler: RequestHandler = async (req, res, next) => {
 
   } catch (error) {
     // Pass errors (404, 403) to the central handler
+    next(error);
+  }
+};
+
+export const updateQuestionHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const questionId = req.params.questionId;
+    const updateData = req.body as z.infer<typeof updateQuestionSchema>['body'];
+
+    if (!questionId) {
+      return next({ status: 400, message: 'Question ID parameter is required' });
+    }
+
+    const updatedQuestion = await questionService.updateQuestion(
+      questionId,
+      updateData
+    );
+
+    res.status(200).json(updatedQuestion);
+  } catch (error) {
     next(error);
   }
 };

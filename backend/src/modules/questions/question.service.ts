@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { addQuestionsSchema } from './question.zod';
+import { addQuestionsSchema, updateQuestionSchema } from './question.zod';
 import * as questionRepo from './question.repo';
 import { AttemptStatus, Prisma, QType } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
@@ -61,7 +61,7 @@ export const getQuestionForStudent = async (
   }
 
   // 2. --- Fetch and Validate Question ---
-  const question = await questionRepo.getQuestionById(questionId);
+const question = await questionRepo.getQuestionById(questionId);
 
   if (!question) {
     throw { status: 404, message: 'Question not found' };
@@ -92,4 +92,65 @@ export const getQuestionForStudent = async (
   }
 
   return scrubbedQuestion;
+};
+
+type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>['body'];
+
+export const updateQuestion = async (
+  questionId: string,
+  input: UpdateQuestionInput
+) => {
+  // 1. --- Validation: Check if the question exists ---
+  const existingQuestion = await prisma.question.findUnique({
+    where: { id: questionId },
+    select: { type: true }, // We need its type
+  });
+
+  if (!existingQuestion) {
+    throw { status: 404, message: 'Question not found' };
+  }
+
+  // 2. --- Prepare Data (Type-Safe Update) ---
+  // Manually build the update object to ensure we only update
+  // fields relevant to this question's type.
+  const dataToUpdate: Prisma.QuestionUpdateInput = {};
+
+  // Add common fields if they are provided
+  if (input.order !== undefined) dataToUpdate.order = input.order;
+  if (input.points !== undefined) dataToUpdate.points = input.points;
+  if (input.prompt !== undefined) dataToUpdate.prompt = input.prompt;
+
+  // Add type-specific fields
+  switch (existingQuestion.type) {
+    case QType.MCQ:
+      if (input.options !== undefined)
+        dataToUpdate.options = input.options as Prisma.JsonArray;
+      if (input.correctOptionIds !== undefined)
+        dataToUpdate.correctOptionIds = input.correctOptionIds as Prisma.JsonArray;
+      break;
+    case QType.CODING:
+      if (input.starterCode !== undefined)
+        dataToUpdate.starterCode = input.starterCode ?? null;
+      if (input.testcases !== undefined)
+        dataToUpdate.testcases = input.testcases as Prisma.JsonArray;
+      break;
+    case QType.ESSAY:
+      if (input.wordLimit !== undefined)
+        dataToUpdate.wordLimit = input.wordLimit ?? null;
+      break;
+    // Add cases for SPEAKING, LISTENING, FILL, READING here...
+  }
+  
+  // Add other optional fields
+  if (input.mediaAssetId !== undefined) dataToUpdate.mediaAsset = { connect: { id: input.mediaAssetId } };
+  if (input.passageAssetId !== undefined) dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
+
+
+  // 3. --- Call Repository ---
+  const updatedQuestion = await questionRepo.updateQuestion(
+    questionId,
+    dataToUpdate
+  );
+
+  return updatedQuestion;
 };

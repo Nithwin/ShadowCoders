@@ -43,3 +43,13 @@ export const getQuestionById = (questionId: string) => {
     },
   });
 };
+
+export const updateQuestion = (
+  questionId: string,
+  data: Prisma.QuestionUpdateInput
+) => {
+  return prisma.question.update({
+    where: { id: questionId },
+    data: data,
+  });
+};
