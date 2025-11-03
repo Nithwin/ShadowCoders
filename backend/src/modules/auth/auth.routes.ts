@@ -10,4 +10,6 @@ export const registerAuthRoutes = (app:Express) => {
     app.get('/api/me', verifyAccess, authController.getMeHandler);
 
     app.post('/api/auth/refresh', authController.refreshAccessTokenHandler);
+    
+    app.post('/api/auth/logout', authController.logoutHandler);
 }

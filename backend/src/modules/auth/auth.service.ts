@@ -3,7 +3,9 @@ import * as authRepo from './auth.repo';
 import * as tokenService from './token.service';
 import { UserPayLoad } from './token.service'; // Import payload
 import bcrypt from 'bcrypt';
-
+import { prisma } from '../../lib/prisma';
+import jwt from 'jsonwebtoken'; // <-- This is the package with .verify()
+import { env } from '../../config/env'; // <-- This is your config file
 // --- (Your GoogleProfile interface) ---
 interface GoogleProfile {
   email: string;
@@ -80,4 +82,16 @@ export const handleRefreshToken = async (
   const newAccessToken = tokenService.generateAccessToken(payload);
 
   return newAccessToken;
+};
+
+export const handleLogout = async (rawRefreshToken: string) => {
+  // Call the token service to find and remove the token from the DB
+  const success = await tokenService.findAndRemoveRefreshToken(rawRefreshToken);
+
+  if (!success) {
+    // This isn't a critical error, just means the token was already invalid
+    console.warn('Logout: Could not find matching refresh token to delete.');
+  }
+
+  return true;
 };

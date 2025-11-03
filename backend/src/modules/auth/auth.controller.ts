@@ -63,3 +63,26 @@ export const refreshAccessTokenHandler: RequestHandler = async (req, res, next) 
     next(error);
   }
 };
+
+export const logoutHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (refreshToken) {
+      // 1. Tell the service to delete the token from the database
+      await authService.handleLogout(refreshToken);
+    }
+
+    // 2. Clear the httpOnly cookie from the browser
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Match your login settings
+      // Add 'sameSite' and 'path' if you used them when setting the cookie
+    });
+
+    // 3. Send a success response
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+};

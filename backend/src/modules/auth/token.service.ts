@@ -106,3 +106,36 @@ export const verifyAndFindUser = async (
   const user = await authRepo.findUserById(validTokenRecord.userId);
   return user;
 };
+
+export const findAndRemoveRefreshToken = async (
+  rawToken: string
+): Promise<boolean> => {
+  let payload: UserPayLoad;
+  try {
+    payload = jwt.verify(rawToken, env.JWT_SECRET) as UserPayLoad;
+  } catch (error) {
+    return false; // Invalid token, nothing to remove
+  }
+
+  // Find the matching token hash in the DB
+  const userTokens = await prisma.refreshToken.findMany({
+    where: { userId: payload.sub },
+  });
+
+  let validTokenHash: string | null = null;
+  for (const record of userTokens) {
+    const isMatch = await bcrypt.compare(rawToken, record.tokenHash);
+    if (isMatch) {
+      validTokenHash = record.tokenHash;
+      break;
+    }
+  }
+
+  if (validTokenHash) {
+    // Delete the token from the DB
+    await authRepo.deleteRefreshToken(validTokenHash);
+    return true;
+  }
+
+  return false;
+};
