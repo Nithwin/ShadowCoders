@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import * as sectionService from './section.service';
 import { z } from 'zod';
-import { addQuestionsToSectionSchema, createSectionSchema } from './section.zod';
+import { addQuestionsToSectionSchema, createSectionSchema, updateSectionSchema } from './section.zod';
 
 export const createSectionHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -42,6 +42,26 @@ export const addQuestionsToSectionHandler: RequestHandler = async (
     const result = await sectionService.addQuestionsToSection(sectionId, questions);
 
     res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSectionHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const sectionId = req.params.sectionId;
+    const updateData = req.body as z.infer<typeof updateSectionSchema>['body'];
+
+    if (!sectionId) {
+      return next({ status: 400, message: 'Section ID parameter is required' });
+    }
+
+    const updatedSection = await sectionService.updateSection(
+      sectionId,
+      updateData
+    );
+
+    res.status(200).json(updatedSection);
   } catch (error) {
     next(error);
   }

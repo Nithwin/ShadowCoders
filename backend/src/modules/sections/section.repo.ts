@@ -38,3 +38,20 @@ export const addQuestionsToSection = (
     skipDuplicates: true, // In case a link already exists
   });
 };
+
+export const updateSection = (
+  sectionId: string,
+  data: Prisma.ExamSectionUpdateInput
+) => {
+  return prisma.examSection.update({
+    where: { id: sectionId },
+    data: data,
+    select: {
+      id: true,
+      title: true,
+      order: true,
+      description: true,
+      durationMins: true,
+    },
+  });
+};

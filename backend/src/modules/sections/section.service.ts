@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { addQuestionsToSectionSchema, createSectionSchema } from './section.zod';
+import { addQuestionsToSectionSchema, createSectionSchema, updateSectionSchema } from './section.zod';
 import * as sectionRepo from './section.repo';
 // We need to import the exam repo to check if the exam exists
 import * as examRepo from '../exams/exam.repo'; 
@@ -80,4 +80,45 @@ export const addQuestionsToSection = async (
   await sectionRepo.addQuestionsToSection(sectionId, dataToSave);
 
   return { message: 'Questions added to section successfully' };
+};
+
+type UpdateSectionInput = z.infer<typeof updateSectionSchema>['body'];
+
+export const updateSection = async (
+  sectionId: string,
+  input: UpdateSectionInput
+) => {
+  // 1. --- Validation: Check if the section exists ---
+  // We can use prisma directly for this simple check
+  const existingSection = await prisma.examSection.findUnique({
+    where: { id: sectionId },
+    select: { id: true },
+  });
+
+  if (!existingSection) {
+    throw { status: 404, message: 'Section not found' };
+  }
+
+  // 2. --- Prepare Data for Repository ---
+  // Manually build the update object to satisfy exactOptionalPropertyTypes
+  // and handle converting undefined to null for optional fields.
+  const dataToUpdate: Prisma.ExamSectionUpdateInput = {};
+  
+  if (input.title !== undefined) {
+    dataToUpdate.title = input.title;
+  }
+  if (input.order !== undefined) {
+    dataToUpdate.order = input.order;
+  }
+  if (input.description !== undefined) {
+    dataToUpdate.description = input.description ?? null;
+  }
+  if (input.durationMins !== undefined) {
+    dataToUpdate.durationMins = input.durationMins ?? null;
+  }
+
+  // 3. --- Call Repository ---
+  const updatedSection = await sectionRepo.updateSection(sectionId, dataToUpdate);
+
+  return updatedSection;
 };
