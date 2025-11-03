@@ -220,3 +220,53 @@ export const getAttemptResults = (attemptId: string) => {
     },
   });
 };
+
+export const listAttemptsForExam = async (params: {
+  examId: string;
+  page: number;
+  pageSize: number;
+}) => {
+  const { examId, page, pageSize } = params;
+
+  // Calculate skip for pagination
+  const skip = (page - 1) * pageSize;
+
+  // 1. Fetch the paginated list of attempts
+  const attempts = await prisma.attempt.findMany({
+    where: {
+      examId: examId,
+      // You could add filters here later, e.g., status: AttemptStatus.SUBMITTED
+    },
+    select: {
+      id: true,
+      status: true,
+      score: true,
+      maxScore: true,
+      startedAt: true,
+      submittedAt: true,
+      student: {
+        // Include relevant student info for the admin list
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          reg_no: true,
+        },
+      },
+    },
+    orderBy: {
+      submittedAt: 'desc', // Show most recently submitted first
+    },
+    skip: skip,
+    take: pageSize,
+  });
+
+  // 2. Fetch the total count of attempts for that exam
+  const totalCount = await prisma.attempt.count({
+    where: {
+      examId: examId,
+    },
+  });
+
+  return { attempts, totalCount };
+};

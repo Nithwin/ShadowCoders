@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import * as attemptService from './attempt.service';
-import { submitAnswerSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema } from './attempt.zod';
 import z from 'zod';
 
 export const startAttemptHandler: RequestHandler = async (req, res, next) => {
@@ -124,6 +124,26 @@ export const getAttemptResultsHandler: RequestHandler = async (req, res, next) =
 
   } catch (error) {
     // Pass errors (404, 403) to the central handler
+    next(error);
+  }
+};
+
+export const listAttemptsForExamHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    
+    if (!examId) {
+      return next({ status: 400, message: 'Exam ID parameter is required' });
+    }
+
+    // Get validated query params
+    const queryParams = req.query as unknown as z.infer<typeof listAttemptsSchema>['query'];
+    
+    // Call the ATTEMPT service to get the data
+    const result = await attemptService.listAttemptsForExam(examId, queryParams);
+
+    res.status(200).json(result);
+  } catch (error) {
     next(error);
   }
 };

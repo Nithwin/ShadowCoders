@@ -1,8 +1,8 @@
 import { Express } from 'express';
-import { verifyAccess } from '../../middleware/auth';
+import { requireRole, verifyAccess } from '../../middleware/auth';
 import * as attemptController from './attempt.controller';
 import { validate } from '../../middleware/validate';
-import { submitAnswerSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema } from './attempt.zod';
 
 export const registerAttemptRoutes = (app: Express) => {
   app.post(
@@ -37,6 +37,14 @@ export const registerAttemptRoutes = (app: Express) => {
     verifyAccess, // 1. Ensures user is logged in (provides studentId)
     // No validation middleware needed (ID is in URL)
     attemptController.getAttemptResultsHandler // 2. Run the controller
+  );
+
+  app.get(
+    '/api/admin/attempts/exam/:examId', // The new admin route
+    verifyAccess,
+    requireRole('STAFF'),        // 1. Must be logged in
+    validate(listAttemptsSchema), // 2. Must be staff
+    attemptController.listAttemptsForExamHandler // 3. Run the controller
   );
   // Add more attempt routes later (e.g., submit answer, submit attempt)
 };

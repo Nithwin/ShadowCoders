@@ -3,7 +3,7 @@ import { Prisma, ExamStatus, AttemptStatus, QType } from "@prisma/client";
 import { shuffleArray } from "../../lib/utils";
 import { prisma } from "../../lib/prisma";
 import z from "zod";
-import { submitAnswerSchema } from "./attempt.zod";
+import { listAttemptsSchema, submitAnswerSchema } from "./attempt.zod";
 import * as userRepo from "../auth/auth.repo";
 
 export const startAttempt = async (studentId: string, examId: string) => {
@@ -313,4 +313,34 @@ export const getAttemptResults = async (
 
   // 5. Return the full results
   return attemptResults;
+};
+
+type ListAttemptsQuery = z.infer<typeof listAttemptsSchema>['query'];
+
+export const listAttemptsForExam = async (
+  examId: string,
+  query: ListAttemptsQuery
+) => {
+  const { page, pageSize } = query;
+
+  // 1. Call the repository to get attempts and the total count
+  const { attempts, totalCount } = await attemptRepo.listAttemptsForExam({
+    examId,
+    page,
+    pageSize,
+  });
+
+  // 2. Calculate pagination metadata
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // 3. Return the data and metadata
+  return {
+    data: attempts,
+    meta: {
+      page,
+      pageSize,
+      totalCount,
+      totalPages,
+    },
+  };
 };
