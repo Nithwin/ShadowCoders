@@ -107,3 +107,73 @@ export const updateAttemptOnSubmit = (
     },
   });
 }
+
+export const getAttemptDetails = (attemptId: string) => {
+  return prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: {
+      id: true,
+      studentId: true, // For verification
+      status: true,
+      orderMap: true, // For non-sectioned, randomized exams
+      exam: {
+        select: {
+          id: true,
+          title: true,
+          timingMode: true,
+          durationMins: true,
+          sectionLockPolicy: true,
+          // Get the list of all questions in the exam
+          questions: {
+            select: {
+              id: true,
+              order: true,
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
+          // Get the section structure
+          sections: {
+            select: {
+              id: true,
+              title: true,
+              order: true,
+              durationMins: true,
+              // Get the questions within each section
+              sectionQuestions: {
+                select: {
+                  questionId: true,
+                  order: true,
+                },
+                orderBy: {
+                  order: 'asc',
+                },
+              },
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
+        },
+      },
+      // Get all responses the student has already made for this attempt
+      responses: {
+        select: {
+          questionId: true,
+          answer: true,
+          // You could add 'verdict' or 'earnedPoints' if you want to show partial/live grading
+        },
+      },
+      // Get the student's progress in each section
+      sections: {
+        select: {
+          sectionId: true,
+          status: true,
+          startedAt: true,
+          timeSpentSec: true,
+        },
+      },
+    },
+  });
+};

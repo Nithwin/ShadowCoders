@@ -229,3 +229,29 @@ export const submitAttempt = async (studentId: string, attemptId: string) => {
 
   return submittedAttempt;
 };
+
+export const getAttemptDetails = async (
+  studentId: string,
+  attemptId: string
+) => {
+  // 1. Fetch all attempt data from the repository
+  const attempt = await attemptRepo.getAttemptDetails(attemptId);
+
+  // 2. --- Validation Checks ---
+  if (!attempt) {
+    throw { status: 404, message: 'Attempt not found' };
+  }
+
+  // 3. --- Security Check ---
+  // Ensure the logged-in student is the one who owns this attempt
+  if (attempt.studentId !== studentId) {
+    throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
+  }
+  
+  // (Optional) You could also check if the attempt is IN_PROGRESS,
+  // but it's often useful to let students view submitted attempts too.
+  // We'll leave this check out for now.
+
+  // 4. Return the full attempt details
+  return attempt;
+};

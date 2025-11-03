@@ -55,8 +55,6 @@ export const submitAnswerHandler: RequestHandler = async (req, res, next) => {
   }
 };
 
-
-
 export const submitAttemptHandler: RequestHandler = async (req, res, next) => {
   try {
     const studentId = req.user?.sub; // From verifyAccess middleware
@@ -77,6 +75,30 @@ export const submitAttemptHandler: RequestHandler = async (req, res, next) => {
 
   } catch (error) {
     // Pass errors (like 'Attempt not in progress') to the central handler
+    next(error);
+  }
+};
+
+export const getAttemptDetailsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub; // From verifyAccess middleware
+    const attemptId = req.params.attemptId;   // From URL parameter
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+    if (!attemptId) {
+      return next({ status: 400, message: 'Attempt ID parameter is required' });
+    }
+
+    // Call the service to get the attempt details
+    const attemptDetails = await attemptService.getAttemptDetails(studentId, attemptId);
+
+    // Send back the full details
+    res.status(200).json(attemptDetails);
+
+  } catch (error) {
+    // Pass errors (like 404 Not Found or 403 Forbidden) to the central handler
     next(error);
   }
 };

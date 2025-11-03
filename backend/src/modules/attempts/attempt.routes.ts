@@ -24,5 +24,12 @@ export const registerAttemptRoutes = (app: Express) => {
     // No validation middleware needed (no body)
     attemptController.submitAttemptHandler // 2. Run the controller
   );
+
+  app.get(
+    '/api/student/attempts/:attemptId',
+    verifyAccess, // 1. Ensure user is logged in (provides studentId)
+    // No validation middleware needed (ID is in URL)
+    attemptController.getAttemptDetailsHandler // 2. Run the controller
+  );
   // Add more attempt routes later (e.g., submit answer, submit attempt)
 };
