@@ -147,3 +147,23 @@ export const listAttemptsForExamHandler: RequestHandler = async (req, res, next)
     next(error);
   }
 };
+
+export const getAttemptForAdminHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const attemptId = req.params.attemptId; // Get attemptId from URL
+
+    if (!attemptId) {
+      return next({ status: 400, message: 'Attempt ID parameter is required' });
+    }
+
+    // Call the service to get the full attempt data
+    const attemptDetails = await attemptService.getAttemptForAdmin(attemptId);
+
+    // Send back the full details
+    res.status(200).json(attemptDetails);
+
+  } catch (error) {
+    // Pass errors (like 404 Not Found) to the central handler
+    next(error);
+  }
+};

@@ -344,3 +344,19 @@ export const listAttemptsForExam = async (
     },
   };
 };
+
+export const getAttemptForAdmin = async (attemptId: string) => {
+  // 1. Fetch all attempt data from the repository
+  const attempt = await attemptRepo.getFullAttemptForAdmin(attemptId);
+
+  // 2. --- Validation Check ---
+  if (!attempt) {
+    throw { status: 404, message: 'Attempt not found' };
+  }
+
+  // No business logic needed here, just return the data.
+  // Security (is user STAFF?) is handled by middleware in the route.
+  
+  // 3. Return the full attempt details
+  return attempt;
+};

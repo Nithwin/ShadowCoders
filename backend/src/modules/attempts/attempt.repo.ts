@@ -270,3 +270,83 @@ export const listAttemptsForExam = async (params: {
 
   return { attempts, totalCount };
 };
+
+export const getFullAttemptForAdmin = (attemptId: string) => {
+  return prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: {
+      id: true,
+      status: true,
+      score: true,
+      maxScore: true,
+      startedAt: true,
+      submittedAt: true,
+      // Get student info
+      student: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          reg_no: true,
+        },
+      },
+      // Get exam info
+      exam: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      // Get all responses
+      responses: {
+        select: {
+          id: true,
+          answer: true,
+          verdict: true,
+          earnedPoints: true,
+          feedback: true,
+          // Get the original question for context
+          question: {
+            select: {
+              id: true,
+              type: true,
+              prompt: true,
+              points: true,
+              // Include answer-related fields for admin review
+              options: true,
+              correctOptionIds: true,
+              testcases: true,
+              blanks: true,
+            },
+          },
+          // Get all evaluations (manual or AI) for this response
+          evaluations: {
+            select: {
+              id: true,
+              kind: true,
+              score: true,
+              comments: true,
+              breakdown: true,
+              isFinal: true,
+              assessor: {
+                select: {
+                  id: true,
+                  name: true,
+                  role: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'desc', // Show newest evaluations first
+            },
+          },
+        },
+        orderBy: {
+          // You could order responses by question order
+          // This requires a more complex query or sorting in service
+          createdAt: 'asc',
+        },
+      },
+    },
+  });
+};

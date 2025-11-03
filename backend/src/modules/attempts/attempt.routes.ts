@@ -46,5 +46,13 @@ export const registerAttemptRoutes = (app: Express) => {
     validate(listAttemptsSchema), // 2. Must be staff
     attemptController.listAttemptsForExamHandler // 3. Run the controller
   );
+
+  app.get(
+    '/api/admin/attempts/:attemptId',
+    verifyAccess,
+    requireRole('STAFF'),
+    // No validation needed for this simple GET request
+    attemptController.getAttemptForAdminHandler
+  );
   // Add more attempt routes later (e.g., submit answer, submit attempt)
 };
