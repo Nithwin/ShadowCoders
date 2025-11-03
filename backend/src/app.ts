@@ -11,6 +11,7 @@ import { registerEvaluationRoutes } from './modules/evaluations/evaluation.route
 import { registerRubricRoutes } from './modules/rubrics/rubric.routes';
 import { registerAssetRoutes } from './modules/assets/asset.routes';
 import { registerSectionRoutes } from './modules/sections/section.routes';
+import { registerAiRoutes } from './modules/ai/ai.routes';
 
 export const createApp = () => {
     const app = express();
@@ -32,6 +33,7 @@ export const createApp = () => {
     registerRubricRoutes(app);
     registerAssetRoutes(app);
     registerSectionRoutes(app);
+    registerAiRoutes(app);
     app.use(errorHandler);
 
     return app;
