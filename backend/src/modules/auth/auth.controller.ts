@@ -47,3 +47,19 @@ export const getMeHandler: RequestHandler = async (req, res, next) => {
         next(error);
     }
 }
+
+export const refreshAccessTokenHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      return next({ status: 401, message: 'Refresh token not found' });
+    }
+
+    const newAccessToken = await authService.handleRefreshToken(refreshToken);
+
+    res.json({ accessToken: newAccessToken });
+  } catch (error) {
+    next(error);
+  }
+};

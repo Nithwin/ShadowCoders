@@ -48,14 +48,6 @@ export const findUserByEmail = (email: string): Promise<User | null> => {
 export const findUserById = (id: string) => {
     return prisma.user.findUnique({
         where:{id},
-        select:{
-            id:true,
-            email:true,
-            name:true,
-            role:true,
-            pictureUrl:true,
-            createdAt:true,
-        }
     })
 }
 
@@ -70,3 +62,35 @@ export const findStudentWithCohortInfo = (id: string) => {
         }
     })
 }
+
+export const saveRefreshToken = (userId: string, tokenHash: string, expiresAt: Date) => {
+  return prisma.refreshToken.create({
+    data: {
+      userId: userId,
+      tokenHash: tokenHash,
+      expiresAt: expiresAt,
+    },
+  });
+};
+
+/**
+ * Finds an active refresh token by its hash.
+ */
+export const findRefreshToken = (tokenHash: string) => {
+  return prisma.refreshToken.findUnique({
+    where: {
+      tokenHash: tokenHash,
+      // Optional: Add check to ensure it hasn't expired
+      // expiresAt: { gt: new Date() } 
+    },
+  });
+};
+
+/**
+ * Deletes a refresh token from the database (used for logout).
+ */
+export const deleteRefreshToken = (tokenHash: string) => {
+  return prisma.refreshToken.delete({
+    where: { tokenHash: tokenHash },
+  });
+};

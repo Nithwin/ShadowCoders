@@ -1,69 +1,83 @@
-import { Role } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import * as authRepo from './auth.repo';
 import * as tokenService from './token.service';
+import { UserPayLoad } from './token.service'; // Import payload
 import bcrypt from 'bcrypt';
-interface GoogleProfile {
-    email: string;
-    name?: string | null;
-    pictureUrl?: string | null;
-    googleId: string;
-}
 
+// --- (Your GoogleProfile interface) ---
+interface GoogleProfile {
+  email: string;
+  name?: string | null;
+  pictureUrl?: string | null;
+  googleId: string;
+}
+// --- (Your PublicUser type) ---
 type PublicUser = {
-    id: string;
-    email: string;
-    name: string | null;
-    role: Role;
-    pictureUrl: string | null;
-    createdAt: Date;
+  id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  pictureUrl: string | null;
+  createdAt: Date;
 } | null;
 
-export const handleGoogleLogin = async(profile: GoogleProfile) => {
-    const user = await authRepo.findUserByEmailAndLinkGoogle(profile);
+export const handleGoogleLogin = async (profile: GoogleProfile) => {
+  const user = await authRepo.findUserByEmailAndLinkGoogle(profile);
+  if (!user) {
+    throw { status: 403, message: 'Access denied. User is not registered.' };
+  }
 
-    if(!user){
-        throw{
-            status: 403,
-            message: 'Access denied. User is not registered in the system.'
-        }
-    }
+  const payload: UserPayLoad = { sub: user.id, role: user.role };
 
-    const payload = {
-        sub: user.id,
-        role: user.role,
-    }
+  // **UPDATED:** Use new token service
+  const accessToken = tokenService.generateAccessToken(payload);
+  const refreshToken = await tokenService.generateAndSaveRefreshToken(user.id);
 
-    const tokens = tokenService.generateTokens(payload);
+  return { accessToken, refreshToken };
+};
 
-    return tokens;
-}
+export const handleEmailLogin = async (input: any) => {
+  const user = await authRepo.findUserByEmail(input.email);
+  if (!user || !user.password) {
+    throw { status: 401, message: 'Invalid email or password' };
+  }
 
-export const handleEmailLogin = async(input: any) => {
-    const user = await authRepo.findUserByEmail(input.email);
+  const isPasswordValid = await bcrypt.compare(input.password, user.password);
+  if (!isPasswordValid) {
+    throw { status: 401, message: 'Invalid email or password' };
+  }
 
-    if(!user || !user.password){
-        throw {
-            status: 401,
-            message: `Invalid email or password`
-        };
-    }
+  const payload: UserPayLoad = { sub: user.id, role: user.role };
 
-    const isPasswordValid = await bcrypt.compare(input.password, user.password);
+  // **UPDATED:** Use new token service
+  const accessToken = tokenService.generateAccessToken(payload);
+  const refreshToken = await tokenService.generateAndSaveRefreshToken(user.id);
 
-    if(!isPasswordValid){
-        throw {status:401, message: 'Invalid email or password'};
-    }
+  return { accessToken, refreshToken };
+};
 
-    const payload = {
-        sub:user.id,
-        role:user.role
-    };
+// --- (Your existing findUserById function) ---
+export const findUserById = async (id: string) => {
+  return authRepo.findUserById(id);
+};
 
-    const tokens = tokenService.generateTokens(payload);
+// --- **NEW FUNCTION TO ADD** ---
+/**
+ * Verifies a refresh token and issues a new access token.
+ */
+export const handleRefreshToken = async (
+  rawRefreshToken: string
+): Promise<string> => {
+  // 1. Verify token and find the user
+  const user = await tokenService.verifyAndFindUser(rawRefreshToken);
 
-    return tokens;
-}
+  if (!user) {
+    throw { status: 401, message: 'Invalid or expired refresh token' };
+  }
 
-export const findUserById = async(id: string) => {
-    return authRepo.findUserById(id);
-}
+  // 2. Issue a new access token
+  const payload: UserPayLoad = { sub: user.id, role: user.role };
+  const newAccessToken = tokenService.generateAccessToken(payload);
+
+  return newAccessToken;
+};
