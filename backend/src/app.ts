@@ -12,12 +12,31 @@ import { registerRubricRoutes } from './modules/rubrics/rubric.routes';
 import { registerAssetRoutes } from './modules/assets/asset.routes';
 import { registerSectionRoutes } from './modules/sections/section.routes';
 import { registerAiRoutes } from './modules/ai/ai.routes';
+import { env } from './config/env';
 
 export const createApp = () => {
     const app = express();
 
     app.use(helmet());
-    app.use(cors());
+
+    // Configure CORS to allow cookies (credentials) from the frontend origin
+    const allowedOrigins = [
+        env.FRONTEND_ORIGIN || 'http://localhost:3000',
+        'http://localhost:3001'
+    ];
+    const corsOptions: cors.CorsOptions = {
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        credentials: true,
+        methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+        allowedHeaders: ['Content-Type','Authorization'],
+    };
+    app.use(cors(corsOptions));
     app.use(express.json());
     app.use(cookieParser());
 

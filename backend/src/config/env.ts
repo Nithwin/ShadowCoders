@@ -9,4 +9,5 @@ export const env = {
     DATABASE_URL: process.env.DATABASE_URL!,
     JWT_SECRET: process.env.JWT_SECRET!,
     GOOGLE_API_KEY:process.env.GOOGLE_API_KEY!,
+    FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
 }

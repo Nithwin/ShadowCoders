@@ -6,11 +6,13 @@ export const googleOAuthHandler: RequestHandler = async (req, res, next) => {
         const userProfile = req.body;
         const {accessToken, refreshToken} = await authService.handleGoogleLogin(userProfile);
 
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly:true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        })
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
         res.json({accessToken});
     } catch(error){
@@ -22,11 +24,13 @@ export const emailLoginHandler: RequestHandler = async (req, res, next) => {
     try{
         const {accessToken, refreshToken} = await authService.handleEmailLogin(req.body);
 
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly:true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
         res.json({accessToken});
     } catch(error){
@@ -76,8 +80,9 @@ export const logoutHandler: RequestHandler = async (req, res, next) => {
     // 2. Clear the httpOnly cookie from the browser
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Match your login settings
-      // Add 'sameSite' and 'path' if you used them when setting the cookie
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
     });
 
     // 3. Send a success response

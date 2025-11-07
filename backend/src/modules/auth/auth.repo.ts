@@ -30,8 +30,25 @@ export const findUserByEmailAndLinkGoogle = async ({email, name, pictureUrl, goo
         
     } catch(error){
         if(error instanceof PrismaClientKnownRequestError && error.code === 'P2025'){
-            return null;
+            console.log('User not found, creating new user with email:', email);
+            try {
+                const newUser = await prisma.user.create({
+                    data: {
+                        email: email,
+                        name: name || null,
+                        pictureUrl: pictureUrl || null,
+                        googleId: googleId,
+                        role: 'STUDENT',
+                    }
+                });
+                console.log('New user created:', newUser.id);
+                return newUser;
+            } catch (createError) {
+                console.error('Failed to create user:', createError);
+                return null;
+            }
         }
+        console.error('Error in findUserByEmailAndLinkGoogle:', error);
         throw error;
     }
 }
