@@ -1,24 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
+// This function runs on every matched request
 export function middleware(request: NextRequest) {
-    const refreshToken = request.cookies.get('refreshToken');
-    const {pathname} = request.nextUrl;
+  // Get the refresh token from the user's cookies
+  const refreshToken = request.cookies.get('refreshToken');
+  const { pathname } = request.nextUrl;
 
-    // Redirect to login if no refresh token and accessing protected routes
-    if(!refreshToken && (pathname.startsWith('/admin') || pathname.startsWith('/student'))) {
-        return NextResponse.redirect(new URL('/login', request.url));
-    }
+  // --- Protection Logic ---
 
-    // If already logged in and trying to access login page, let the login page handle the redirect based on role
-    // We don't redirect here because we need to check user role first
-    if(refreshToken && pathname === '/login') {
-        // Allow the page to load and handle role-based redirect
-        return NextResponse.next();
-    }
+  // 1. If user is NOT logged in (no refresh token)
+  //    AND is trying to access a protected portal...
+  if (!refreshToken && (pathname.startsWith('/admin') || pathname.startsWith('/student'))) {
+    // ...redirect them to the login page.
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
 
-    return NextResponse.next();
+  // 2. If user IS logged in (has refresh token)
+  //    AND is trying to visit the login page...
+  if (refreshToken && pathname === '/login') {
+    // ...redirect them away from login to their dashboard.
+    // We default to student; the client-side layout will fix it if they are staff.
+    return NextResponse.redirect(new URL('/student/dashboard', request.url));
+  }
+
+  // 3. If none of the above, allow the request to continue
+  return NextResponse.next();
 }
 
+// --- Config ---
+// This config specifies which paths the middleware should run on.
 export const config = {
-    matcher: ['/admin/:path*', '/student/:path*', '/login'],
-}
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+};

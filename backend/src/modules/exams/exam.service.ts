@@ -82,18 +82,31 @@ export const listExams = async (query: ListExamQuery) => {
   const page = query.page ?? 1;
   const pageSize = query.pageSize ?? 10;
   const { status, q } = query;
-  
-  const { exams, totalCount } = await examRepo.listExams({
-    ...(status && { status: status as ExamStatus }),
-    ...(q && { searchQuery: q }),
+
+  const repoParams: {
+    page: number;
+    pageSize: number;
+    status?: ExamStatus;
+    searchQuery?: string;
+  } = {
     page,
     pageSize,
-  });
+  };
+
+  if (status && status !== 'ALL') {
+    repoParams.status = status as ExamStatus;
+  }
+
+  if (q) {
+    repoParams.searchQuery = q;
+  }
+  
+  const { exams, totalCount } = await examRepo.listExams(repoParams);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return {
-    data: exams,
+// ... existing code ...
     meta: {
         page,
         pageSize,

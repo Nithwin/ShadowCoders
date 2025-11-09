@@ -3,6 +3,8 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import AdminSidebar from '@/components/layout/AdminSidebar';
+import AdminHeader from '@/components/admin/AdminHeader';
 
 export default function AdminLayout({
   children,
@@ -13,30 +15,29 @@ export default function AdminLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      // Not logged in, redirect to login
-      router.replace('/login');
-    } else if (!isLoading && user && user.role !== 'STAFF') {
-      // Logged in but not staff, redirect to student dashboard
-      router.replace('/student/dashboard');
+    if (!isLoading && (!user || user.role !== 'STAFF')) {
+      router.push('/student/dashboard'); 
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isLoading]);
+  }, [user, isLoading, router]);
 
-  if (isLoading || !user) {
+  if (isLoading || !user || user.role !== 'STAFF') { // <-- Added role check here
     return (
-      <div className="flex-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+      <div className="flex-center h-screen bg-secondary">
+        <div>Loading admin portal...</div> {/* Or a full-page spinner */}
       </div>
     );
   }
 
+  // If loading is done and user is 'STAFF', render the layout
   return (
-    <div className="flex">
-      <main className="flex-1 p-8">{children}</main>
+    <div className="flex h-screen bg-secondary text-primary">
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <AdminHeader />
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

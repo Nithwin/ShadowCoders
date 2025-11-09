@@ -51,3 +51,9 @@ export interface AuthContextType {
 // You can add other types here as you build pages
 // e.g., export interface Exam { ... }
 // e.g., export interface Question { ... }
+
+export enum ExamStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  CLOSED = 'CLOSED',
+}

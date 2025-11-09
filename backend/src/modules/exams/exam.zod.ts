@@ -79,11 +79,7 @@ export const listExamsSchema = z.object({
       .max(100, "Page size cannot exceed 100")
       .optional()
       .default(10),
-    status: z
-      .enum(ExamStatus, {
-        message: "Invalid exam status filter",
-      })
-      .optional(),
+    status: z.enum([...Object.values(ExamStatus), 'ALL'] as const).optional().default('ALL'),
     q: z.string().optional(),
   }),
 });

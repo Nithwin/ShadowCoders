@@ -1,218 +1,89 @@
-'use client';
+'use client'; // This must be a Client Component
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { User } from '@/types';
-import { api, setAuthToken, setUnauthorizedHandler } from '@/lib/api';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { User, AuthContextType } from '@/types'; // From /src/types/index.ts
+import { api, setAuthToken } from '@/lib/api';     // From /src/lib/api.ts
 
-interface AuthContextType {
-  user: User | null;
-  accessToken: string | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (googleToken: any) => Promise<void>;
-  logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-}
-
+// Create the context
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Create the Provider component
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessTokenState] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  // Use ref to prevent logout function from changing on every render
-  const isLoggingOut = useRef(false);
-  const hasInitialized = useRef(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
+  const router = useRouter();
 
-  // Memoized logout function to prevent recreation
-  const logout = useCallback(async () => {
-    // Prevent multiple simultaneous logout calls
-    if (isLoggingOut.current) return;
-    isLoggingOut.current = true;
-
-    try {
-      // Try to call logout endpoint, but don't fail if it errors
-      await api.post('/auth/logout').catch(() => {
-        // Ignore logout endpoint errors
-      });
-    } finally {
-      // Clear all state
-      setUser(null);
-      setAccessTokenState(null);
-      setIsAuthenticated(false);
-      setAuthToken(null);
-      
-      // Clear localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
-      }
-
-      isLoggingOut.current = false;
-      
-      // Redirect to login
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    }
-  }, []);
-
-  // Memoized function to refresh user data
-  const refreshUser = useCallback(async () => {
-    try {
-      const { data: userData } = await api.get('/me');
-      setUser(userData);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Failed to refresh user:', error);
-      throw error;
-    }
-  }, []);
-
-  // Set up the unauthorized handler once on mount
+  // This runs once when the app loads to check if the user is already logged in
   useEffect(() => {
-    // Only set up once
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-
-    setUnauthorizedHandler(() => {
-      console.log('Unauthorized access detected - logging out');
-      logout();
-    });
-  }, [logout]);
-  
-  // Initial authentication check - runs only once on mount
-  useEffect(() => {
-    let isMounted = true;
-    
-    const initializeAuth = async () => {
+    const loadUser = async () => {
       try {
-        // Check if we have a stored token
-        const storedToken = typeof window !== 'undefined' 
-          ? localStorage.getItem('accessToken') 
-          : null;
-
-        if (!storedToken) {
-          // No token, user is not authenticated
-          if (isMounted) {
-            setIsLoading(false);
-            setIsAuthenticated(false);
-          }
-          return;
-        }
-
-        // Set the token in axios headers
-        setAuthToken(storedToken);
+        // Try to get a new access token from our /refresh endpoint.
+        // This relies on the httpOnly cookie.
+        const { data } = await api.post('/auth/refresh');
         
-        // Verify the token by fetching user data
-        const { data: userData } = await api.get('/me');
-        
-        if (isMounted) {
+        if (data.accessToken) {
+          setAccessToken(data.accessToken);
+          setAuthToken(data.accessToken); // Set token for all future api requests
+
+          // If refresh succeeds, get the user's profile
+          const { data: userData } = await api.get('/me');
           setUser(userData);
-          setAccessTokenState(storedToken);
-          setIsAuthenticated(true);
         }
-      } catch (error: any) {
-        console.error('Auth initialization failed:', error);
-        
-        if (isMounted) {
-          // Clear invalid tokens
-          if (error.response?.status === 401) {
-            setAuthToken(null);
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('accessToken');
-            }
-          }
-          setIsAuthenticated(false);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      } catch (error) {
+        console.log('No valid session found');
+        // No valid session, user is not logged in
       }
+      // We're done loading, whether we found a user or not
+      setIsLoading(false);
     };
+    loadUser();
+  }, []);
 
-    initializeAuth();
+  // Login function
+  const login = async (email: string, pass: string) => {
+    const { data } = await api.post('/auth/login', { email, password: pass });
     
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Empty dependency array - runs only once
+    setAccessToken(data.accessToken);
+    setAuthToken(data.accessToken);
+    
+    const { data: userData } = await api.get('/me');
+    setUser(userData);
+  };
 
-  // Memoized login function
-  const login = useCallback(async (email: string, password: string) => {
+  // Logout function
+  const logout = async () => {
     try {
-      const { data } = await api.post('/auth/login', { email, password });
-      const token = data.accessToken;
-      
-      // Set token in state and axios
-      setAccessTokenState(token);
-      setAuthToken(token);
-      
-      // Persist token
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', token);
-      }
-      
-      // Fetch user data
-      const { data: userData } = await api.get('/me');
-      setUser(userData);
-      setIsAuthenticated(true);
+      await api.post('/auth/logout');
     } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
+      console.error('Error logging out:', error);
     }
-  }, []);
+    // Clear all state regardless of API call success
+    setUser(null);
+    setAccessToken(null);
+    setAuthToken(null);
+    router.push('/login');
+  };
 
-  // Memoized Google login function
-  const loginWithGoogle = useCallback(async (userProfile: any) => {
-    try {
-      const { data } = await api.post('/auth/google/callback', userProfile);
-      const token = data.accessToken;
-      
-      // Set token in state and axios
-      setAccessTokenState(token);
-      setAuthToken(token);
-      
-      // Persist token
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', token);
-      }
-      
-      // Fetch user data
-      const { data: userData } = await api.get('/me');
-      setUser(userData);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Google login failed:', error);
-      throw error;
-    }
-  }, []);
+  const value = {
+    user,
+    accessToken,
+    isLoading,
+    login,
+    logout,
+  };
 
-  // Memoize the context value to prevent unnecessary re-renders
-  const contextValue = React.useMemo(
-    () => ({
-      user,
-      accessToken,
-      isLoading,
-      isAuthenticated,
-      login,
-      loginWithGoogle,
-      logout,
-      refreshUser,
-    }),
-    [user, accessToken, isLoading, isAuthenticated, login, loginWithGoogle, logout, refreshUser]
-  );
-
+  // Don't render the app until we've checked for a session.
+  // This prevents a "flash" of the login page if the user is already logged in.
   return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!isLoading && children}
     </AuthContext.Provider>
   );
 };
 
+// Create the custom hook for other components to use
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
