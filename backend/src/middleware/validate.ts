@@ -1,6 +1,19 @@
 import { RequestHandler } from 'express';
 import { ZodObject, ZodRawShape, ZodError, ZodIssue } from 'zod';
 
+// Extend the Express Request type to include validatedData
+declare global {
+  namespace Express {
+    interface Request {
+      validatedData?: {
+        body?: any;
+        query?: any;
+        params?: any;
+      };
+    }
+  }
+}
+
 export const validate = (schema: ZodObject<ZodRawShape>): RequestHandler => {
   return async (req, res, next) => {
     try {
@@ -10,23 +23,12 @@ export const validate = (schema: ZodObject<ZodRawShape>): RequestHandler => {
         params: req.params,
       });
 
-      req.body = parsed.body;
-      
-      if (parsed.query !== undefined) {
-        const parsedQuery = parsed.query as Record<string, any>;
-        const reqQuery = req.query as Record<string, any>;
-        
-        Object.getOwnPropertyNames(reqQuery).forEach(key => delete reqQuery[key]);
-        Object.getOwnPropertyNames(parsedQuery).forEach(key => {
-          reqQuery[key] = parsedQuery[key];
-        });
-      }
-      
-      if (parsed.params !== undefined) {
-        const parsedParams = parsed.params as Record<string, any>;
-        Object.keys(req.params).forEach(key => delete req.params[key]);
-        Object.assign(req.params, parsedParams);
-      }
+      // Store validated data in a custom property
+      req.validatedData = {
+        body: parsed.body,
+        query: parsed.query,
+        params: parsed.params
+      };
 
       return next();
     } catch (error) {

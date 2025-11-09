@@ -78,10 +78,7 @@ export const pubishExam = async (examId: string) => {
 type ListExamQuery = z.infer<typeof listExamsSchema>["query"];
 
 export const listExams = async (query: ListExamQuery) => {
-  // Ensure defaults are applied
-  const page = query.page ?? 1;
-  const pageSize = query.pageSize ?? 10;
-  const { status, q } = query;
+  const { page, pageSize, status, q } = query;
 
   const repoParams: {
     page: number;
@@ -94,19 +91,24 @@ export const listExams = async (query: ListExamQuery) => {
   };
 
   if (status && status !== 'ALL') {
-    repoParams.status = status as ExamStatus;
+    repoParams.status = status;
   }
 
   if (q) {
     repoParams.searchQuery = q;
   }
-  
+
   const { exams, totalCount } = await examRepo.listExams(repoParams);
+
+  const processedExams = exams.map(exam => ({
+    ...exam,
+    negativeMarkPerWrong: exam.negativeMarkPerWrong?.toString() ?? null,
+  }));
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return {
-// ... existing code ...
+    data: processedExams,
     meta: {
         page,
         pageSize,

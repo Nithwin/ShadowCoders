@@ -45,6 +45,7 @@ export interface AuthContextType {
   accessToken: string | null;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<void>;
+  loginWithGoogle: (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => Promise<void>;
   logout: () => void;
 }
 

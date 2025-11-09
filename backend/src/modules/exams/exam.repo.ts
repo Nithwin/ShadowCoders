@@ -60,6 +60,28 @@ export const listExams = async (params: {
     skip: skip,
     take: pageSize,
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startAt: true,
+      endAt: true,
+      durationMins: true,
+      status: true,
+      timingMode: true,
+      sectionLockPolicy: true,
+      randomizeQuestions: true,
+      negativeMarkPerWrong: true,
+      createdAt: true,
+      updatedAt: true,
+      _count: {
+        select: {
+          questions: true,
+          sections: true,
+          attempts: true,
+        },
+      },
+    },
   });
 
   const totalCount = await prisma.exam.count({

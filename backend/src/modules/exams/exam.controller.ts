@@ -47,7 +47,7 @@ export const publishExamHandler: RequestHandler = async (req,res,next) => {
 
 export const listExamsHandler: RequestHandler = async (req,res,next) => {
     try{
-        const queryParams = req.query as unknown as z.infer<typeof listExamsSchema>['query'];
+        const queryParams = req.validatedData?.query as z.infer<typeof listExamsSchema>['query'];
         const result = await examService.listExams(queryParams);
         res.status(200).json(result);
     } catch(error){
@@ -63,7 +63,7 @@ export const listExamsForStudentHandler: RequestHandler = async (req,res,next) =
             return next({ status: 401, message: 'Unauthorized' });
         }
 
-        const queryParams = req.query as unknown as z.infer<typeof studentListExamsSchema>['query'];
+        const queryParams = req.validatedData?.query as z.infer<typeof studentListExamsSchema>['query'];
         const result = await examService.listExamsForStudent(studentId, queryParams);
         res.status(200).json(result);
     } catch(error){

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, AuthContextType } from '@/types'; // From /src/types/index.ts
-import { api, setAuthToken } from '@/lib/api';     // From /src/lib/api.ts
+import { api, setAuthToken, setUnauthorizedHandler } from '@/lib/api';     // From /src/lib/api.ts
 
 // Create the context
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -14,6 +14,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true); // Start as true
   const router = useRouter();
+
+  // Handle unauthorized access (session expired)
+  const handleSessionExpired = () => {
+    setUser(null);
+    setAccessToken(null);
+    setAuthToken(null);
+    router.push('/login');
+  };
+
+  // Register the unauthorized handler
+  useEffect(() => {
+    setUnauthorizedHandler(handleSessionExpired);
+  }, []);
 
   // This runs once when the app loads to check if the user is already logged in
   useEffect(() => {
@@ -34,6 +47,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (error) {
         console.log('No valid session found');
         // No valid session, user is not logged in
+        // Clear any existing tokens
+        setAccessToken(null);
+        setAuthToken(null);
+        setUser(null);
       }
       // We're done loading, whether we found a user or not
       setIsLoading(false);
@@ -44,6 +61,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Login function
   const login = async (email: string, pass: string) => {
     const { data } = await api.post('/auth/login', { email, password: pass });
+    
+    setAccessToken(data.accessToken);
+    setAuthToken(data.accessToken);
+    
+    const { data: userData } = await api.get('/me');
+    setUser(userData);
+  };
+
+  // Google Login function
+  const loginWithGoogle = async (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => {
+    const { data } = await api.post('/auth/google/callback', profile);
     
     setAccessToken(data.accessToken);
     setAuthToken(data.accessToken);
@@ -71,6 +99,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     accessToken,
     isLoading,
     login,
+    loginWithGoogle,
     logout,
   };
 

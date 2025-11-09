@@ -16,15 +16,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 2. If user IS logged in (has refresh token)
-  //    AND is trying to visit the login page...
-  if (refreshToken && pathname === '/login') {
-    // ...redirect them away from login to their dashboard.
-    // We default to student; the client-side layout will fix it if they are staff.
-    return NextResponse.redirect(new URL('/student/dashboard', request.url));
-  }
-
-  // 3. If none of the above, allow the request to continue
+  // 2. Allow all other requests to continue
+  // Client-side components will handle role-based redirects
   return NextResponse.next();
 }
 
