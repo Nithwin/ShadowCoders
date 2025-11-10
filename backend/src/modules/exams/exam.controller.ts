@@ -108,3 +108,19 @@ export const deleteExamHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Handles the request to get a single exam by its ID.
+ */
+export const getExamByIdHandler: RequestHandler = async (req, res, next) => {
+    try {
+        const examId = req.params.examId;
+        if (!examId) {
+            return next({ status: 400, message: 'Exam ID parameter is required' });
+        }
+        const exam = await examService.getExamById(examId);
+        res.status(200).json(exam);
+    } catch (error) {
+        next(error);
+    }
+};

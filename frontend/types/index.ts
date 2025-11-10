@@ -58,3 +58,33 @@ export enum ExamStatus {
   PUBLISHED = 'PUBLISHED',
   CLOSED = 'CLOSED',
 }
+
+// Frontend counterparts to Prisma enums
+export enum TimingMode {
+  OVERALL_ONLY = 'OVERALL_ONLY',
+  PER_SECTION_ONLY = 'PER_SECTION_ONLY',
+  BOTH = 'BOTH',
+}
+
+export enum SectionLockPolicy {
+  NONE = 'NONE',
+  LOCK_ON_COMPLETE = 'LOCK_ON_COMPLETE',
+  LINEAR_NO_BACKTRACK = 'LINEAR_NO_BACKTRACK',
+}
+
+// Full Exam interface for edit page and listings
+export interface Exam {
+  id: string;
+  title: string;
+  description: string | null;
+  startAt: string;
+  endAt: string;
+  timingMode: TimingMode;
+  durationMins: number;
+  sectionLockPolicy: SectionLockPolicy;
+  randomizeQuestions: boolean;
+  negativeMarkPerWrong: number | null;
+  status: ExamStatus;
+  createdAt: string;
+  updatedAt: string;
+}

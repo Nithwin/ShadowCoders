@@ -11,16 +11,16 @@ export default function AdminHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="flex items-center justify-end p-4 bg-secondary border-b border-gray-200 dark:border-gray-700 h-16 sticky top-0 z-30">
+  <header className="flex items-center justify-end p-4 bg-secondary border-b border-gray-200 h-16 sticky top-0 z-30">
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger asChild>
-          <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
             <UserIcon className="w-8 h-8 p-1.5 rounded-full bg-primary/20 text-primary" />
             <div className="text-left hidden md:block">
               <p className="text-sm font-medium text-primary truncate">
                 {user?.name || 'Staff Member'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              <p className="text-xs text-gray-500 truncate">
                 {user?.email}
               </p>
             </div>
@@ -30,19 +30,19 @@ export default function AdminHeader() {
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content 
-            className="w-56 bg-secondary rounded-md shadow-lg border border-gray-200 dark:border-gray-700"
+            className="w-56 bg-secondary rounded-md shadow-lg border border-gray-200"
             sideOffset={5}
           >
             <DropdownMenu.Label className="px-3 py-2 text-xs text-gray-500">My Account</DropdownMenu.Label>
             <DropdownMenu.Item asChild>
-              <Link href="/admin/profile" className="block px-3 py-2 text-sm text-primary hover:bg-gray-100 dark:hover:bg-gray-800">
+              <Link href="/admin/profile" className="block px-3 py-2 text-sm text-primary hover:bg-gray-100">
                 Profile
               </Link>
             </DropdownMenu.Item>
-            <DropdownMenu.Separator className="h-px bg-gray-200 dark:bg-gray-700" />
+            <DropdownMenu.Separator className="h-px bg-gray-200" />
             <DropdownMenu.Item 
               onSelect={logout}
-              className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50"
             >
               Logout
             </DropdownMenu.Item>

@@ -1,3 +1,23 @@
+/**
+ * Handles the request to list all questions for an exam.
+ */
+export const listQuestionsForExamHandler: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Exam ID parameter is required' });
+    }
+
+    const questions = await questionService.listQuestionsForExam(examId);
+    res.status(200).json(questions);
+  } catch (error) {
+    next(error);
+  }
+};
 import { RequestHandler } from 'express';
 import * as questionService from './question.service';
 import { updateQuestionSchema } from './question.zod';

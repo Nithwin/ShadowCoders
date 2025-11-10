@@ -1,3 +1,19 @@
+/**
+ * Lists all questions for a specific exam.
+ */
+export const listQuestionsForExam = (examId: string) => {
+  return prisma.question.findMany({
+    where: { examId: examId },
+    orderBy: { order: 'asc' },
+    select: {
+      id: true,
+      order: true,
+      type: true,
+      prompt: true,
+      points: true,
+    },
+  });
+};
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 

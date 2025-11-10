@@ -3,17 +3,24 @@ import { validate } from "../../middleware/validate"
 import { addQuestionsSchema, updateQuestionSchema } from "./question.zod"
 import * as questionController from './question.controller';
 import { Express } from "express";
-
 export const registerQuestionRoutes = (app: Express) => {
-    app.post(
-        '/api/admin/exams/:examId/questions',
-        verifyAccess,
-        requireRole('STAFF'),
-        validate(addQuestionsSchema),
-        questionController.addQuestionsHandler
-    )
+  // --- Add this new route ---
+  app.get(
+    '/api/admin/exams/:examId/questions',
+    verifyAccess,
+    requireRole('STAFF'),
+    questionController.listQuestionsForExamHandler
+  );
 
-    app.get(
+  app.post(
+    '/api/admin/exams/:examId/questions',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(addQuestionsSchema),
+    questionController.addQuestionsHandler
+  );
+
+  app.get(
     '/api/student/attempts/:attemptId/question/:questionId',
     verifyAccess, // 1. Ensures user is logged in (provides studentId)
     // No validation needed for params, handled in controller/service

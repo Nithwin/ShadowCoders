@@ -1,3 +1,11 @@
+/**
+ * Fetches all questions for a specific exam.
+ */
+export const listQuestionsForExam = async (examId: string) => {
+  // We can add validation here later, but for now, just call the repo
+  const questions = await questionRepo.listQuestionsForExam(examId);
+  return questions;
+};
 import { z } from 'zod';
 import { addQuestionsSchema, updateQuestionSchema } from './question.zod';
 import * as questionRepo from './question.repo';

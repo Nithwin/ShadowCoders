@@ -239,3 +239,14 @@ export const deleteExam = async (examId: string) => {
 
   return { message: 'Exam and all related questions/sections deleted successfully' };
 };
+
+/**
+ * Fetches a single exam's details for editing.
+ */
+export const getExamById = async (examId: string) => {
+  const exam = await examRepo.findExamById(examId);
+  if (!exam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+  return exam;
+};
