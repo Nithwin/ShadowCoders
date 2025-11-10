@@ -3,6 +3,8 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import StudentSidebar from '@/components/layout/StudentSidebar';
+import StudentHeader from '@/components/student/StudentHeader';
 
 export default function StudentLayout({
   children,
@@ -22,26 +24,26 @@ export default function StudentLayout({
       router.replace('/admin/dashboard');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isLoading]);
+  }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (isLoading || !user || user.role === 'STAFF') {
     return (
-      <div className="flex-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+      <div className="flex-center h-screen bg-secondary">
+        <div>Loading student portal...</div>
       </div>
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
+  // If loading is done and user is STUDENT, render the layout
   return (
-    <div className="min-h-screen">
-      <main className="p-8">{children}</main>
+    <div className="flex h-screen bg-secondary text-primary">
+      <StudentSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <StudentHeader />
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

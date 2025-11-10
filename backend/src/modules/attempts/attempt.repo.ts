@@ -12,6 +12,7 @@ export const createAttempt = (data: Prisma.AttemptCreateInput) => {
             startedAt:true,
             status:true,
             orderMap:true,
+            attemptNo:true,
         }
     })
 }
@@ -78,6 +79,7 @@ export const getAttemptForSubmission = (attemptId: string) => {
               type: true,
               points: true,
               correctOptionIds: true,
+              testcases: true,
             },
           },
         },
@@ -115,6 +117,7 @@ export const getAttemptDetails = (attemptId: string) => {
       id: true,
       studentId: true, // For verification
       status: true,
+      startedAt: true, // Added: Required for timer calculation
       orderMap: true, // For non-sectioned, randomized exams
       exam: {
         select: {
@@ -187,6 +190,7 @@ export const getAttemptResults = (attemptId: string) => {
       status: true,
       score: true,
       maxScore: true,
+      startedAt: true,
       submittedAt: true,
       exam: {
         select: {
@@ -201,6 +205,16 @@ export const getAttemptResults = (attemptId: string) => {
           earnedPoints: true,
           feedback: true,
           verdict: true,
+          // Include question details for display
+          question: {
+            select: {
+              id: true,
+              type: true,
+              prompt: true,
+              points: true,
+              order: true,
+            },
+          },
           // Get all evaluations (from AI or Staff) for each response
           evaluations: {
             select: {
@@ -228,8 +242,12 @@ export const listAttemptsForExam = async (params: {
 }) => {
   const { examId, page, pageSize } = params;
 
+  // Ensure pageSize and page are numbers
+  const pageSizeNum = typeof pageSize === 'string' ? parseInt(pageSize, 10) : Number(pageSize);
+  const pageNum = typeof page === 'string' ? parseInt(page, 10) : Number(page);
+
   // Calculate skip for pagination
-  const skip = (page - 1) * pageSize;
+  const skip = (pageNum - 1) * pageSizeNum;
 
   // 1. Fetch the paginated list of attempts
   const attempts = await prisma.attempt.findMany({
@@ -258,7 +276,7 @@ export const listAttemptsForExam = async (params: {
       submittedAt: 'desc', // Show most recently submitted first
     },
     skip: skip,
-    take: pageSize,
+    take: pageSizeNum,
   });
 
   // 2. Fetch the total count of attempts for that exam
@@ -312,11 +330,14 @@ export const getFullAttemptForAdmin = (attemptId: string) => {
               type: true,
               prompt: true,
               points: true,
+              order: true,
               // Include answer-related fields for admin review
               options: true,
               correctOptionIds: true,
               testcases: true,
               blanks: true,
+              starterCode: true,
+              wordLimit: true,
             },
           },
           // Get all evaluations (manual or AI) for this response

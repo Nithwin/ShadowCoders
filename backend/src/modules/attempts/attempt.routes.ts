@@ -33,6 +33,13 @@ export const registerAttemptRoutes = (app: Express) => {
   );
 
   app.get(
+    '/api/student/attempts/:attemptId/question/:questionId',
+    verifyAccess, // 1. Ensure user is logged in (provides studentId)
+    // No validation middleware needed (IDs are in URL)
+    attemptController.getQuestionHandler // 2. Run the controller
+  );
+
+  app.get(
     '/api/student/attempts/:attemptId/results',
     verifyAccess, // 1. Ensures user is logged in (provides studentId)
     // No validation middleware needed (ID is in URL)

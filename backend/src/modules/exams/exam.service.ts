@@ -24,6 +24,7 @@ export const createExam = async (input: CreateExamInput) => {
     ...input,
     description: input.description ?? null,
     negativeMarkPerWrong: input.negativeMarkPerWrong ?? null,
+    maxAttempts: input.maxAttempts ?? null, // null means unlimited
     startAt: new Date(input.startAt),
     endAt: new Date(input.endAt),
     timingMode: input.timingMode,
@@ -149,14 +150,62 @@ export const listExamsForStudent = async (studentId: string, query: StudentListE
   // 3. Calculate pagination metadata
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // 4. Return the data and metadata
+  // 4. Transform exams to include attempt status and filter LIVE exams
+  let examsToReturn = exams;
+  
+  // For LIVE filter, filter out exams where student has reached max attempts
+  if (filter === "LIVE") {
+    examsToReturn = exams.filter((exam) => {
+      const submittedAttempts = exam.attempts?.filter(a => a.status === 'SUBMITTED') || [];
+      const submittedCount = submittedAttempts.length;
+      
+      // If maxAttempts is null/undefined, unlimited attempts allowed - always show
+      if (exam.maxAttempts === null || exam.maxAttempts === undefined) {
+        return true;
+      }
+      
+      // If maxAttempts is set, only show if student hasn't reached the limit
+      return submittedCount < exam.maxAttempts;
+    });
+  }
+  
+  const examsWithAttemptStatus = examsToReturn.map((exam) => {
+    // Check if student has any submitted attempts
+    const submittedAttempts = exam.attempts?.filter(a => a.status === 'SUBMITTED') || [];
+    const hasCompletedAttempt = submittedAttempts.length > 0;
+    const latestAttempt = exam.attempts && exam.attempts.length > 0 ? exam.attempts[0] : null;
+    
+    // Remove attempts from response (we only needed it for checking)
+    const { attempts, ...examData } = exam;
+    return {
+      ...examData,
+      hasAttempt: hasCompletedAttempt,
+      attemptId: latestAttempt?.id || null,
+      attemptStatus: latestAttempt?.status || null,
+      attemptCount: exam.attempts?.length || 0,
+      submittedAttemptCount: submittedAttempts.length,
+      latestScore: latestAttempt?.score ? Number(latestAttempt.score) : null,
+      latestMaxScore: latestAttempt?.maxScore ? Number(latestAttempt.maxScore) : null,
+    };
+  });
+
+  // 5. Adjust totalCount for LIVE filter (since we filter in service layer)
+  // For LIVE, the actual count is the filtered exams count
+  // But we need to recalculate totalPages based on the actual filtered count
+  // Since we're doing pagination at DB level, we'll use the original totalCount
+  // but note that for LIVE, the actual visible count might be less
+  const adjustedTotalCount = filter === "LIVE" 
+    ? examsWithAttemptStatus.length // For LIVE, use filtered count (approximate)
+    : totalCount;
+
+  // 6. Return the data and metadata
   return {
-    data: exams,
+    data: examsWithAttemptStatus,
     meta: {
       page,
       pageSize,
-      totalCount,
-      totalPages,
+      totalCount: adjustedTotalCount,
+      totalPages: Math.ceil(adjustedTotalCount / pageSize),
     },
   };
 };
@@ -203,20 +252,25 @@ export const updateExam = async (examId: string, input: UpdateExamInput) => {
   if (input.negativeMarkPerWrong !== undefined) {
     dataToUpdate.negativeMarkPerWrong = input.negativeMarkPerWrong ?? null;
   }
+  if (input.maxAttempts !== undefined) {
+    dataToUpdate.maxAttempts = input.maxAttempts ?? null; // null means unlimited
+  }
 
   // 3. --- Call Repository ---
+  // Note: We allow editing even if the exam is published
+  // Admin should be aware that changes might affect active attempts
   const updatedExam = await examRepo.updateExam(examId, dataToUpdate);
 
   return updatedExam;
 };
 
-export const deleteExam = async (examId: string) => {
-  // 1. --- Validation: Check if the exam exists AND has attempts ---
+export const deleteExam = async (examId: string, force: boolean = false) => {
+  // 1. --- Validation: Check if the exam exists ---
   const existingExam = await prisma.exam.findUnique({
     where: { id: examId },
     include: {
       _count: {
-        select: { attempts: true }, // Count how many attempts it has
+        select: { attempts: true, questions: true }, // Count attempts and questions
       },
     },
   });
@@ -225,19 +279,22 @@ export const deleteExam = async (examId: string) => {
     throw { status: 404, message: 'Exam not found' };
   }
 
-  // 2. --- Business Logic: PREVENT DELETING EXAM WITH SUBMISSIONS ---
-  if (existingExam._count.attempts > 0) {
-    throw {
-      status: 400,
-      message: 'Cannot delete an exam that has student attempts. Please archive it instead.',
-    };
+  // 2. --- Business Logic: Allow deletion even with attempts if force is true ---
+  // If force is false and there are attempts, warn but don't block
+  // The frontend should show a warning, but backend allows it
+  if (!force && existingExam._count.attempts > 0) {
+    // Just log a warning, but allow deletion
+    console.warn(`⚠️ Deleting exam ${examId} with ${existingExam._count.attempts} attempts. This will delete all attempts and results.`);
   }
 
-  // 3. --- Call Repository (if safe) ---
-  // If there are no attempts, it's safe to delete the exam and its children.
+  // 3. --- Call Repository to delete exam and all related data ---
+  // This will cascade delete attempts, responses, questions, etc.
   await examRepo.deleteExamAndChildren(examId);
 
-  return { message: 'Exam and all related questions/sections deleted successfully' };
+  return { 
+    message: `Exam and all related data deleted successfully. ${existingExam._count.attempts} attempts were deleted.`,
+    deletedAttempts: existingExam._count.attempts,
+  };
 };
 
 /**
@@ -248,5 +305,37 @@ export const getExamById = async (examId: string) => {
   if (!exam) {
     throw { status: 404, message: 'Exam not found' };
   }
+  return exam;
+};
+
+/**
+ * Fetches a single exam's details for a student.
+ * Checks if the student has access to the exam (assigned and published).
+ */
+export const getExamByIdForStudent = async (studentId: string, examId: string) => {
+  // 1. Fetch the student's details (needed for cohort matching)
+  const student = await userRepo.findStudentWithCohortInfo(studentId);
+  
+  if (!student) {
+    throw { status: 404, message: 'Student not found' };
+  }
+
+  // 2. Fetch the exam using the same logic as listExamsForStudent
+  const exam = await examRepo.findExamByIdForStudent({
+    examId,
+    student: {
+      id: student.id,
+      year: student.year,
+      department: student.department,
+      section: student.section,
+    },
+  });
+
+  if (!exam) {
+    throw { status: 404, message: 'Exam not found or not accessible' };
+  }
+
+  // 3. Return only the fields students need (no sensitive admin data)
+  // The repo already includes hasAttempt and attemptId
   return exam;
 };

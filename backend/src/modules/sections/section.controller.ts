@@ -108,3 +108,22 @@ export const removeQuestionFromSectionHandler: RequestHandler = async (
     next(error);
   }
 };
+
+export const listSectionsForExamHandler: RequestHandler = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const examId = req.params.examId;
+
+    if (!examId) {
+      return next({ status: 400, message: 'Exam ID parameter is required' });
+    }
+
+    const sections = await sectionService.listSectionsForExam(examId);
+    res.status(200).json(sections);
+  } catch (error) {
+    next(error);
+  }
+};

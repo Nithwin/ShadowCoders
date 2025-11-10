@@ -2,17 +2,50 @@ import { Express } from 'express';
 import { verifyAccess } from '../../middleware/auth';
 import { requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
-import { createRubricSchema } from './rubric.zod';
+import { createRubricSchema, updateRubricSchema, listRubricsSchema } from './rubric.zod';
 import * as rubricController from './rubric.controller';
 
 export const registerRubricRoutes = (app: Express) => {
-  app.post(
+  // List all rubrics
+  app.get(
     '/api/admin/rubrics',
-    verifyAccess,                 // 1. Must be logged in
-    requireRole('STAFF'),         // 2. Must be staff
-    validate(createRubricSchema), // 3. Data must be valid
-    rubricController.createRubricHandler // 4. Run the controller
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(listRubricsSchema),
+    rubricController.listRubricsHandler
   );
 
-  // We can add routes for GET, PUT, DELETE for rubrics here later
+  // Get a single rubric
+  app.get(
+    '/api/admin/rubrics/:rubricId',
+    verifyAccess,
+    requireRole('STAFF'),
+    rubricController.getRubricByIdHandler
+  );
+
+  // Create a new rubric
+  app.post(
+    '/api/admin/rubrics',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(createRubricSchema),
+    rubricController.createRubricHandler
+  );
+
+  // Update a rubric
+  app.put(
+    '/api/admin/rubrics/:rubricId',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(updateRubricSchema),
+    rubricController.updateRubricHandler
+  );
+
+  // Delete a rubric
+  app.delete(
+    '/api/admin/rubrics/:rubricId',
+    verifyAccess,
+    requireRole('STAFF'),
+    rubricController.deleteRubricHandler
+  );
 };

@@ -31,6 +31,39 @@ export const updateExamStatus = (examId: string, status: ExamStatus) => {
 export const findExamById = (examId: string) => {
   return prisma.exam.findUnique({
     where: { id: examId },
+    include: {
+      sections: {
+        include: {
+          sectionQuestions: {
+            include: {
+              question: {
+                select: {
+                  id: true,
+                  type: true,
+                  prompt: true,
+                  points: true,
+                  order: true,
+                },
+              },
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      },
+      assignments: true,
+      _count: {
+        select: {
+          questions: true,
+          sections: true,
+          attempts: true,
+        },
+      },
+    },
   });
 };
 
@@ -94,6 +127,87 @@ export const listExams = async (params: {
   };
 };
 
+export const findExamByIdForStudent = async (params: {
+  examId: string;
+  student: Pick<User, "id" | "year" | "department" | "section">;
+}) => {
+  const { examId, student } = params;
+  const whereClause: Prisma.ExamWhereInput = {
+    id: examId,
+    // Must be published
+    status: ExamStatus.PUBLISHED,
+    // Filter by assignment
+    assignments: {
+      some: {
+        OR: [
+          // Condition 1: Assigned to all students
+          {
+            assignToAll: true,
+          },
+          // Condition 2: Assigned via cohort match (only if student has cohort info)
+          ...(student.year && student.department && student.section
+            ? [
+                {
+                  cohortYear: student.year,
+                  cohortDepartment: student.department,
+                  cohortSection: student.section,
+                },
+              ]
+            : []),
+          // Condition 3: Assigned directly via student ID
+          {
+            studentIds: {
+              path: ["$"],
+              array_contains: student.id,
+            },
+          },
+        ],
+      },
+    },
+  };
+
+  // Fetch the exam with attempt status
+  const exam = await prisma.exam.findFirst({
+    where: whereClause,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startAt: true,
+      endAt: true,
+      durationMins: true,
+      status: true,
+      // Include attempts to check if student has completed this exam
+      attempts: {
+        where: {
+          studentId: student.id,
+          status: 'SUBMITTED',
+        },
+        select: {
+          id: true,
+          status: true,
+          submittedAt: true,
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!exam) {
+    return null;
+  }
+
+  // Transform to include attempt status
+  const hasCompletedAttempt = exam.attempts && exam.attempts.length > 0;
+  const { attempts, ...examData } = exam;
+  
+  return {
+    ...examData,
+    hasAttempt: hasCompletedAttempt,
+    attemptId: hasCompletedAttempt ? exam.attempts[0].id : null,
+  };
+};
+
 export const listExamsForStudent = async (params: {
   student: Pick<User, "id" | "year" | "department" | "section">; // Pass relevant student details
   filter?: "UPCOMING" | "LIVE" | "COMPLETED";
@@ -104,13 +218,11 @@ export const listExamsForStudent = async (params: {
   const { student, filter, searchQuery, page, pageSize } = params;
   const now = new Date();
   const skip = (page - 1) * pageSize;
-  const whereClause: Prisma.ExamWhereInput = {
+  
+  // Base where clause - must be published and assigned
+  const baseWhereClause: Prisma.ExamWhereInput = {
     // Must be published
     status: ExamStatus.PUBLISHED,
-    // Filter by time window based on the 'filter' parameter
-    ...(filter === "UPCOMING" && { startAt: { gt: now } }), // Start date is in the future
-    ...(filter === "LIVE" && { startAt: { lte: now }, endAt: { gt: now } }), // Live now
-    ...(filter === "COMPLETED" && { endAt: { lte: now } }), // End date is in the past
     // Filter by search query (title/description)
     ...(searchQuery && {
       OR: [
@@ -148,6 +260,51 @@ export const listExamsForStudent = async (params: {
     },
   };
 
+  // Build filter-specific where clause
+  let whereClause: Prisma.ExamWhereInput = { ...baseWhereClause };
+
+  if (filter === "UPCOMING") {
+    // UPCOMING: Exams that haven't started yet AND student hasn't submitted an attempt
+    whereClause = {
+      ...baseWhereClause,
+      startAt: { gt: now },
+      // Exclude exams where student has submitted attempts
+      attempts: {
+        none: {
+          studentId: student.id,
+          status: 'SUBMITTED',
+        },
+      },
+    };
+  } else if (filter === "LIVE") {
+    // LIVE: Exams that are currently active
+    // Show exams where student can still attempt (either no attempts, or has attempts but can retake based on maxAttempts)
+    // We can't filter by maxAttempts in Prisma easily, so we'll fetch all live exams and filter in the service
+    whereClause = {
+      ...baseWhereClause,
+      startAt: { lte: now },
+      endAt: { gt: now },
+    };
+  } else if (filter === "COMPLETED") {
+    // COMPLETED: Exams that have ended OR student has submitted an attempt
+    whereClause = {
+      ...baseWhereClause,
+      OR: [
+        // Option 1: Exam has ended
+        { endAt: { lte: now } },
+        // Option 2: Student has submitted an attempt (regardless of exam end time)
+        {
+          attempts: {
+            some: {
+              studentId: student.id,
+              status: 'SUBMITTED',
+            },
+          },
+        },
+      ],
+    };
+  }
+
   // Fetch the exams for the current page
   const exams = await prisma.exam.findMany({
     where: whereClause,
@@ -156,7 +313,7 @@ export const listExamsForStudent = async (params: {
     orderBy: {
       startAt: filter === "COMPLETED" ? "desc" : "asc", // Show completed newest first, others oldest first
     },
-    // Select only needed fields (optional, but good practice)
+    // Select only needed fields
     select: {
       id: true,
       title: true,
@@ -165,7 +322,25 @@ export const listExamsForStudent = async (params: {
       endAt: true,
       durationMins: true,
       status: true,
-      // Add any other fields the student needs to see in the list
+      maxAttempts: true,
+      // Include ALL attempts (not just SUBMITTED) to get the latest attempt
+      attempts: {
+        where: {
+          studentId: student.id,
+        },
+        select: {
+          id: true,
+          status: true,
+          submittedAt: true,
+          attemptNo: true,
+          score: true,
+          maxScore: true,
+        },
+        orderBy: {
+          attemptNo: 'desc', // Get the latest attempt first
+        },
+        take: 1, // Only get the latest attempt
+      },
     },
   });
 
@@ -200,30 +375,70 @@ export const updateExam = (
 
 export const deleteExamAndChildren = (examId: string) => {
   return prisma.$transaction(async (tx) => {
-    // 1. Delete links from sections to questions
+    // Get all response IDs for this exam's attempts
+    const responses = await tx.response.findMany({
+      where: { attempt: { examId: examId } },
+      select: { id: true },
+    });
+    const responseIds = responses.map((r) => r.id);
+
+    // 1. Delete all grading jobs (which reference responses)
+    if (responseIds.length > 0) {
+      await tx.gradingJob.deleteMany({
+        where: { responseId: { in: responseIds } },
+      });
+    }
+
+    // 2. Delete all response artifacts (which reference responses)
+    if (responseIds.length > 0) {
+      await tx.responseArtifact.deleteMany({
+        where: { responseId: { in: responseIds } },
+      });
+    }
+
+    // 3. Delete all evaluations (which are linked to responses)
+    if (responseIds.length > 0) {
+      await tx.evaluation.deleteMany({
+        where: { responseId: { in: responseIds } },
+      });
+    }
+
+    // 4. Delete all responses (which are linked to attempts)
+    await tx.response.deleteMany({
+      where: { attempt: { examId: examId } },
+    });
+
+    // 5. Delete all attempt sections
+    await tx.attemptSection.deleteMany({
+      where: { attempt: { examId: examId } },
+    });
+
+    // 6. Delete all attempts for this exam
+    await tx.attempt.deleteMany({
+      where: { examId: examId },
+    });
+
+    // 7. Delete links from sections to questions
     await tx.sectionQuestion.deleteMany({
       where: { section: { examId: examId } },
     });
 
-    // 2. Delete all questions for this exam
+    // 8. Delete all questions for this exam
     await tx.question.deleteMany({
       where: { examId: examId },
     });
 
-    // 3. Delete all sections for this exam
+    // 9. Delete all sections for this exam
     await tx.examSection.deleteMany({
       where: { examId: examId },
     });
 
-    // 4. Delete all assignments for this exam
+    // 10. Delete all assignments for this exam
     await tx.examAssignment.deleteMany({
       where: { examId: examId },
     });
-    
-    // NOTE: We assume attempts are checked in the service.
-    // If an attempt exists, this will fail.
 
-    // 5. Finally, delete the exam itself
+    // 11. Finally, delete the exam itself
     const deletedExam = await tx.exam.delete({
       where: { id: examId },
     });

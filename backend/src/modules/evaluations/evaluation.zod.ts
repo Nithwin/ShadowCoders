@@ -3,7 +3,7 @@ import { EvaluationKind } from '@prisma/client'; // Import enum
 
 export const createEvaluationSchema = z.object({
   body: z.object({
-    kind: z.enum(EvaluationKind, {
+    kind: z.nativeEnum(EvaluationKind, {
       message: 'Invalid evaluation kind',
     }), // e.g., MANUAL
     score: z

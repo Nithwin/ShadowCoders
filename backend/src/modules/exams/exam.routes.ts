@@ -35,43 +35,50 @@ export const registerExamRoutes = (app: Express) => {
         requireRole('STAFF'),
         validate(listExamsSchema),
         examController.listExamsHandler
-    )
+    );
 
     app.get(
         '/api/student/exams',
         verifyAccess,
         validate(studentListExamsSchema),
-        examController.listExamsForStudentHandler
-    )
+        examController.studentListExamsHandler
+    );
+
+    // Export exam results to Excel (MUST come before :examId routes)
+    app.get(
+        '/api/admin/exams/:examId/export',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.exportExamResultsHandler
+    );
+
+    // Single exam fetch for edit page
+    app.get(
+        '/api/admin/exams/:examId',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.getExamByIdHandler
+    );
+
+    // Single exam fetch for students (with access control)
+    app.get(
+        '/api/student/exams/:examId',
+        verifyAccess,
+        examController.getExamByIdForStudentHandler
+    );
+
     app.put(
-    '/api/admin/exams/:examId',
-    verifyAccess,
-    requireRole('STAFF'),
-    validate(updateExamSchema), // 2. Use the update schema
-    examController.updateExamHandler // 3. Use the update controller
-  );
+        '/api/admin/exams/:examId',
+        verifyAccess,
+        requireRole('STAFF'),
+        validate(updateExamSchema),
+        examController.updateExamHandler
+    );
 
-  // --- Student Route ---
-  app.get(
-    '/api/student/exams',
-    verifyAccess,
-    validate(studentListExamsSchema),
-    examController.listExamsForStudentHandler
-  );
-
-  app.delete(
-    '/api/admin/exams/:examId',
-    verifyAccess,
-    requireRole('STAFF'),
-    // No Zod validation needed for a simple delete
-    examController.deleteExamHandler
-  );
-
-  // Single exam fetch for edit page
-  app.get(
-    '/api/admin/exams/:examId',
-    verifyAccess,
-    requireRole('STAFF'),
-    examController.getExamByIdHandler
-  );
+    app.delete(
+        '/api/admin/exams/:examId',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.deleteExamHandler
+    );
 }

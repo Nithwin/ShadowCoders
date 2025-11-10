@@ -104,6 +104,28 @@ export const getAttemptDetailsHandler: RequestHandler = async (req, res, next) =
   }
 };
 
+export const getQuestionHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub;
+    const attemptId = req.params.attemptId;
+    const questionId = req.params.questionId;
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+    if (!attemptId || !questionId) {
+      return next({ status: 400, message: 'Attempt ID and Question ID are required' });
+    }
+
+    // Get the question with scrubbed test cases (only visible ones)
+    const question = await attemptService.getQuestionForStudent(attemptId, questionId, studentId);
+
+    res.status(200).json(question);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAttemptResultsHandler: RequestHandler = async (req, res, next) => {
   try {
     const studentId = req.user?.sub; // From verifyAccess middleware
@@ -136,11 +158,20 @@ export const listAttemptsForExamHandler: RequestHandler = async (req, res, next)
       return next({ status: 400, message: 'Exam ID parameter is required' });
     }
 
-    // Get validated query params
-    const queryParams = req.query as unknown as z.infer<typeof listAttemptsSchema>['query'];
+    // Get validated query params from middleware
+    const queryParams = req.validatedData?.query as z.infer<typeof listAttemptsSchema>['query'] || {
+      page: 1,
+      pageSize: 20,
+    };
+    
+    // Ensure pageSize is a number
+    const validatedParams = {
+      page: Number(queryParams.page) || 1,
+      pageSize: Number(queryParams.pageSize) || 20,
+    };
     
     // Call the ATTEMPT service to get the data
-    const result = await attemptService.listAttemptsForExam(examId, queryParams);
+    const result = await attemptService.listAttemptsForExam(examId, validatedParams);
 
     res.status(200).json(result);
   } catch (error) {

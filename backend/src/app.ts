@@ -12,6 +12,7 @@ import { registerRubricRoutes } from './modules/rubrics/rubric.routes';
 import { registerAssetRoutes } from './modules/assets/asset.routes';
 import { registerSectionRoutes } from './modules/sections/section.routes';
 import { registerAiRoutes } from './modules/ai/ai.routes';
+import { registerGradingRoutes } from './modules/grading/grading.routes';
 import { env } from './config/env';
 
 export const createApp = () => {
@@ -35,7 +36,7 @@ export const createApp = () => {
         credentials: true,
         methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie'],
-        exposedHeaders: ['Set-Cookie'],
+        exposedHeaders: ['Set-Cookie', 'Content-Disposition', 'Content-Type'],
     };
     app.use(cors(corsOptions));
     app.use(express.json());
@@ -54,6 +55,7 @@ export const createApp = () => {
     registerAssetRoutes(app);
     registerSectionRoutes(app);
     registerAiRoutes(app);
+    registerGradingRoutes(app);
     app.use(errorHandler);
 
     return app;

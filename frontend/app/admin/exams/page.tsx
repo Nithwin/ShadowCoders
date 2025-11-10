@@ -85,13 +85,33 @@ export default function ExamManagementPage() {
   };
 
   const handleDelete = async (examId: string) => {
-    if (!confirm('Are you sure you want to delete this exam? This will also delete all associated questions, sections, and assignments.')) return;
+    // First, check if exam has attempts
     try {
-      await api.delete(`/admin/exams/${examId}`);
+      const examRes = await api.get(`/admin/exams/${examId}`);
+      const exam = examRes.data;
+      const attemptCount = exam._count?.attempts || 0;
+      
+      let confirmMessage = 'Are you sure you want to delete this exam? This will also delete all associated questions, sections, and assignments.';
+      if (attemptCount > 0) {
+        confirmMessage += `\n\n⚠️ WARNING: This exam has ${attemptCount} student attempt(s). Deleting will permanently remove all attempts and results. This action cannot be undone.`;
+        confirmMessage += '\n\nType "DELETE" to confirm deletion:';
+        
+        const userInput = prompt(confirmMessage);
+        if (userInput !== 'DELETE') {
+          return; // User cancelled or didn't type DELETE
+        }
+      } else {
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+      }
+      
+      // Delete with force=true if there are attempts
+      await api.delete(`/admin/exams/${examId}${attemptCount > 0 ? '?force=true' : ''}`);
       fetchExams();
     } catch (err: any) {
       console.error(err);
-      alert(err?.response?.data?.error?.message || 'Failed to delete exam.');
+      alert(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to delete exam.');
     }
   };
 

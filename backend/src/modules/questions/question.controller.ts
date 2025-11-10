@@ -31,11 +31,22 @@ export const addQuestionsHandler: RequestHandler = async (req, res, next) => {
       return res.status(400).json({ error: 'Exam ID is required' });
     }
     
-    const questions = req.body.questions;
+    // Get validated data from middleware if available, otherwise use req.body
+    const questions = req.validatedData?.body?.questions || req.body.questions;
+
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: 'At least one question must be provided' 
+      });
+    }
 
     await questionService.addQuestionsToExam(examId, questions);
 
-    res.status(201).send('Questions added successfully');
+    res.status(201).json({ 
+      message: 'Questions added successfully',
+      count: questions.length 
+    });
   } catch (error) {
     next(error);
   }
@@ -71,11 +82,20 @@ export const getQuestionHandler: RequestHandler = async (req, res, next) => {
 export const updateQuestionHandler: RequestHandler = async (req, res, next) => {
   try {
     const questionId = req.params.questionId;
-    const updateData = req.body as z.infer<typeof updateQuestionSchema>['body'];
+    // Use validatedData from middleware, fallback to req.body if not available
+    const updateData = req.validatedData?.body || req.body;
 
     if (!questionId) {
       return next({ status: 400, message: 'Question ID parameter is required' });
     }
+
+    console.log('Update question request:', {
+      questionId,
+      updateData: JSON.stringify(updateData, null, 2),
+      testcases: updateData.testcases,
+      testcasesType: typeof updateData.testcases,
+      testcasesIsArray: Array.isArray(updateData.testcases),
+    });
 
     const updatedQuestion = await questionService.updateQuestion(
       questionId,

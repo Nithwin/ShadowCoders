@@ -23,6 +23,7 @@ export const createExamSchema = z.object({
 
     randomizeQuestions: z.boolean().optional(),
     negativeMarkPerWrong: z.number().optional(),
+    maxAttempts: z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
   }),
 });
 
@@ -138,6 +139,7 @@ export const updateExamSchema = z.object({
         .optional(),
       randomizeQuestions: z.boolean().optional(),
       negativeMarkPerWrong: z.number().optional(),
+      maxAttempts: z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
     })
     // Add a refinement to ensure if both dates are sent, start is before end
     .refine(

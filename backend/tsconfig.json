@@ -40,5 +40,9 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // Include only source files from src directory
+  "include": ["src/**/*"],
+  // Exclude test files and build outputs
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "test-*.ts", "verify-*.ts"]
 }

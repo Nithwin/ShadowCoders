@@ -6,6 +6,14 @@ import { addQuestionsToSectionSchema, createSectionSchema, updateSectionSchema }
 import * as sectionController from './section.controller';
 
 export const registerSectionRoutes = (app: Express) => {
+  // Get all sections for an exam
+  app.get(
+    '/api/admin/exams/:examId/sections',
+    verifyAccess,
+    requireRole('STAFF'),
+    sectionController.listSectionsForExamHandler
+  );
+
   app.post(
     '/api/admin/exams/:examId/sections',
     verifyAccess,                 // 1. Must be logged in

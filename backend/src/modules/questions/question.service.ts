@@ -139,8 +139,25 @@ export const updateQuestion = async (
     case QType.CODING:
       if (input.starterCode !== undefined)
         dataToUpdate.starterCode = input.starterCode ?? null;
-      if (input.testcases !== undefined)
-        dataToUpdate.testcases = input.testcases as Prisma.JsonArray;
+      if (input.testcases !== undefined) {
+        // Validate that testcases is an array and has at least one item
+        if (Array.isArray(input.testcases)) {
+          if (input.testcases.length === 0) {
+            throw { status: 400, message: 'Coding question must have at least one test case' };
+          }
+          // Validate each testcase has required fields
+          for (let i = 0; i < input.testcases.length; i++) {
+            const tc = input.testcases[i];
+            if (!tc.input || !tc.expectedOutput) {
+              throw { status: 400, message: `Test case ${i + 1} must have both input and expectedOutput` };
+            }
+          }
+          dataToUpdate.testcases = input.testcases as Prisma.JsonArray;
+          console.log(`Updating testcases for question ${questionId}:`, JSON.stringify(input.testcases, null, 2));
+        } else {
+          throw { status: 400, message: 'Testcases must be an array' };
+        }
+      }
       break;
     case QType.ESSAY:
       if (input.wordLimit !== undefined)
@@ -154,11 +171,27 @@ export const updateQuestion = async (
   if (input.passageAssetId !== undefined) dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
 
 
-  // 3. --- Call Repository ---
+  // 3. --- Log the update data for debugging ---
+  console.log('Updating question with data:', JSON.stringify(dataToUpdate, null, 2));
+  if (dataToUpdate.testcases) {
+    console.log('Testcases to save:', JSON.stringify(dataToUpdate.testcases, null, 2));
+  }
+
+  // 4. --- Call Repository ---
   const updatedQuestion = await questionRepo.updateQuestion(
     questionId,
     dataToUpdate
   );
+
+  // 5. --- Verify the update was successful ---
+  const verifiedQuestion = await questionRepo.getQuestionById(questionId);
+  console.log('Question after update:', {
+    id: verifiedQuestion?.id,
+    type: verifiedQuestion?.type,
+    hasTestcases: !!verifiedQuestion?.testcases,
+    testcasesLength: Array.isArray(verifiedQuestion?.testcases) ? verifiedQuestion.testcases.length : 'not an array',
+    testcases: verifiedQuestion?.testcases,
+  });
 
   return updatedQuestion;
 };

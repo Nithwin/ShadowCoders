@@ -1,5 +1,6 @@
 /**
  * Lists all questions for a specific exam.
+ * Returns all fields needed for editing, including testcases, options, etc.
  */
 export const listQuestionsForExam = (examId: string) => {
   return prisma.question.findMany({
@@ -11,6 +12,11 @@ export const listQuestionsForExam = (examId: string) => {
       type: true,
       prompt: true,
       points: true,
+      options: true,
+      correctOptionIds: true,
+      testcases: true,
+      starterCode: true,
+      wordLimit: true,
     },
   });
 };
@@ -64,9 +70,27 @@ export const updateQuestion = (
   questionId: string,
   data: Prisma.QuestionUpdateInput
 ) => {
+  console.log('Repository updateQuestion called with:', {
+    questionId,
+    data: JSON.stringify(data, null, 2),
+    testcases: data.testcases,
+  });
+  
   return prisma.question.update({
     where: { id: questionId },
     data: data,
+    select: {
+      id: true,
+      type: true,
+      prompt: true,
+      points: true,
+      options: true,
+      correctOptionIds: true,
+      testcases: true,
+      starterCode: true,
+      wordLimit: true,
+      order: true,
+    },
   });
 };
 

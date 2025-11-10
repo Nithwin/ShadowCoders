@@ -104,7 +104,15 @@ export const updateQuestionSchema = z.object({
     options: z.array(z.object({ id: z.string(), text: z.string() })).min(2).optional(),
     correctOptionIds: z.array(z.string()).min(1).optional(),
     starterCode: z.string().optional(),
-    testcases: z.array(z.any()).min(1).optional(), // Simplified for update
+    // Properly validate testcases structure
+    testcases: z.array(
+      z.object({
+        input: z.string().min(1, 'Input is required'),
+        expectedOutput: z.string().min(1, 'Expected output is required'),
+        isHidden: z.boolean().default(false),
+        timeoutMs: z.number().int().positive().default(2000),
+      })
+    ).optional(),
     wordLimit: z.number().int().positive().optional(),
     // Add other fields (mediaAssetId, passageAssetId, etc.) as optional
     mediaAssetId: z.string().cuid().optional(),

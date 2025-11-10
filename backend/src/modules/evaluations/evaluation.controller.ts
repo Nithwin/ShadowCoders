@@ -7,7 +7,8 @@ export const createManualEvaluationHandler: RequestHandler = async (req, res, ne
   try {
     const assessorId = req.user?.sub; // ID of the STAFF user
     const responseId = req.params.responseId; // ID of the answer being graded
-    const evaluationData = req.body as z.infer<typeof createEvaluationSchema>['body'];
+    // Get validated data from middleware
+    const evaluationData = req.validatedData?.body || req.body;
 
     if (!assessorId) {
       return next({ status: 401, message: 'Unauthorized: Assessor ID not found' });

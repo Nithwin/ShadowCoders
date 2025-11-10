@@ -1,92 +1,60 @@
-import { RequestHandler } from "express";
+import { RequestHandler } from 'express';
 import * as examService from './exam.service';
-import { listExamsSchema, studentListExamsSchema, updateExamSchema } from './exam.zod';
+import * as exportService from './exam.export.service';
 import { z } from 'zod';
+import { listExamsSchema, studentListExamsSchema } from './exam.zod';
 
-export const createExamHandler: RequestHandler = async (req,res,next) => {
-    try{
-        const newExam = await examService.createExam(req.body);
-        res.status(201).json(newExam);
-    } catch(error){
-        next(error);
+export const listExamsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const queryParams = req.validatedData?.query as z.infer<typeof listExamsSchema>['query'];
+    
+    const result = await examService.listExams(queryParams);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getExamByIdHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    const exam = await examService.getExamById(examId);
+
+    if (!exam) {
+      return next({ status: 404, message: 'Exam not found' });
     }
-}
 
-export const assignExamHandler: RequestHandler = async (req,res,next) => {
-    try{
-        const examId = req.params.examId;
-        const assignmentData = req.body;
+    res.status(200).json(exam);
+  } catch (error) {
+    next(error);
+  }
+};
 
-        if(!examId){
-            return res.status(400).json({ error: 'Exam ID is required' });
-        }
+export const createExamHandler: RequestHandler = async (req, res, next) => {
+  try {
+    // Get validated data from middleware, fallback to req.body
+    const examData = req.validatedData?.body || req.body;
+    const newExam = await examService.createExam(examData);
 
-        const assignment = await examService.assignExam(examId, assignmentData);
-        
-        res.status(201).json(assignment);
-    } catch(error){
-        next(error);
-    }
-}
-
-export const publishExamHandler: RequestHandler = async (req,res,next) => {
-    try{
-        const examId = req.params.examId;
-
-        if(!examId){
-            return res.status(400).json({ error: 'Exam ID is required' });
-        }
-
-        const updatedExam = await examService.pubishExam(examId);
-        res.status(200).json(updatedExam);
-    }
-    catch(error){
-        next(error);
-    }
-}
-
-export const listExamsHandler: RequestHandler = async (req,res,next) => {
-    try{
-        const queryParams = req.validatedData?.query as z.infer<typeof listExamsSchema>['query'];
-        const result = await examService.listExams(queryParams);
-        res.status(200).json(result);
-    } catch(error){
-        next(error);
-    }
-}
-
-export const listExamsForStudentHandler: RequestHandler = async (req,res,next) => {
-
-    try{
-        const studentId = req.user?.sub;
-        if(!studentId){
-            return next({ status: 401, message: 'Unauthorized' });
-        }
-
-        const queryParams = req.validatedData?.query as z.infer<typeof studentListExamsSchema>['query'];
-        const result = await examService.listExamsForStudent(studentId, queryParams);
-        res.status(200).json(result);
-    } catch(error){
-        next(error);
-    }
-}
+    res.status(201).json(newExam);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const updateExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
-    // Get the validated data from the body
-    const examData = req.body as z.infer<typeof updateExamSchema>['body'];
-
-    if (!examId) {
-      return next({ status: 400, message: 'Exam ID parameter is required' });
-    }
-
-    // Call the service to update the exam
+    // Get validated data from middleware, fallback to req.body
+    const examData = req.validatedData?.body || req.body;
     const updatedExam = await examService.updateExam(examId, examData);
 
-    // Send back the updated exam details
-    res.status(200).json(updatedExam);
+    if (!updatedExam) {
+      return next({ status: 404, message: 'Exam not found' });
+    }
 
+    res.status(200).json(updatedExam);
   } catch (error) {
     next(error);
   }
@@ -95,32 +63,102 @@ export const updateExamHandler: RequestHandler = async (req, res, next) => {
 export const deleteExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
-
+    // Allow force deletion via query parameter (e.g., ?force=true)
+    const force = req.query.force === 'true' || req.query.force === true;
+    
     if (!examId) {
       return next({ status: 400, message: 'Exam ID parameter is required' });
     }
 
-    const result = await examService.deleteExam(examId);
-
-    // Send a 200 OK or 204 No Content response
+    const result = await examService.deleteExam(examId, force);
     res.status(200).json(result);
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * Handles the request to get a single exam by its ID.
- */
-export const getExamByIdHandler: RequestHandler = async (req, res, next) => {
-    try {
-        const examId = req.params.examId;
-        if (!examId) {
-            return next({ status: 400, message: 'Exam ID parameter is required' });
-        }
-        const exam = await examService.getExamById(examId);
-        res.status(200).json(exam);
-    } catch (error) {
-        next(error);
+export const studentListExamsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub;
+    const queryParams = req.validatedData?.query as z.infer<typeof studentListExamsSchema>['query'];
+    
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
     }
+
+    const result = await examService.listExamsForStudent(studentId, queryParams);
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getExamByIdForStudentHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub;
+    const examId = req.params.examId;
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+
+    const exam = await examService.getExamByIdForStudent(studentId, examId);
+
+    if (!exam) {
+      return next({ status: 404, message: 'Exam not found or not assigned to you' });
+    }
+
+    res.status(200).json(exam);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const assignExamHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    // Get validated data from middleware, fallback to req.body
+    const assignmentData = req.validatedData?.body || req.body;
+    const assignment = await examService.assignExam(examId, assignmentData);
+
+    res.status(201).json(assignment);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const publishExamHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    const updatedExam = await examService.pubishExam(examId);
+
+    res.status(200).json(updatedExam);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const exportExamResultsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    
+    const workbook = await exportService.exportExamResultsToExcel(examId);
+    
+    // Get exam title for filename
+    const exam = await examService.getExamById(examId);
+    const safeTitle = exam?.title?.replace(/[^a-z0-9]/gi, '_') || examId;
+    const filename = `exam_results_${safeTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.setHeader('Content-Transfer-Encoding', 'binary');
+    
+    // Write workbook to buffer, then send
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
 };

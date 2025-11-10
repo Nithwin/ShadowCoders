@@ -171,3 +171,50 @@ export const removeQuestionFromSection = async (
     throw error;
   }
 };
+
+export const listSectionsForExam = async (examId: string) => {
+  // Check if exam exists
+  const exam = await examRepo.findExamById(examId);
+  if (!exam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+
+  // Fetch all sections for this exam with their questions
+  const sections = await prisma.examSection.findMany({
+    where: { examId },
+    include: {
+      sectionQuestions: {
+        include: {
+          question: {
+            select: {
+              id: true,
+              type: true,
+              prompt: true,
+              points: true,
+              order: true,
+            },
+          },
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      },
+    },
+    orderBy: {
+      order: 'asc',
+    },
+  });
+
+  return sections.map((section) => ({
+    id: section.id,
+    title: section.title,
+    description: section.description,
+    order: section.order,
+    durationMins: section.durationMins,
+    questions: section.sectionQuestions.map((sq) => ({
+      questionId: sq.questionId,
+      order: sq.order,
+      question: sq.question,
+    })),
+  }));
+};

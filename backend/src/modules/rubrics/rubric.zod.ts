@@ -18,3 +18,20 @@ export const createRubricSchema = z.object({
     criteria: z.array(criterionSchema).min(1, 'Rubric must have at least one criterion'),
   }),
 });
+
+// Schema for updating a rubric
+export const updateRubricSchema = z.object({
+  body: z.object({
+    name: z.string().min(3, 'Rubric name must be at least 3 characters').optional(),
+    criteria: z.array(criterionSchema).min(1, 'Rubric must have at least one criterion').optional(),
+  }),
+});
+
+// Schema for listing rubrics (query params)
+export const listRubricsSchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(10),
+    q: z.string().optional(), // search query
+  }),
+});

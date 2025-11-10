@@ -1,5 +1,5 @@
 import * as attemptRepo from "./attempt.repo";
-import { Prisma, ExamStatus, AttemptStatus, QType } from "@prisma/client";
+import { Prisma, ExamStatus, AttemptStatus, QType, GradingMode } from "@prisma/client";
 import { shuffleArray } from "../../lib/utils";
 import { prisma } from "../../lib/prisma";
 import z from "zod";
@@ -12,6 +12,19 @@ export const startAttempt = async (studentId: string, examId: string) => {
     include: {
       assignments: true,
       questions: { select: { id: true } },
+      attempts: {
+        where: {
+          studentId: studentId,
+        },
+        select: {
+          id: true,
+          attemptNo: true,
+          status: true,
+        },
+        orderBy: {
+          attemptNo: 'desc',
+        },
+      },
     },
   });
 
@@ -62,6 +75,43 @@ export const startAttempt = async (studentId: string, examId: string) => {
     throw { status: 403, message: "You are not assigned to this exam" };
   }
 
+  // Check for multiple attempts
+  const existingAttempts = exam.attempts || [];
+  const submittedAttempts = existingAttempts.filter(a => a.status === AttemptStatus.SUBMITTED);
+  const currentAttemptCount = existingAttempts.length;
+  const submittedAttemptCount = submittedAttempts.length;
+
+  // Check if student has reached max attempts
+  if (exam.maxAttempts !== null && exam.maxAttempts !== undefined) {
+    if (submittedAttemptCount >= exam.maxAttempts) {
+      throw { 
+        status: 403, 
+        message: `You have reached the maximum number of attempts (${exam.maxAttempts}) for this exam.` 
+      };
+    }
+  }
+
+  // Check if there's an in-progress attempt
+  const inProgressAttempt = existingAttempts.find(a => a.status === AttemptStatus.IN_PROGRESS);
+  if (inProgressAttempt) {
+    // Return the existing in-progress attempt
+    return await prisma.attempt.findUnique({
+      where: { id: inProgressAttempt.id },
+      select: {
+        id: true,
+        examId: true,
+        studentId: true,
+        startedAt: true,
+        status: true,
+        orderMap: true,
+        attemptNo: true,
+      },
+    });
+  }
+
+  // Calculate the next attempt number
+  const nextAttemptNo = currentAttemptCount + 1;
+
   let orderMap: Prisma.InputJsonValue | null = null;
   if (exam.randomizeQuestions && exam.questions.length > 0) {
     const questionIds = exam.questions.map((q) => q.id);
@@ -70,6 +120,7 @@ export const startAttempt = async (studentId: string, examId: string) => {
 
   const attemptData: Prisma.AttemptCreateInput = {
     status: AttemptStatus.IN_PROGRESS,
+    attemptNo: nextAttemptNo,
     orderMap: orderMap ?? Prisma.JsonNull,
     student: { connect: { id: studentId } },
     exam: { connect: { id: examId } },
@@ -83,7 +134,7 @@ export const startAttempt = async (studentId: string, examId: string) => {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      throw { status: 409, message: "Attempt already exists or was submitted" };
+      throw { status: 409, message: "Attempt already exists. Please refresh and try again." };
     }
     throw error;
   }
@@ -195,8 +246,35 @@ export const submitAttempt = async (studentId: string, attemptId: string) => {
             const correct = question.correctOptionIds as string[];
 
             if (answer.chosenOptionIds && correct) {
-              if (areArraysEqual(answer.chosenOptionIds, correct)) {
+              const isCorrect = areArraysEqual(answer.chosenOptionIds, correct);
+              if (isCorrect) {
                 totalScore += questionPoints;
+                
+                // Update the response's earnedPoints in the database
+                await prisma.response.updateMany({
+                  where: {
+                    attemptId: attemptId,
+                    questionId: question.id,
+                  },
+                  data: {
+                    earnedPoints: questionPoints,
+                    verdict: 'PASS',
+                    gradingMode: GradingMode.AUTO,
+                  },
+                });
+              } else {
+                // Update response to indicate incorrect answer
+                await prisma.response.updateMany({
+                  where: {
+                    attemptId: attemptId,
+                    questionId: question.id,
+                  },
+                  data: {
+                    earnedPoints: 0,
+                    verdict: 'FAIL',
+                    gradingMode: GradingMode.AUTO,
+                  },
+                });
               }
               // You could add logic for negative marking here
             }
@@ -206,9 +284,97 @@ export const submitAttempt = async (studentId: string, attemptId: string) => {
           break;
 
         case QType.CODING:
+          // Auto-grade coding questions using test cases
+          try {
+            const answer = response.answer as { code?: string; language?: string };
+            const testcases = question.testcases as Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }> | null;
+            
+            if (answer?.code && testcases && testcases.length > 0) {
+              const code = answer.code.trim();
+              const language = answer.language || 'javascript';
+              
+              if (code.length === 0) {
+                // No code provided
+                await prisma.response.updateMany({
+                  where: {
+                    attemptId: attemptId,
+                    questionId: question.id,
+                  },
+                  data: {
+                    earnedPoints: 0,
+                    verdict: 'FAIL',
+                    gradingMode: GradingMode.AUTO,
+                  },
+                });
+                break;
+              }
+
+              // Execute code against ALL test cases (both visible and hidden)
+              const { testCodeWithTestCases } = await import('../../lib/judge0');
+              
+              const testResults = await testCodeWithTestCases(
+                code,
+                language,
+                testcases.map((tc) => ({
+                  input: tc.input,
+                  expectedOutput: tc.expectedOutput,
+                  timeoutMs: tc.timeoutMs || 2000,
+                }))
+              );
+
+              // Calculate score based on test cases passed
+              // Score = (passed / total) * questionPoints
+              const passedRatio = testResults.total > 0 ? testResults.passed / testResults.total : 0;
+              const earnedPoints = Math.round(questionPoints * passedRatio * 100) / 100; // Round to 2 decimal places
+              
+              totalScore += earnedPoints;
+              
+              // Update the response's earnedPoints in the database
+              await prisma.response.updateMany({
+                where: {
+                  attemptId: attemptId,
+                  questionId: question.id,
+                },
+                data: {
+                  earnedPoints: earnedPoints,
+                  verdict: testResults.passed === testResults.total ? 'PASS' : 'PARTIAL',
+                  gradingMode: GradingMode.AUTO,
+                },
+              });
+            } else if (!answer?.code || answer.code.trim().length === 0) {
+              // No code provided
+              await prisma.response.updateMany({
+                where: {
+                  attemptId: attemptId,
+                  questionId: question.id,
+                },
+                data: {
+                  earnedPoints: 0,
+                  verdict: 'FAIL',
+                  gradingMode: GradingMode.AUTO,
+                },
+              });
+            }
+          } catch (e) {
+            // Failed to auto-grade coding; give 0 points
+            console.error('Error auto-grading coding question:', e);
+            await prisma.response.updateMany({
+              where: {
+                attemptId: attemptId,
+                questionId: question.id,
+              },
+              data: {
+                earnedPoints: 0,
+                verdict: 'FAIL',
+                gradingMode: GradingMode.AUTO,
+              },
+            });
+          }
+          break;
+          
         case QType.ESSAY:
         case QType.SPEAKING:
-          // These types require manual or AI grading, so score 0 for now
+          // These types require manual grading, so score 0 for now
           // The 'earnedPoints' on the Response can be updated later by a STAFF user
           totalScore += 0;
           break;
@@ -265,6 +431,7 @@ export const getQuestionById = (questionId: string) => {
       type: true,
       prompt: true,
       points: true,
+      order: true,
       // Include all fields a student might need
       options: true,
       starterCode: true,
@@ -285,6 +452,56 @@ export const getQuestionById = (questionId: string) => {
       blanks: true
     },
   });
+};
+
+export const getQuestionForStudent = async (
+  attemptId: string,
+  questionId: string,
+  studentId: string
+) => {
+  // 1. Verify the attempt belongs to the student
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: { studentId: true, examId: true, status: true },
+  });
+
+  if (!attempt) {
+    throw { status: 404, message: 'Attempt not found' };
+  }
+
+  if (attempt.studentId !== studentId) {
+    throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
+  }
+
+  // 2. Get the question
+  const question = await getQuestionById(questionId);
+
+  if (!question) {
+    throw { status: 404, message: 'Question not found' };
+  }
+
+  if (question.examId !== attempt.examId) {
+    throw { status: 403, message: 'Question is not part of this exam' };
+  }
+
+  // 3. Scrub the question data for students
+  const scrubbedQuestion: any = {
+    id: question.id,
+    type: question.type,
+    prompt: question.prompt,
+    points: question.points,
+    order: question.order,
+    options: question.options,
+    starterCode: question.starterCode,
+    wordLimit: question.wordLimit,
+    // Remove correctOptionIds and blanks
+    // For coding questions, only show visible test cases
+    testcases: question.type === QType.CODING && question.testcases
+      ? (question.testcases as any[]).filter((tc: any) => !tc.isHidden)
+      : undefined,
+  };
+
+  return scrubbedQuestion;
 };
 
 export const getAttemptResults = async (
@@ -311,7 +528,16 @@ export const getAttemptResults = async (
     throw { status: 403, message: 'Forbidden: Results are not available for this attempt yet' };
   }
 
-  // 5. Return the full results
+  // 5. Sort responses by question order for consistent display
+  if (attemptResults.responses && Array.isArray(attemptResults.responses)) {
+    attemptResults.responses.sort((a: any, b: any) => {
+      const orderA = a.question?.order ?? 999;
+      const orderB = b.question?.order ?? 999;
+      return orderA - orderB;
+    });
+  }
+
+  // 6. Return the full results
   return attemptResults;
 };
 
@@ -321,7 +547,9 @@ export const listAttemptsForExam = async (
   examId: string,
   query: ListAttemptsQuery
 ) => {
-  const { page, pageSize } = query;
+  // Ensure page and pageSize are numbers
+  const page = typeof query.page === 'string' ? parseInt(query.page, 10) : (query.page ?? 1);
+  const pageSize = typeof query.pageSize === 'string' ? parseInt(query.pageSize, 10) : (query.pageSize ?? 20);
 
   // 1. Call the repository to get attempts and the total count
   const { attempts, totalCount } = await attemptRepo.listAttemptsForExam({
@@ -354,9 +582,15 @@ export const getAttemptForAdmin = async (attemptId: string) => {
     throw { status: 404, message: 'Attempt not found' };
   }
 
-  // No business logic needed here, just return the data.
-  // Security (is user STAFF?) is handled by middleware in the route.
-  
-  // 3. Return the full attempt details
+  // 3. Sort responses by question order for consistent display
+  if (attempt.responses && Array.isArray(attempt.responses)) {
+    attempt.responses.sort((a: any, b: any) => {
+      const orderA = a.question?.order ?? 999;
+      const orderB = b.question?.order ?? 999;
+      return orderA - orderB;
+    });
+  }
+
+  // 4. Return the full attempt details
   return attempt;
 };

@@ -118,6 +118,7 @@ model Exam {
   randomizeQuestions   Boolean    @default(false)
   negativeMarkPerWrong Decimal?   @db.Decimal(5, 2)
   status               ExamStatus @default(DRAFT)
+  maxAttempts          Int?       // null means unlimited attempts
 
   questions   Question[]
   assignments ExamAssignment[]

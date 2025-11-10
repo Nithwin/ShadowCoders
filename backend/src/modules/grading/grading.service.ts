@@ -3,47 +3,12 @@ import { runCodeSchema } from './grading.zod';
 import * as gradingRepo from './grading.repo';
 import { prisma } from '../../lib/prisma';
 import { AttemptStatus, QType, Prisma } from '@prisma/client';
+import { testCodeWithTestCases as testCodeWithTestCasesJudge0 } from '../../lib/judge0';
+import { testCodeWithTestCasesLocally } from '../../lib/local-executor';
+import { env } from '../../config/env';
 
 // Infer the TypeScript type from the Zod schema's body
 type RunCodeInput = z.infer<typeof runCodeSchema>['body'];
-
-/**
- * --- MOCK CODE JUDGE FUNCTION ---
- * In a real app, this function would make an API call to Judge0
- * or a similar service with the code and testcases.
- */
-const executeCodeInJudge = async (
-  code: string,
-  language: string,
-  testcases: any[]
-): Promise<{ status: string; result: any }> => {
-  console.log(`Simulating code execution for language: ${language}...`);
-  // Simulate a 1-second delay for running code
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  // Mock result: Randomly pass or fail
-  const isSuccess = Math.random() > 0.3; // 70% chance of success
-
-  if (isSuccess) {
-    return {
-      status: 'SUCCEEDED',
-      result: {
-        stdout: 'All testcases passed!',
-        verdict: 'Accepted',
-      },
-    };
-  } else {
-    // Simulation indicated failure
-    return {
-      status: 'FAILED',
-      result: {
-        stdout: 'Testcase 3 failed: Expected 10, got 9',
-        verdict: 'Wrong Answer',
-      },
-    };
-  }
-};
-// --- END OF MOCK FUNCTION ---
 
 /**
  * Handles the logic for running a student's code submission.
@@ -90,39 +55,94 @@ export const runCode = async (
     throw { status: 400, message: 'No test cases found for this question' };
   }
   
-  // 3. --- Create Grading Job ---
-  // First, find the response record to link the job to
-  const response = await prisma.response.findFirst({
-      where: { attemptId: attemptId, questionId: questionId },
-      select: { id: true }
+  // 3. --- Upsert Response (create if doesn't exist) ---
+  // This allows students to test code before final submission
+  let response = await prisma.response.findFirst({
+    where: { attemptId: attemptId, questionId: questionId },
+    select: { id: true }
   });
-  
+
   if (!response) {
-      throw { status: 404, message: 'No response record found. Please submit an answer first.' };
+    // Create a response record if it doesn't exist
+    const newResponse = await prisma.response.create({
+      data: {
+        attemptId: attemptId,
+        questionId: questionId,
+        type: QType.CODING,
+        answer: { code, language },
+      },
+      select: { id: true }
+    });
+    response = newResponse;
+  } else {
+    // Update the existing response with the latest code
+    await prisma.response.update({
+      where: { id: response.id },
+      data: {
+        answer: { code, language },
+      },
+    });
   }
 
- const jobData: Prisma.GradingJobCreateInput = {
-  provider: 'mock-judge',
-  status: 'QUEUED',
-  payload: { code, language }, // <-- Fixed (no cast needed)
-  response: { connect: { id: response.id } },
-};
+  // 4. --- Create Grading Job ---
+  const executionProvider = env.CODE_EXECUTION_PROVIDER || 'judge0';
+  const jobData: Prisma.GradingJobCreateInput = {
+    provider: executionProvider === 'local' ? 'local' : 'judge0',
+    status: 'QUEUED',
+    payload: { code, language },
+    response: { connect: { id: response.id } },
+  };
   const job = await gradingRepo.createGradingJob(jobData);
 
-  // 4. --- Execute Code (Mocked) ---
-  const { status, result } = await executeCodeInJudge(
-    code,
-    language,
-    question.testcases as any[]
-  );
+  // 5. --- Execute Code against Test Cases ---
+  const testCases = question.testcases as Array<{
+    input: string;
+    expectedOutput: string;
+    isHidden?: boolean;
+    timeoutMs?: number;
+  }>;
 
-  // 5. --- Update Job with Result ---
+  // Filter to only visible test cases for student testing
+  const visibleTestCases = testCases.filter((tc) => !tc.isHidden);
+
+  // Test code against visible test cases using the configured provider
+  const testResults = executionProvider === 'local'
+    ? await testCodeWithTestCasesLocally(
+        code,
+        language,
+        visibleTestCases.map((tc) => ({
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+        }))
+      )
+    : await testCodeWithTestCasesJudge0(
+        code,
+        language,
+        visibleTestCases.map((tc) => ({
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          timeoutMs: tc.timeoutMs || 2000,
+        }))
+      );
+
+  // 6. --- Format Result ---
+  const result = {
+    passed: testResults.passed,
+    total: testResults.total,
+    testResults: testResults.results,
+    message: testResults.passed === testResults.total
+      ? 'All test cases passed!'
+      : `${testResults.passed}/${testResults.total} test cases passed`,
+  };
+
+  // 7. --- Update Job with Result ---
   const finalJob = await gradingRepo.updateGradingJob(
     job.id,
-    status,
+    testResults.passed === testResults.total ? 'SUCCEEDED' : 'FAILED',
     result
   );
 
-  // 6. Return the execution result
+  // 8. Return the execution result
   return finalJob.result;
 };

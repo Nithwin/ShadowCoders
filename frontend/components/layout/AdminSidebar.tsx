@@ -9,7 +9,6 @@ import {
   FileText, 
   ClipboardCheck, 
   BookMarked, 
-  UploadCloud, 
   LogOut, 
   User as UserIcon,
   Menu,
@@ -24,7 +23,7 @@ const navLinks = [
   // Let's create a placeholder for submissions
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Rubrics', href: '/admin/rubrics', icon: BookMarked },
-  { name: 'Assets', href: '/admin/assets', icon: UploadCloud },
+  // { name: 'Assets', href: '/admin/assets', icon: UploadCloud }, // Hidden for now
 ];
 
 export default function AdminSidebar() {
