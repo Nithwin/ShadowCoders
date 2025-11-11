@@ -1,6 +1,7 @@
 import { Prisma , User} from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { withDatabaseErrorHandling } from "../../lib/db-health";
 
 interface GoogleProfile {
     email: string;
@@ -10,104 +11,124 @@ interface GoogleProfile {
 }
 
 export const findUserByEmailAndLinkGoogle = async ({email, name, pictureUrl, googleId}: GoogleProfile) => {
-    try{
-        const dataToUpdate :Prisma.UserUpdateInput = {
-            googleId:googleId,
-        }
-        if(name !== undefined){
-            dataToUpdate.name = name;
-        }
-        if(pictureUrl !== undefined){
-            dataToUpdate.pictureUrl = pictureUrl;
-        }
-        const user = await prisma.user.update({
-            where:{
-                email:email,
-            },
-            data:dataToUpdate,
-        })
-        return user;
-        
-    } catch(error){
-        if(error instanceof PrismaClientKnownRequestError && error.code === 'P2025'){
-            console.log('User not found, creating new user with email:', email);
-            try {
-                const newUser = await prisma.user.create({
-                    data: {
-                        email: email,
-                        name: name || null,
-                        pictureUrl: pictureUrl || null,
-                        googleId: googleId,
-                        role: 'STUDENT',
-                    }
-                });
-                console.log('New user created:', newUser.id);
-                return newUser;
-            } catch (createError) {
-                console.error('Failed to create user:', createError);
-                return null;
+    return withDatabaseErrorHandling(async () => {
+        try{
+            const dataToUpdate :Prisma.UserUpdateInput = {
+                googleId:googleId,
             }
+            if(name !== undefined){
+                dataToUpdate.name = name;
+            }
+            if(pictureUrl !== undefined){
+                dataToUpdate.pictureUrl = pictureUrl;
+            }
+            const user = await prisma.user.update({
+                where:{
+                    email:email,
+                },
+                data:dataToUpdate,
+            })
+            return user;
+            
+        } catch(error){
+            if(error instanceof PrismaClientKnownRequestError && error.code === 'P2025'){
+                console.log('User not found, creating new user with email:', email);
+                try {
+                    const newUser = await prisma.user.create({
+                        data: {
+                            email: email,
+                            name: name || null,
+                            pictureUrl: pictureUrl || null,
+                            googleId: googleId,
+                            role: 'STUDENT',
+                        }
+                    });
+                    console.log('New user created:', newUser.id);
+                    return newUser;
+                } catch (createError) {
+                    console.error('Failed to create user:', createError);
+                    return null;
+                }
+            }
+            console.error('Error in findUserByEmailAndLinkGoogle:', error);
+            throw error;
         }
-        console.error('Error in findUserByEmailAndLinkGoogle:', error);
-        throw error;
-    }
+    }, 'findUserByEmailAndLinkGoogle');
 }
 
 
 export const findUserByEmail = (email: string): Promise<User | null> => {
-    return prisma.user.findUnique({
-        where:{
-            email
-        },
-    })
+    return withDatabaseErrorHandling(
+        () => prisma.user.findUnique({
+            where:{
+                email
+            },
+        }),
+        'findUserByEmail'
+    );
 }
 
 export const findUserById = (id: string) => {
-    return prisma.user.findUnique({
-        where:{id},
-    })
+    return withDatabaseErrorHandling(
+        () => prisma.user.findUnique({
+            where:{id},
+        }),
+        'findUserById'
+    );
 }
 
 export const findStudentWithCohortInfo = (id: string) => {
-    return prisma.user.findUnique({
-        where: { id },
-        select: {
-            id: true,
-            year: true,
-            department: true,
-            section: true,
-        }
-    })
+    return withDatabaseErrorHandling(
+        () => prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                year: true,
+                department: true,
+                section: true,
+            }
+        }),
+        'findStudentWithCohortInfo'
+    );
 }
 
 export const saveRefreshToken = (userId: string, tokenHash: string, expiresAt: Date) => {
-  return prisma.refreshToken.create({
-    data: {
-      userId: userId,
-      tokenHash: tokenHash,
-      expiresAt: expiresAt,
-    },
-  });
+  return withDatabaseErrorHandling(
+    () => prisma.refreshToken.create({
+      data: {
+        userId: userId,
+        tokenHash: tokenHash,
+        expiresAt: expiresAt,
+      },
+    }),
+    'saveRefreshToken'
+  );
 };
 
 /**
  * Finds an active refresh token by its hash.
  */
 export const findRefreshToken = (tokenHash: string) => {
-  return prisma.refreshToken.findUnique({
-    where: {
-      tokenHash: tokenHash,
-      // Optional: Add check to ensure it hasn't expired
-      // expiresAt: { gt: new Date() } 
-    },
-  });
+  return withDatabaseErrorHandling(
+    () => prisma.refreshToken.findUnique({
+      where: {
+        tokenHash: tokenHash,
+        // Optional: Add check to ensure it hasn't expired
+        // expiresAt: { gt: new Date() } 
+      },
+    }),
+    'findRefreshToken'
+  );
 };
 
 /**
  * Deletes a refresh token from the database (used for logout).
  */
 export const deleteRefreshToken = (tokenHash: string) => {
-  return prisma.refreshToken.delete({
-    where: { tokenHash: tokenHash },
-  });
+  return withDatabaseErrorHandling(
+    () => prisma.refreshToken.delete({
+      where: { tokenHash: tokenHash },
+    }),
+    'deleteRefreshToken'
+  );
 };

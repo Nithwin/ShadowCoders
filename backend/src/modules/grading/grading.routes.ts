@@ -12,4 +12,10 @@ export const registerGradingRoutes = (app: Express) => {
     validate(runCodeSchema), // 2. Validate the request body
     gradingController.runCodeHandler // 3. Run the controller
   );
+
+  // Queue status endpoint (public for students to check wait times)
+  app.get(
+    '/api/queue/status',
+    gradingController.getQueueStatusHandler
+  );
 };

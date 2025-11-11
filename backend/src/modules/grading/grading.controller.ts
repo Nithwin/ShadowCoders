@@ -2,6 +2,7 @@ import { RequestHandler } from 'express';
 import * as gradingService from './grading.service';
 import { z } from 'zod';
 import { runCodeSchema } from './grading.zod';
+import { executionQueue } from '../../lib/execution-queue';
 
 export const runCodeHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -21,6 +22,20 @@ export const runCodeHandler: RequestHandler = async (req, res, next) => {
 
     // Send back the result from the code judge
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getQueueStatusHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const stats = executionQueue.getStats();
+    const estimatedWaitTime = executionQueue.getEstimatedWaitTime();
+    
+    res.status(200).json({
+      ...stats,
+      estimatedWaitTimeMs: estimatedWaitTime,
+    });
   } catch (error) {
     next(error);
   }

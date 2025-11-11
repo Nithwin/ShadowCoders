@@ -8,7 +8,20 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "test:db": "ts-node scripts/test-db-connection.ts",
+    "check:rls": "ts-node scripts/check-rls-status.ts",
+    "diagnose:db": "node scripts/diagnose-db-connection.js",
+    "fix:db": "node scripts/fix-db-connection.js",
+    "verify:supabase": "node scripts/verify-supabase-connection.js",
+    "setup:env": "node scripts/setup-env.js",
+    "create:admin": "node scripts/create-admin-user.js",
+    "setup:admin": "node scripts/setup-admin-auto.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

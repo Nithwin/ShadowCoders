@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import StudentSidebar from '@/components/layout/StudentSidebar';
 import StudentHeader from '@/components/student/StudentHeader';
@@ -13,6 +13,10 @@ export default function StudentLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Check if current route is an attempts route (no sidebar needed)
+  const isAttemptsRoute = pathname?.startsWith('/student/attempts');
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -33,7 +37,12 @@ export default function StudentLayout({
     );
   }
 
-  // If loading is done and user is STUDENT, render the layout
+  // For attempts routes, don't show sidebar or header (full screen exam mode)
+  if (isAttemptsRoute) {
+    return <>{children}</>;
+  }
+
+  // If loading is done and user is STUDENT, render the layout with sidebar
   return (
     <div className="flex h-screen bg-secondary text-primary">
       <StudentSidebar />

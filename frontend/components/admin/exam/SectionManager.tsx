@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Plus, Edit, Trash2, Loader2, X } from 'lucide-react';
+import { Edit, Trash2, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
@@ -63,7 +63,6 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
   const [sections, setSections] = useState<Section[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
@@ -131,13 +130,9 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
         <div>
           <h2 className="text-2xl font-bold font-alan-sans text-primary">Manage Sections</h2>
           <p className="text-sm text-primary/70 mt-1">
-            Organize questions into sections for better exam structure
+            Default sections are automatically created. Assign questions to each section below.
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Section
-        </Button>
       </div>
 
       {isLoading && (
@@ -158,101 +153,79 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
         <div className="space-y-4">
           {sections.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-primary/20 rounded-lg">
-              <p className="text-primary/60 text-lg mb-2">No sections yet</p>
+              <p className="text-primary/60 text-lg mb-2">Loading sections...</p>
               <p className="text-primary/50 text-sm">
-                Create a section to organize your questions
+                Default sections will be created automatically
               </p>
             </div>
           ) : (
-            sections.map((section) => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {sections.map((section) => (
               <div
                 key={section.id}
-                className="border border-primary/20 rounded-lg p-4 bg-primary/5"
+                className="border border-primary/20 rounded-lg p-4 bg-primary/5 hover:bg-primary/10 transition-colors"
               >
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex flex-col h-full">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-2 mb-2">
                       <h3 className="text-lg font-semibold text-primary">
                         {section.title}
                       </h3>
+                    </div>
+                    {section.description && (
+                      <p className="text-sm text-primary/70 mb-3">{section.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mb-3">
                       <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">
-                        Order: {section.order}
+                        {section.questions.length} question{section.questions.length !== 1 ? 's' : ''}
                       </span>
                       {section.durationMins && (
                         <span className="text-xs text-primary/60">
-                          Duration: {section.durationMins} mins
+                          {section.durationMins} mins
                         </span>
                       )}
                     </div>
-                    {section.description && (
-                      <p className="text-sm text-primary/70 mb-2">{section.description}</p>
+                    {section.questions.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-primary/10">
+                        <p className="text-xs font-medium text-primary/60 mb-2">Questions:</p>
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {section.questions.map((sq) => (
+                            <div
+                              key={sq.questionId}
+                              className="flex items-center justify-between p-2 bg-primary/5 rounded text-sm"
+                            >
+                              <span className="text-primary/80 truncate flex-1">
+                                {sq.order}. {sq.question.prompt || 'Untitled Question'}
+                              </span>
+                              <button
+                                onClick={() => handleRemoveQuestion(section.id, sq.questionId)}
+                                className="text-red-600 hover:text-red-700 p-1 ml-2 flex-shrink-0"
+                                title="Remove from section"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    <p className="text-sm text-primary/60">
-                      {section.questions.length} question(s) in this section
-                    </p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
+                  <div className="mt-4 pt-3 border-t border-primary/10">
+                    <Button
                       onClick={() => setSelectedSection(section)}
-                      className="p-2 hover:bg-primary/10 rounded-md hover:text-blue-600 transition-colors"
-                      title="Manage Questions"
+                      className="w-full bg-white border border-primary/20 text-primary hover:bg-primary/10"
                     >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setEditingSection(section)}
-                      className="p-2 hover:bg-primary/10 rounded-md hover:text-green-600 transition-colors"
-                      title="Edit Section"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(section.id)}
-                      className="p-2 hover:bg-primary/10 rounded-md hover:text-red-600 transition-colors"
-                      title="Delete Section"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Manage Questions
+                    </Button>
                   </div>
                 </div>
-                {section.questions.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-primary/10">
-                    <p className="text-xs font-medium text-primary/60 mb-2">Questions:</p>
-                    <div className="space-y-1">
-                      {section.questions.map((sq) => (
-                        <div
-                          key={sq.questionId}
-                          className="flex items-center justify-between p-2 bg-primary/5 rounded text-sm"
-                        >
-                          <span className="text-primary/80">
-                            {sq.order}. {sq.question.prompt || 'Untitled Question'}
-                          </span>
-                          <button
-                            onClick={() => handleRemoveQuestion(section.id, sq.questionId)}
-                            className="text-red-600 hover:text-red-700 p-1"
-                            title="Remove from section"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-            ))
+            ))}
+            </div>
           )}
         </div>
       )}
-
-      {/* Create Section Modal */}
-      <CreateSectionModal
-        examId={examId}
-        open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
-        onSuccess={fetchSections}
-        defaultOrder={sections.length + 1}
-      />
 
       {/* Edit Section Modal */}
       {editingSection && (

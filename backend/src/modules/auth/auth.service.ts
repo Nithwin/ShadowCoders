@@ -39,23 +39,39 @@ export const handleGoogleLogin = async (profile: GoogleProfile) => {
 };
 
 export const handleEmailLogin = async (input: any) => {
-  const user = await authRepo.findUserByEmail(input.email);
-  if (!user || !user.password) {
-    throw { status: 401, message: 'Invalid email or password' };
+  try {
+    const user = await authRepo.findUserByEmail(input.email);
+    
+    // Check for database connection errors
+    if (!user || !user.password) {
+      throw { status: 401, message: 'Invalid email or password' };
+    }
+
+    const isPasswordValid = await bcrypt.compare(input.password, user.password);
+    if (!isPasswordValid) {
+      throw { status: 401, message: 'Invalid email or password' };
+    }
+
+    const payload: UserPayLoad = { sub: user.id, role: user.role };
+
+    // **UPDATED:** Use new token service
+    const accessToken = tokenService.generateAccessToken(payload);
+    const refreshToken = await tokenService.generateAndSaveRefreshToken(user.id);
+
+    return { accessToken, refreshToken };
+  } catch (error: any) {
+    // Handle database connection errors
+    if (error?.code === 'P1001' || error?.message?.includes('Can\'t reach database server')) {
+      throw { 
+        status: 503, 
+        message: 'Database connection failed. Please check your database configuration.',
+        code: 'DATABASE_CONNECTION_ERROR',
+        details: 'The application cannot connect to the database. Please verify your DATABASE_URL and ensure the database server is running.'
+      };
+    }
+    // Re-throw other errors (like 401)
+    throw error;
   }
-
-  const isPasswordValid = await bcrypt.compare(input.password, user.password);
-  if (!isPasswordValid) {
-    throw { status: 401, message: 'Invalid email or password' };
-  }
-
-  const payload: UserPayLoad = { sub: user.id, role: user.role };
-
-  // **UPDATED:** Use new token service
-  const accessToken = tokenService.generateAccessToken(payload);
-  const refreshToken = await tokenService.generateAndSaveRefreshToken(user.id);
-
-  return { accessToken, refreshToken };
 };
 
 // --- (Your existing findUserById function) ---

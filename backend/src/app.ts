@@ -42,8 +42,31 @@ export const createApp = () => {
     app.use(express.json());
     app.use(cookieParser());
 
-    app.get('/api/healthz', (_req, res) => {
-        res.json({status:'healthy'});
+    app.get('/api/healthz', async (_req, res) => {
+        const { checkDatabaseHealth } = await import('./lib/db-health');
+        const dbHealth = await checkDatabaseHealth();
+        
+        if (dbHealth.connected) {
+            res.json({
+                status: 'healthy',
+                database: {
+                    connected: true,
+                    timestamp: dbHealth.timestamp,
+                }
+            });
+        } else {
+            res.status(503).json({
+                status: 'unhealthy',
+                database: {
+                    connected: false,
+                    error: dbHealth.error,
+                    errorCode: dbHealth.errorCode,
+                    details: dbHealth.details,
+                    timestamp: dbHealth.timestamp,
+                },
+                help: 'See backend/DB_CONNECTION_FIX.md for troubleshooting steps'
+            });
+        }
     })
 
     registerAuthRoutes(app);

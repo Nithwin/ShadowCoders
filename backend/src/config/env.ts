@@ -15,4 +15,6 @@ export const env = {
     JUDGE0_RAPIDAPI_HOST: process.env.JUDGE0_RAPIDAPI_HOST || 'judge0-ce.p.rapidapi.com',
     // Code execution provider: 'judge0' or 'local'
     CODE_EXECUTION_PROVIDER: process.env.CODE_EXECUTION_PROVIDER || 'judge0',
+    // Maximum concurrent code executions (default: 5, recommended: 5-10 for moderate systems, 10-20 for powerful systems)
+    MAX_CONCURRENT_EXECUTIONS: process.env.MAX_CONCURRENT_EXECUTIONS || '5',
 }

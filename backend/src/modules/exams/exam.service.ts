@@ -10,8 +10,29 @@ import * as examRepo from "./exam.repo";
 import { ExamStatus, Prisma, User } from "@prisma/client";
 import * as userRepo from '../auth/auth.repo'; 
 import { prisma } from '../../lib/prisma';
+import * as sectionRepo from '../sections/section.repo';
 
 type CreateExamInput = z.infer<typeof createExamSchema>["body"];
+
+/**
+ * Creates default sections for an exam: Coding, MCQ, and Essay
+ */
+const createDefaultSections = async (examId: string) => {
+  const defaultSections = [
+    { title: 'Multiple Choice', order: 1, description: 'Answer multiple choice questions' },
+    { title: 'Coding', order: 2, description: 'Solve coding problems' },
+    { title: 'Essay', order: 3, description: 'Write essay responses' },
+  ];
+
+  for (const section of defaultSections) {
+    await sectionRepo.createSection(examId, {
+      title: section.title,
+      order: section.order,
+      description: section.description,
+      durationMins: null,
+    });
+  }
+};
 
 export const createExam = async (input: CreateExamInput) => {
   if (new Date(input.startAt) >= new Date(input.endAt)) {
@@ -33,6 +54,10 @@ export const createExam = async (input: CreateExamInput) => {
   };
 
   const newExam = await examRepo.createExam(dataToSave);
+  
+  // Create default sections automatically
+  await createDefaultSections(newExam.id);
+  
   return newExam;
 };
 
@@ -298,14 +323,55 @@ export const deleteExam = async (examId: string, force: boolean = false) => {
 };
 
 /**
+ * Ensures default sections exist for an exam (creates them if missing)
+ */
+export const ensureDefaultSections = async (examId: string) => {
+  const exam = await examRepo.findExamById(examId);
+  if (!exam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+
+  // Check if sections already exist
+  const existingSections = await prisma.examSection.findMany({
+    where: { examId },
+    select: { title: true },
+  });
+
+  const existingTitles = new Set(existingSections.map(s => s.title));
+  const defaultSections = [
+    { title: 'Multiple Choice', order: 1, description: 'Answer multiple choice questions' },
+    { title: 'Coding', order: 2, description: 'Solve coding problems' },
+    { title: 'Essay', order: 3, description: 'Write essay responses' },
+  ];
+
+  // Create missing sections
+  for (const section of defaultSections) {
+    if (!existingTitles.has(section.title)) {
+      await sectionRepo.createSection(examId, {
+        title: section.title,
+        order: section.order,
+        description: section.description,
+        durationMins: null,
+      });
+    }
+  }
+};
+
+/**
  * Fetches a single exam's details for editing.
+ * Ensures default sections exist before returning.
  */
 export const getExamById = async (examId: string) => {
   const exam = await examRepo.findExamById(examId);
   if (!exam) {
     throw { status: 404, message: 'Exam not found' };
   }
-  return exam;
+  
+  // Ensure default sections exist
+  await ensureDefaultSections(examId);
+  
+  // Fetch again to get the sections
+  return await examRepo.findExamById(examId);
 };
 
 /**

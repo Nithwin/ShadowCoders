@@ -40,16 +40,46 @@ export default function LoginPage() {
           client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
           callback: handleGoogleResponse,
         });
-        window.google.accounts.id.renderButton(
-          document.getElementById('googleButton'),
-          { 
-            theme: 'outline', 
-            size: 'large',
-            width: 350,
-            text: 'continue_with',
-            shape: 'rectangular',
-          }
-        );
+        const buttonContainer = document.getElementById('googleButton');
+        if (buttonContainer && !buttonContainer.hasChildNodes()) {
+          // Wait for layout to complete before calculating width
+          const renderButton = () => {
+            if (!buttonContainer || !window.google || buttonContainer.hasChildNodes()) return;
+            
+            // Get the actual rendered width of the container
+            const containerWidth = buttonContainer.offsetWidth;
+            
+            // If container width is 0, wait a bit more
+            if (containerWidth === 0) {
+              setTimeout(renderButton, 100);
+              return;
+            }
+            
+            // Use container width minus a small safety margin
+            // Ensure minimum of 200px for button usability
+            const buttonWidth = Math.max(200, Math.floor(containerWidth - 8));
+            
+            try {
+              window.google.accounts.id.renderButton(
+                buttonContainer,
+                { 
+                  theme: 'outline', 
+                  size: 'large',
+                  width: buttonWidth,
+                  text: 'signin_with',
+                  shape: 'rectangular',
+                }
+              );
+            } catch (error) {
+              console.error('Error rendering Google button:', error);
+            }
+          };
+          
+          // Render after layout is complete
+          requestAnimationFrame(() => {
+            setTimeout(renderButton, 100);
+          });
+        }
       }
     };
     script.onerror = () => {
@@ -139,19 +169,19 @@ export default function LoginPage() {
   }
 
   return (
-    <main id="login" className="flex-center min-h-screen bg-gray-50">
+    <main id="login" className="flex-center min-h-screen bg-gray-50 p-4">
       <div className="box">
         {/* Logo and Title */}
-        <div className="flex flex-col items-center gap-4 mb-6">
+        <div className="flex flex-col items-center gap-2 mb-3">
           <Image 
             src={"/images/logo-dark.png"}
-            width={70}
-            height={70}
+            width={48}
+            height={48}
             alt="Logo"
-            className="drop-shadow-sm"
+            className="drop-shadow-sm w-10 h-10 sm:w-12 sm:h-12"
           />
           <h1>ShadowCoders</h1>
-          <p className="text-center text-gray-500 text-base -mt-2">
+          <p className="text-center text-gray-500 text-xs -mt-0.5">
             Welcome back
           </p>
         </div>
@@ -175,7 +205,7 @@ export default function LoginPage() {
           />
           
           {error && (
-            <div className="text-red-600 text-sm text-center font-medium bg-red-50 py-3 px-4 rounded-xl border border-red-200">
+            <div className="text-red-600 text-xs text-center font-medium bg-red-50 py-2 px-3 rounded-lg border border-red-200">
               {error}
             </div>
           )}
@@ -185,14 +215,14 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="flex items-center gap-4 my-6">
+        <div className="flex items-center gap-2 my-3">
           <hr className="flex-1 border-gray-300" />
           <span className="text-gray-400 text-xs font-semibold tracking-wider">OR</span>
           <hr className="flex-1 border-gray-300" />
         </div>
 
         {/* Google Button Container */}
-        <div id="googleButton" className="flex justify-center">
+        <div id="googleButton" className="flex justify-center w-full overflow-hidden">
           {/* Google button will render here */}
         </div>
         
@@ -207,12 +237,13 @@ export default function LoginPage() {
                 setError('Google Sign-In is not available. Please use email login.');
               }
             }}
-            className="w-full py-4 px-4 border-2 border-gray-200 rounded-xl text-black font-semibold
+            className="w-full py-2.5 px-4 border border-gray-200 rounded-lg 
+                       text-sm text-black font-semibold
                        bg-white hover:bg-gray-50 hover:border-gray-300
-                       flex items-center justify-center gap-3 transition-all"
+                       flex items-center justify-center gap-2 transition-all"
             disabled={isLoading}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>

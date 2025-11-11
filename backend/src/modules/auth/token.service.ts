@@ -4,6 +4,7 @@ import * as authRepo from './auth.repo';
 import { prisma } from '../../lib/prisma';
 import { User, RefreshToken } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { withDatabaseErrorHandling } from '../../lib/db-health';
 
 // Note: I'm matching your 'UserPayLoad' casing
 export interface UserPayLoad {
@@ -71,9 +72,12 @@ export const verifyAndFindUser = async (
   }
 
   // 2. Get all saved token hashes for this user
-  const userTokens = await prisma.refreshToken.findMany({
-    where: { userId: payload.sub },
-  });
+  const userTokens = await withDatabaseErrorHandling(
+    () => prisma.refreshToken.findMany({
+      where: { userId: payload.sub },
+    }),
+    'verifyAndFindUser - findMany refreshToken'
+  );
 
   if (userTokens.length === 0) {
     return null; // User has no saved refresh tokens
@@ -116,9 +120,12 @@ export const findAndRemoveRefreshToken = async (
   }
 
   // Find the matching token hash in the DB
-  const userTokens = await prisma.refreshToken.findMany({
-    where: { userId: payload.sub },
-  });
+  const userTokens = await withDatabaseErrorHandling(
+    () => prisma.refreshToken.findMany({
+      where: { userId: payload.sub },
+    }),
+    'findAndRemoveRefreshToken - findMany refreshToken'
+  );
 
   let validTokenHash: string | null = null;
   for (const record of userTokens) {

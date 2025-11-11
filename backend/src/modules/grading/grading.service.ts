@@ -6,6 +6,7 @@ import { AttemptStatus, QType, Prisma } from '@prisma/client';
 import { testCodeWithTestCases as testCodeWithTestCasesJudge0, executeCode as executeCodeJudge0 } from '../../lib/judge0';
 import { testCodeWithTestCasesLocally, executeCodeLocally } from '../../lib/local-executor';
 import { env } from '../../config/env';
+import { executionQueue } from '../../lib/execution-queue';
 
 // Infer the TypeScript type from the Zod schema's body
 type RunCodeInput = z.infer<typeof runCodeSchema>['body'];
@@ -91,15 +92,17 @@ export const runCode = async (
   };
   const job = await gradingRepo.createGradingJob(jobData);
 
-  // 5. --- Execute Code ---
+  // 5. --- Execute Code (via Queue) ---
   const executionProviderValue = executionProvider === 'local' ? 'local' : 'judge0';
   let result: any;
 
   if (customInput !== undefined && customInput !== null && customInput !== '') {
-    // Run with custom input (single execution)
-    const executionResult = executionProviderValue === 'local'
-      ? await executeCodeLocally(code, language, customInput, 5000)
-      : await executeCodeJudge0(code, language, customInput, 5000);
+    // Run with custom input (single execution) - queued
+    const executionResult = await executionQueue.enqueue(async () => {
+      return executionProviderValue === 'local'
+        ? await executeCodeLocally(code, language, customInput, 5000)
+        : await executeCodeJudge0(code, language, customInput, 5000);
+    });
 
     // Format result for custom input
     result = {
@@ -136,26 +139,28 @@ export const runCode = async (
       throw { status: 400, message: 'No visible test cases found for this question' };
     }
 
-    // Test code against visible test cases using the configured provider
-    const testResults = executionProviderValue === 'local'
-      ? await testCodeWithTestCasesLocally(
-          code,
-          language,
-          visibleTestCases.map((tc) => ({
-            input: tc.input,
-            expectedOutput: tc.expectedOutput,
-            timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-          }))
-        )
-      : await testCodeWithTestCasesJudge0(
-          code,
-          language,
-          visibleTestCases.map((tc) => ({
-            input: tc.input,
-            expectedOutput: tc.expectedOutput,
-            timeoutMs: tc.timeoutMs || 2000,
-          }))
-        );
+    // Test code against visible test cases using the configured provider - queued
+    const testResults = await executionQueue.enqueue(async () => {
+      return executionProviderValue === 'local'
+        ? await testCodeWithTestCasesLocally(
+            code,
+            language,
+            visibleTestCases.map((tc) => ({
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+            }))
+          )
+        : await testCodeWithTestCasesJudge0(
+            code,
+            language,
+            visibleTestCases.map((tc) => ({
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              timeoutMs: tc.timeoutMs || 2000,
+            }))
+          );
+    });
 
     // Format Result
     result = {

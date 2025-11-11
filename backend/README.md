@@ -40,23 +40,51 @@ backend/
 
 ## Environment variables
 
+### Quick Setup (Recommended)
+
+Run the interactive setup script:
+
+```powershell
+npm run setup:env
+```
+
+This will guide you through creating your `.env` file with Supabase credentials.
+
+### Manual Setup
+
 Create a `.env` file in `backend/` with:
 
-```
+```env
 # Server
 PORT=4000
 NODE_ENV=development
 
-# Database (PostgreSQL)
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/shadowcoders?schema=public"
-# Optional, used by Prisma for direct connections
-DIRECT_URL="postgresql://USER:PASSWORD@localhost:5432/shadowcoders?schema=public"
+# Database - Supabase Connection
+# Connect via connection pooling (for application use)
+DATABASE_URL="postgresql://postgres.wvkzbtmofbrftmgqpzwd:[YOUR-PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection (used for migrations)
+DIRECT_URL="postgresql://postgres.wvkzbtmofbrftmgqpzwd:[YOUR-PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
 
 # Auth
 JWT_SECRET="replace-with-a-long-random-string"
+
+# Frontend
+FRONTEND_ORIGIN=http://localhost:3000
 ```
 
-> Tip (Windows PowerShell): to quickly generate a secret you can use `[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')`.
+**To get your database password:**
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
+2. Select your project: `wvkzbtmofbrftmgqpzwd`
+3. Navigate to **Settings** → **Database**
+4. Find your **Database password** (or reset it if needed)
+5. Replace `[YOUR-PASSWORD]` in both `DATABASE_URL` and `DIRECT_URL`
+
+**To generate JWT_SECRET:**
+- Windows PowerShell: `[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')`
+- Or use: `npm run setup:env` (auto-generates it)
+
+See `SETUP_ENV.md` for detailed instructions.
 
 ## Install & database setup
 

@@ -81,6 +81,12 @@ export default function CodingQuestion({
   } | null>(null);
   const [output, setOutput] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [queueStatus, setQueueStatus] = useState<{
+    running: number;
+    queued: number;
+    estimatedWaitTimeMs: number;
+  } | null>(null);
+  const [editorWidth, setEditorWidth] = useState(50); // Percentage width for editor (50% default)
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
 
@@ -100,15 +106,34 @@ export default function CodingQuestion({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer?.code, answer?.language]);
 
-  // Update parent when code or language changes (but not on initial mount to prevent infinite loop)
+  // Cleanup debounce timer on unmount
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    onChange({ code, language });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, language]);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Fetch queue status periodically when running
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const fetchQueueStatus = async () => {
+      try {
+        const response = await api.get('/queue/status');
+        setQueueStatus(response.data);
+      } catch (err) {
+        // Silently fail - queue status is not critical
+        console.error('Failed to fetch queue status:', err);
+      }
+    };
+
+    fetchQueueStatus();
+    const interval = setInterval(fetchQueueStatus, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [isRunning]);
 
   // Filter visible test cases (for display and run code)
   const visibleTestCases = testCases.filter((tc) => !tc.isHidden);
@@ -156,10 +181,23 @@ export default function CodingQuestion({
     });
   };
 
-  // Handle code change from editor
+  // Debounce timer for code changes
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle code change from editor (debounced to prevent performance issues)
   const handleEditorChange = (value: string | undefined) => {
     const newCode = value || '';
     setCode(newCode);
+    
+    // Debounce the onChange callback
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      if (!isInitialMount.current) {
+        onChange({ code: newCode, language });
+      }
+    }, 500); // 500ms debounce for code
   };
 
   // Run code with visible test cases only (for testing) - memoized to prevent flicker
@@ -231,7 +269,10 @@ export default function CodingQuestion({
   return (
     <div className="flex h-full overflow-hidden bg-gray-50">
       {/* Left Panel - Question and Test Cases */}
-      <div className="w-1/2 border-r border-gray-200 flex flex-col overflow-hidden bg-white shadow-sm">
+      <div 
+        className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg transition-all"
+        style={{ width: `${100 - editorWidth}%` }}
+      >
         {/* Question Header */}
         <div className="p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
@@ -341,8 +382,27 @@ export default function CodingQuestion({
         </div>
       </div>
 
+      {/* Resize Handle */}
+      <div className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-1 h-12 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
+        </div>
+        <input
+          type="range"
+          min="30"
+          max="70"
+          value={editorWidth}
+          onChange={(e) => setEditorWidth(Number(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-col-resize"
+          style={{ writingMode: 'vertical-lr' }}
+        />
+      </div>
+
       {/* Right Panel - Code Editor and Output */}
-      <div className="w-1/2 flex flex-col overflow-hidden bg-white shadow-sm">
+      <div 
+        className="flex flex-col overflow-hidden bg-white shadow-lg transition-all"
+        style={{ width: `${editorWidth}%` }}
+      >
         {/* Editor Header with Language and Theme Selectors */}
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col gap-3 flex-shrink-0">
           {/* Top Row: Language and Theme */}
@@ -382,29 +442,45 @@ export default function CodingQuestion({
           </div>
 
           {/* Bottom Row: Action Buttons */}
-          <div className="flex items-center justify-end gap-3">
-            <Button
-              onClick={handleRunCode}
-              disabled={isRunning || isSubmitting || !code.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white border-0 text-sm px-5 py-2.5 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold rounded-lg"
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Running...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4" />
-                  Run Code
-                </>
-              )}
-            </Button>
+          <div className="flex flex-col gap-3">
+            {/* Queue Status Indicator */}
+            {queueStatus && queueStatus.queued > 0 && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                <Info className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-800">
+                  {queueStatus.queued} job{queueStatus.queued !== 1 ? 's' : ''} in queue
+                  {queueStatus.estimatedWaitTimeMs > 0 && (
+                    <> • Est. wait: {Math.ceil(queueStatus.estimatedWaitTimeMs / 1000)}s</>
+                  )}
+                </span>
+              </div>
+            )}
             
-            <Button
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={handleRunCode}
+                disabled={isRunning || isSubmitting || !code.trim()}
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-6 py-3 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold rounded-lg"
+              >
+                {isRunning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {queueStatus && queueStatus.queued > 0 ? 'Queued...' : 'Running...'}
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Run Code
+                  </>
+                )}
+              </button>
+            
+            <button
               onClick={handleSubmitCode}
               disabled={isRunning || isSubmitting || !code.trim()}
-              className="bg-green-600 hover:bg-green-700 text-white border-0 text-sm px-5 py-2.5 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold rounded-lg"
+              type="button"
+              className="bg-green-600 hover:bg-green-700 text-white border-0 px-6 py-3 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold rounded-lg"
             >
               {isSubmitting ? (
                 <>
@@ -417,7 +493,8 @@ export default function CodingQuestion({
                   Submit
                 </>
               )}
-            </Button>
+            </button>
+          </div>
           </div>
         </div>
 
@@ -602,33 +679,37 @@ export default function CodingQuestion({
 
         {/* Navigation Buttons for Coding Questions */}
         {(onNext || onPrev || onSubmit) && (
-          <div className="border-t border-gray-200 bg-white px-6 py-4 flex items-center justify-between flex-shrink-0">
-            <Button
+          <div className="border-t border-gray-300 bg-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+            <button
               onClick={onPrev}
               disabled={!canGoPrev || isRunning || isSubmitting}
-              className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 rounded-lg font-semibold"
+              type="button"
+              className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all min-w-[140px] flex items-center justify-center"
+              style={{ color: '#1f2937', backgroundColor: '#ffffff', borderColor: '#9ca3af' }}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Previous
-            </Button>
+            </button>
             
             {isLastQuestion && onSubmit ? (
-              <Button
+              <button
                 onClick={onSubmit}
                 disabled={isRunning || isSubmitting}
-                className="bg-green-600 hover:bg-green-700 text-white border-0 px-5 py-2.5 rounded-lg font-semibold shadow-md"
+                type="button"
+                className="bg-green-600 hover:bg-green-700 text-white border-0 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Submit Exam
-              </Button>
+              </button>
             ) : (
-              <Button
+              <button
                 onClick={onNext}
                 disabled={!canGoNext || isRunning || isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 rounded-lg font-semibold shadow-md"
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
               >
                 Next Question
                 <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              </button>
             )}
           </div>
         )}

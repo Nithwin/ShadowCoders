@@ -8,6 +8,7 @@ interface ExamTimerProps {
   startedAt: string;
   onTimeUp: () => void;
   status: string;
+  isFullscreen?: boolean;
 }
 
 export default function ExamTimer({
@@ -15,6 +16,7 @@ export default function ExamTimer({
   startedAt,
   onTimeUp,
   status,
+  isFullscreen = true,
 }: ExamTimerProps) {
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -26,11 +28,15 @@ export default function ExamTimer({
   }, [onTimeUp]);
 
   useEffect(() => {
-    if (status !== 'IN_PROGRESS') {
-      // Clear timer if exam is not in progress
+    if (status !== 'IN_PROGRESS' || !isFullscreen) {
+      // Clear timer if exam is not in progress or not in fullscreen
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
         timerIntervalRef.current = null;
+      }
+      if (!isFullscreen && status === 'IN_PROGRESS') {
+        // Keep the current time but don't update
+        return;
       }
       setTimeRemaining(0);
       return;
@@ -106,7 +112,7 @@ export default function ExamTimer({
         timerIntervalRef.current = null;
       }
     };
-  }, [durationMins, startedAt, status]);
+  }, [durationMins, startedAt, status, isFullscreen]);
 
   const formatTime = (seconds: number) => {
     // Handle NaN or invalid values

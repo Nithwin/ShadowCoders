@@ -10,6 +10,7 @@ import CodingQuestion from '@/components/student/questions/CodingQuestion';
 import EssayQuestion from '@/components/student/questions/EssayQuestion';
 import ExamHeader from '@/components/student/exam/ExamHeader';
 import FullscreenWarning from '@/components/student/exam/FullscreenWarning';
+import FullscreenRequirement from '@/components/student/exam/FullscreenRequirement';
 import QuestionNavigation from '@/components/student/exam/QuestionNavigation';
 import QuestionHeader from '@/components/student/exam/QuestionHeader';
 import QuestionNavigationButtons from '@/components/student/exam/QuestionNavigationButtons';
@@ -23,6 +24,7 @@ type Question = {
   prompt: string | null;
   points: number;
   order: number;
+  sectionId?: string;
   options?: Array<{ id: string; text: string }>;
   testcases?: Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }>;
   starterCode?: string | null;
@@ -38,6 +40,15 @@ type Attempt = {
     title: string;
     durationMins: number;
     questions: Array<{ id: string; order: number }>;
+    sections?: Array<{
+      id: string;
+      title: string;
+      order: number;
+      sectionQuestions: Array<{
+        questionId: string;
+        order: number;
+      }>;
+    }>;
   };
   responses: Array<{
     questionId: string;
@@ -79,6 +90,7 @@ export default function ExamAttemptPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
   const [warningCount, setWarningCount] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
   const storageKey = `${STORAGE_KEY_PREFIX}${attemptId}`;
 
   // Load answers from localStorage on mount
@@ -234,6 +246,24 @@ export default function ExamAttemptPage() {
     }
   }, []);
 
+  // Check fullscreen on mount and require it
+  useEffect(() => {
+    const checkFullscreen = () => {
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ||
+        (document as Document & { msFullscreenElement?: Element | null }).msFullscreenElement
+      );
+      setIsFullscreen(isCurrentlyFullscreen);
+      
+      if (attempt?.status === 'IN_PROGRESS' && isCurrentlyFullscreen && !hasStarted) {
+        setHasStarted(true);
+      }
+    };
+
+    checkFullscreen();
+  }, [attempt, hasStarted]);
+
   // Fullscreen change handler
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -246,22 +276,15 @@ export default function ExamAttemptPage() {
       const wasFullscreen = isFullscreen;
       setIsFullscreen(isCurrentlyFullscreen);
 
-      if (attempt?.status === 'IN_PROGRESS' && wasFullscreen && !isCurrentlyFullscreen) {
-        setWarningCount(prev => {
-          const newCount = prev + 1;
-          if (newCount >= 3) {
-            if (handleSubmitExamRef.current) {
-              handleSubmitExamRef.current(true);
-            }
-          } else {
-            setFullscreenWarning(true);
-            setTimeout(() => {
-              enterFullscreen();
-              setFullscreenWarning(false);
-            }, 2000);
+      if (attempt?.status === 'IN_PROGRESS') {
+        if (isCurrentlyFullscreen && !hasStarted) {
+          setHasStarted(true);
+        } else if (wasFullscreen && !isCurrentlyFullscreen && hasStarted) {
+          // If they exit fullscreen after starting, auto-submit
+          if (handleSubmitExamRef.current) {
+            handleSubmitExamRef.current(true);
           }
-          return newCount;
-        });
+        }
       }
     };
 
@@ -274,7 +297,7 @@ export default function ExamAttemptPage() {
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
-  }, [attempt, isFullscreen, enterFullscreen]);
+  }, [attempt, isFullscreen, hasStarted, enterFullscreen]);
 
   // Detect page visibility changes (tab switching)
   useEffect(() => {
@@ -407,6 +430,16 @@ export default function ExamAttemptPage() {
 
   const fetchQuestions = async (attemptData: Attempt) => {
     try {
+      // Build a map of questionId to sectionId from exam sections
+      const questionToSectionMap = new Map<string, string>();
+      if (attemptData.exam.sections) {
+        attemptData.exam.sections.forEach((section) => {
+          section.sectionQuestions.forEach((sq) => {
+            questionToSectionMap.set(sq.questionId, section.id);
+          });
+        });
+      }
+
       const questionIds = attemptData.orderMap || 
         attemptData.exam.questions.map((q: { id: string; order: number }) => q.id);
 
@@ -415,7 +448,10 @@ export default function ExamAttemptPage() {
       );
 
       const questionResponses = await Promise.all(questionPromises);
-      const fetchedQuestions = questionResponses.map((res) => res.data);
+      const fetchedQuestions = questionResponses.map((res) => ({
+        ...res.data,
+        sectionId: questionToSectionMap.get(res.data.id),
+      }));
       
       fetchedQuestions.sort((a, b) => (a.order || 0) - (b.order || 0));
       setQuestions(fetchedQuestions);
@@ -549,25 +585,68 @@ export default function ExamAttemptPage() {
 
   const currentQuestion = questions[currentQuestionIndex];
   const isCodingQuestion = currentQuestion.type === QType.CODING;
+  const isEssayQuestion = currentQuestion.type === QType.ESSAY;
+  const isMCQQuestion = currentQuestion.type === QType.MCQ;
+  
+  // Get essay questions for navigation
+  const essayQuestions = questions
+    .map((q, index) => ({ id: q.id, index, type: q.type }))
+    .filter((q) => q.type === QType.ESSAY)
+    .map((q) => ({ id: q.id, index: q.index }));
+  
+  // Get essay answers for navigation display
+  const essayAnswers = essayQuestions.reduce((acc, eq) => {
+    acc[eq.id] = answers[eq.id] || {};
+    return acc;
+  }, {} as Record<string, { textAnswer?: string }>);
+
+  // Show fullscreen requirement if exam is in progress but not in fullscreen
+  const showFullscreenRequirement = attempt?.status === 'IN_PROGRESS' && !isFullscreen;
 
   return (
     <div ref={containerRef} className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
       <FullscreenWarning warningCount={warningCount} show={fullscreenWarning} />
-
-      <ExamHeader
-        examTitle={attempt.exam.title}
-        currentQuestionIndex={currentQuestionIndex}
-        totalQuestions={questions.length}
-        answeredCount={answeredCount}
-        durationMins={attempt.exam.durationMins}
-        startedAt={attempt.startedAt}
-        status={attempt.status}
-        isFullscreen={isFullscreen}
-        isSubmitting={isSubmitting}
-        onEnterFullscreen={enterFullscreen}
-        onSubmitExam={() => handleSubmitExam(false)}
-        onTimeUp={handleTimeUp}
-      />
+      
+      {/* Fullscreen Requirement Modal */}
+      {showFullscreenRequirement && (
+        <FullscreenRequirement onEnterFullscreen={enterFullscreen} />
+      )}
+      
+      <div className={showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}>
+        <ExamHeader
+          examTitle={attempt.exam.title}
+          currentQuestionIndex={currentQuestionIndex}
+          totalQuestions={questions.length}
+          answeredCount={answeredCount}
+          durationMins={attempt.exam.durationMins}
+          startedAt={attempt.startedAt}
+          status={attempt.status}
+          isFullscreen={isFullscreen}
+          isSubmitting={isSubmitting}
+          onEnterFullscreen={enterFullscreen}
+          onSubmitExam={() => handleSubmitExam(false)}
+          onTimeUp={handleTimeUp}
+          currentQuestionType={currentQuestion?.type}
+          essayQuestions={essayQuestions}
+          onEssayQuestionClick={(index) => setCurrentQuestionIndex(index)}
+          essayAnswers={essayAnswers}
+          sections={attempt?.exam.sections?.map((section) => ({
+            id: section.id,
+            title: section.title,
+            order: section.order,
+          }))}
+          currentSectionId={currentQuestion?.sectionId}
+          onSectionChange={(sectionId) => {
+            const firstQuestionIndex = questions.findIndex((q) => q.sectionId === sectionId);
+            if (firstQuestionIndex !== -1) {
+              setCurrentQuestionIndex(firstQuestionIndex);
+            }
+          }}
+          questions={questions}
+          answers={answers}
+          isFullscreen={isFullscreen}
+        />
+      </div>
 
       {error && (
         <div className="max-w-[1920px] mx-auto p-4 w-full">
@@ -580,41 +659,30 @@ export default function ExamAttemptPage() {
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Question Navigation Sidebar - Only show for non-coding questions */}
-        {!isCodingQuestion && (
-          <QuestionNavigation
-            questions={questions}
-            currentQuestionIndex={currentQuestionIndex}
-            answers={answers}
-            onQuestionClick={handleQuestionClick}
-          />
-        )}
 
+      {/* Main Content Area */}
+      <div className={`flex-1 flex overflow-hidden ${showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}`}>
         {/* Question Content Area */}
-        <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion ? '' : 'max-w-5xl mx-auto w-full p-6'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? '' : 'p-6'}`}>
           {currentQuestion && (
-            <div className={`flex-1 flex flex-col ${isCodingQuestion ? 'h-full' : ''}`}>
-              {!isCodingQuestion && (
+            <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? 'h-full' : 'overflow-y-auto'}`}>
+              {!isCodingQuestion && !isEssayQuestion && !isMCQQuestion && (
                 <QuestionHeader type={currentQuestion.type} points={currentQuestion.points} />
               )}
 
-              <div className={`flex-1 ${isCodingQuestion ? 'flex flex-col h-full' : ''}`}>
+              <div className={`flex-1 ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? 'flex flex-col h-full' : 'pb-24'}`}>
                 {/* MCQ Question */}
                 {currentQuestion.type === QType.MCQ && currentQuestion.options && (() => {
                   const chosenOptionIds = answers[currentQuestion.id]?.chosenOptionIds;
                   return (
-                    <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
-                      <MCQQuestion
-                        questionId={currentQuestion.id}
-                        prompt={currentQuestion.prompt || ''}
-                        options={currentQuestion.options}
-                        points={currentQuestion.points}
-                        answer={chosenOptionIds && Array.isArray(chosenOptionIds) ? { chosenOptionIds } : undefined}
-                        onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                      />
-                    </div>
+                    <MCQQuestion
+                      questionId={currentQuestion.id}
+                      prompt={currentQuestion.prompt || ''}
+                      options={currentQuestion.options}
+                      points={currentQuestion.points}
+                      answer={chosenOptionIds && Array.isArray(chosenOptionIds) ? { chosenOptionIds } : undefined}
+                      onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
+                    />
                   );
                 })()}
 
@@ -643,22 +711,26 @@ export default function ExamAttemptPage() {
                   const answerData = answers[currentQuestion.id];
                   const textAnswer = answerData?.textAnswer || answerData?.text || '';
                   return (
-                    <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
-                      <EssayQuestion
-                        questionId={currentQuestion.id}
-                        prompt={currentQuestion.prompt || ''}
-                        wordLimit={currentQuestion.wordLimit}
-                        points={currentQuestion.points}
-                        answer={textAnswer ? { textAnswer } : undefined}
-                        onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                      />
-                    </div>
+                    <EssayQuestion
+                      questionId={currentQuestion.id}
+                      prompt={currentQuestion.prompt || ''}
+                      wordLimit={currentQuestion.wordLimit}
+                      points={currentQuestion.points}
+                      answer={textAnswer ? { textAnswer } : undefined}
+                      onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
+                      onNext={() => navigateQuestion('next')}
+                      onPrev={() => navigateQuestion('prev')}
+                      canGoNext={currentQuestionIndex < questions.length - 1}
+                      canGoPrev={currentQuestionIndex > 0}
+                      isLastQuestion={currentQuestionIndex === questions.length - 1}
+                      onSubmit={() => handleSubmitExam(false)}
+                    />
                   );
                 })()}
               </div>
 
-              {/* Navigation Buttons - Only show for non-coding questions */}
-              {!isCodingQuestion && (
+              {/* Navigation Buttons - Only show for MCQ questions */}
+              {!isCodingQuestion && !isEssayQuestion && (
                 <QuestionNavigationButtons
                   currentQuestionIndex={currentQuestionIndex}
                   totalQuestions={questions.length}
