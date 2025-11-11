@@ -20,6 +20,7 @@
     "fix:db": "node scripts/fix-db-connection.js",
     "verify:supabase": "node scripts/verify-supabase-connection.js",
     "setup:env": "node scripts/setup-env.js",
+    "setup:local-db": "node scripts/setup-local-postgres.js",
     "create:admin": "node scripts/create-admin-user.js",
     "setup:admin": "node scripts/setup-admin-auto.js"
   },
