@@ -602,18 +602,21 @@ export default function ExamAttemptPage() {
 
               <div className={`flex-1 ${isCodingQuestion ? 'flex flex-col h-full' : ''}`}>
                 {/* MCQ Question */}
-                {currentQuestion.type === QType.MCQ && currentQuestion.options && (
-                  <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
-                    <MCQQuestion
-                      questionId={currentQuestion.id}
-                      prompt={currentQuestion.prompt || ''}
-                      options={currentQuestion.options}
-                      points={currentQuestion.points}
-                      answer={answers[currentQuestion.id]?.chosenOptionIds ? { chosenOptionIds: answers[currentQuestion.id].chosenOptionIds } : undefined}
-                      onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                    />
-                  </div>
-                )}
+                {currentQuestion.type === QType.MCQ && currentQuestion.options && (() => {
+                  const chosenOptionIds = answers[currentQuestion.id]?.chosenOptionIds;
+                  return (
+                    <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
+                      <MCQQuestion
+                        questionId={currentQuestion.id}
+                        prompt={currentQuestion.prompt || ''}
+                        options={currentQuestion.options}
+                        points={currentQuestion.points}
+                        answer={chosenOptionIds && Array.isArray(chosenOptionIds) ? { chosenOptionIds } : undefined}
+                        onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Coding Question */}
                 {currentQuestion.type === QType.CODING && (
@@ -636,18 +639,22 @@ export default function ExamAttemptPage() {
                 )}
 
                 {/* Essay Question */}
-                {currentQuestion.type === QType.ESSAY && (
-                  <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
-                    <EssayQuestion
-                      questionId={currentQuestion.id}
-                      prompt={currentQuestion.prompt || ''}
-                      wordLimit={currentQuestion.wordLimit}
-                      points={currentQuestion.points}
-                      answer={answers[currentQuestion.id]}
-                      onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                    />
-                  </div>
-                )}
+                {currentQuestion.type === QType.ESSAY && (() => {
+                  const answerData = answers[currentQuestion.id];
+                  const textAnswer = answerData?.textAnswer || answerData?.text || '';
+                  return (
+                    <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
+                      <EssayQuestion
+                        questionId={currentQuestion.id}
+                        prompt={currentQuestion.prompt || ''}
+                        wordLimit={currentQuestion.wordLimit}
+                        points={currentQuestion.points}
+                        answer={textAnswer ? { textAnswer } : undefined}
+                        onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Navigation Buttons - Only show for non-coding questions */}

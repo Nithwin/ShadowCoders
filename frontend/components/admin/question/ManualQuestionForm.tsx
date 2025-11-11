@@ -14,7 +14,11 @@ import Modal from '@/components/ui/Modal';
 const mcqQuestionSchema = z.object({
   type: z.literal(QType.MCQ),
   prompt: z.string().min(1, 'Prompt is required'),
-  points: z.coerce.number().positive('Points must be positive'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
   options: z
     .array(
       z.object({
@@ -31,7 +35,11 @@ const mcqQuestionSchema = z.object({
 const codingQuestionSchema = z.object({
   type: z.literal(QType.CODING),
   prompt: z.string().min(1, 'Prompt is required'),
-  points: z.coerce.number().positive('Points must be positive'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
   starterCode: z.string().optional(),
   testcases: z
     .array(
@@ -49,8 +57,16 @@ const codingQuestionSchema = z.object({
 const essayQuestionSchema = z.object({
   type: z.literal(QType.ESSAY),
   prompt: z.string().min(1, 'Prompt is required'),
-  points: z.coerce.number().positive('Points must be positive'),
-  wordLimit: z.coerce.number().int().positive().optional(),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
+  wordLimit: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = typeof val === 'string' ? Number(val) : val;
+    return isNaN(num) ? undefined : num;
+  }).pipe(z.number().int().positive().optional()),
 });
 
 const questionFormSchema = z.discriminatedUnion('type', [
@@ -59,7 +75,7 @@ const questionFormSchema = z.discriminatedUnion('type', [
   essayQuestionSchema,
 ]);
 
-type QuestionFormInput = z.infer<typeof questionFormSchema>;
+type QuestionFormInput = z.input<typeof questionFormSchema>;
 
 interface ManualQuestionFormProps {
   examId: string;
@@ -127,7 +143,7 @@ export default function ManualQuestionForm({
   const handleTypeChange = (newType: QType) => {
     setQuestionType(newType);
     reset({
-      type: newType,
+      type: newType as QType.MCQ | QType.CODING | QType.ESSAY,
       prompt: '',
       points: 10,
       ...(newType === QType.MCQ && {
@@ -146,7 +162,7 @@ export default function ManualQuestionForm({
       ...(newType === QType.ESSAY && {
         wordLimit: undefined,
       }),
-    });
+    } as QuestionFormInput);
   };
 
   const toggleCorrectOption = (optionId: string) => {
@@ -160,22 +176,25 @@ export default function ManualQuestionForm({
   const onSubmit = async (data: QuestionFormInput) => {
     setApiError(null);
     try {
+      // Parse and validate the data through the schema to get the transformed output
+      const validatedData = questionFormSchema.parse(data);
+      
       // Prepare the question data according to backend schema
       const questionData: Record<string, unknown> = {
-        type: data.type,
-        prompt: data.prompt,
-        points: Number(data.points),
+        type: validatedData.type,
+        prompt: validatedData.prompt,
+        points: validatedData.points,
         order: defaultOrder,
       };
 
-      if (data.type === QType.MCQ) {
-        questionData.options = data.options;
-        questionData.correctOptionIds = data.correctOptionIds || [];
-      } else if (data.type === QType.CODING) {
-        questionData.starterCode = data.starterCode || '';
+      if (validatedData.type === QType.MCQ) {
+        questionData.options = validatedData.options;
+        questionData.correctOptionIds = validatedData.correctOptionIds || [];
+      } else if (validatedData.type === QType.CODING) {
+        questionData.starterCode = validatedData.starterCode || '';
         // Ensure testcases are properly formatted
-        if (data.testcases && Array.isArray(data.testcases) && data.testcases.length > 0) {
-          questionData.testcases = data.testcases.map((tc: Record<string, unknown>) => ({
+        if (validatedData.testcases && Array.isArray(validatedData.testcases) && validatedData.testcases.length > 0) {
+          questionData.testcases = validatedData.testcases.map((tc) => ({
             input: String(tc.input || ''),
             expectedOutput: String(tc.expectedOutput || ''),
             isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
@@ -187,9 +206,9 @@ export default function ManualQuestionForm({
           setApiError('Coding question must have at least one test case');
           return;
         }
-      } else if (data.type === QType.ESSAY) {
-        if (data.wordLimit) {
-          questionData.wordLimit = Number(data.wordLimit);
+      } else if (validatedData.type === QType.ESSAY) {
+        if (validatedData.wordLimit) {
+          questionData.wordLimit = validatedData.wordLimit;
         }
       }
 
@@ -328,10 +347,10 @@ export default function ManualQuestionForm({
                 )}
               </div>
             ))}
-            {errors.options && (
+            {'options' in errors && errors.options && (
               <p className="text-sm text-red-500">{errors.options.message}</p>
             )}
-            {errors.correctOptionIds && (
+            {'correctOptionIds' in errors && errors.correctOptionIds && (
               <p className="text-sm text-red-500">{errors.correctOptionIds.message}</p>
             )}
           </div>
@@ -410,7 +429,7 @@ export default function ManualQuestionForm({
                 />
               </div>
             ))}
-            {errors.testcases && (
+            {'testcases' in errors && errors.testcases && (
               <p className="text-sm text-red-500">{errors.testcases.message}</p>
             )}
           </div>

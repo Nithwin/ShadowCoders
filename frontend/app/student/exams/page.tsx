@@ -278,7 +278,7 @@ export default function StudentExamsPage() {
                               View Results
                             </Button>
                           </Link>
-                          {exam.latestScore !== null && exam.latestMaxScore !== null && (
+                          {exam.latestScore != null && exam.latestMaxScore != null && (
                             <div className="text-xs text-primary/60 text-right">
                               Score: {exam.latestScore.toFixed(2)} / {exam.latestMaxScore.toFixed(2)}
                             </div>

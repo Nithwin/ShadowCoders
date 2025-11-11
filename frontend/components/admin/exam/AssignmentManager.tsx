@@ -27,8 +27,12 @@ interface AssignmentManagerProps {
 
 const assignExamSchema = z
   .object({
-    assignToAll: z.boolean().default(false),
-    cohortYear: z.coerce.number().int().min(1).max(6).optional(),
+    assignToAll: z.boolean(),
+    cohortYear: z.union([z.number(), z.string()]).optional().transform((val) => {
+      if (val === '' || val === null || val === undefined) return undefined;
+      const num = typeof val === 'string' ? Number(val) : val;
+      return isNaN(num) ? undefined : num;
+    }).pipe(z.number().int().min(1).max(6).optional()),
     cohortDepartment: z.string().max(50).optional(),
     cohortSection: z.string().max(10).optional(),
     studentIds: z.string().optional(), // Comma-separated string for input
@@ -63,7 +67,7 @@ const assignExamSchema = z
     }
   );
 
-type AssignmentFormData = z.infer<typeof assignExamSchema>;
+type AssignmentFormData = z.input<typeof assignExamSchema>;
 
 export default function AssignmentManager({
   examId,
@@ -282,20 +286,23 @@ function CreateAssignmentModal({
     setIsSubmitting(true);
     setApiError(null);
     try {
+      // Parse and validate the data through the schema to get the transformed output
+      const validatedData = assignExamSchema.parse(data);
+      
       const payload: Record<string, unknown> = {
-        assignToAll: data.assignToAll || false,
+        assignToAll: validatedData.assignToAll || false,
       };
 
-      if (data.assignToAll) {
+      if (validatedData.assignToAll) {
         // Assign to all - no other fields needed
       } else if (assignmentType === 'cohort') {
         // Cohort assignment
-        if (data.cohortYear) payload.cohortYear = data.cohortYear;
-        if (data.cohortDepartment) payload.cohortDepartment = data.cohortDepartment;
-        if (data.cohortSection) payload.cohortSection = data.cohortSection;
-      } else if (assignmentType === 'students' && data.studentIds) {
+        if (validatedData.cohortYear) payload.cohortYear = validatedData.cohortYear;
+        if (validatedData.cohortDepartment) payload.cohortDepartment = validatedData.cohortDepartment;
+        if (validatedData.cohortSection) payload.cohortSection = validatedData.cohortSection;
+      } else if (assignmentType === 'students' && validatedData.studentIds) {
         // Student IDs assignment - convert comma-separated string to array
-        const ids = data.studentIds
+        const ids = validatedData.studentIds
           .split(',')
           .map((id) => id.trim())
           .filter((id) => id.length > 0);
@@ -308,7 +315,7 @@ function CreateAssignmentModal({
       reset();
       setAssignmentType('all');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error('Error creating assignment:', err);
       setApiError(
         error.response?.data?.error?.message ||
@@ -462,7 +469,7 @@ function CreateAssignmentModal({
         <div className="flex justify-end gap-3 pt-4">
           <Button
             type="button"
-            variant="outline"
+            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => {
               onOpenChange(false);
               reset();

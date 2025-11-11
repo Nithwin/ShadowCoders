@@ -59,10 +59,11 @@ export default function QuestionNavigation({
       <h4 className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">Questions</h4>
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
         {questions.map((q, index) => {
-          const isAnswered = answers[q.id] && (
-            (q.type === QType.MCQ && answers[q.id]?.chosenOptionIds?.length > 0) ||
-            (q.type === QType.CODING && answers[q.id]?.code?.trim().length > 0) ||
-            (q.type === QType.ESSAY && answers[q.id]?.textAnswer?.trim().length > 0)
+          const answer = answers[q.id];
+          const isAnswered = answer && (
+            (q.type === QType.MCQ && answer.chosenOptionIds && answer.chosenOptionIds.length > 0) ||
+            (q.type === QType.CODING && answer.code && answer.code.trim().length > 0) ||
+            (q.type === QType.ESSAY && answer.textAnswer && answer.textAnswer.trim().length > 0)
           );
           const isCurrent = index === currentQuestionIndex;
           

@@ -307,7 +307,7 @@ export default function ExamResultsPage() {
 
       <div className="mt-6 flex justify-end">
         <Link href="/student/exams">
-          <Button variant="outline">
+          <Button className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50">
             Back to Exams
           </Button>
         </Link>

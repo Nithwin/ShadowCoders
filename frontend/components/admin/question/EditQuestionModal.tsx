@@ -15,7 +15,11 @@ import { api } from '@/lib/api';
 const mcqQuestionSchema = z.object({
   type: z.literal(QType.MCQ),
   prompt: z.string().min(1, 'Prompt is required'),
-  points: z.coerce.number().positive('Points must be positive'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
   options: z
     .array(
       z.object({
@@ -32,7 +36,11 @@ const mcqQuestionSchema = z.object({
 const codingQuestionSchema = z.object({
   type: z.literal(QType.CODING),
   prompt: z.string().min(1, 'Prompt is required'),
-  points: z.coerce.number().positive('Points must be positive'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
   starterCode: z.string().optional(),
   testcases: z
     .array(
@@ -50,8 +58,16 @@ const codingQuestionSchema = z.object({
 const essayQuestionSchema = z.object({
   type: z.literal(QType.ESSAY),
   prompt: z.string().min(1, 'Prompt is required'),
-  points: z.coerce.number().positive('Points must be positive'),
-  wordLimit: z.coerce.number().int().positive().optional(),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
+  wordLimit: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = typeof val === 'string' ? Number(val) : val;
+    return isNaN(num) ? undefined : num;
+  }).pipe(z.number().int().positive().optional()),
 });
 
 // Combined schema
@@ -61,7 +77,7 @@ const questionSchema = z.discriminatedUnion('type', [
   essayQuestionSchema,
 ]);
 
-type QuestionFormData = z.infer<typeof questionSchema>;
+type QuestionFormData = z.input<typeof questionSchema>;
 
 interface EditQuestionModalProps {
   question: {
@@ -105,7 +121,7 @@ export default function EditQuestionModal({
   } = useForm<QuestionFormData>({
     resolver: zodResolver(questionSchema),
     defaultValues: {
-      type: question.type,
+      type: question.type as QType.MCQ | QType.CODING | QType.ESSAY,
       prompt: question.prompt || '',
       points: question.points,
       ...(question.type === QType.MCQ && {
@@ -190,7 +206,7 @@ export default function EditQuestionModal({
       console.log('Formatted testcases for form:', testcases);
       
       reset({
-        type: question.type,
+        type: question.type as QType.MCQ | QType.CODING | QType.ESSAY,
         prompt: question.prompt || '',
         points: question.points,
         ...(question.type === QType.MCQ && {
@@ -204,7 +220,7 @@ export default function EditQuestionModal({
         ...(question.type === QType.ESSAY && {
           wordLimit: question.wordLimit || undefined,
         }),
-      });
+      } as QuestionFormData);
       setApiError(null);
     }
   }, [open, question, reset]);
@@ -214,49 +230,52 @@ export default function EditQuestionModal({
     setApiError(null);
 
     try {
+      // Parse and validate the data through the schema to get the transformed output
+      const validatedData = questionSchema.parse(data);
+      
       // Prepare the update data
       const updateData: Record<string, unknown> = {
-        prompt: data.prompt,
-        points: Number(data.points),
+        prompt: validatedData.prompt,
+        points: validatedData.points,
       };
 
       // Add type-specific fields
-      if (data.type === QType.MCQ) {
-        updateData.options = data.options || [];
-        updateData.correctOptionIds = data.correctOptionIds || [];
-      } else if (data.type === QType.CODING) {
-        updateData.starterCode = data.starterCode || null;
+      if (validatedData.type === QType.MCQ) {
+        updateData.options = validatedData.options || [];
+        updateData.correctOptionIds = validatedData.correctOptionIds || [];
+      } else if (validatedData.type === QType.CODING) {
+        updateData.starterCode = validatedData.starterCode || null;
         // Ensure testcases are properly formatted
-        if (data.testcases && Array.isArray(data.testcases) && data.testcases.length > 0) {
+        if (validatedData.testcases && Array.isArray(validatedData.testcases) && validatedData.testcases.length > 0) {
           // Filter out empty testcases and format them
-          updateData.testcases = data.testcases
-            .filter((tc: Record<string, unknown>) => tc && tc.input && tc.expectedOutput && 
+          updateData.testcases = validatedData.testcases
+            .filter((tc) => tc && tc.input && tc.expectedOutput && 
                     String(tc.input).trim() && String(tc.expectedOutput).trim())
-            .map((tc: Record<string, unknown>) => ({
+            .map((tc) => ({
               input: String(tc.input || '').trim(),
               expectedOutput: String(tc.expectedOutput || '').trim(),
               isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
               timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 2000,
             }));
           
-          if (updateData.testcases.length === 0) {
+          if (Array.isArray(updateData.testcases) && updateData.testcases.length === 0) {
             throw new Error('Coding question must have at least one valid test case with both input and expected output');
           }
           
           console.log('✅ Sending testcases to backend:', JSON.stringify(updateData.testcases, null, 2));
         } else {
           console.error('❌ No testcases found in form data or testcases array is empty!', {
-            testcases: data.testcases,
-            testcasesType: typeof data.testcases,
-            testcasesIsArray: Array.isArray(data.testcases),
-            testcasesLength: Array.isArray(data.testcases) ? data.testcases.length : 'not an array',
-            fullData: data,
+            testcases: validatedData.testcases,
+            testcasesType: typeof validatedData.testcases,
+            testcasesIsArray: Array.isArray(validatedData.testcases),
+            testcasesLength: Array.isArray(validatedData.testcases) ? validatedData.testcases.length : 'not an array',
+            fullData: validatedData,
           });
           throw new Error('Coding question must have at least one test case. Please add test cases before saving.');
         }
-      } else if (data.type === QType.ESSAY) {
-        if (data.wordLimit) {
-          updateData.wordLimit = Number(data.wordLimit);
+      } else if (validatedData.type === QType.ESSAY) {
+        if (validatedData.wordLimit) {
+          updateData.wordLimit = validatedData.wordLimit;
         }
       }
 
@@ -401,10 +420,10 @@ export default function EditQuestionModal({
                   </div>
                 ))}
               </div>
-              {errors.options && (
+              {'options' in errors && errors.options && (
                 <p className="mt-2 text-sm text-red-500">{errors.options.message}</p>
               )}
-              {errors.correctOptionIds && (
+              {'correctOptionIds' in errors && errors.correctOptionIds && (
                 <p className="mt-2 text-sm text-red-500">
                   {errors.correctOptionIds.message}
                 </p>
@@ -522,7 +541,7 @@ export default function EditQuestionModal({
                   No test cases yet. Click &quot;Add Test Case&quot; to add one.
                 </div>
               )}
-              {errors.testcases && (
+              {'testcases' in errors && errors.testcases && (
                 <p className="mt-2 text-sm text-red-500">{errors.testcases.message}</p>
               )}
             </div>
@@ -541,7 +560,7 @@ export default function EditQuestionModal({
               {...register('wordLimit')}
               placeholder="e.g. 500"
             />
-            {errors.wordLimit && (
+            {'wordLimit' in errors && errors.wordLimit && (
               <p className="mt-1 text-sm text-red-500">{errors.wordLimit.message}</p>
             )}
           </div>

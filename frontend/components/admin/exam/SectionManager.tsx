@@ -44,12 +44,20 @@ interface SectionManagerProps {
 
 const createSectionSchema = z.object({
   title: z.string().min(3, 'Section title must be at least 3 characters'),
-  order: z.coerce.number().int().min(1, 'Order must be 1 or greater'),
+  order: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Order must be a valid number');
+    return num;
+  }).pipe(z.number().int().min(1, 'Order must be 1 or greater')),
   description: z.string().optional(),
-  durationMins: z.coerce.number().int().positive().optional(),
+  durationMins: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = typeof val === 'string' ? Number(val) : val;
+    return isNaN(num) ? undefined : num;
+  }).pipe(z.number().int().positive().optional()),
 });
 
-type SectionFormData = z.infer<typeof createSectionSchema>;
+type SectionFormData = z.input<typeof createSectionSchema>;
 
 export default function SectionManager({ examId, questions }: SectionManagerProps) {
   const [sections, setSections] = useState<Section[]>([]);
@@ -312,7 +320,9 @@ function CreateSectionModal({
     setIsSubmitting(true);
     setApiError(null);
     try {
-      await api.post(`/admin/exams/${examId}/sections`, data);
+      // Parse and validate the data through the schema to get the transformed output
+      const validatedData = createSectionSchema.parse(data);
+      await api.post(`/admin/exams/${examId}/sections`, validatedData);
       onSuccess();
       onOpenChange(false);
       reset();
@@ -395,7 +405,7 @@ function CreateSectionModal({
         <div className="flex justify-end gap-3 pt-4">
           <Button
             type="button"
-            variant="outline"
+            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
@@ -453,7 +463,9 @@ function EditSectionModal({
     setIsSubmitting(true);
     setApiError(null);
     try {
-      await api.put(`/admin/sections/${section.id}`, data);
+      // Parse and validate the data through the schema to get the transformed output
+      const validatedData = createSectionSchema.parse(data);
+      await api.put(`/admin/sections/${section.id}`, validatedData);
       onSuccess();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
@@ -518,7 +530,7 @@ function EditSectionModal({
         <div className="flex justify-end gap-3 pt-4">
           <Button
             type="button"
-            variant="outline"
+            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
@@ -695,7 +707,7 @@ function ManageSectionQuestionsModal({
         <div className="flex justify-end gap-3 pt-4">
           <Button
             type="button"
-            variant="outline"
+            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >

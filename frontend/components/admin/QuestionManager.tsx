@@ -18,7 +18,9 @@ type Question = {
   points: number;
   options?: Array<{ id: string; text: string }>;
   correctOptionIds?: string[];
-  testcases?: Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }>;
+  testcases?: Array<{ input: string; expectedOutput: string; isHidden: boolean; timeoutMs: number }>;
+  starterCode?: string | null;
+  wordLimit?: number | null;
 };
 
 interface QuestionManagerProps {
@@ -43,7 +45,22 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
     setError(null);
     try {
       const res = await api.get(`/admin/exams/${examId}/questions`);
-      setQuestions(res.data); // <-- Use real data/IDs from the DB
+      // Normalize testcases to ensure required fields are present
+      const normalizedQuestions: Question[] = res.data.map((q: Question & { testcases?: Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }> }) => {
+        if (q.type === QType.CODING && q.testcases) {
+          return {
+            ...q,
+            testcases: q.testcases.map(tc => ({
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              isHidden: tc.isHidden ?? false,
+              timeoutMs: tc.timeoutMs ?? 2000,
+            })),
+          };
+        }
+        return q;
+      });
+      setQuestions(normalizedQuestions);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch questions.');
@@ -128,7 +145,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           
           // Validate and format testcases - CRITICAL: Ensure all testcases are included
           if (Array.isArray(testcases) && testcases.length > 0) {
-            testcases = testcases.map((tc: Record<string, unknown>) => {
+            const formattedTestcases = testcases.map((tc: Record<string, unknown>) => {
               // Ensure all required fields are present
               const testcase = {
                 input: String(tc.input || ''),
@@ -145,7 +162,8 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
               return testcase;
             });
             
-            console.log(`Formatted ${testcases.length} testcases for coding question:`, testcases);
+            testcases = formattedTestcases;
+            console.log(`Formatted ${formattedTestcases.length} testcases for coding question:`, formattedTestcases);
           } else {
             // If no testcases, this is a problem - log error
             console.error('⚠️ CRITICAL: Coding question has no testcases!', {
@@ -161,7 +179,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
             ...baseQuestion,
             type: QType.CODING,
             starterCode: q.starterCode || null,
-            testcases: testcases.length > 0 ? testcases : [],
+            testcases: Array.isArray(testcases) && testcases.length > 0 ? testcases : [],
           };
         } else if (questionType === QType.ESSAY) {
           return {
@@ -178,7 +196,9 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
       console.log('Formatted questions to save:', JSON.stringify(formattedQuestions, null, 2));
       
       // Validate that coding questions have testcases
-      const codingQuestions = formattedQuestions.filter(q => q.type === 'CODING' || q.type === QType.CODING);
+      const codingQuestions = formattedQuestions.filter((q): q is typeof q & { type: QType.CODING; testcases: unknown[] } => 
+        (q.type === 'CODING' || q.type === QType.CODING) && 'testcases' in q
+      );
       codingQuestions.forEach((q, idx) => {
         if (!q.testcases || !Array.isArray(q.testcases) || q.testcases.length === 0) {
           console.error(`Coding question ${idx} has no testcases:`, q);

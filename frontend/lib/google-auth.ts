@@ -1,9 +1,14 @@
 import { api } from '@/lib/api';
 
+export interface GoogleCredentialResponse {
+  credential: string;
+  select_by: string;
+}
+
 type GoogleAccounts = {
   accounts: {
     id: {
-      initialize: (config: { client_id?: string; callback: (response: { credential: string }) => void }) => void;
+      initialize: (config: { client_id?: string; callback: (response: GoogleCredentialResponse) => void }) => void;
       renderButton: (element: HTMLElement | null, config: Record<string, unknown>) => void;
       prompt: () => void;
     };
@@ -14,11 +19,6 @@ declare global {
   interface Window {
     google?: GoogleAccounts;
   }
-}
-
-export interface GoogleCredentialResponse {
-  credential: string;
-  select_by: string;
 }
 
 export const initGoogleOAuth = (callback: (response: GoogleCredentialResponse) => void) => {
