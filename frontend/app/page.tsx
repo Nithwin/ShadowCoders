@@ -1,8 +1,4 @@
-import About from '@/components/Landing/About'
-import Header from '@/components/Landing/Header'
-import Hero from '@/components/Landing/Hero'
 import { redirect } from 'next/navigation'
-import React from 'react'
 
 function Home() {
   redirect('/login');

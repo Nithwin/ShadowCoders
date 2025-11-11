@@ -2,15 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, FileText, Trophy, AlertCircle, Loader2 } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { QType } from '@/types';
 
 type QuestionResult = {
   questionId: string;
-  answer: any;
+  answer: {
+    chosenOptionIds?: string[];
+    code?: string;
+    language?: string;
+    textAnswer?: string;
+    text?: string;
+    [key: string]: unknown;
+  };
   verdict: string | null;
   earnedPoints: number | null;
   feedback: string | null;
@@ -39,17 +46,11 @@ type AttemptResults = {
 
 export default function ExamResultsPage() {
   const params = useParams();
-  const router = useRouter();
   const attemptId = params?.attemptId as string;
 
   const [results, setResults] = useState<AttemptResults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!attemptId) return;
-    fetchResults();
-  }, [attemptId]);
 
   const fetchResults = async () => {
     setIsLoading(true);
@@ -57,13 +58,21 @@ export default function ExamResultsPage() {
     try {
       const res = await api.get(`/student/attempts/${attemptId}/results`);
       setResults(res.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to load results.');
+      setError(error.response?.data?.error?.message || 'Failed to load results.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!attemptId) return;
+    fetchResults();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId]);
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {

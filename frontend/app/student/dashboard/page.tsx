@@ -46,7 +46,7 @@ const FILTERS = [
 type Filter = (typeof FILTERS)[number]['key'];
 
 export default function StudentDashboard() {
-  const { user } = useAuth();
+  useAuth();
   const [exams, setExams] = useState<Exam[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,6 +62,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     fetchExams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, activeFilter, searchQuery]);
 
   const fetchExams = async () => {
@@ -79,9 +80,10 @@ export default function StudentDashboard() {
       const res = await api.get<ApiResponse>(`/student/exams?${params.toString()}`);
       setExams(res.data.data);
       setMeta(res.data.meta);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch exams. Please try again.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch exams. Please try again.');
     } finally {
       setIsLoading(false);
     }

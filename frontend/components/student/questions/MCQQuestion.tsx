@@ -1,6 +1,6 @@
 'use client';
 
-import { QType } from '@/types';
+import { CheckCircle2 } from 'lucide-react';
 
 type Option = {
   id: string;
@@ -17,7 +17,6 @@ type MCQQuestionProps = {
 };
 
 export default function MCQQuestion({
-  questionId,
   prompt,
   options,
   points,
@@ -37,10 +36,44 @@ export default function MCQQuestion({
   return (
     <div className="space-y-6">
       {/* Question Prompt */}
-      <div className="prose prose-lg max-w-none bg-primary/5 p-6 rounded-xl border border-primary/10 shadow-sm">
+      <div className="prose prose-lg max-w-none bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
         <div
-          className="text-primary whitespace-pre-wrap leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: prompt.replace(/\n/g, '<br />') }}
+          className="text-gray-900 whitespace-pre-wrap leading-relaxed font-medium"
+          dangerouslySetInnerHTML={{ 
+            __html: (() => {
+              let html = prompt;
+              // Split by lines to process headers properly
+              const lines = html.split('\n');
+              const processedLines = lines.map((line) => {
+                // Check for headers (must check in order: ###, ##, #)
+                if (/^###\s+(.+)$/.test(line)) {
+                  return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
+                }
+                if (/^##\s+(.+)$/.test(line)) {
+                  return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
+                }
+                if (/^#\s+(.+)$/.test(line)) {
+                  return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
+                }
+                return line;
+              });
+              html = processedLines.join('\n');
+              
+              // Bold markdown **text**
+              html = html.replace(/\*\*(.*?)\*\*/g, (match, content) => {
+                // Don't replace if it's inside an HTML tag
+                if (match.includes('<') || match.includes('>')) return match;
+                return `<strong class="font-bold">${content}</strong>`;
+              });
+              // Italic markdown *text* (but not bold)
+              html = html.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="italic">$1</em>');
+              // Code blocks `code`
+              html = html.replace(/`([^`\n]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800">$1</code>');
+              // Line breaks (but preserve headers on their own line)
+              html = html.replace(/\n/g, '<br />');
+              return html;
+            })()
+          }}
         />
       </div>
 
@@ -52,22 +85,22 @@ export default function MCQQuestion({
             <label
               key={option.id}
               className={`
-                flex items-start p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 group
+                flex items-start p-5 rounded-lg border-2 cursor-pointer transition-all duration-200 group
                 ${isSelected
-                  ? 'border-primary bg-gradient-to-r from-primary/15 to-primary/5 shadow-lg scale-[1.02]'
-                  : 'border-primary/20 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md'
+                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.01]'
+                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50 hover:shadow-sm bg-white'
                 }
               `}
             >
               <div className={`
                 flex items-center justify-center w-6 h-6 rounded-full border-2 mr-4 mt-0.5 flex-shrink-0 transition-all
                 ${isSelected 
-                  ? 'bg-primary border-primary' 
-                  : 'border-primary/40 group-hover:border-primary'
+                  ? 'bg-blue-600 border-blue-600' 
+                  : 'border-gray-300 group-hover:border-blue-400 bg-white'
                 }
               `}>
                 {isSelected && (
-                  <CheckCircle2 className="w-4 h-4 text-secondary" />
+                  <CheckCircle2 className="w-4 h-4 text-white" />
                 )}
               </div>
               <input
@@ -77,8 +110,10 @@ export default function MCQQuestion({
                 className="sr-only"
               />
               <div className="flex-1">
-                <span className="text-primary font-medium text-base">
-                  <span className="font-bold text-primary/70 mr-2">{String.fromCharCode(65 + index)}.</span>
+                <span className={`font-medium text-base ${
+                  isSelected ? 'text-gray-900' : 'text-gray-700'
+                }`}>
+                  <span className="font-bold text-blue-600 mr-2">{String.fromCharCode(65 + index)}.</span>
                   {option.text}
                 </span>
               </div>
@@ -88,11 +123,11 @@ export default function MCQQuestion({
       </div>
 
       {/* Points Info */}
-      <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
-        <div className="text-sm text-primary/70">
+      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="text-sm text-gray-700">
           <span className="font-semibold">Points:</span> {points}
         </div>
-        <div className="text-sm text-primary/70">
+        <div className="text-sm text-gray-700">
           <span className="font-semibold">Selected:</span> {chosenOptionIds.length} {chosenOptionIds.length === 1 ? 'option' : 'options'}
         </div>
       </div>

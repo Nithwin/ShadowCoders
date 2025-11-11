@@ -4,7 +4,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/all";
 import { useEffect, useRef } from "react";
-import { ArrowDown,ChevronsRight } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 
 

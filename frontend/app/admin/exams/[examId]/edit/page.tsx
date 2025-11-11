@@ -24,12 +24,7 @@ export default function EditExamPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [questions, setQuestions] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!examId) return;
-    fetchExamData();
-  }, [examId]);
+  const [questions, setQuestions] = useState<Array<Record<string, unknown>>>([]);
 
   const fetchExamData = async () => {
     setIsLoadingExam(true);
@@ -46,13 +41,21 @@ export default function EditExamPage() {
       } catch (err) {
         console.error('Failed to fetch questions:', err);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setApiError(err.response?.data?.error?.message || 'Failed to load exam data. Please refresh the page.');
+      setApiError(error.response?.data?.error?.message || 'Failed to load exam data. Please refresh the page.');
     } finally {
       setIsLoadingExam(false);
     }
   };
+
+  useEffect(() => {
+    if (!examId) return;
+    fetchExamData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId]);
+
 
   const handleFormSubmit = async (data: ExamFormType) => {
     setIsSubmitting(true);
@@ -64,11 +67,12 @@ export default function EditExamPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
       // Refresh exam data
       await fetchExamData();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to update exam. Please try again.'
       );
       throw err; // Re-throw so ExamForm can handle it
@@ -91,11 +95,12 @@ export default function EditExamPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
       // Refresh exam data to get updated status
       await fetchExamData();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to publish exam. Please try again.'
       );
     } finally {
@@ -213,7 +218,7 @@ export default function EditExamPage() {
       )}
 
       {activeTab === 'sections' && examData && (
-        <SectionManager examId={examId} questions={questions} />
+        <SectionManager examId={examId} questions={questions as Array<{ id: string; type: string; prompt: string | null; points: number; order: number }>} />
       )}
 
       {activeTab === 'assignments' && examData && (

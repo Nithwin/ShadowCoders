@@ -21,12 +21,11 @@ const generateQuestionsFormSchema = z.object({
 });
 
 // This is the *output* type after Zod coercion, which 'onSubmit' will receive
-type GenerateQuestionsForm = z.output<typeof generateQuestionsFormSchema>;
 
 interface GenerateAiQuestionsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onQuestionsGenerated: (questions: any[]) => Promise<void>;
+  onQuestionsGenerated: (questions: Array<Record<string, unknown>>) => Promise<void>;
 }
 
 export default function GenerateAiQuestionsModal({
@@ -93,19 +92,20 @@ export default function GenerateAiQuestionsModal({
         console.log('AI-generated questions:', JSON.stringify(response.data, null, 2));
         
         // Check if coding questions have testcases
-        const codingQuestions = response.data.filter((q: any) => q.type === 'CODING' || q.type === QType.CODING);
-        codingQuestions.forEach((q: any, idx: number) => {
-          if (!q.testcases || !Array.isArray(q.testcases) || q.testcases.length === 0) {
+        const codingQuestions = response.data.filter((q: Record<string, unknown>) => q.type === 'CODING' || q.type === QType.CODING);
+        codingQuestions.forEach((q: Record<string, unknown>, idx: number) => {
+          const testcases = q.testcases;
+          if (!testcases || !Array.isArray(testcases) || testcases.length === 0) {
             console.error(`⚠️ AI-generated coding question ${idx} has no testcases!`, {
               question: q,
-              testcases: q.testcases,
-              testcasesType: typeof q.testcases,
-              testcasesIsArray: Array.isArray(q.testcases),
+              testcases: testcases,
+              testcasesType: typeof testcases,
+              testcasesIsArray: Array.isArray(testcases),
             });
           } else {
-            console.log(`✅ AI-generated coding question ${idx} has ${q.testcases.length} testcases:`, q.testcases);
+            console.log(`✅ AI-generated coding question ${idx} has ${testcases.length} testcases:`, testcases);
             // Validate testcase structure
-            q.testcases.forEach((tc: any, tcIdx: number) => {
+            testcases.forEach((tc: Record<string, unknown>, tcIdx: number) => {
               if (!tc.input || !tc.expectedOutput) {
                 console.warn(`Test case ${tcIdx} is missing input or expectedOutput:`, tc);
               }
@@ -118,29 +118,37 @@ export default function GenerateAiQuestionsModal({
         try {
           await onQuestionsGenerated(response.data);
           // Parent will close the modal on success, no need to close here
-        } catch (saveError: any) {
+        } catch (saveError: unknown) {
+          const error = saveError as { message?: string };
           // If saving fails, show error and keep modal open
-          setApiError(saveError.message || 'Failed to save questions. Please try again.');
+          setApiError(error.message || 'Failed to save questions. Please try again.');
         }
       } else {
         setApiError('Unexpected response format from server. Please try again.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { 
+        response?: { 
+          data?: { 
+            error?: { message?: string } | string;
+            message?: string;
+          };
+        };
+      };
       console.error('Error generating questions:', err);
       
       // Extract error message from various possible error formats
       let errorMessage = 'Failed to generate questions. Please try again.';
       
-      if (err.response?.data?.error?.message) {
-        errorMessage = err.response.data.error.message;
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.response?.data?.error) {
-        errorMessage = typeof err.response.data.error === 'string' 
-          ? err.response.data.error 
-          : err.response.data.error.message || errorMessage;
-      } else if (err.message) {
-        errorMessage = err.message;
+      if (error.response?.data?.error) {
+        const errorData = error.response.data.error;
+        if (typeof errorData === 'object' && errorData !== null && 'message' in errorData) {
+          errorMessage = (errorData as { message?: string }).message || errorMessage;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       }
       
       setApiError(errorMessage);

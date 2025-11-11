@@ -60,15 +60,17 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
   const [selectedSection, setSelectedSection] = useState<Section | null>(null);
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
 
+
   const fetchSections = async () => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await api.get(`/admin/exams/${examId}/sections`);
       setSections(res.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch sections.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch sections.');
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +80,7 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
     if (examId) {
       fetchSections();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId]);
 
   useEffect(() => {
@@ -96,9 +99,10 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
     try {
       await api.delete(`/admin/sections/${sectionId}`);
       fetchSections();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(err.response?.data?.error?.message || 'Failed to delete section.');
+      alert(error.response?.data?.error?.message || 'Failed to delete section.');
     }
   };
 
@@ -106,9 +110,10 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
     try {
       await api.delete(`/admin/sections/${sectionId}/questions/${questionId}`);
       fetchSections();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(err.response?.data?.error?.message || 'Failed to remove question from section.');
+      alert(error.response?.data?.error?.message || 'Failed to remove question from section.');
     }
   };
 
@@ -311,11 +316,12 @@ function CreateSectionModal({
       onSuccess();
       onOpenChange(false);
       reset();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error('Error creating section:', err);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to create section. Please try again.'
       );
     } finally {
@@ -449,11 +455,12 @@ function EditSectionModal({
     try {
       await api.put(`/admin/sections/${section.id}`, data);
       onSuccess();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error('Error updating section:', err);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to update section. Please try again.'
       );
     } finally {
@@ -595,11 +602,12 @@ function ManageSectionQuestionsModal({
 
       onSuccess();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error('Error updating section questions:', err);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to update section questions. Please try again.'
       );
     } finally {

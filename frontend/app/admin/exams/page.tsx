@@ -52,7 +52,8 @@ export default function ExamManagementPage() {
     const id = setTimeout(() => setSearch(searchInput), 500);
     setSearchTimeoutId(id);
     return () => clearTimeout(id);
-  }, [searchInput]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]); // searchTimeoutId is intentionally excluded to avoid clearing timeout prematurely
 
   useEffect(() => {
     fetchExams();
@@ -109,9 +110,10 @@ export default function ExamManagementPage() {
       // Delete with force=true if there are attempts
       await api.delete(`/admin/exams/${examId}${attemptCount > 0 ? '?force=true' : ''}`);
       fetchExams();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
-      alert(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to delete exam.');
+      alert(error?.response?.data?.error?.message || error?.response?.data?.message || 'Failed to delete exam.');
     }
   };
 

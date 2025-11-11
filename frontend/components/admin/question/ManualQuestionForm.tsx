@@ -121,7 +121,7 @@ export default function ManualQuestionForm({
     name: 'testcases',
   });
 
-  const watchedOptions = watch('options');
+  watch('options');
   const watchedCorrectOptions = watch('correctOptionIds') || [];
 
   const handleTypeChange = (newType: QType) => {
@@ -161,7 +161,7 @@ export default function ManualQuestionForm({
     setApiError(null);
     try {
       // Prepare the question data according to backend schema
-      const questionData: any = {
+      const questionData: Record<string, unknown> = {
         type: data.type,
         prompt: data.prompt,
         points: Number(data.points),
@@ -175,7 +175,7 @@ export default function ManualQuestionForm({
         questionData.starterCode = data.starterCode || '';
         // Ensure testcases are properly formatted
         if (data.testcases && Array.isArray(data.testcases) && data.testcases.length > 0) {
-          questionData.testcases = data.testcases.map((tc: any) => ({
+          questionData.testcases = data.testcases.map((tc: Record<string, unknown>) => ({
             input: String(tc.input || ''),
             expectedOutput: String(tc.expectedOutput || ''),
             isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
@@ -203,11 +203,19 @@ export default function ManualQuestionForm({
       onOpenChange(false);
       reset();
       setQuestionType(QType.MCQ);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { 
+        response?: { 
+          data?: { 
+            error?: { message?: string };
+            message?: string;
+          };
+        };
+      };
       console.error(err);
       setApiError(
-        err?.response?.data?.error?.message ||
-          err?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+          error?.response?.data?.message ||
           'Failed to create question'
       );
     }

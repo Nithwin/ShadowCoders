@@ -3,8 +3,8 @@ import { runCodeSchema } from './grading.zod';
 import * as gradingRepo from './grading.repo';
 import { prisma } from '../../lib/prisma';
 import { AttemptStatus, QType, Prisma } from '@prisma/client';
-import { testCodeWithTestCases as testCodeWithTestCasesJudge0 } from '../../lib/judge0';
-import { testCodeWithTestCasesLocally } from '../../lib/local-executor';
+import { testCodeWithTestCases as testCodeWithTestCasesJudge0, executeCode as executeCodeJudge0 } from '../../lib/judge0';
+import { testCodeWithTestCasesLocally, executeCodeLocally } from '../../lib/local-executor';
 import { env } from '../../config/env';
 
 // Infer the TypeScript type from the Zod schema's body
@@ -18,7 +18,7 @@ export const runCode = async (
   attemptId: string,
   input: RunCodeInput
 ) => {
-  const { questionId, code, language } = input;
+  const { questionId, code, language, customInput } = input;
 
   // 1. --- Validation: Check Attempt ---
   const attempt = await prisma.attempt.findUnique({
@@ -50,9 +50,6 @@ export const runCode = async (
   }
   if (question.type !== QType.CODING) {
     throw { status: 400, message: 'This is not a coding question' };
-  }
-  if (!question.testcases || (question.testcases as any[]).length === 0) {
-    throw { status: 400, message: 'No test cases found for this question' };
   }
   
   // 3. --- Upsert Response (create if doesn't exist) ---
@@ -89,60 +86,100 @@ export const runCode = async (
   const jobData: Prisma.GradingJobCreateInput = {
     provider: executionProvider === 'local' ? 'local' : 'judge0',
     status: 'QUEUED',
-    payload: { code, language },
+    payload: { code, language, customInput: customInput || null },
     response: { connect: { id: response.id } },
   };
   const job = await gradingRepo.createGradingJob(jobData);
 
-  // 5. --- Execute Code against Test Cases ---
-  const testCases = question.testcases as Array<{
-    input: string;
-    expectedOutput: string;
-    isHidden?: boolean;
-    timeoutMs?: number;
-  }>;
+  // 5. --- Execute Code ---
+  const executionProviderValue = executionProvider === 'local' ? 'local' : 'judge0';
+  let result: any;
 
-  // Filter to only visible test cases for student testing
-  const visibleTestCases = testCases.filter((tc) => !tc.isHidden);
+  if (customInput !== undefined && customInput !== null && customInput !== '') {
+    // Run with custom input (single execution)
+    const executionResult = executionProviderValue === 'local'
+      ? await executeCodeLocally(code, language, customInput, 5000)
+      : await executeCodeJudge0(code, language, customInput, 5000);
 
-  // Test code against visible test cases using the configured provider
-  const testResults = executionProvider === 'local'
-    ? await testCodeWithTestCasesLocally(
-        code,
-        language,
-        visibleTestCases.map((tc) => ({
-          input: tc.input,
-          expectedOutput: tc.expectedOutput,
-          timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-        }))
-      )
-    : await testCodeWithTestCasesJudge0(
-        code,
-        language,
-        visibleTestCases.map((tc) => ({
-          input: tc.input,
-          expectedOutput: tc.expectedOutput,
-          timeoutMs: tc.timeoutMs || 2000,
-        }))
-      );
+    // Format result for custom input
+    result = {
+      passed: 0,
+      total: 0,
+      testResults: [],
+      message: 'Custom input execution',
+      customOutput: {
+        input: customInput,
+        output: executionResult.stdout || '',
+        error: executionResult.stderr || executionResult.error || null,
+        status: executionResult.status.description,
+        time: executionResult.time,
+        memory: executionResult.memory || 0,
+      },
+    };
+  } else {
+    // Run against visible test cases
+    if (!question.testcases || (question.testcases as any[]).length === 0) {
+      throw { status: 400, message: 'No test cases found for this question' };
+    }
 
-  // 6. --- Format Result ---
-  const result = {
-    passed: testResults.passed,
-    total: testResults.total,
-    testResults: testResults.results,
-    message: testResults.passed === testResults.total
-      ? 'All test cases passed!'
-      : `${testResults.passed}/${testResults.total} test cases passed`,
-  };
+    const testCases = question.testcases as Array<{
+      input: string;
+      expectedOutput: string;
+      isHidden?: boolean;
+      timeoutMs?: number;
+    }>;
 
-  // 7. --- Update Job with Result ---
+    // Filter to only visible test cases for student testing
+    const visibleTestCases = testCases.filter((tc) => !tc.isHidden);
+
+    if (visibleTestCases.length === 0) {
+      throw { status: 400, message: 'No visible test cases found for this question' };
+    }
+
+    // Test code against visible test cases using the configured provider
+    const testResults = executionProviderValue === 'local'
+      ? await testCodeWithTestCasesLocally(
+          code,
+          language,
+          visibleTestCases.map((tc) => ({
+            input: tc.input,
+            expectedOutput: tc.expectedOutput,
+            timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+          }))
+        )
+      : await testCodeWithTestCasesJudge0(
+          code,
+          language,
+          visibleTestCases.map((tc) => ({
+            input: tc.input,
+            expectedOutput: tc.expectedOutput,
+            timeoutMs: tc.timeoutMs || 2000,
+          }))
+        );
+
+    // Format Result
+    result = {
+      passed: testResults.passed,
+      total: testResults.total,
+      testResults: testResults.results,
+      message: testResults.passed === testResults.total
+        ? 'All test cases passed!'
+        : `${testResults.passed}/${testResults.total} test cases passed`,
+      customOutput: null,
+    };
+  }
+
+  // 6. --- Update Job with Result ---
+  const jobStatus = result.customOutput 
+    ? (result.customOutput.error ? 'FAILED' : 'SUCCEEDED')
+    : (result.passed === result.total ? 'SUCCEEDED' : 'FAILED');
+  
   const finalJob = await gradingRepo.updateGradingJob(
     job.id,
-    testResults.passed === testResults.total ? 'SUCCEEDED' : 'FAILED',
+    jobStatus,
     result
   );
 
-  // 8. Return the execution result
+  // 7. Return the execution result
   return finalJob.result;
 };

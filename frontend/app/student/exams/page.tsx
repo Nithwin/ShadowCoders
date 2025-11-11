@@ -59,6 +59,7 @@ export default function StudentExamsPage() {
 
   useEffect(() => {
     fetchExams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, activeFilter, searchQuery]);
 
   const fetchExams = async () => {
@@ -76,9 +77,10 @@ export default function StudentExamsPage() {
       const res = await api.get<ApiResponse>(`/student/exams?${params.toString()}`);
       setExams(res.data.data);
       setMeta(res.data.meta);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch exams. Please try again.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch exams. Please try again.');
     } finally {
       setIsLoading(false);
     }

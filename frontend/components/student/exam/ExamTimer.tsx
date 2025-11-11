@@ -125,10 +125,10 @@ export default function ExamTimer({
   };
 
   return (
-    <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-base md:text-lg font-bold shadow-md transition-all ${
-      timeRemaining < 300 ? 'bg-red-600 text-white animate-pulse' :
-      timeRemaining < 600 ? 'bg-yellow-600 text-white' :
-      'bg-green-600 text-white'
+    <div className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-base md:text-lg font-bold border transition-all ${
+      timeRemaining < 300 ? 'bg-red-50 text-red-700 border-red-300 animate-pulse' :
+      timeRemaining < 600 ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+      'bg-green-50 text-green-700 border-green-300'
     }`}>
       <Clock className="w-5 h-5" />
       <span>{formatTime(timeRemaining)}</span>

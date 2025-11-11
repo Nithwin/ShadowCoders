@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import ExamForm, { localDateTimeValue, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
+import { TimingMode, SectionLockPolicy } from '@/types';
 
 export default function CreateExamPage() {
   const router = useRouter();
@@ -35,8 +36,8 @@ export default function CreateExamPage() {
 
       <ExamForm
         defaultValues={{
-          timingMode: 'OVERALL_ONLY' as const,
-          sectionLockPolicy: 'NONE' as const,
+          timingMode: TimingMode.OVERALL_ONLY,
+          sectionLockPolicy: SectionLockPolicy.NONE,
           durationMins: 60,
           startAt: localDateTimeValue(new Date()),
           endAt: localDateTimeValue(new Date(Date.now() + 2 * 60 * 60 * 1000)),

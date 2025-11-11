@@ -5,19 +5,14 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useDebouncedCallback } from 'use-debounce';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
   Plus,
   Search,
   Edit,
   Trash2,
   Eye,
-  User as UserIcon,
-  ChevronDown,
-  LogOut,
-  UserRound,
 } from 'lucide-react';
-import { ExamStatus, Role } from '@/types'; // Make sure ExamStatus is in /types
+import { ExamStatus } from '@/types'; // Make sure ExamStatus is in /types
 
 // --- Types ---
 type Exam = {
@@ -51,7 +46,7 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 // --- Component ---
 export default function AdminDashboardPage() {
-  const { user, logout } = useAuth();
+  useAuth();
   const [exams, setExams] = useState<Exam[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +66,7 @@ export default function AdminDashboardPage() {
   // Fetch exams whenever filters or page change
   useEffect(() => {
     fetchExams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, activeStatus, searchQuery]); // Re-fetch data when these change
 
   const fetchExams = async () => {
@@ -113,9 +109,10 @@ export default function AdminDashboardPage() {
       await api.delete(`/api/admin/exams/${examId}`);
       // Refresh the exams list
       fetchExams(); 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(err.response?.data?.error?.message || 'Failed to delete exam.');
+      alert(error.response?.data?.error?.message || 'Failed to delete exam.');
     }
   };
 

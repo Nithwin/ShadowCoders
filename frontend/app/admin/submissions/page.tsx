@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useRouter } from 'next/navigation';
-import { Search, Eye, Download, Calendar, Users, Loader2 } from 'lucide-react';
+import { Search, Eye, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useDebouncedCallback } from 'use-debounce';
@@ -32,13 +31,13 @@ type ApiResponse = {
 };
 
 export default function AdminSubmissionsPage() {
-  const router = useRouter();
   const [exams, setExams] = useState<Exam[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [exportingExamId, setExportingExamId] = useState<string | null>(null);
 
   // Debounce the search query
   const debouncedSetSearch = useDebouncedCallback((query: string) => {
@@ -48,6 +47,7 @@ export default function AdminSubmissionsPage() {
 
   useEffect(() => {
     fetchExams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, searchQuery]);
 
   const fetchExams = async () => {
@@ -64,9 +64,10 @@ export default function AdminSubmissionsPage() {
       const res = await api.get<ApiResponse>(`/admin/exams?${params.toString()}`);
       setExams(res.data.data);
       setMeta(res.data.meta);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch exams.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch exams.');
     } finally {
       setIsLoading(false);
     }
@@ -186,13 +187,95 @@ export default function AdminSubmissionsPage() {
                           </Button>
                         </Link>
                         <Button
-                          onClick={() => {
-                            window.location.href = `/api/admin/exams/${exam.id}/export`;
+                          onClick={async () => {
+                            if (exportingExamId === exam.id) return;
+                            setExportingExamId(exam.id);
+                            try {
+                              const response = await api.get(`/admin/exams/${exam.id}/export`, {
+                                responseType: 'blob',
+                              });
+                              
+                              // Check if response is actually a blob with content
+                              if (!response.data || (response.data instanceof Blob && response.data.size === 0)) {
+                                throw new Error('Empty response from server');
+                              }
+                              
+                              // Check content type to see if it's an error (JSON error responses)
+                              const contentType = response.headers['content-type'] || '';
+                              if (contentType.includes('application/json')) {
+                                // It's an error response, parse it
+                                const text = await response.data.text();
+                                const errorJson = JSON.parse(text);
+                                throw new Error(errorJson.message || errorJson.error?.message || 'Failed to download Excel file');
+                              }
+                              
+                              // Create blob and download
+                              const blob = response.data instanceof Blob 
+                                ? response.data 
+                                : new Blob([response.data], {
+                                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                  });
+                              
+                              const url = window.URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              const safeTitle = exam.title.replace(/[^a-z0-9]/gi, '_');
+                              link.download = `exam_results_${safeTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              window.URL.revokeObjectURL(url);
+                            } catch (err: unknown) {
+                              const error = err as { 
+                                response?: { 
+                                  data?: Blob | { message?: string; error?: { message?: string } } | string;
+                                  statusText?: string;
+                                  status?: number;
+                                };
+                                message?: string;
+                              };
+                              console.error('Error downloading Excel:', err);
+                              let errorMessage = 'Failed to download Excel file';
+                              
+                              if (error.response) {
+                                // Axios error with response
+                                if (error.response.data instanceof Blob) {
+                                  try {
+                                    const text = await error.response.data.text();
+                                    const errorJson = JSON.parse(text);
+                                    errorMessage = errorJson.message || errorJson.error?.message || errorMessage;
+                                  } catch {
+                                    errorMessage = error.response.statusText || `Server error (${error.response.status || 500})`;
+                                  }
+                                } else if (typeof error.response.data === 'object' && error.response.data !== null) {
+                                  const data = error.response.data as { message?: string; error?: { message?: string } };
+                                  errorMessage = data.message || data.error?.message || error.response.statusText || errorMessage;
+                                } else {
+                                  errorMessage = error.response.statusText || `Server error (${error.response.status || 500})`;
+                                }
+                              } else if (error.message) {
+                                errorMessage = error.message;
+                              }
+                              
+                              alert(`Error: ${errorMessage}\n\nPlease make sure you are logged in and have the necessary permissions.`);
+                            } finally {
+                              setExportingExamId(null);
+                            }
                           }}
-                          className="bg-green-600 hover:bg-green-700 text-white border-0 text-sm px-3 py-1"
+                          disabled={exportingExamId === exam.id}
+                          className="bg-green-600 hover:bg-green-700 text-white border-0 text-sm px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Download className="w-4 h-4 mr-1" />
-                          Export
+                          {exportingExamId === exam.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                              Exporting...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-1" />
+                              Export
+                            </>
+                          )}
                         </Button>
                       </div>
                     </td>

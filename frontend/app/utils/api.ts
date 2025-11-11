@@ -56,7 +56,7 @@ api.interceptors.response.use(
         }
         // After refresh, retry the original request
         return api.request(config);
-      } catch (e) {
+      } catch {
         // Refresh failed — reject without retrying
         return Promise.reject(error);
       }

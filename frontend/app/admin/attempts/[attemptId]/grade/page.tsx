@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle2, XCircle, AlertCircle, Loader2, User, Calendar, Clock } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -24,7 +24,14 @@ type Question = {
 
 type Response = {
   id: string;
-  answer: any;
+  answer: {
+    chosenOptionIds?: string[];
+    code?: string;
+    language?: string;
+    textAnswer?: string;
+    text?: string;
+    [key: string]: unknown;
+  };
   verdict: string | null;
   earnedPoints: number | null;
   feedback: string | null;
@@ -34,7 +41,7 @@ type Response = {
     kind: string;
     score: number | null;
     comments: string | null;
-    breakdown: any;
+    breakdown: Record<string, unknown>;
     isFinal: boolean;
     assessor: {
       id: string;
@@ -66,7 +73,6 @@ type Attempt = {
 
 export default function AdminGradingPage() {
   const params = useParams();
-  const router = useRouter();
   const attemptId = params?.attemptId as string;
 
   const [attempt, setAttempt] = useState<Attempt | null>(null);
@@ -76,10 +82,26 @@ export default function AdminGradingPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedResponses, setSavedResponses] = useState<Set<string>>(new Set());
 
+  const fetchAttempt = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await api.get(`/admin/attempts/${attemptId}`);
+      setAttempt(res.data);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      console.error(err);
+      setError(error.response?.data?.error?.message || 'Failed to load attempt details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (attemptId) {
       fetchAttempt();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
 
   useEffect(() => {
@@ -112,19 +134,6 @@ export default function AdminGradingPage() {
     }
   }, [attempt]);
 
-  const fetchAttempt = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/admin/attempts/${attemptId}`);
-      setAttempt(res.data);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to load attempt details.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleGradeChange = (responseId: string, field: 'score' | 'feedback', value: number | string) => {
     setGradingData((prev) => ({
@@ -172,9 +181,10 @@ export default function AdminGradingPage() {
       
       // Refresh attempt to get updated scores
       await fetchAttempt();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error('Error saving grade:', err);
-      alert(err.response?.data?.error?.message || 'Failed to save grade. Please try again.');
+      alert(error.response?.data?.error?.message || 'Failed to save grade. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -231,7 +241,7 @@ export default function AdminGradingPage() {
       setSavedResponses(new Set(essayResponses.map((r) => r.id)));
       
       alert('All grades saved successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving grades:', err);
       alert('Failed to save some grades. Please check individual responses.');
     } finally {
@@ -461,7 +471,7 @@ export default function AdminGradingPage() {
                 {question.type === QType.MCQ && response.answer?.chosenOptionIds && (
                   <div className="space-y-2">
                     {question.options?.map((option) => {
-                      const isSelected = response.answer.chosenOptionIds.includes(option.id);
+                      const isSelected = response.answer.chosenOptionIds?.includes(option.id) || false;
                       const isCorrect = question.correctOptionIds?.includes(option.id);
                       return (
                         <div

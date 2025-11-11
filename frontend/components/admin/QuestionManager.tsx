@@ -16,9 +16,9 @@ type Question = {
   type: QType;
   prompt: string | null;
   points: number;
-  options?: any[];
+  options?: Array<{ id: string; text: string }>;
   correctOptionIds?: string[];
-  testcases?: any[];
+  testcases?: Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }>;
 };
 
 interface QuestionManagerProps {
@@ -57,6 +57,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
     if (examId) {
       fetchQuestions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId]);
 
   // 2. Handle Deleting an existing question
@@ -69,9 +70,10 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
       await api.delete(`/admin/questions/${questionId}`);
       // Refresh the list from the DB
       fetchQuestions();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(err.response?.data?.error?.message || 'Failed to delete question.');
+      alert(error.response?.data?.error?.message || 'Failed to delete question.');
     }
   };
 
@@ -88,7 +90,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
   };
 
   // 3. Handle receiving new AI questions
-  const handleQuestionsGenerated = async (newQuestions: any[]): Promise<void> => {
+  const handleQuestionsGenerated = async (newQuestions: Array<Record<string, unknown>>): Promise<void> => {
     if (!newQuestions || newQuestions.length === 0) {
       setError('No questions were generated. Please try again.');
       return;
@@ -126,7 +128,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           
           // Validate and format testcases - CRITICAL: Ensure all testcases are included
           if (Array.isArray(testcases) && testcases.length > 0) {
-            testcases = testcases.map((tc: any) => {
+            testcases = testcases.map((tc: Record<string, unknown>) => {
               // Ensure all required fields are present
               const testcase = {
                 input: String(tc.input || ''),
@@ -200,12 +202,20 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
       
       // Clear any previous errors
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { 
+        response?: { 
+          data?: { 
+            error?: { message?: string };
+            message?: string;
+          };
+        };
+      };
       console.error('Error saving questions:', err);
       const errorMessage = 
-        err.response?.data?.error?.message ||
-        err.response?.data?.message ||
-        err.message ||
+        error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        (error as { message?: string }).message ||
         'Failed to save questions. Please try again.';
       setError(errorMessage);
       // Re-throw error so modal knows to stay open

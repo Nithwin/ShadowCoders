@@ -180,7 +180,7 @@ export default function EditQuestionModal({
       }
       
       // Format testcases to ensure they have all required fields
-      testcases = testcases.map((tc: any) => ({
+      testcases = testcases.map((tc: Record<string, unknown>) => ({
         input: String(tc.input || ''),
         expectedOutput: String(tc.expectedOutput || ''),
         isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
@@ -215,7 +215,7 @@ export default function EditQuestionModal({
 
     try {
       // Prepare the update data
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         prompt: data.prompt,
         points: Number(data.points),
       };
@@ -230,9 +230,9 @@ export default function EditQuestionModal({
         if (data.testcases && Array.isArray(data.testcases) && data.testcases.length > 0) {
           // Filter out empty testcases and format them
           updateData.testcases = data.testcases
-            .filter((tc: any) => tc && tc.input && tc.expectedOutput && 
+            .filter((tc: Record<string, unknown>) => tc && tc.input && tc.expectedOutput && 
                     String(tc.input).trim() && String(tc.expectedOutput).trim())
-            .map((tc: any) => ({
+            .map((tc: Record<string, unknown>) => ({
               input: String(tc.input || '').trim(),
               expectedOutput: String(tc.expectedOutput || '').trim(),
               isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
@@ -268,13 +268,22 @@ export default function EditQuestionModal({
 
       onSuccess();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { 
+        response?: { 
+          data?: { 
+            error?: { message?: string };
+            message?: string;
+          };
+        };
+        message?: string;
+      };
       console.error('Error updating question:', err);
-      console.error('Error response:', err.response?.data);
+      console.error('Error response:', error.response?.data);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
-          err.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
+          error.message ||
           'Failed to update question. Please try again.'
       );
     } finally {
@@ -510,7 +519,7 @@ export default function EditQuestionModal({
               </div>
               {testcaseFields.length === 0 && (
                 <div className="text-center py-8 border-2 border-dashed border-primary/20 rounded-lg text-primary/60 text-sm">
-                  No test cases yet. Click "Add Test Case" to add one.
+                  No test cases yet. Click &quot;Add Test Case&quot; to add one.
                 </div>
               )}
               {errors.testcases && (

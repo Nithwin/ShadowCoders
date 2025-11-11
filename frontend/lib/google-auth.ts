@@ -1,8 +1,18 @@
 import { api } from '@/lib/api';
 
+type GoogleAccounts = {
+  accounts: {
+    id: {
+      initialize: (config: { client_id?: string; callback: (response: { credential: string }) => void }) => void;
+      renderButton: (element: HTMLElement | null, config: Record<string, unknown>) => void;
+      prompt: () => void;
+    };
+  };
+};
+
 declare global {
   interface Window {
-    google: any;
+    google?: GoogleAccounts;
   }
 }
 

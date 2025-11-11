@@ -39,7 +39,7 @@ export const AdminAPI = {
     return data;
   },
 
-  async assignExam(examId: string, payload: any) {
+  async assignExam(examId: string, payload: Record<string, unknown>) {
     const { data } = await api.post(`/admin/exams/${examId}/assign`, payload);
     return data;
   },
@@ -64,17 +64,17 @@ export const AdminAPI = {
   },
 
   // Sections
-  async createSection(examId: string, payload: any) {
+  async createSection(examId: string, payload: Record<string, unknown>) {
     const { data } = await api.post(`/admin/exams/${examId}/sections`, payload);
     return data;
   },
 
-  async addQuestionsToSection(sectionId: string, payload: any) {
+  async addQuestionsToSection(sectionId: string, payload: Record<string, unknown>) {
     const { data } = await api.post(`/admin/sections/${sectionId}/questions`, payload);
     return data;
   },
 
-  async updateSection(sectionId: string, payload: any) {
+  async updateSection(sectionId: string, payload: Record<string, unknown>) {
     const { data } = await api.put(`/admin/sections/${sectionId}`, payload);
     return data;
   },
@@ -90,12 +90,12 @@ export const AdminAPI = {
   },
 
   // Questions
-  async addQuestionsToExam(examId: string, payload: any) {
+  async addQuestionsToExam(examId: string, payload: Record<string, unknown>) {
     const { data } = await api.post(`/admin/exams/${examId}/questions`, payload);
     return data;
   },
 
-  async updateQuestion(questionId: string, payload: any) {
+  async updateQuestion(questionId: string, payload: Record<string, unknown>) {
     const { data } = await api.put(`/admin/questions/${questionId}`, payload);
     return data;
   },
@@ -106,7 +106,7 @@ export const AdminAPI = {
   },
 
   // Rubrics
-  async createRubric(payload: any) {
+  async createRubric(payload: Record<string, unknown>) {
     const { data } = await api.post('/admin/rubrics', payload);
     return data;
   },

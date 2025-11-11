@@ -103,11 +103,12 @@ export default function ExamForm({
       await onSubmit(data);
       setSuccessMessage('Saved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
       setApiError(
-        err?.response?.data?.error?.message ||
-          err?.response?.data?.message ||
+        error?.response?.data?.error?.message ||
+          error?.response?.data?.message ||
           'Failed to save exam'
       );
     }

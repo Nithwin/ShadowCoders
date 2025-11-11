@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Search, Clock, CheckCircle2, XCircle, Loader2, Eye, Download } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, Search, Loader2, Eye, Download } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
@@ -36,7 +36,6 @@ type ApiResponse = {
 
 export default function ExamSubmissionsPage() {
   const params = useParams();
-  const router = useRouter();
   const examId = params?.examId as string;
 
   const [attempts, setAttempts] = useState<Attempt[]>([]);
@@ -47,13 +46,6 @@ export default function ExamSubmissionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [examTitle, setExamTitle] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
-
-  useEffect(() => {
-    if (examId) {
-      fetchAttempts();
-      fetchExamTitle();
-    }
-  }, [examId, currentPage, searchQuery]);
 
   const fetchExamTitle = async () => {
     try {
@@ -78,13 +70,23 @@ export default function ExamSubmissionsPage() {
       const res = await api.get<ApiResponse>(`/admin/attempts/exam/${examId}?${params.toString()}`);
       setAttempts(res.data.data);
       setMeta(res.data.meta);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch submissions.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch submissions.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (examId) {
+      fetchAttempts();
+      fetchExamTitle();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId, currentPage, searchQuery]);
+
 
   const handlePageChange = (newPage: number) => {
     if (newPage > 0 && newPage <= (meta?.totalPages || 1)) {
@@ -186,9 +188,10 @@ export default function ExamSubmissionsPage() {
               link.click();
               document.body.removeChild(link);
               window.URL.revokeObjectURL(url);
-            } catch (err: any) {
+            } catch (err: unknown) {
+              const error = err as { response?: { data?: { message?: string } }; message?: string };
               console.error('Error downloading Excel:', err);
-              const errorMessage = err.response?.data?.message || err.message || 'Failed to download Excel file';
+              const errorMessage = error.response?.data?.message || error.message || 'Failed to download Excel file';
               alert(`Error: ${errorMessage}. Please make sure you are logged in and have the necessary permissions.`);
             } finally {
               setIsExporting(false);

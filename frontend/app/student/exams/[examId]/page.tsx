@@ -29,11 +29,6 @@ export default function ExamDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
 
-  useEffect(() => {
-    if (!examId) return;
-    fetchExam();
-  }, [examId]);
-
   const fetchExam = async () => {
     setIsLoading(true);
     setError(null);
@@ -41,17 +36,25 @@ export default function ExamDetailPage() {
       // Fetch exam directly by ID
       const res = await api.get(`/student/exams/${examId}`);
       setExam(res.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
       setError(
-        err.response?.data?.error?.message || 
-        err.response?.data?.message || 
+        error.response?.data?.error?.message || 
+        error.response?.data?.message || 
         'Failed to load exam details.'
       );
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!examId) return;
+    fetchExam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId]);
+
 
   const handleStartExam = async () => {
     if (!examId) return;
@@ -65,21 +68,16 @@ export default function ExamDetailPage() {
     try {
       const res = await api.post(`/student/exams/${examId}/start`);
       const attemptId = res.data.id;
-      // Open exam in a new window (fullscreen will be handled by the exam page)
-      const examUrl = `/student/attempts/${attemptId}`;
-      window.open(examUrl, '_blank', 'noopener,noreferrer,width=1920,height=1080');
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        router.push('/student/dashboard?examStarted=true');
-      }, 500);
-    } catch (err: any) {
+      // Navigate to exam attempt page in the same tab
+      router.push(`/student/attempts/${attemptId}`);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error('Error starting exam:', err);
       setError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to start exam. Please try again.'
       );
-    } finally {
       setIsStarting(false);
     }
   };

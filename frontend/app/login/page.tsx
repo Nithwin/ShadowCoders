@@ -5,9 +5,19 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
+type GoogleAccounts = {
+  accounts: {
+    id: {
+      initialize: (config: { client_id?: string; callback: (response: { credential: string }) => void }) => void;
+      renderButton: (element: HTMLElement | null, config: Record<string, unknown>) => void;
+      prompt: () => void;
+    };
+  };
+};
+
 declare global {
   interface Window {
-    google: any;
+    google?: GoogleAccounts;
   }
 }
 
@@ -72,7 +82,7 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleLoaded]);
 
-  const handleGoogleResponse = async (response: any) => {
+  const handleGoogleResponse = async (response: { credential: string }) => {
     setError(null);
     setIsLoading(true);
 
@@ -98,11 +108,15 @@ export default function LoginPage() {
       
       await loginWithGoogle(userProfile);
       // Redirect will be handled by the useEffect based on user role
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { 
+        response?: { data?: { error?: { message?: string }; message?: string } };
+        message?: string;
+      };
       console.error('Google login error:', err);
-      const errorMessage = err.response?.data?.error?.message || 
-                          err.response?.data?.message || 
-                          err.message ||
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message ||
                           'Google login failed. Please ensure you are registered.';
       setError(errorMessage);
       setIsLoading(false);
@@ -117,9 +131,10 @@ export default function LoginPage() {
     try {
       await login(email, password);
       // Redirect will be handled by the useEffect based on user role
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
       console.error(err);
-      setError(err.response?.data?.message || 'Invalid email or password');
+      setError(error.response?.data?.message || 'Invalid email or password');
       setIsLoading(false);
     }
   };

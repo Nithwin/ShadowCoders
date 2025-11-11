@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
-import { CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, FileText } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -39,9 +38,10 @@ export default function StudentResultsPage() {
       
       // Placeholder until backend endpoint is ready
       setAttempts([]);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch results.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch results.');
     } finally {
       setIsLoading(false);
     }

@@ -41,7 +41,14 @@ type Attempt = {
   };
   responses: Array<{
     questionId: string;
-    answer: any;
+    answer: {
+      chosenOptionIds?: string[];
+      code?: string;
+      language?: string;
+      textAnswer?: string;
+      text?: string;
+      [key: string]: unknown;
+    };
   }>;
   orderMap: string[] | null;
 };
@@ -58,7 +65,14 @@ export default function ExamAttemptPage() {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [answers, setAnswers] = useState<Record<string, {
+    chosenOptionIds?: string[];
+    code?: string;
+    language?: string;
+    textAnswer?: string;
+    text?: string;
+    [key: string]: unknown;
+  }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,14 +96,18 @@ export default function ExamAttemptPage() {
     }
   }, [attemptId, storageKey]);
 
-  // Save answers to localStorage whenever they change
+  // Save answers to localStorage whenever they change (debounced to prevent excessive writes)
   useEffect(() => {
     if (attemptId && Object.keys(answers).length > 0) {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(answers));
-      } catch (err) {
-        console.error('Error saving to localStorage:', err);
-      }
+      const timeoutId = setTimeout(() => {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(answers));
+        } catch (err) {
+          console.error('Error saving to localStorage:', err);
+        }
+      }, 500); // Debounce by 500ms
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [answers, attemptId, storageKey]);
 
@@ -108,10 +126,10 @@ export default function ExamAttemptPage() {
       const element = containerRef.current || document.documentElement;
       if (element.requestFullscreen) {
         await element.requestFullscreen();
-      } else if ((element as any).webkitRequestFullscreen) {
-        await (element as any).webkitRequestFullscreen();
-      } else if ((element as any).msRequestFullscreen) {
-        await (element as any).msRequestFullscreen();
+      } else if ((element as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen) {
+        await (element as HTMLElement & { webkitRequestFullscreen: () => Promise<void> }).webkitRequestFullscreen();
+      } else if ((element as HTMLElement & { msRequestFullscreen?: () => Promise<void> }).msRequestFullscreen) {
+        await (element as HTMLElement & { msRequestFullscreen: () => Promise<void> }).msRequestFullscreen();
       }
     } catch (err) {
       console.error('Error entering fullscreen:', err);
@@ -123,10 +141,10 @@ export default function ExamAttemptPage() {
     try {
       if (document.exitFullscreen) {
         await document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        await (document as any).webkitExitFullscreen();
-      } else if ((document as any).msExitFullscreen) {
-        await (document as any).msExitFullscreen();
+      } else if ((document as Document & { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen) {
+        await (document as Document & { webkitExitFullscreen: () => Promise<void> }).webkitExitFullscreen();
+      } else if ((document as Document & { msExitFullscreen?: () => Promise<void> }).msExitFullscreen) {
+        await (document as Document & { msExitFullscreen: () => Promise<void> }).msExitFullscreen();
       }
     } catch (err) {
       console.error('Error exiting fullscreen:', err);
@@ -150,7 +168,12 @@ export default function ExamAttemptPage() {
       
       for (const question of questions) {
         const answerData = answers[question.id];
-        let formattedAnswer: any = null;
+        let formattedAnswer: {
+          chosenOptionIds?: string[];
+          code?: string;
+          language?: string;
+          textAnswer?: string;
+        } | null = null;
         
         if (question.type === QType.MCQ) {
           const chosenOptionIds = answerData?.chosenOptionIds || [];
@@ -191,9 +214,10 @@ export default function ExamAttemptPage() {
       }
       
       router.push('/student/dashboard?submitted=true');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error('Error submitting exam:', err);
-      setError(err.response?.data?.error?.message || 'Failed to submit exam. Please try again.');
+      setError(error.response?.data?.error?.message || 'Failed to submit exam. Please try again.');
       setIsSubmitting(false);
     }
   }, [attempt, answers, questions, attemptId, clearLocalStorage, isFullscreen, exitFullscreen, router, isSubmitting]);
@@ -215,8 +239,8 @@ export default function ExamAttemptPage() {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!(
         document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).msFullscreenElement
+        (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ||
+        (document as Document & { msFullscreenElement?: Element | null }).msFullscreenElement
       );
 
       const wasFullscreen = isFullscreen;
@@ -315,20 +339,21 @@ export default function ExamAttemptPage() {
     };
   }, [attempt]);
 
-  // Enter fullscreen when exam starts
-  useEffect(() => {
-    if (attempt?.status === 'IN_PROGRESS' && questions.length > 0) {
-      const timer = setTimeout(() => {
-        enterFullscreen();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [attempt?.status, questions.length, enterFullscreen]);
+  // Optionally enter fullscreen when exam starts (commented out - user can manually enter fullscreen)
+  // useEffect(() => {
+  //   if (attempt?.status === 'IN_PROGRESS' && questions.length > 0) {
+  //     const timer = setTimeout(() => {
+  //       enterFullscreen();
+  //     }, 500);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [attempt?.status, questions.length, enterFullscreen]);
 
   // Fetch attempt and questions
   useEffect(() => {
     if (!attemptId) return;
     fetchAttempt();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
 
   const fetchAttempt = async () => {
@@ -339,7 +364,14 @@ export default function ExamAttemptPage() {
       const attemptData = res.data;
       setAttempt(attemptData);
 
-      const savedAnswers: Record<string, any> = {};
+      const savedAnswers: Record<string, {
+        chosenOptionIds?: string[];
+        code?: string;
+        language?: string;
+        textAnswer?: string;
+        text?: string;
+        [key: string]: unknown;
+      }> = {};
       try {
         const saved = localStorage.getItem(storageKey);
         if (saved) {
@@ -349,7 +381,14 @@ export default function ExamAttemptPage() {
         console.error('Error loading from localStorage:', err);
       }
 
-      attemptData.responses?.forEach((r: any) => {
+      attemptData.responses?.forEach((r: { questionId: string; answer?: {
+        chosenOptionIds?: string[];
+        code?: string;
+        language?: string;
+        textAnswer?: string;
+        text?: string;
+        [key: string]: unknown;
+      } }) => {
         if (r.answer && typeof r.answer === 'object' && Object.keys(r.answer).length > 0) {
           savedAnswers[r.questionId] = r.answer;
         }
@@ -357,18 +396,19 @@ export default function ExamAttemptPage() {
       setAnswers(savedAnswers);
 
       await fetchQuestions(attemptData);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to load exam attempt.');
+      setError(error.response?.data?.error?.message || 'Failed to load exam attempt.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchQuestions = async (attemptData: any) => {
+  const fetchQuestions = async (attemptData: Attempt) => {
     try {
       const questionIds = attemptData.orderMap || 
-        attemptData.exam.questions.map((q: any) => q.id);
+        attemptData.exam.questions.map((q: { id: string; order: number }) => q.id);
 
       const questionPromises = questionIds.map((questionId: string) =>
         api.get(`/student/attempts/${attemptId}/question/${questionId}`)
@@ -380,8 +420,32 @@ export default function ExamAttemptPage() {
       fetchedQuestions.sort((a, b) => (a.order || 0) - (b.order || 0));
       setQuestions(fetchedQuestions);
       
+      // Only format answers if they exist - don't create empty answers
+      // This prevents triggering onChange in question components unnecessarily
       setAnswers((prevAnswers) => {
-        const formattedAnswers: Record<string, any> = {};
+        // Check if we actually need to update
+        const hasChanges = fetchedQuestions.some((q) => {
+          const existingAnswer = prevAnswers[q.id];
+          if (!existingAnswer) return false;
+          
+          // Check if formatting is needed
+          if (q.type === QType.MCQ && !existingAnswer.chosenOptionIds) return true;
+          if (q.type === QType.CODING && (!existingAnswer.code || !existingAnswer.language)) return true;
+          if (q.type === QType.ESSAY && !existingAnswer.textAnswer) return true;
+          return false;
+        });
+        
+        if (!hasChanges) {
+          return prevAnswers; // No changes needed
+        }
+        
+        const formattedAnswers: Record<string, {
+          chosenOptionIds?: string[];
+          code?: string;
+          language?: string;
+          textAnswer?: string;
+          [key: string]: unknown;
+        }> = {};
         fetchedQuestions.forEach((q) => {
           const existingAnswer = prevAnswers[q.id];
           if (existingAnswer) {
@@ -398,23 +462,44 @@ export default function ExamAttemptPage() {
               formattedAnswers[q.id] = {
                 textAnswer: existingAnswer.textAnswer || existingAnswer.text || '',
               };
+            } else {
+              // Keep other answer types as-is
+              formattedAnswers[q.id] = existingAnswer;
             }
           }
         });
         return { ...prevAnswers, ...formattedAnswers };
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error('Error fetching questions:', err);
-      setError('Failed to load questions. Please refresh the page.');
+      setError(error.response?.data?.error?.message || 'Failed to load questions. Please refresh the page.');
     }
   };
 
-  const handleAnswerChange = (questionId: string, answer: any) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: answer,
-    }));
-  };
+  const handleAnswerChange = useCallback((questionId: string, answer: {
+    chosenOptionIds?: string[];
+    code?: string;
+    language?: string;
+    textAnswer?: string;
+    [key: string]: unknown;
+  }) => {
+    setAnswers((prev) => {
+      // Only update if the answer actually changed to prevent infinite loops
+      const currentAnswer = prev[questionId];
+      const answerStr = JSON.stringify(answer);
+      const currentAnswerStr = JSON.stringify(currentAnswer);
+      
+      if (answerStr === currentAnswerStr) {
+        return prev; // No change, return previous state
+      }
+      
+      return {
+        ...prev,
+        [questionId]: answer,
+      };
+    });
+  }, []);
 
   const navigateQuestion = (direction: 'next' | 'prev') => {
     if (direction === 'next') {
@@ -466,7 +551,7 @@ export default function ExamAttemptPage() {
   const isCodingQuestion = currentQuestion.type === QType.CODING;
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-secondary via-secondary to-primary/5 text-primary flex flex-col">
+    <div ref={containerRef} className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
       <FullscreenWarning warningCount={warningCount} show={fullscreenWarning} />
 
       <ExamHeader
@@ -518,13 +603,13 @@ export default function ExamAttemptPage() {
               <div className={`flex-1 ${isCodingQuestion ? 'flex flex-col h-full' : ''}`}>
                 {/* MCQ Question */}
                 {currentQuestion.type === QType.MCQ && currentQuestion.options && (
-                  <div className="bg-gradient-to-br from-primary/5 to-secondary rounded-xl shadow-xl p-6 md:p-8 border border-primary/10">
+                  <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
                     <MCQQuestion
                       questionId={currentQuestion.id}
                       prompt={currentQuestion.prompt || ''}
                       options={currentQuestion.options}
                       points={currentQuestion.points}
-                      answer={answers[currentQuestion.id]}
+                      answer={answers[currentQuestion.id]?.chosenOptionIds ? { chosenOptionIds: answers[currentQuestion.id].chosenOptionIds } : undefined}
                       onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
                     />
                   </div>
@@ -552,7 +637,7 @@ export default function ExamAttemptPage() {
 
                 {/* Essay Question */}
                 {currentQuestion.type === QType.ESSAY && (
-                  <div className="bg-gradient-to-br from-primary/5 to-secondary rounded-xl shadow-xl p-6 md:p-8 border border-primary/10">
+                  <div className="bg-white rounded-lg shadow-sm p-6 md:p-8 border border-gray-200">
                     <EssayQuestion
                       questionId={currentQuestion.id}
                       prompt={currentQuestion.prompt || ''}

@@ -34,14 +34,14 @@ export default function ExamHeader({
   onTimeUp,
 }: ExamHeaderProps) {
   return (
-    <div className="bg-gradient-to-r from-primary to-primary/90 text-secondary p-4 shadow-xl sticky top-0 z-40 border-b-2 border-primary/20 flex-shrink-0">
-      <div className="max-w-[1920px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+    <div className="bg-white border-b border-gray-200 shadow-md sticky top-0 z-40 flex-shrink-0">
+      <div className="max-w-[1920px] mx-auto px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4 flex-wrap">
-          <h1 className="text-xl md:text-2xl font-bold">{examTitle}</h1>
-          <div className="px-3 py-1 bg-secondary/20 rounded-full text-sm font-medium">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{examTitle}</h1>
+          <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold border border-blue-200">
             Question {currentQuestionIndex + 1} of {totalQuestions}
           </div>
-          <div className="px-3 py-1 bg-secondary/20 rounded-full text-sm font-medium">
+          <div className="px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg text-sm font-semibold border border-gray-200">
             {answeredCount}/{totalQuestions} answered
           </div>
         </div>
@@ -57,7 +57,7 @@ export default function ExamHeader({
           {!isFullscreen && (
             <Button
               onClick={onEnterFullscreen}
-              className="border-2 border-secondary/30 bg-secondary/10 text-secondary hover:bg-secondary/20 backdrop-blur-sm"
+              className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
             >
               <Maximize className="w-4 h-4 mr-2" />
               Fullscreen
@@ -67,7 +67,7 @@ export default function ExamHeader({
           <Button
             onClick={onSubmitExam}
             disabled={isSubmitting}
-            className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-lg hover:shadow-xl transition-all font-semibold"
+            className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold px-5 py-2 rounded-lg"
           >
             {isSubmitting ? (
               <>

@@ -21,11 +21,11 @@ export default function QuestionNavigationButtons({
   onSubmit,
 }: QuestionNavigationButtonsProps) {
   return (
-    <div className="flex justify-between pt-6 mt-6 border-t border-primary/10">
+    <div className="flex justify-between pt-6 mt-6 border-t border-gray-200">
       <Button
         onClick={onPrevious}
         disabled={currentQuestionIndex === 0 || isSubmitting}
-        className="border-2 border-primary/20 hover:border-primary/40"
+        className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 rounded-lg font-semibold"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Previous
@@ -35,7 +35,7 @@ export default function QuestionNavigationButtons({
         <Button
           onClick={onNext}
           disabled={isSubmitting}
-          className="bg-primary text-secondary"
+          className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-5 py-2.5 rounded-lg font-semibold shadow-md"
         >
           Next Question
           <ArrowRight className="w-4 h-4 ml-2" />
@@ -44,7 +44,7 @@ export default function QuestionNavigationButtons({
         <Button
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="bg-green-600 hover:bg-green-700 text-white border-0"
+          className="bg-green-600 hover:bg-green-700 text-white border-0 px-5 py-2.5 rounded-lg font-semibold shadow-md"
         >
           <Send className="w-4 h-4 mr-2" />
           Submit Exam

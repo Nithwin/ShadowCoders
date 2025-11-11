@@ -23,7 +23,6 @@ export default function ExamAttemptLayout({
     if (!isLoading && user && user.role === 'STAFF') {
       router.replace('/admin/dashboard');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading, router]);
 
   if (isLoading || !user || user.role === 'STAFF') {

@@ -77,7 +77,8 @@ export default function AssignmentManager({
 
   useEffect(() => {
     fetchAssignments();
-  }, [examId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId]); // fetchAssignments is stable and doesn't need to be in deps
 
   const fetchAssignments = async () => {
     setIsLoading(true);
@@ -86,15 +87,16 @@ export default function AssignmentManager({
       // Fetch exam data which includes assignments
       const res = await api.get(`/admin/exams/${examId}`);
       setAssignments(res.data.assignments || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Failed to fetch assignments.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch assignments.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDelete = async (assignmentId: string) => {
+  const handleDelete = async () => {
     if (!confirm('Are you sure you want to remove this assignment?')) {
       return;
     }
@@ -197,7 +199,7 @@ export default function AssignmentManager({
                 </div>
                 {examStatus !== 'PUBLISHED' && (
                   <button
-                    onClick={() => handleDelete(assignment.id)}
+                    onClick={() => handleDelete()}
                     className="p-2 hover:bg-primary/10 rounded-md hover:text-red-600 transition-colors"
                     title="Remove Assignment"
                   >
@@ -243,7 +245,6 @@ function CreateAssignmentModal({
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
     formState: { errors },
     reset,
@@ -258,7 +259,6 @@ function CreateAssignmentModal({
     },
   });
 
-  const assignToAll = watch('assignToAll');
 
   useEffect(() => {
     if (assignmentType === 'all') {
@@ -282,7 +282,7 @@ function CreateAssignmentModal({
     setIsSubmitting(true);
     setApiError(null);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         assignToAll: data.assignToAll || false,
       };
 
@@ -307,11 +307,12 @@ function CreateAssignmentModal({
       onOpenChange(false);
       reset();
       setAssignmentType('all');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error('Error creating assignment:', err);
       setApiError(
-        err.response?.data?.error?.message ||
-          err.response?.data?.message ||
+        error.response?.data?.error?.message ||
+          error.response?.data?.message ||
           'Failed to create assignment. Please try again.'
       );
     } finally {
