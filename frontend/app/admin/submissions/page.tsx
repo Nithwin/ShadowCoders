@@ -6,6 +6,7 @@ import { Search, Eye, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useDebouncedCallback } from 'use-debounce';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Exam = {
   id: string;
@@ -31,6 +32,7 @@ type ApiResponse = {
 };
 
 export default function AdminSubmissionsPage() {
+  const toast = useToastNotification();
   const [exams, setExams] = useState<Exam[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -257,7 +259,7 @@ export default function AdminSubmissionsPage() {
                                 errorMessage = error.message;
                               }
                               
-                              alert(`Error: ${errorMessage}\n\nPlease make sure you are logged in and have the necessary permissions.`);
+                              toast.error(`${errorMessage}. Please make sure you are logged in and have the necessary permissions.`);
                             } finally {
                               setExportingExamId(null);
                             }

@@ -106,8 +106,28 @@ export const AdminAPI = {
   },
 
   // Rubrics
+  async listRubrics(params?: { page?: number; pageSize?: number; q?: string }) {
+    const { data } = await api.get('/admin/rubrics', { params });
+    return data;
+  },
+
+  async getRubric(rubricId: string) {
+    const { data } = await api.get(`/admin/rubrics/${rubricId}`);
+    return data;
+  },
+
   async createRubric(payload: Record<string, unknown>) {
     const { data } = await api.post('/admin/rubrics', payload);
+    return data;
+  },
+
+  async updateRubric(rubricId: string, payload: Record<string, unknown>) {
+    const { data } = await api.put(`/admin/rubrics/${rubricId}`, payload);
+    return data;
+  },
+
+  async deleteRubric(rubricId: string) {
+    const { data } = await api.delete(`/admin/rubrics/${rubricId}`);
     return data;
   },
 };

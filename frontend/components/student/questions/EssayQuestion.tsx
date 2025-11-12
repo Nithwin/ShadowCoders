@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FileText, AlertCircle, ArrowLeft, ArrowRight, Send } from 'lucide-react';
+import { FileText, AlertCircle, ArrowLeft, ArrowRight, Send, Loader2, X } from 'lucide-react';
+import { api } from '@/lib/api';
 
 type EssayQuestionProps = {
   questionId: string;
   prompt: string;
   wordLimit?: number | null;
   points: number;
+  attemptId: string;
   answer?: { textAnswer: string };
   onChange: (answer: { textAnswer: string }) => void;
   onNext?: () => void;
@@ -22,6 +24,8 @@ export default function EssayQuestion({
   prompt,
   wordLimit,
   points,
+  attemptId,
+  questionId,
   answer,
   onChange,
   onNext,
@@ -33,17 +37,46 @@ export default function EssayQuestion({
 }: EssayQuestionProps) {
   const [text, setText] = useState(answer?.textAnswer || '');
   const [textareaWidth, setTextareaWidth] = useState(50); // Percentage width for textarea (50% default)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string>('');
+  const [submitSuccess, setSubmitSuccess] = useState(false);
   const isInitialMount = useRef(true);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const previousQuestionIdRef = useRef<string>(questionId);
 
-  // Sync with answer prop changes (only from external updates)
+  // Reset state when question changes
   useEffect(() => {
-    if (answer?.textAnswer !== undefined && answer.textAnswer !== text && isInitialMount.current) {
-      setText(answer.textAnswer);
+    if (previousQuestionIdRef.current !== questionId) {
+      // Question changed - reset all state
+      previousQuestionIdRef.current = questionId;
+      setIsSubmitting(false);
+      setSubmitError('');
+      setSubmitSuccess(false);
+      
+      // Reset text from answer or empty string
+      if (answer?.textAnswer !== undefined) {
+        setText(answer.textAnswer);
+      } else {
+        setText('');
+      }
+      
+      // Reset initial mount flag for the new question
+      isInitialMount.current = true;
+    }
+  }, [questionId, answer?.textAnswer]);
+
+  // Sync with answer prop changes (only from external updates) - only if question hasn't changed
+  // This handles cases where the answer is loaded asynchronously after component mounts
+  useEffect(() => {
+    // Only sync if we're still on the same question and this is the initial mount
+    if (previousQuestionIdRef.current === questionId && isInitialMount.current) {
+      if (answer?.textAnswer !== undefined && answer.textAnswer !== text) {
+        setText(answer.textAnswer);
+      }
       isInitialMount.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answer?.textAnswer]);
+  }, [answer?.textAnswer, questionId]);
 
   // Debounced onChange to prevent performance issues
   const debouncedOnChange = useCallback((value: string) => {
@@ -73,6 +106,50 @@ export default function EssayQuestion({
 
   const wordCount = text.split(/\s+/).filter((w) => w.length > 0).length;
   const isOverLimit = wordLimit && wordCount > wordLimit;
+
+  // Handle submit - saves answer to server
+  const handleSubmit = useCallback(async () => {
+    if (!text.trim()) {
+      setSubmitError('Please write an answer before submitting.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError('');
+    setSubmitSuccess(false);
+
+    try {
+      // Save to parent component
+      onChange({ textAnswer: text.trim() });
+      
+      // Save to server via API
+      await api.post(`/student/attempts/${attemptId}/responses`, {
+        questionId,
+        answer: {
+          textAnswer: text.trim(),
+        },
+      });
+      
+      setSubmitSuccess(true);
+      // Clear success message after 3 seconds
+      setTimeout(() => setSubmitSuccess(false), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      console.error('Error submitting essay answer:', err);
+      setSubmitError(error.response?.data?.message || 'Failed to submit answer. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [text, questionId, attemptId, onChange]);
+
+  // Handle clear - clears the textarea
+  const handleClear = useCallback(() => {
+    setText('');
+    setSubmitError('');
+    setSubmitSuccess(false);
+    // Also update parent immediately
+    onChange({ textAnswer: '' });
+  }, [onChange]);
 
   return (
     <div className="flex h-full overflow-hidden bg-gray-50">
@@ -171,43 +248,101 @@ export default function EssayQuestion({
             <FileText className="w-5 h-5 text-blue-600" />
             <span className="text-sm font-bold text-gray-900">Your Answer</span>
           </div>
-          {wordLimit && (
-            <div className="flex items-center gap-3">
-              <div className={`px-4 py-2 rounded-lg font-semibold text-sm border ${
-                isOverLimit 
-                  ? 'bg-red-50 text-red-800 border-red-300' 
-                  : wordCount >= wordLimit * 0.9 
-                    ? 'bg-yellow-50 text-yellow-800 border-yellow-300' 
-                    : 'bg-green-50 text-green-800 border-green-300'
-              }`}>
-                {wordCount} / {wordLimit} words
+          <div className="flex items-center gap-3">
+            {/* Word Count / Word Limit */}
+            {wordLimit && (
+              <div className="flex items-center gap-3">
+                <div className={`px-4 py-2 rounded-lg font-semibold text-sm border ${
+                  isOverLimit 
+                    ? 'bg-red-50 text-red-800 border-red-300' 
+                    : wordCount >= wordLimit * 0.9 
+                      ? 'bg-yellow-50 text-yellow-800 border-yellow-300' 
+                      : 'bg-green-50 text-green-800 border-green-300'
+                }`}>
+                  {wordCount} / {wordLimit} words
+                </div>
+                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all rounded-full ${
+                      isOverLimit 
+                        ? 'bg-red-500' 
+                        : wordCount >= wordLimit * 0.9 
+                          ? 'bg-yellow-500' 
+                          : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min((wordCount / wordLimit) * 100, 100)}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full transition-all rounded-full ${
-                    isOverLimit 
-                      ? 'bg-red-500' 
-                      : wordCount >= wordLimit * 0.9 
-                        ? 'bg-yellow-500' 
-                        : 'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min((wordCount / wordLimit) * 100, 100)}%` }}
-                />
+            )}
+            {!wordLimit && (
+              <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold border border-gray-300">
+                Word Count: {wordCount}
               </div>
+            )}
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 ml-4">
+              <button
+                onClick={handleClear}
+                disabled={isSubmitting || !text.trim()}
+                type="button"
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-400 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-gray-200"
+              >
+                <X className="w-4 h-4" />
+                Clear
+              </button>
+              
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting || !text.trim()}
+                type="button"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-green-600"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Submit
+                  </>
+                )}
+              </button>
             </div>
-          )}
-          {!wordLimit && (
-            <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold border border-gray-300">
-              Word Count: {wordCount}
-            </div>
-          )}
+          </div>
         </div>
+
+        {/* Success/Error Messages */}
+        {submitSuccess && (
+          <div className="bg-green-50 border-t border-green-300 px-6 py-3 text-green-800 shadow-sm flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              <span className="text-sm font-semibold">✅ Answer submitted successfully!</span>
+            </div>
+          </div>
+        )}
+        {submitError && (
+          <div className="bg-red-50 border-t border-red-300 px-6 py-3 text-red-800 shadow-sm flex-shrink-0">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span className="text-sm font-semibold">{submitError}</span>
+            </div>
+          </div>
+        )}
 
         {/* Textarea */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              // Clear success/error messages when user starts typing
+              if (submitSuccess) setSubmitSuccess(false);
+              if (submitError) setSubmitError('');
+            }}
             className="flex-1 w-full p-6 bg-white text-gray-900 focus:outline-none resize-none leading-relaxed text-base border-0 custom-scrollbar"
             placeholder="Write your answer here... Be clear, concise, and address all aspects of the question."
           />

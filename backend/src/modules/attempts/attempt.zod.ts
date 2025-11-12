@@ -27,3 +27,11 @@ export const listAttemptsSchema = z.object({
       .default(20), // Default to 20 per page
   }),
 });
+
+export const resetAttemptsSchema = z.object({
+  body: z.object({
+    examId: z.string().cuid({ message: 'Invalid exam ID format' }),
+    studentIds: z.array(z.string().cuid({ message: 'Invalid student ID format' })).optional(),
+    resetAll: z.boolean().optional().default(false),
+  }),
+});

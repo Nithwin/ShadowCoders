@@ -1,6 +1,5 @@
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
 import { QType } from '@/types';
 
 interface Question {
@@ -31,6 +30,8 @@ interface QuestionNavigationProps {
   onSectionClick?: (sectionId: string) => void;
   showQuestionNumbers?: boolean;
   currentQuestionType?: string;
+  currentSectionId?: string;
+  filteredQuestions?: Question[];
 }
 
 export default function QuestionNavigation({
@@ -42,107 +43,93 @@ export default function QuestionNavigation({
   onSectionClick,
   showQuestionNumbers = true,
   currentQuestionType,
+  currentSectionId,
+  filteredQuestions,
 }: QuestionNavigationProps) {
-  const answeredCount = questions.filter((q) => {
-    const answer = answers[q.id];
-    if (!answer) return false;
-    if (q.type === QType.MCQ) {
-      return answer.chosenOptionIds && answer.chosenOptionIds.length > 0;
-    } else if (q.type === QType.CODING) {
-      return answer.code && answer.code.trim().length > 0;
-    } else if (q.type === QType.ESSAY) {
-      return answer.textAnswer && answer.textAnswer.trim().length > 0;
-    }
-    return Object.keys(answer).length > 0;
-  }).length;
-
-  // If sections are provided, organize questions by section
-  const questionsBySection = sections ? (() => {
-    const map = new Map<string, { question: Question; index: number }[]>();
-    questions.forEach((q, index) => {
-      const sectionId = q.sectionId || 'unsectioned';
-      if (!map.has(sectionId)) {
-        map.set(sectionId, []);
+  // Get the current section's type to filter questions
+  // First try to get from currentQuestionType prop, then from current section
+  const currentSection = currentSectionId ? sections?.find(s => s.id === currentSectionId) : undefined;
+  
+  // Determine section type using multiple methods
+  let currentSectionType: QType | undefined = currentQuestionType as QType | undefined;
+  
+  if (!currentSectionType && currentSection) {
+    // Try to get type from questions in this section
+    // Method 1: Use sectionQuestions relationship
+    if (currentSection.questionIds && currentSection.questionIds.length > 0) {
+      const sectionQuestion = questions.find(q => currentSection.questionIds.includes(q.id));
+      if (sectionQuestion) {
+        currentSectionType = sectionQuestion.type;
       }
-      map.get(sectionId)!.push({ question: q, index });
-    });
-    return map;
-  })() : null;
-
-  const currentQuestion = questions[currentQuestionIndex];
-  const currentSectionId = currentQuestion?.sectionId;
-
-  // Get questions of the same type as current question (for MCQ section, show only MCQ questions)
-  const currentSectionQuestions = questions.length > 0 ? (() => {
-    const currentQuestion = questions[currentQuestionIndex];
-    if (!currentQuestion) return [];
-    
-    // Filter to show only questions of the same type as current question
-    const sameTypeQuestions = questions.filter(q => q.type === currentQuestion.type);
-    
-    // If sections exist, further filter by current section
-    if (sections && currentQuestion.sectionId) {
-      return sameTypeQuestions.filter(q => q.sectionId === currentQuestion.sectionId);
     }
     
-    return sameTypeQuestions;
-  })() : [];
-
-  // Get sections with their question types
-  const sectionsWithTypes = sections ? sections.map(section => {
-    const sectionQuestions = questions.filter(q => q.sectionId === section.id);
-    const sectionType = sectionQuestions.length > 0 ? sectionQuestions[0].type : null;
-    const sectionTypeLabel = sectionType === QType.MCQ ? 'MCQ' : 
-                            sectionType === QType.CODING ? 'Coding' : 
-                            sectionType === QType.ESSAY ? 'Essay' : section.title;
-    return { ...section, typeLabel: sectionTypeLabel, type: sectionType };
-  }) : [];
-
+    // Method 2: Try filtering by sectionId
+    if (!currentSectionType) {
+      const sectionQuestion = questions.find(q => q.sectionId === currentSectionId);
+      if (sectionQuestion) {
+        currentSectionType = sectionQuestion.type;
+      }
+    }
+    
+    // Method 3: Infer from section title
+    if (!currentSectionType) {
+      const sectionTitle = currentSection.title.toLowerCase();
+      if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
+        currentSectionType = QType.CODING;
+      } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
+        currentSectionType = QType.MCQ;
+      } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
+        currentSectionType = QType.ESSAY;
+      }
+    }
+  }
+  
+  // Filter questions to show only those matching the current section
+  // Use the same fallback logic as the section change handler
+  let questionsToShow: Question[] = [];
+  
+  if (currentSectionId && currentSection) {
+    // Method 1: Use sectionQuestions relationship (questionIds)
+    if (currentSection.questionIds && currentSection.questionIds.length > 0) {
+      questionsToShow = questions.filter(q => currentSection.questionIds.includes(q.id));
+    }
+    
+    // Method 2: Filter by sectionId property
+    if (questionsToShow.length === 0) {
+      questionsToShow = questions.filter(q => q.sectionId === currentSectionId);
+    }
+    
+    // Method 3: Filter by question type based on section title
+    if (questionsToShow.length === 0 && currentSectionType) {
+      questionsToShow = questions.filter(q => q.type === currentSectionType);
+    }
+  } else if (currentSectionType) {
+    // If no section selected, filter by type only
+    questionsToShow = questions.filter(q => q.type === currentSectionType);
+  } else {
+    // Show all questions if no section or type
+    questionsToShow = questions;
+  }
+  
+  // Map filtered questions to their original indices for navigation
+  const getOriginalIndex = (question: Question) => {
+    return questions.findIndex(q => q.id === question.id);
+  };
+  
   return (
-    <div className="w-36 bg-white border-r border-gray-300 p-2.5 flex flex-col flex-shrink-0 shadow-lg">
-      {/* Section Navigation */}
-      {sections && sections.length > 0 && (
-        <div className="mb-3">
-          <h4 className="text-[10px] font-bold text-gray-700 uppercase tracking-wide mb-1.5">
-            Sections
+    <div className="w-36 bg-white border-r border-gray-300 p-3 flex flex-col flex-shrink-0 shadow-lg">
+      {/* Question Number Navigation - Show only questions of current section type */}
+      {showQuestionNumbers && questionsToShow.length > 0 && (
+        <div className="flex-1 overflow-y-auto">
+          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 text-center">
+            {currentSectionType === QType.MCQ ? 'MCQ Questions' : 
+             currentSectionType === QType.CODING ? 'Coding Questions' :
+             currentSectionType === QType.ESSAY ? 'Essay Questions' : 'Questions'}
           </h4>
-          <div className="grid grid-cols-2 gap-1.5">
-            {sectionsWithTypes
-              .sort((a, b) => a.order - b.order)
-              .map((section) => {
-                const isCurrentSection = currentSectionId === section.id;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => onSectionClick && onSectionClick(section.id)}
-                    className={`
-                      px-2 py-1.5 rounded-md text-[10px] font-semibold transition-all text-center
-                      ${isCurrentSection
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                      }
-                    `}
-                    title={`Navigate to ${section.typeLabel} section`}
-                  >
-                    {section.typeLabel}
-                  </button>
-                );
-              })}
-          </div>
-        </div>
-      )}
-
-      {/* Question Number Navigation - For all question types */}
-      {showQuestionNumbers && questions.length > 1 && currentQuestionType && currentSectionQuestions.length > 0 && (
-        <div className="mb-3">
-          <h4 className="text-[10px] font-bold text-gray-700 uppercase tracking-wide mb-1.5">
-            Navigate to {currentQuestionType === QType.MCQ ? 'MCQ' : currentQuestionType === QType.CODING ? 'Coding' : 'Essay'} Question
-          </h4>
-          <div className="flex flex-wrap gap-1.5">
-            {currentSectionQuestions.map((q, localIndex) => {
-              const globalIndex = questions.findIndex((globalQ) => globalQ.id === q.id);
-              if (globalIndex === -1) return null;
-              const isCurrent = globalIndex === currentQuestionIndex;
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1 justify-items-center">
+            {questionsToShow.map((q, localIndex) => {
+              const originalIndex = getOriginalIndex(q);
+              const isCurrent = originalIndex === currentQuestionIndex;
               const answer = answers[q.id];
               const isAnswered = answer && (
                 (q.type === QType.MCQ && answer.chosenOptionIds && answer.chosenOptionIds.length > 0) ||
@@ -150,23 +137,24 @@ export default function QuestionNavigation({
                 (q.type === QType.ESSAY && answer.textAnswer && answer.textAnswer.trim().length > 0)
               );
               
-              // Show relative number (1, 2, 3...) for questions of the same type in the section
+              // Show question number within the filtered list (1, 2, 3...)
               const displayNumber = localIndex + 1;
               
               return (
                 <button
                   key={q.id}
-                  onClick={() => onQuestionClick(globalIndex)}
+                  onClick={() => onQuestionClick(originalIndex)}
                   className={`
-                    w-8 h-8 rounded-lg font-bold text-xs transition-all shadow-sm hover:scale-110
+                    w-10 h-10 rounded-full font-bold text-sm transition-all duration-200 shadow-sm
+                    flex items-center justify-center flex-shrink-0
                     ${isCurrent
-                      ? 'bg-blue-600 text-white border-2 border-blue-700 scale-110 shadow-md'
+                      ? 'bg-blue-600 text-white border-2 border-blue-700 scale-110 shadow-lg ring-2 ring-blue-300'
                       : isAnswered
-                        ? 'bg-green-100 text-green-700 border-2 border-green-300 hover:bg-green-200'
-                        : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                        ? 'bg-green-500 text-white border-2 border-green-600 hover:bg-green-600 hover:scale-105 hover:shadow-md'
+                        : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:scale-105'
                     }
                   `}
-                  title={`${currentQuestionType === QType.MCQ ? 'MCQ' : currentQuestionType === QType.CODING ? 'Coding' : 'Essay'} Question ${displayNumber}`}
+                  title={`Question ${displayNumber}: ${q.type === QType.MCQ ? 'MCQ' : q.type === QType.CODING ? 'Coding' : 'Essay'}`}
                 >
                   {displayNumber}
                 </button>
@@ -177,52 +165,6 @@ export default function QuestionNavigation({
       )}
 
 
-      {/* Fallback: Simple question list without sections */}
-      {!sections && (
-        <>
-          <h4 className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">Questions</h4>
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
-            {questions.map((q, index) => {
-              const answer = answers[q.id];
-              const isAnswered = answer && (
-                (q.type === QType.MCQ && answer.chosenOptionIds && answer.chosenOptionIds.length > 0) ||
-                (q.type === QType.CODING && answer.code && answer.code.trim().length > 0) ||
-                (q.type === QType.ESSAY && answer.textAnswer && answer.textAnswer.trim().length > 0)
-              );
-              const isCurrent = index === currentQuestionIndex;
-              
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => onQuestionClick(index)}
-                  className={`
-                    w-full p-3 rounded-lg text-sm font-semibold transition-all duration-200 text-left
-                    ${isCurrent 
-                      ? 'bg-blue-600 text-white shadow-lg scale-[1.02] border-2 border-blue-700' 
-                      : isAnswered 
-                        ? 'bg-green-50 text-green-700 border-2 border-green-300 hover:bg-green-100 hover:border-green-400' 
-                        : 'bg-gray-50 text-gray-700 border-2 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
-                    }
-                  `}
-                  title={`Question ${index + 1}: ${q.type} (${q.points} pts)`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-lg ${isCurrent ? 'text-white' : isAnswered ? 'text-green-600' : 'text-gray-500'}`}>
-                        {index + 1}
-                      </span>
-                      <span className="text-xs opacity-75">{q.type}</span>
-                    </div>
-                    {isAnswered && !isCurrent && (
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }

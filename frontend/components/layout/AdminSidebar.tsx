@@ -12,7 +12,8 @@ import {
   LogOut, 
   User as UserIcon,
   Menu,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,6 +23,7 @@ const navLinks = [
   { name: 'Exams', href: '/admin/exams', icon: FileText },
   // Let's create a placeholder for submissions
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
+  { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
   { name: 'Rubrics', href: '/admin/rubrics', icon: BookMarked },
   // { name: 'Assets', href: '/admin/assets', icon: UploadCloud }, // Hidden for now
 ];
@@ -132,7 +134,7 @@ export default function AdminSidebar() {
           <button
             onClick={logout}
             className="flex items-center w-full p-2 mt-2 rounded-lg transition-colors duration-200
-                       text-secondary/70 hover:bg-red-500/20 hover:text-red-400"
+                       bg-red-500 text-white hover:bg-red-600"
           >
             <LogOut className="w-5 h-5 mr-3" />
             <span>Logout</span>

@@ -1,15 +1,14 @@
 'use client';
 
 interface ExamTabsProps {
-  activeTab: 'settings' | 'questions' | 'sections' | 'assignments';
-  onTabChange: (tab: 'settings' | 'questions' | 'sections' | 'assignments') => void;
+  activeTab: 'settings' | 'questions' | 'assignments';
+  onTabChange: (tab: 'settings' | 'questions' | 'assignments') => void;
 }
 
 export default function ExamTabs({ activeTab, onTabChange }: ExamTabsProps) {
-  const tabs: Array<{ id: 'settings' | 'questions' | 'sections' | 'assignments'; label: string }> = [
+  const tabs: Array<{ id: 'settings' | 'questions' | 'assignments'; label: string }> = [
     { id: 'settings', label: 'Settings' },
     { id: 'questions', label: 'Questions' },
-    { id: 'sections', label: 'Sections' },
     { id: 'assignments', label: 'Assignments' },
   ];
 

@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/Input';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Assignment = {
   id: string;
@@ -100,13 +102,23 @@ export default function AssignmentManager({
     }
   };
 
+  const { confirm } = useConfirmationDialog();
+  const toast = useToastNotification();
+
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to remove this assignment?')) {
+    const confirmed = await confirm({
+      title: 'Remove Assignment',
+      message: 'Are you sure you want to remove this assignment?',
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    });
+    if (!confirmed) {
       return;
     }
     // Note: There's no delete endpoint in the backend, so we might need to handle this differently
     // For now, we'll just show an error
-    alert('Assignment deletion is not yet implemented. Please contact support.');
+    toast.warning('Assignment deletion is not yet implemented. Please contact support.');
   };
 
   const formatAssignment = (assignment: Assignment): string => {
@@ -469,7 +481,7 @@ function CreateAssignmentModal({
         <div className="flex justify-end gap-3 pt-4">
           <Button
             type="button"
-            className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="!bg-white !border !border-gray-300 !text-gray-700 hover:!bg-gray-50 hover:!text-gray-900"
             onClick={() => {
               onOpenChange(false);
               reset();

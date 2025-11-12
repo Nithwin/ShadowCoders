@@ -2,7 +2,7 @@ import { Express } from 'express';
 import { requireRole, verifyAccess } from '../../middleware/auth';
 import * as attemptController from './attempt.controller';
 import { validate } from '../../middleware/validate';
-import { listAttemptsSchema, submitAnswerSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from './attempt.zod';
 
 export const registerAttemptRoutes = (app: Express) => {
   app.post(
@@ -61,5 +61,12 @@ export const registerAttemptRoutes = (app: Express) => {
     // No validation needed for this simple GET request
     attemptController.getAttemptForAdminHandler
   );
-  // Add more attempt routes later (e.g., submit answer, submit attempt)
+
+  app.post(
+    '/api/admin/attempts/reset',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(resetAttemptsSchema),
+    attemptController.resetAttemptsHandler
+  );
 };

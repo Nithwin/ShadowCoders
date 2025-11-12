@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Exam = {
   id: string;
@@ -23,6 +25,8 @@ export default function ExamDetailPage() {
   const params = useParams();
   const router = useRouter();
   const examId = params?.examId as string;
+  const { confirm } = useConfirmationDialog();
+  const toast = useToastNotification();
 
   const [exam, setExam] = useState<Exam | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +63,15 @@ export default function ExamDetailPage() {
   const handleStartExam = async () => {
     if (!examId) return;
     
-    if (!confirm('Are you sure you want to start this exam? Once started, the timer will begin and you will not be able to pause it.')) {
+    const confirmed = await confirm({
+      title: 'Start Exam',
+      message: 'Are you sure you want to start this exam? Once started, the timer will begin and you will not be able to pause it.',
+      confirmText: 'Start',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    });
+    
+    if (!confirmed) {
       return;
     }
 

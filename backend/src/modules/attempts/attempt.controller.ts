@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import * as attemptService from './attempt.service';
-import { listAttemptsSchema, submitAnswerSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from './attempt.zod';
 import z from 'zod';
 
 export const startAttemptHandler: RequestHandler = async (req, res, next) => {
@@ -195,6 +195,29 @@ export const getAttemptForAdminHandler: RequestHandler = async (req, res, next) 
 
   } catch (error) {
     // Pass errors (like 404 Not Found) to the central handler
+    next(error);
+  }
+};
+
+export const resetAttemptsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    // Get validated body data
+    const resetData = req.validatedData?.body as z.infer<typeof resetAttemptsSchema>['body'] || req.body;
+
+    if (!resetData.examId) {
+      return next({ status: 400, message: 'Exam ID is required' });
+    }
+
+    if (!resetData.resetAll && (!resetData.studentIds || resetData.studentIds.length === 0)) {
+      return next({ status: 400, message: 'Either resetAll must be true or studentIds must be provided' });
+    }
+
+    // Call the service to reset attempts
+    const result = await attemptService.resetAttempts(resetData);
+
+    res.status(200).json(result);
+
+  } catch (error) {
     next(error);
   }
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { Maximize, Send, Loader2, ChevronDown } from 'lucide-react';
+import { Maximize, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import ExamTimer from './ExamTimer';
 import { QType } from '@/types';
@@ -69,30 +69,14 @@ export default function ExamHeader({
     : -1;
 
   // Get current section info
-  const currentSection = sections.find(s => s.id === currentSectionId);
   const currentSectionQuestions = questions.filter(q => q.sectionId === currentSectionId);
   const currentSectionType = currentSectionQuestions.length > 0 ? currentSectionQuestions[0].type : null;
-  const currentSectionLabel = currentSectionType === QType.MCQ ? 'MCQ' : 
-                              currentSectionType === QType.CODING ? 'Coding' : 
-                              currentSectionType === QType.ESSAY ? 'Essay' : currentSection?.title || 'Select Section';
 
-  // Get section progress
-  const getSectionProgress = (sectionId: string) => {
-    const sectionQuestions = questions.filter(q => q.sectionId === sectionId);
-    const answered = sectionQuestions.filter(q => {
-      const answer = answers[q.id];
-      if (!answer) return false;
-      if (q.type === QType.MCQ) {
-        return answer.chosenOptionIds && answer.chosenOptionIds.length > 0;
-      } else if (q.type === QType.CODING) {
-        return answer.code && answer.code.trim().length > 0;
-      } else if (q.type === QType.ESSAY) {
-        return answer.textAnswer && answer.textAnswer.trim().length > 0;
-      }
-      return false;
-    }).length;
-    return { answered, total: sectionQuestions.length };
-  };
+  // Get sorted sections (don't mutate the original array)
+  const sortedSections = [...sections].sort((a, b) => a.order - b.order);
+  
+  // Determine the dropdown value - ensure it's always a valid section ID
+  const dropdownValue = currentSectionId || (sortedSections.length > 0 ? sortedSections[0]?.id : '') || '';
 
   return (
     <div className="bg-white border-b border-gray-200 shadow-md sticky top-0 z-40 flex-shrink-0">
@@ -123,31 +107,54 @@ export default function ExamHeader({
               <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold border border-blue-200">
                 Question {currentQuestionIndex + 1} of {totalQuestions}
               </div>
-              {/* Section Navigation Dropdown */}
+              {/* Section Navigation Buttons */}
               {sections.length > 0 && onSectionChange && (
-                <div className="relative">
-                  <select
-                    value={currentSectionId || ''}
-                    onChange={(e) => onSectionChange(e.target.value)}
-                    className="appearance-none px-4 py-1.5 pr-8 bg-white border-2 border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md cursor-pointer"
-                  >
-                    {sections
-                      .sort((a, b) => a.order - b.order)
-                      .map((section) => {
-                        const sectionQuestions = questions.filter(q => q.sectionId === section.id);
-                        const sectionType = sectionQuestions.length > 0 ? sectionQuestions[0].type : null;
-                        const sectionLabel = sectionType === QType.MCQ ? 'MCQ' : 
-                                           sectionType === QType.CODING ? 'Coding' : 
-                                           sectionType === QType.ESSAY ? 'Essay' : section.title;
-                        const progress = getSectionProgress(section.id);
-                        return (
-                          <option key={section.id} value={section.id}>
-                            {sectionLabel} ({progress.answered}/{progress.total})
-                          </option>
-                        );
-                      })}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  {sortedSections.map((section) => {
+                    const sectionQuestions = questions.filter(q => q.sectionId === section.id);
+                    const sectionType = sectionQuestions.length > 0 ? sectionQuestions[0].type : null;
+                    const sectionLabel = sectionType === QType.MCQ ? 'MCQ' : 
+                                       sectionType === QType.CODING ? 'Coding' : 
+                                       sectionType === QType.ESSAY ? 'Essay' : section.title;
+                    const isActive = currentSectionId === section.id;
+                    
+                    // Color scheme based on section type
+                    const getButtonStyles = () => {
+                      if (isActive) {
+                        if (sectionType === QType.MCQ) {
+                          return 'bg-blue-600 text-white border-blue-700 shadow-md';
+                        } else if (sectionType === QType.CODING) {
+                          return 'bg-green-600 text-white border-green-700 shadow-md';
+                        } else if (sectionType === QType.ESSAY) {
+                          return 'bg-purple-600 text-white border-purple-700 shadow-md';
+                        }
+                        return 'bg-gray-600 text-white border-gray-700 shadow-md';
+                      } else {
+                        return 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50';
+                      }
+                    };
+                    
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Button clicked for section:', section.id, sectionLabel);
+                          if (onSectionChange && section.id) {
+                            console.log('Calling onSectionChange with:', section.id);
+                            onSectionChange(section.id);
+                          } else {
+                            console.warn('onSectionChange not available or section.id missing', { onSectionChange: !!onSectionChange, sectionId: section.id });
+                          }
+                        }}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-bold border-2 transition-all shadow-sm hover:shadow-md cursor-pointer ${getButtonStyles()}`}
+                        type="button"
+                      >
+                        {sectionLabel}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -178,7 +185,11 @@ export default function ExamHeader({
               )}
               
               <button
-                onClick={onSubmitExam}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSubmitExam();
+                }}
                 disabled={isSubmitting}
                 type="button"
                 className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold px-6 py-3 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
@@ -197,42 +208,6 @@ export default function ExamHeader({
               </button>
             </div>
           </div>
-
-          {/* Essay Question Navigation - Similar to MCQ */}
-          {isEssaySection && essayQuestions.length > 1 && onEssayQuestionClick && (
-            <div className="border-t border-gray-200 pt-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Navigate to Essay:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {essayQuestions.map((eq, localIndex) => {
-                    const isCurrent = eq.index === currentQuestionIndex;
-                    const answer = essayAnswers[eq.id];
-                    const isAnswered = answer?.textAnswer && answer.textAnswer.trim().length > 0;
-                    const displayNumber = localIndex + 1;
-                    
-                    return (
-                      <button
-                        key={eq.id}
-                        onClick={() => onEssayQuestionClick(eq.index)}
-                        className={`
-                          w-8 h-8 rounded-lg font-bold text-xs transition-all shadow-sm hover:scale-110
-                          ${isCurrent
-                            ? 'bg-blue-600 text-white border-2 border-blue-700 scale-110 shadow-md'
-                            : isAnswered
-                              ? 'bg-green-100 text-green-700 border-2 border-green-300 hover:bg-green-200'
-                              : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                          }
-                        `}
-                        title={`Essay Question ${displayNumber}`}
-                      >
-                        {displayNumber}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

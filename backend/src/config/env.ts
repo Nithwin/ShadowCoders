@@ -10,6 +10,10 @@ export const env = {
     JWT_SECRET: process.env.JWT_SECRET!,
     GOOGLE_API_KEY:process.env.GOOGLE_API_KEY!,
     FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
+    // Comma-separated list of allowed origins (e.g., "https://app.vercel.app,https://app2.vercel.app")
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+    // Allow ngrok URLs dynamically (default: true for development)
+    ALLOW_NGROK: process.env.ALLOW_NGROK !== 'false',
     JUDGE0_API_URL: process.env.JUDGE0_API_URL || 'https://ce.judge0.com',
     JUDGE0_API_KEY: process.env.JUDGE0_API_KEY || '', // Optional: for RapidAPI Judge0 or custom Judge0 instance
     JUDGE0_RAPIDAPI_HOST: process.env.JUDGE0_RAPIDAPI_HOST || 'judge0-ce.p.rapidapi.com',

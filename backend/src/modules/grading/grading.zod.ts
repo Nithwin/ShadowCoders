@@ -7,6 +7,7 @@ export const runCodeSchema = z.object({
     code: z.string().min(1, 'Code cannot be empty'),
     language: z.string().min(1, 'Language must be specified'), // e.g., "javascript", "python"
     customInput: z.string().optional(), // Optional custom input for testing
-    // If customInput is provided, run with custom input; otherwise run against visible test cases
+    runAllTests: z.boolean().optional(), // If true, run all test cases including hidden ones
+    // If customInput is provided, run with custom input; otherwise run against visible test cases (or all if runAllTests is true)
   }),
 });

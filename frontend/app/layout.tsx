@@ -3,6 +3,8 @@ import { Inter, Poppins } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ConfirmationProvider } from "@/context/ConfirmationContext";
+import { ToastProvider } from "@/context/ToastContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -46,8 +48,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-  <body className={`${poppins.variable} ${inter.variable} ${alanSans.variable} ${aerospace.variable}`}>
-       <AuthProvider >{children} </AuthProvider>
+      <body className={`${poppins.variable} ${inter.variable} ${alanSans.variable} ${aerospace.variable}`}>
+        <AuthProvider>
+          <ConfirmationProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </ConfirmationProvider>
+        </AuthProvider>
       </body>
     </html>
   );

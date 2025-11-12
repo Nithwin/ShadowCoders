@@ -129,7 +129,7 @@ export default function StudentSidebar() {
           <button
             onClick={logout}
             className="flex items-center w-full p-2 mt-2 rounded-lg transition-colors duration-200
-                       text-secondary/70 hover:bg-red-500/20 hover:text-red-400"
+                       bg-red-500 text-white hover:bg-red-600"
           >
             <LogOut className="w-5 h-5 mr-3" />
             <span>Logout</span>

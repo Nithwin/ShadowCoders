@@ -87,15 +87,47 @@ export default function CodingQuestion({
     estimatedWaitTimeMs: number;
   } | null>(null);
   const [editorWidth, setEditorWidth] = useState(50); // Percentage width for editor (50% default)
+  const [isSubmitMode, setIsSubmitMode] = useState(false); // Track if we're in submit mode (hide detailed results)
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
+  const previousQuestionIdRef = useRef<string>(questionId);
 
   // Get Monaco language for current language
   const monacoLanguage = LANGUAGES.find(lang => lang.value === language)?.monacoLang || 'javascript';
 
-  // Sync with answer prop changes from parent (external updates)
+  // Reset state when question changes
   useEffect(() => {
-    if (answer) {
+    if (previousQuestionIdRef.current !== questionId) {
+      // Question changed - reset all state
+      previousQuestionIdRef.current = questionId;
+      setTestResults(null);
+      setOutput('');
+      setError('');
+      setQueueStatus(null);
+      setIsRunning(false);
+      setIsSubmitting(false);
+      setIsSubmitMode(false);
+      
+      // Reset code and language from answer or starter code
+      if (answer?.code !== undefined) {
+        setCode(answer.code);
+      } else if (starterCode) {
+        setCode(starterCode);
+      } else {
+        setCode('');
+      }
+      
+      if (answer?.language !== undefined) {
+        setLanguage(answer.language);
+      } else {
+        setLanguage('javascript');
+      }
+    }
+  }, [questionId, answer?.code, answer?.language, starterCode]);
+
+  // Sync with answer prop changes from parent (external updates) - only if question hasn't changed
+  useEffect(() => {
+    if (previousQuestionIdRef.current === questionId && answer) {
       if (answer.code !== undefined && answer.code !== code) {
         setCode(answer.code);
       }
@@ -208,6 +240,7 @@ export default function CodingQuestion({
     }
 
     setIsRunning(true);
+    setIsSubmitMode(false); // Reset submit mode when running
     setError('');
     setOutput('');
     setTestResults(null);
@@ -231,7 +264,7 @@ export default function CodingQuestion({
     }
   }, [code, language, questionId, attemptId]);
 
-  // Submit code (saves answer only - no execution) - memoized to prevent flicker
+  // Submit code (runs ALL test cases including hidden ones, then saves) - memoized to prevent flicker
   const handleSubmitCode = useCallback(async () => {
     if (!code.trim()) {
       setError('Please write some code before submitting.');
@@ -239,10 +272,36 @@ export default function CodingQuestion({
     }
 
     setIsSubmitting(true);
+    setIsSubmitMode(true); // Enable submit mode to hide detailed results
     setError('');
+    setOutput('');
 
     try {
-      // Save the answer to the parent component and server
+      // First, run the code with ALL test cases (including hidden ones)
+      // Note: Backend needs to support runAllTests parameter to run hidden test cases
+      // For now, this will run visible test cases, but UI will hide details
+      const runResponse = await api.post(`/student/attempts/${attemptId}/run-code`, {
+        questionId,
+        code,
+        language,
+        runAllTests: true, // Request to run all test cases (backend support needed)
+      });
+
+      const runResult = runResponse.data;
+      setTestResults(runResult);
+      
+      // In submit mode, only show summary message, not detailed output
+      const passed = runResult.passed;
+      const total = runResult.total;
+      const failed = total - passed;
+      
+      if (passed === total) {
+        setOutput(`✅ All ${total} test case${total !== 1 ? 's' : ''} passed! Your code has been submitted.`);
+      } else {
+        setOutput(`⚠️ ${passed} test case${passed !== 1 ? 's' : ''} passed, ${failed} test case${failed !== 1 ? 's' : ''} failed. Your code has been submitted.`);
+      }
+      
+      // Then save the answer to the parent component and server
       onChange({ code, language });
       
       // Save to server via API
@@ -253,14 +312,24 @@ export default function CodingQuestion({
           language: language,
         },
       });
-      
-      // Show success message
-      setTestResults(null);
-      setOutput('Code saved successfully! Your answer has been submitted. You can continue to the next question or submit the exam when ready.');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       console.error('Error submitting code:', err);
-      setError(error.response?.data?.message || 'Failed to submit code. Please try again.');
+      
+      // Try to save anyway even if run fails
+      try {
+        onChange({ code, language });
+        await api.post(`/student/attempts/${attemptId}/responses`, {
+          questionId,
+          answer: {
+            code: code.trim(),
+            language: language,
+          },
+        });
+        setError('Failed to run tests, but your code has been saved. ' + (error.response?.data?.message || 'Please try running code manually.'));
+      } catch (saveErr) {
+        setError(error.response?.data?.message || 'Failed to submit code. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -371,9 +440,9 @@ export default function CodingQuestion({
               <div className="text-sm text-blue-900">
                 <p className="font-bold mb-3 text-base">💡 Important Notes:</p>
                 <ul className="list-disc list-inside space-y-2 text-sm">
-                  <li><strong>Run Code:</strong> Tests your code with sample test cases and shows output</li>
-                  <li><strong>Submit:</strong> Saves your answer without running tests (for final submission)</li>
-                  <li>Hidden test cases will be used for final grading after exam submission</li>
+                  <li><strong>Run Code:</strong> Tests your code with sample test cases and shows detailed results</li>
+                  <li><strong>Submit:</strong> Runs ALL test cases (including hidden ones) and shows only pass/fail summary</li>
+                  <li>Hidden test cases are included when you submit, but details are hidden</li>
                   <li>Test thoroughly using &quot;Run Code&quot; before submitting your final answer</li>
                 </ul>
               </div>
@@ -403,103 +472,97 @@ export default function CodingQuestion({
         className="flex flex-col overflow-hidden bg-white shadow-lg transition-all"
         style={{ width: `${editorWidth}%` }}
       >
-        {/* Editor Header with Language and Theme Selectors */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col gap-3 flex-shrink-0">
-          {/* Top Row: Language and Theme */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Terminal className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-bold text-gray-900">Code Editor</span>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Language Selector */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Language:</label>
-                <select
-                  value={language}
-                  onChange={(e) => {
-                    setLanguage(e.target.value);
-                  }}
-                  className="px-4 py-2 bg-white text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm font-semibold cursor-pointer hover:bg-gray-50 transition-all shadow-sm"
-                >
-                  {LANGUAGES.map((lang) => (
-                    <option key={lang.value} value={lang.value}>
-                      {lang.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Theme Display (Fixed to Dark) */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">Theme:</label>
-                <div className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg border border-gray-300 text-sm font-semibold">
-                  Dark
-                </div>
-              </div>
-            </div>
+        {/* LeetCode-style Editor Header - Compact with Language, Theme, and Actions */}
+        <div className="bg-[#1e1e1e] border-b border-gray-700 flex items-center justify-between px-4 py-2.5 flex-shrink-0">
+          {/* Left: Editor Label */}
+          <div className="flex items-center gap-2">
+            <Code className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Code Editor</span>
           </div>
-
-          {/* Bottom Row: Action Buttons */}
-          <div className="flex flex-col gap-3">
-            {/* Queue Status Indicator */}
-            {queueStatus && queueStatus.queued > 0 && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-                <Info className="w-4 h-4 text-blue-600" />
-                <span className="text-blue-800">
-                  {queueStatus.queued} job{queueStatus.queued !== 1 ? 's' : ''} in queue
-                  {queueStatus.estimatedWaitTimeMs > 0 && (
-                    <> • Est. wait: {Math.ceil(queueStatus.estimatedWaitTimeMs / 1000)}s</>
-                  )}
-                </span>
-              </div>
-            )}
-            
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={handleRunCode}
-                disabled={isRunning || isSubmitting || !code.trim()}
-                type="button"
-                className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-6 py-3 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold rounded-lg"
+          
+          {/* Right: Language, Theme, and Action Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Language Selector - LeetCode style */}
+            <div className="flex items-center gap-2">
+              <select
+                value={language}
+                onChange={(e) => {
+                  setLanguage(e.target.value);
+                }}
+                className="px-3 py-1.5 bg-[#2d2d2d] text-gray-200 border border-gray-600 rounded text-sm font-medium cursor-pointer hover:bg-[#3d3d3d] hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
-                {isRunning ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {queueStatus && queueStatus.queued > 0 ? 'Queued...' : 'Running...'}
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4" />
-                    Run Code
-                  </>
-                )}
-              </button>
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.value} value={lang.value} className="bg-[#2d2d2d]">
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Theme Display - LeetCode style */}
+            <div className="px-3 py-1.5 bg-[#2d2d2d] text-gray-400 border border-gray-600 rounded text-sm font-medium">
+              Dark
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-gray-600"></div>
+
+            {/* Action Buttons - Compact LeetCode style */}
+            <button
+              onClick={handleRunCode}
+              disabled={isRunning || isSubmitting || !code.trim()}
+              type="button"
+              className="px-4 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-[#2d2d2d]"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  {queueStatus && queueStatus.queued > 0 ? 'Queued' : 'Running'}
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5" />
+                  Run
+                </>
+              )}
+            </button>
             
             <button
               onClick={handleSubmitCode}
               disabled={isRunning || isSubmitting || !code.trim()}
               type="button"
-              className="bg-green-600 hover:bg-green-700 text-white border-0 px-6 py-3 shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold rounded-lg"
+              className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-green-600"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting...
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Submitting
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
+                  <Send className="w-3.5 h-3.5" />
                   Submit
                 </>
               )}
             </button>
           </div>
-          </div>
         </div>
 
-        {/* Monaco Code Editor */}
-        <div className="flex-1 min-h-0 border-b border-gray-200 relative">
+        {/* Queue Status Indicator - Compact */}
+        {queueStatus && queueStatus.queued > 0 && (
+          <div className="bg-blue-900/30 border-b border-blue-700/50 px-4 py-2 flex items-center gap-2 text-xs text-blue-300 flex-shrink-0">
+            <Info className="w-3.5 h-3.5" />
+            <span>
+              {queueStatus.queued} job{queueStatus.queued !== 1 ? 's' : ''} in queue
+              {queueStatus.estimatedWaitTimeMs > 0 && (
+                <> • Est. wait: {Math.ceil(queueStatus.estimatedWaitTimeMs / 1000)}s</>
+              )}
+            </span>
+          </div>
+        )}
+
+        {/* Monaco Code Editor - LeetCode style dark container */}
+        <div className="flex-1 min-h-0 relative bg-[#1e1e1e]">
           <div className="absolute inset-0">
             <MonacoEditor
               height="100%"
@@ -509,7 +572,7 @@ export default function CodingQuestion({
               onChange={handleEditorChange}
               onMount={handleEditorDidMount}
               options={{
-                fontSize: 15,
+                fontSize: 14,
                 lineNumbers: 'on',
                 lineNumbersMinChars: 3,
                 minimap: { enabled: false },
@@ -547,10 +610,10 @@ export default function CodingQuestion({
                 accessibilitySupport: 'auto',
               }}
               loading={
-                <div className="flex items-center justify-center h-full bg-gray-50">
+                <div className="flex items-center justify-center h-full bg-[#1e1e1e]">
                   <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Loading code editor...</p>
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">Loading code editor...</p>
                   </div>
                 </div>
               }
@@ -558,120 +621,155 @@ export default function CodingQuestion({
           </div>
         </div>
 
-        {/* Output/Results Panel */}
-        <div className="border-t border-gray-200 bg-gray-50 flex flex-col max-h-[40%] min-h-[250px]">
-          <div className="bg-white px-6 py-3 border-b border-gray-200 flex items-center gap-2 flex-shrink-0">
-            <Terminal className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-bold text-gray-900">Test Results</span>
+        {/* Output/Results Panel - Dark Theme */}
+        <div className="border-t border-gray-700 bg-[#1e1e1e] flex flex-col max-h-[40%] min-h-[250px]">
+          <div className="bg-[#252526] border-b border-gray-700 px-6 py-4 flex items-center gap-3 flex-shrink-0">
+            <Terminal className="w-5 h-5 text-gray-300" />
+            <span className="text-sm font-bold text-gray-200">Test Results</span>
             {testResults && (
-              <span className="ml-auto text-xs font-semibold text-gray-700 bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+              <span className={`ml-auto text-xs font-bold px-4 py-1.5 rounded-full ${
+                testResults.passed === testResults.total
+                  ? 'bg-emerald-600 text-white border border-emerald-500'
+                  : 'bg-amber-600 text-white border border-amber-500'
+              }`}>
                 {testResults.passed}/{testResults.total} passed
               </span>
             )}
           </div>
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#1e1e1e]">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm mb-4">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="bg-red-900/30 border-l-4 border-red-500 rounded-lg p-5 text-red-300 shadow-md mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-6 h-6 flex-shrink-0 mt-0.5 text-red-400" />
                   <div>
-                    <p className="font-semibold mb-1">Execution Error</p>
-                    <p className="text-xs whitespace-pre-wrap">{error}</p>
+                    <p className="font-bold mb-2 text-red-300">Execution Error</p>
+                    <p className="text-sm whitespace-pre-wrap text-red-400">{error}</p>
                   </div>
                 </div>
               </div>
             )}
             {testResults && (
-              <div className="space-y-4">
-                {/* Summary */}
-                <div className={`p-4 rounded-lg border ${
+              <div className="space-y-5">
+                {/* Summary Card - Dark Theme */}
+                <div className={`p-6 rounded-xl border-2 ${
                   testResults.passed === testResults.total
-                    ? 'bg-green-50 border-green-300'
-                    : 'bg-yellow-50 border-yellow-300'
+                    ? 'bg-emerald-900/20 border-emerald-600/50'
+                    : 'bg-amber-900/20 border-amber-600/50'
                 }`}>
-                  <div className={`flex items-center gap-2 text-lg font-bold ${
-                    testResults.passed === testResults.total ? 'text-green-700' : 'text-yellow-700'
+                  <div className={`flex items-center gap-4 text-xl font-bold ${
+                    testResults.passed === testResults.total ? 'text-emerald-400' : 'text-amber-400'
                   }`}>
                     {testResults.passed === testResults.total ? (
                       <>
-                        <CheckCircle2 className="w-6 h-6" />
-                        <span>All test cases passed! ✅</span>
+                        <div className="p-2 bg-emerald-600 rounded-full">
+                          <CheckCircle2 className="w-6 h-6 text-white" />
+                        </div>
+                        <span>
+                          All {testResults.total} test case{testResults.total !== 1 ? 's' : ''} passed! 🎉
+                        </span>
                       </>
                     ) : (
                       <>
-                        <XCircle className="w-6 h-6" />
-                        <span>{testResults.passed}/{testResults.total} test cases passed</span>
+                        <div className="p-2 bg-amber-600 rounded-full">
+                          <XCircle className="w-6 h-6 text-white" />
+                        </div>
+                        <span>
+                          {testResults.passed} passed, {testResults.total - testResults.passed} failed out of {testResults.total} test case{testResults.total !== 1 ? 's' : ''}
+                        </span>
                       </>
                     )}
                   </div>
-                  <p className="text-sm mt-2 text-gray-600">
-                    {testResults.message}
-                  </p>
+                  {!isSubmitMode && (
+                    <p className="text-sm mt-4 text-gray-300 font-medium bg-[#2d2d2d] rounded-lg p-3 border border-gray-700">
+                      {testResults.message}
+                    </p>
+                  )}
                 </div>
 
-                {/* Detailed Results */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-gray-700">Detailed Results:</h4>
-                  {testResults.testResults.map((result, index) => (
-                    <div
-                      key={index}
-                      className={`p-4 rounded-lg border transition-all ${
-                        result.passed
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-red-50 border-red-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        {result.passed ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-red-600" />
-                        )}
-                        <span className="font-semibold text-sm text-gray-900">
-                          Test Case {index + 1}: {result.passed ? '✅ Passed' : '❌ Failed'}
-                        </span>
-                        <span className="ml-auto text-xs text-gray-500">{result.status}</span>
-                      </div>
-                      {result.actualOutput !== null && (
-                        <div className="space-y-2 text-xs">
-                          <div>
-                            <span className="font-semibold text-gray-700">Your Output:</span>
-                            <pre className="mt-1 p-3 bg-white rounded-lg font-mono text-xs overflow-x-auto border border-gray-200">
-                              {result.actualOutput || '(empty)'}
-                            </pre>
-                          </div>
-                          {!result.passed && (
-                            <div>
-                              <span className="font-semibold text-gray-700">Expected Output:</span>
-                              <pre className="mt-1 p-3 bg-white rounded-lg font-mono text-xs overflow-x-auto border border-gray-200">
-                                {result.expectedOutput}
-                              </pre>
+                {/* Detailed Results - Only show if NOT in submit mode */}
+                {!isSubmitMode && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                      Detailed Results
+                    </h4>
+                    {testResults.testResults.map((result, index) => (
+                      <div
+                        key={index}
+                        className={`p-5 rounded-xl border-2 ${
+                          result.passed
+                            ? 'bg-emerald-900/10 border-emerald-600/30'
+                            : 'bg-red-900/10 border-red-600/30'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-4">
+                          {result.passed ? (
+                            <div className="p-2 bg-emerald-600 rounded-lg">
+                              <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />
+                            </div>
+                          ) : (
+                            <div className="p-2 bg-red-600 rounded-lg">
+                              <XCircle className="w-5 h-5 text-white flex-shrink-0" />
                             </div>
                           )}
+                          <span className="font-bold text-base text-gray-200">
+                            Test Case {index + 1}: {result.passed ? '✅ Passed' : '❌ Failed'}
+                          </span>
+                          <span className="ml-auto text-xs font-bold text-gray-300 bg-[#2d2d2d] px-3 py-1.5 rounded-full border border-gray-600">{result.status}</span>
                         </div>
-                      )}
-                      {result.error && (
-                        <div className="mt-2 p-3 bg-red-100 rounded-lg border border-red-200">
-                          <span className="font-semibold text-red-800 text-xs">Error:</span>
-                          <pre className="mt-1 text-red-700 font-mono text-xs overflow-x-auto whitespace-pre-wrap">
-                            {result.error}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        {result.actualOutput !== null && (
+                          <div className="space-y-3">
+                            <div>
+                              <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                Your Output:
+                              </span>
+                              <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                {result.actualOutput || '(empty)'}
+                              </pre>
+                            </div>
+                            {!result.passed && (
+                              <div>
+                                <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                  Expected Output:
+                                </span>
+                                <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
+                                  {result.expectedOutput}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {result.error && (
+                          <div className="mt-3 p-4 bg-red-900/20 rounded-xl border-2 border-red-600/30">
+                            <span className="font-bold text-red-400 text-sm block mb-2 flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4" />
+                              Error:
+                            </span>
+                            <pre className="mt-2 text-red-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap bg-[#0d0d0d] p-3 rounded border border-red-800/50">
+                              {result.error}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {output && !testResults && !error && (
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <pre className="text-sm text-gray-800 font-mono whitespace-pre-wrap">{output}</pre>
+              <div className="bg-[#2d2d2d] p-5 rounded-xl border-2 border-gray-700">
+                <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">{output}</pre>
               </div>
             )}
             {!testResults && !output && !error && (
-              <div className="text-center text-gray-400 py-8">
-                <Terminal className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Run your code to see test results here</p>
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-[#2d2d2d] rounded-full mb-4">
+                  <Terminal className="w-10 h-10 text-gray-500 opacity-60" />
+                </div>
+                <p className="text-base font-semibold text-gray-400 mb-2">No test results yet</p>
+                <p className="text-sm text-gray-500">Click "Run" to test your solution</p>
               </div>
             )}
           </div>

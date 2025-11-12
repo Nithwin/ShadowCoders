@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, Search, Loader2, Eye, Download } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Attempt = {
   id: string;
@@ -37,6 +38,7 @@ type ApiResponse = {
 export default function ExamSubmissionsPage() {
   const params = useParams();
   const examId = params?.examId as string;
+  const toast = useToastNotification();
 
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
@@ -192,7 +194,7 @@ export default function ExamSubmissionsPage() {
               const error = err as { response?: { data?: { message?: string } }; message?: string };
               console.error('Error downloading Excel:', err);
               const errorMessage = error.response?.data?.message || error.message || 'Failed to download Excel file';
-              alert(`Error: ${errorMessage}. Please make sure you are logged in and have the necessary permissions.`);
+              toast.error(`${errorMessage}. Please make sure you are logged in and have the necessary permissions.`);
             } finally {
               setIsExporting(false);
             }

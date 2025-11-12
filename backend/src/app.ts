@@ -21,17 +21,54 @@ export const createApp = () => {
     app.use(helmet());
 
     // Configure CORS to allow cookies (credentials) from the frontend origin
-    const allowedOrigins = [
-        env.FRONTEND_ORIGIN || 'http://localhost:3000',
-        'http://localhost:3001'
-    ];
+    // Build allowed origins list from environment variables
+    const allowedOrigins: string[] = [];
+    
+    // Add default localhost origins for development
+    if (env.NODE_ENV !== 'production') {
+        allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+    }
+    
+    // Add FRONTEND_ORIGIN if specified
+    if (env.FRONTEND_ORIGIN) {
+        allowedOrigins.push(env.FRONTEND_ORIGIN);
+    }
+    
+    // Add multiple origins from ALLOWED_ORIGINS (comma-separated)
+    if (env.ALLOWED_ORIGINS) {
+        const origins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o);
+        allowedOrigins.push(...origins);
+    }
+    
     const corsOptions: cors.CorsOptions = {
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) {
+                return callback(null, true);
             }
+            
+            // Check if origin is in allowed list
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+            
+            // Allow ngrok URLs dynamically if enabled (for development/testing)
+            if (env.ALLOW_NGROK && origin.includes('.ngrok-free.app')) {
+                return callback(null, true);
+            }
+            
+            // Also allow ngrok.io domains (legacy ngrok domains)
+            if (env.ALLOW_NGROK && origin.includes('.ngrok.io')) {
+                return callback(null, true);
+            }
+            
+            // Allow custom ngrok domains if pattern matches
+            if (env.ALLOW_NGROK && origin.includes('.ngrok.app')) {
+                return callback(null, true);
+            }
+            
+            // Reject all other origins
+            callback(new Error(`Not allowed by CORS: ${origin}`));
         },
         credentials: true,
         methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],

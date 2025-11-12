@@ -3,7 +3,7 @@ import { Prisma, ExamStatus, AttemptStatus, QType, GradingMode } from "@prisma/c
 import { shuffleArray } from "../../lib/utils";
 import { prisma } from "../../lib/prisma";
 import z from "zod";
-import { listAttemptsSchema, submitAnswerSchema } from "./attempt.zod";
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from "./attempt.zod";
 import * as userRepo from "../auth/auth.repo";
 
 export const startAttempt = async (studentId: string, examId: string) => {
@@ -593,4 +593,103 @@ export const getAttemptForAdmin = async (attemptId: string) => {
 
   // 4. Return the full attempt details
   return attempt;
+};
+
+type ResetAttemptsInput = z.infer<typeof resetAttemptsSchema>['body'];
+
+export const resetAttempts = async (input: ResetAttemptsInput) => {
+  const { examId, studentIds, resetAll } = input;
+
+  // Verify exam exists
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { id: true, title: true },
+  });
+
+  if (!exam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+
+  // Build where clause for attempts to delete
+  const whereClause: Prisma.AttemptWhereInput = {
+    examId: examId,
+    status: AttemptStatus.SUBMITTED, // Only delete submitted attempts
+  };
+
+  if (!resetAll && studentIds && studentIds.length > 0) {
+    whereClause.studentId = { in: studentIds };
+  }
+
+  // Get all attempts to delete
+  const attemptsToDelete = await prisma.attempt.findMany({
+    where: whereClause,
+    select: { id: true },
+  });
+
+  const attemptIds = attemptsToDelete.map(a => a.id);
+
+  if (attemptIds.length === 0) {
+    return {
+      deletedCount: 0,
+      message: 'No submitted attempts found to reset',
+    };
+  }
+
+  // Get all response IDs for these attempts
+  const responsesToDelete = await prisma.response.findMany({
+    where: {
+      attemptId: { in: attemptIds },
+    },
+    select: { id: true },
+  });
+
+  const responseIds = responsesToDelete.map(r => r.id);
+
+  // Delete related records in correct order (respecting foreign key constraints)
+  if (responseIds.length > 0) {
+    // 1. Delete GradingJobs (references Response)
+    await prisma.gradingJob.deleteMany({
+      where: {
+        responseId: { in: responseIds },
+      },
+    });
+
+    // 2. Delete Evaluations (references Response)
+    await prisma.evaluation.deleteMany({
+      where: {
+        responseId: { in: responseIds },
+      },
+    });
+
+    // 3. Delete ResponseArtifacts (references Response)
+    await prisma.responseArtifact.deleteMany({
+      where: {
+        responseId: { in: responseIds },
+      },
+    });
+
+    // 4. Delete Responses
+    await prisma.response.deleteMany({
+      where: {
+        attemptId: { in: attemptIds },
+      },
+    });
+  }
+
+  // 5. Delete section progress
+  await prisma.attemptSection.deleteMany({
+    where: {
+      attemptId: { in: attemptIds },
+    },
+  });
+
+  // 6. Delete attempts
+  const result = await prisma.attempt.deleteMany({
+    where: whereClause,
+  });
+
+  return {
+    deletedCount: result.count,
+    message: `Successfully reset ${result.count} attempt(s)`,
+  };
 };

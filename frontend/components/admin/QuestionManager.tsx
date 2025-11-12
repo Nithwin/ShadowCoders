@@ -8,6 +8,8 @@ import GenerateAiQuestionsModal from './GenerateAiQuestionsModal';
 import ManualQuestionForm from './question/ManualQuestionForm';
 import EditQuestionModal from './question/EditQuestionModal';
 import { Button } from '@/components/ui/Button';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 // Define the shape of the question (it will have a real DB id)
 type Question = {
@@ -28,6 +30,8 @@ interface QuestionManagerProps {
 }
 
 export default function QuestionManager({ examId }: QuestionManagerProps) {
+  const { confirm } = useConfirmationDialog();
+  const toast = useToastNotification();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -79,18 +83,26 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
 
   // 2. Handle Deleting an existing question
   const handleDelete = async (questionId: string) => {
-    if (!confirm('Are you sure you want to delete this question?')) {
+    const confirmed = await confirm({
+      title: 'Delete Question',
+      message: 'Are you sure you want to delete this question?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (!confirmed) {
       return;
     }
     try {
       // Use the real DB ID to delete
       await api.delete(`/admin/questions/${questionId}`);
+      toast.success('Question deleted successfully!');
       // Refresh the list from the DB
       fetchQuestions();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(error.response?.data?.error?.message || 'Failed to delete question.');
+      toast.error(error.response?.data?.error?.message || 'Failed to delete question.');
     }
   };
 

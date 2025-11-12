@@ -8,6 +8,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { QType } from '@/types';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Question = {
   id: string;
@@ -74,6 +76,8 @@ type Attempt = {
 export default function AdminGradingPage() {
   const params = useParams();
   const attemptId = params?.attemptId as string;
+  const { confirm } = useConfirmationDialog();
+  const toast = useToastNotification();
 
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,7 +168,7 @@ export default function AdminGradingPage() {
       : response.question.points;
     
     if (grade.score < 0 || grade.score > questionPoints) {
-      alert(`Score must be between 0 and ${questionPoints}`);
+      toast.error(`Score must be between 0 and ${questionPoints}`);
       return;
     }
 
@@ -184,7 +188,7 @@ export default function AdminGradingPage() {
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error('Error saving grade:', err);
-      alert(error.response?.data?.error?.message || 'Failed to save grade. Please try again.');
+      toast.error(error.response?.data?.error?.message || 'Failed to save grade. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -197,11 +201,19 @@ export default function AdminGradingPage() {
     const essayResponses = attempt.responses.filter((r) => r.question.type === QType.ESSAY);
     
     if (essayResponses.length === 0) {
-      alert('No essay questions to grade.');
+      toast.warning('No essay questions to grade.');
       return;
     }
 
-    if (!confirm(`Are you sure you want to save all grades for ${essayResponses.length} essay question(s)? This will update the final scores.`)) {
+    const confirmed = await confirm({
+      title: 'Save All Grades',
+      message: `Are you sure you want to save all grades for ${essayResponses.length} essay question(s)? This will update the final scores.`,
+      confirmText: 'Save All',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    });
+    
+    if (!confirmed) {
       return;
     }
 
@@ -240,10 +252,10 @@ export default function AdminGradingPage() {
       // Mark all essay responses as saved
       setSavedResponses(new Set(essayResponses.map((r) => r.id)));
       
-      alert('All grades saved successfully!');
+      toast.success('All grades saved successfully!');
     } catch (err: unknown) {
       console.error('Error saving grades:', err);
-      alert('Failed to save some grades. Please check individual responses.');
+      toast.error('Failed to save some grades. Please check individual responses.');
     } finally {
       setIsSaving(false);
     }

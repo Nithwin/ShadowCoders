@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { Edit, Trash2, Loader2, X } from 'lucide-react';
+import { Edit, Trash2, Loader2, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Section = {
   id: string;
@@ -60,6 +62,8 @@ const createSectionSchema = z.object({
 type SectionFormData = z.input<typeof createSectionSchema>;
 
 export default function SectionManager({ examId, questions }: SectionManagerProps) {
+  const { confirm } = useConfirmationDialog();
+  const toast = useToastNotification();
   const [sections, setSections] = useState<Section[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,27 +104,36 @@ export default function SectionManager({ examId, questions }: SectionManagerProp
   }, [sections, questions]);
 
   const handleDelete = async (sectionId: string) => {
-    if (!confirm('Are you sure you want to delete this section? This will remove all question assignments from this section.')) {
+    const confirmed = await confirm({
+      title: 'Delete Section',
+      message: 'Are you sure you want to delete this section? This will remove all question assignments from this section.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+    if (!confirmed) {
       return;
     }
     try {
       await api.delete(`/admin/sections/${sectionId}`);
+      toast.success('Section deleted successfully!');
       fetchSections();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(error.response?.data?.error?.message || 'Failed to delete section.');
+      toast.error(error.response?.data?.error?.message || 'Failed to delete section.');
     }
   };
 
   const handleRemoveQuestion = async (sectionId: string, questionId: string) => {
     try {
       await api.delete(`/admin/sections/${sectionId}/questions/${questionId}`);
+      toast.success('Question removed from section successfully!');
       fetchSections();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      alert(error.response?.data?.error?.message || 'Failed to remove question from section.');
+      toast.error(error.response?.data?.error?.message || 'Failed to remove question from section.');
     }
   };
 

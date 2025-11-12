@@ -71,6 +71,18 @@ JWT_SECRET="replace-with-a-long-random-string"
 
 # Frontend
 FRONTEND_ORIGIN=http://localhost:3000
+
+# For Vercel deployment with ngrok
+# FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
+
+# Multiple allowed origins (comma-separated)
+# ALLOWED_ORIGINS=https://your-vercel-app.vercel.app,https://another-app.vercel.app
+
+# Allow ngrok URLs dynamically (default: true)
+ALLOW_NGROK=true
+
+# Google API Key (for AI features)
+GOOGLE_API_KEY=your_google_api_key
 ```
 
 **To get your database password:**
@@ -85,6 +97,51 @@ FRONTEND_ORIGIN=http://localhost:3000
 - Or use: `npm run setup:env` (auto-generates it)
 
 See `SETUP_ENV.md` for detailed instructions.
+
+## 🚀 ngrok Setup (for Vercel Frontend)
+
+To expose your local backend to a Vercel-hosted frontend, use ngrok:
+
+### Quick Start
+
+1. **Install ngrok:**
+   ```powershell
+   # Windows (Chocolatey)
+   choco install ngrok
+   
+   # Or download from https://ngrok.com/download
+   ```
+
+2. **Authenticate ngrok:**
+   ```bash
+   ngrok config add-authtoken YOUR_AUTH_TOKEN
+   ```
+   Get your auth token from https://dashboard.ngrok.com/get-started/your-authtoken
+
+3. **Configure backend .env:**
+   ```env
+   FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
+   ALLOW_NGROK=true
+   ```
+
+4. **Start backend and ngrok:**
+   ```powershell
+   # Windows
+   .\scripts\start-backend-ngrok.ps1
+   
+   # Or manually:
+   # Terminal 1: npm run dev
+   # Terminal 2: ngrok http 4000
+   ```
+
+5. **Copy ngrok URL** (e.g., `https://abc123.ngrok-free.app`)
+
+6. **Configure Vercel:**
+   - Go to Vercel project → Settings → Environment Variables
+   - Add `NEXT_PUBLIC_API_BASE_URL=https://your-ngrok-url.ngrok-free.app/api`
+   - Redeploy your Vercel app
+
+See [docs/NGROK_QUICK_START.md](./docs/NGROK_QUICK_START.md) for detailed instructions.
 
 ## Install & database setup
 

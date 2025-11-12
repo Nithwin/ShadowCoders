@@ -1,400 +1,145 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { api } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
-import { AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import { QType } from '@/types';
-import MCQQuestion from '@/components/student/questions/MCQQuestion';
-import CodingQuestion from '@/components/student/questions/CodingQuestion';
-import EssayQuestion from '@/components/student/questions/EssayQuestion';
 import ExamHeader from '@/components/student/exam/ExamHeader';
 import FullscreenWarning from '@/components/student/exam/FullscreenWarning';
 import FullscreenRequirement from '@/components/student/exam/FullscreenRequirement';
 import QuestionNavigation from '@/components/student/exam/QuestionNavigation';
-import QuestionHeader from '@/components/student/exam/QuestionHeader';
-import QuestionNavigationButtons from '@/components/student/exam/QuestionNavigationButtons';
 import ExamLockedScreen from '@/components/student/exam/ExamLockedScreen';
 import ExamErrorScreen from '@/components/student/exam/ExamErrorScreen';
 import ExamLoadingScreen from '@/components/student/exam/ExamLoadingScreen';
-
-type Question = {
-  id: string;
-  type: QType;
-  prompt: string | null;
-  points: number;
-  order: number;
-  sectionId?: string;
-  options?: Array<{ id: string; text: string }>;
-  testcases?: Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }>;
-  starterCode?: string | null;
-  wordLimit?: number | null;
-};
-
-type Attempt = {
-  id: string;
-  status: string;
-  startedAt: string;
-  exam: {
-    id: string;
-    title: string;
-    durationMins: number;
-    questions: Array<{ id: string; order: number }>;
-    sections?: Array<{
-      id: string;
-      title: string;
-      order: number;
-      sectionQuestions: Array<{
-        questionId: string;
-        order: number;
-      }>;
-    }>;
-  };
-  responses: Array<{
-    questionId: string;
-    answer: {
-      chosenOptionIds?: string[];
-      code?: string;
-      language?: string;
-      textAnswer?: string;
-      text?: string;
-      [key: string]: unknown;
-    };
-  }>;
-  orderMap: string[] | null;
-};
-
-const STORAGE_KEY_PREFIX = 'exam_attempt_';
+import ExamErrorDisplay from '@/components/student/exam/ExamErrorDisplay';
+import ExamContentArea from '@/components/student/exam/ExamContentArea';
+import { findFirstQuestionInSection } from '@/utils/examSectionUtils';
+import { calculateAnsweredCount } from '@/utils/examCalculations';
+import { getFilteredQuestions, getEssayQuestions, getCurrentSectionType } from '@/utils/examQuestionUtils';
+import { mergeAnswersFromResponses } from '@/utils/examDataUtils';
+import { useExamAttemptData } from '@/hooks/useExamAttemptData';
+import { useAnswerManagement, type AnswerData } from '@/hooks/useAnswerManagement';
+import { useFullscreenManagement } from '@/hooks/useFullscreenManagement';
+import { useExamSubmission } from '@/hooks/useExamSubmission';
+import { useCheatingPrevention } from '@/hooks/useCheatingPrevention';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
 
 export default function ExamAttemptPage() {
   const params = useParams();
-  const router = useRouter();
   const attemptId = params?.attemptId as string;
   const containerRef = useRef<HTMLDivElement>(null);
-  const handleSubmitExamRef = useRef<((isAutoSubmit: boolean) => Promise<void>) | null>(null);
+  const { confirm } = useConfirmationDialog();
 
-  const [attempt, setAttempt] = useState<Attempt | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, {
-    chosenOptionIds?: string[];
-    code?: string;
-    language?: string;
-    textAnswer?: string;
-    text?: string;
-    [key: string]: unknown;
-  }>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fullscreenWarning, setFullscreenWarning] = useState(false);
-  const [warningCount, setWarningCount] = useState(0);
-  const [hasStarted, setHasStarted] = useState(false);
-  const storageKey = `${STORAGE_KEY_PREFIX}${attemptId}`;
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
 
-  // Load answers from localStorage on mount
+  // Fetch attempt and questions data
+  const {
+    attempt,
+    questions,
+    isLoading,
+    error: fetchError,
+    fetchAttempt,
+    formatAnswersForStorage,
+    storageKey,
+  } = useExamAttemptData(attemptId);
+
+  // Manage answers with localStorage
+  const {
+    answers,
+    handleAnswerChange,
+    updateAnswers,
+    clearLocalStorage,
+  } = useAnswerManagement(attemptId);
+
+  // Fullscreen management refs (for submission hook)
+  const exitFullscreenRef = useRef<(() => Promise<void>) | null>(null);
+  const isFullscreenRef = useRef<boolean>(false);
+
+  // Exam submission
+  const {
+    isSubmitting,
+    error: submissionError,
+    handleSubmitExam,
+    setError: setSubmissionError,
+  } = useExamSubmission(
+    attempt,
+    questions,
+    answers,
+    attemptId,
+    clearLocalStorage,
+    exitFullscreenRef,
+    isFullscreenRef,
+    async () => {
+      return await confirm({
+        title: 'Submit Exam',
+        message: 'Are you sure you want to submit this exam? You will not be able to make changes after submission.',
+        confirmText: 'Submit',
+        cancelText: 'Cancel',
+        variant: 'warning',
+      });
+    }
+  );
+
+  // Fullscreen management
+  const handleAutoSubmit = () => {
+    handleSubmitExam(true);
+  };
+
+  const {
+    isFullscreen,
+    fullscreenWarning: fullscreenWarningState,
+    setFullscreenWarning: setFullscreenWarningState,
+    enterFullscreen,
+    exitFullscreen,
+  } = useFullscreenManagement(containerRef, attempt, handleAutoSubmit);
+
+  // Update refs for submission hook
   useEffect(() => {
-    if (attemptId) {
-      try {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setAnswers(parsed);
-        }
-      } catch (err) {
-        console.error('Error loading from localStorage:', err);
-      }
-    }
-  }, [attemptId, storageKey]);
+    exitFullscreenRef.current = exitFullscreen;
+    isFullscreenRef.current = isFullscreen;
+  }, [exitFullscreen, isFullscreen]);
 
-  // Save answers to localStorage whenever they change (debounced to prevent excessive writes)
-  useEffect(() => {
-    if (attemptId && Object.keys(answers).length > 0) {
-      const timeoutId = setTimeout(() => {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(answers));
-        } catch (err) {
-          console.error('Error saving to localStorage:', err);
-        }
-      }, 500); // Debounce by 500ms
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [answers, attemptId, storageKey]);
+  // Cheating prevention
+  const {
+    warningCount,
+    fullscreenWarning: cheatingWarning,
+    setFullscreenWarning: setCheatingWarning,
+  } = useCheatingPrevention(attempt, handleAutoSubmit);
 
-  // Clean up localStorage when exam is submitted
-  const clearLocalStorage = useCallback(() => {
-    try {
-      localStorage.removeItem(storageKey);
-    } catch (err) {
-      console.error('Error clearing localStorage:', err);
-    }
-  }, [storageKey]);
-
-  // Enter fullscreen
-  const enterFullscreen = useCallback(async () => {
-    try {
-      const element = containerRef.current || document.documentElement;
-      if (element.requestFullscreen) {
-        await element.requestFullscreen();
-      } else if ((element as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> }).webkitRequestFullscreen) {
-        await (element as HTMLElement & { webkitRequestFullscreen: () => Promise<void> }).webkitRequestFullscreen();
-      } else if ((element as HTMLElement & { msRequestFullscreen?: () => Promise<void> }).msRequestFullscreen) {
-        await (element as HTMLElement & { msRequestFullscreen: () => Promise<void> }).msRequestFullscreen();
-      }
-    } catch (err) {
-      console.error('Error entering fullscreen:', err);
-    }
-  }, []);
-
-  // Exit fullscreen
-  const exitFullscreen = useCallback(async () => {
-    try {
-      if (document.exitFullscreen) {
-        await document.exitFullscreen();
-      } else if ((document as Document & { webkitExitFullscreen?: () => Promise<void> }).webkitExitFullscreen) {
-        await (document as Document & { webkitExitFullscreen: () => Promise<void> }).webkitExitFullscreen();
-      } else if ((document as Document & { msExitFullscreen?: () => Promise<void> }).msExitFullscreen) {
-        await (document as Document & { msExitFullscreen: () => Promise<void> }).msExitFullscreen();
-      }
-    } catch (err) {
-      console.error('Error exiting fullscreen:', err);
-    }
-  }, []);
-
-  // Handle exam submission
-  const handleSubmitExam = useCallback(async (isAutoSubmit: boolean = false) => {
-    if (!attempt || isSubmitting) return;
-
-    if (!isAutoSubmit && !confirm('Are you sure you want to submit this exam? You will not be able to make changes after submission.')) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      // Save all answers to server before submission
-      const savePromises = [];
-      
-      for (const question of questions) {
-        const answerData = answers[question.id];
-        let formattedAnswer: {
-          chosenOptionIds?: string[];
-          code?: string;
-          language?: string;
-          textAnswer?: string;
-        } | null = null;
-        
-        if (question.type === QType.MCQ) {
-          const chosenOptionIds = answerData?.chosenOptionIds || [];
-          formattedAnswer = { chosenOptionIds };
-        } else if (question.type === QType.CODING) {
-          const code = answerData?.code || '';
-          const language = answerData?.language || 'javascript';
-          formattedAnswer = {
-            code: code.trim(),
-            language: language,
-          };
-        } else if (question.type === QType.ESSAY) {
-          const textAnswer = answerData?.textAnswer || answerData?.text || '';
-          formattedAnswer = {
-            textAnswer: textAnswer.trim(),
-          };
-        }
-        
-        if (formattedAnswer !== null) {
-          savePromises.push(
-            api.post(`/student/attempts/${attemptId}/responses`, {
-              questionId: question.id,
-              answer: formattedAnswer,
-            }).catch((err) => {
-              console.error(`Error saving answer for question ${question.id}:`, err);
-              return null;
-            })
-          );
-        }
-      }
-      
-      await Promise.allSettled(savePromises);
-      await api.post(`/student/attempts/${attemptId}/submit`);
-      clearLocalStorage();
-      
-      if (isFullscreen) {
-        await exitFullscreen();
-      }
-      
-      router.push('/student/dashboard?submitted=true');
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      console.error('Error submitting exam:', err);
-      setError(error.response?.data?.error?.message || 'Failed to submit exam. Please try again.');
-      setIsSubmitting(false);
-    }
-  }, [attempt, answers, questions, attemptId, clearLocalStorage, isFullscreen, exitFullscreen, router, isSubmitting]);
-
-  // Store submit function in ref for access in other effects
-  useEffect(() => {
-    handleSubmitExamRef.current = handleSubmitExam;
-  }, [handleSubmitExam]);
+  // Combine errors
+  const error = fetchError || submissionError;
 
   // Handle time up callback
-  const handleTimeUp = useCallback(() => {
-    if (handleSubmitExamRef.current) {
-      handleSubmitExamRef.current(true);
-    }
-  }, []);
+  const handleTimeUp = () => {
+    handleSubmitExam(true);
+  };
 
-  // Check fullscreen on mount and require it
-  useEffect(() => {
-    const checkFullscreen = () => {
-      const isCurrentlyFullscreen = !!(
-        document.fullscreenElement ||
-        (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ||
-        (document as Document & { msFullscreenElement?: Element | null }).msFullscreenElement
-      );
-      setIsFullscreen(isCurrentlyFullscreen);
-      
-      if (attempt?.status === 'IN_PROGRESS' && isCurrentlyFullscreen && !hasStarted) {
-        setHasStarted(true);
-      }
-    };
-
-    checkFullscreen();
-  }, [attempt, hasStarted]);
-
-  // Fullscreen change handler
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      const isCurrentlyFullscreen = !!(
-        document.fullscreenElement ||
-        (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ||
-        (document as Document & { msFullscreenElement?: Element | null }).msFullscreenElement
-      );
-
-      const wasFullscreen = isFullscreen;
-      setIsFullscreen(isCurrentlyFullscreen);
-
-      if (attempt?.status === 'IN_PROGRESS') {
-        if (isCurrentlyFullscreen && !hasStarted) {
-          setHasStarted(true);
-        } else if (wasFullscreen && !isCurrentlyFullscreen && hasStarted) {
-          // If they exit fullscreen after starting, auto-submit
-          if (handleSubmitExamRef.current) {
-            handleSubmitExamRef.current(true);
-          }
-        }
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('msfullscreenchange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-    };
-  }, [attempt, isFullscreen, hasStarted, enterFullscreen]);
-
-  // Detect page visibility changes (tab switching)
-  useEffect(() => {
-    if (attempt?.status !== 'IN_PROGRESS') return;
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setWarningCount(prev => {
-          const newCount = prev + 1;
-          if (newCount >= 3) {
-            if (handleSubmitExamRef.current) {
-              handleSubmitExamRef.current(true);
-            }
-          } else {
-            setFullscreenWarning(true);
-            setTimeout(() => setFullscreenWarning(false), 2000);
-          }
-          return newCount;
-        });
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [attempt]);
-
-  // Prevent context menu and certain keys
-  useEffect(() => {
-    if (attempt?.status !== 'IN_PROGRESS') return;
-
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-        (e.ctrlKey && e.key === 'U')
-      ) {
-        e.preventDefault();
-        setWarningCount(prev => {
-          const newCount = prev + 1;
-          if (newCount >= 3) {
-            if (handleSubmitExamRef.current) {
-              handleSubmitExamRef.current(true);
-            }
-          }
-          return newCount;
-        });
-      }
-    };
-
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [attempt]);
-
-  // Optionally enter fullscreen when exam starts (commented out - user can manually enter fullscreen)
-  // useEffect(() => {
-  //   if (attempt?.status === 'IN_PROGRESS' && questions.length > 0) {
-  //     const timer = setTimeout(() => {
-  //       enterFullscreen();
-  //     }, 500);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [attempt?.status, questions.length, enterFullscreen]);
-
-  // Fetch attempt and questions
-  useEffect(() => {
-    if (!attemptId) return;
-    fetchAttempt();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attemptId]);
-
-  const fetchAttempt = async () => {
-    setIsLoading(true);
-    setError(null);
+  // Wrapper for submit exam button click with logging
+  const handleSubmitExamClick = () => {
+    console.log('Submit Exam button clicked');
     try {
-      const res = await api.get(`/student/attempts/${attemptId}`);
-      const attemptData = res.data;
-      setAttempt(attemptData);
+      handleSubmitExam(false);
+    } catch (err) {
+      console.error('Error in handleSubmitExamClick:', err);
+      setSubmissionError('An error occurred when trying to submit. Please try again.');
+    }
+  };
 
-      const savedAnswers: Record<string, {
-        chosenOptionIds?: string[];
-        code?: string;
-        language?: string;
-        textAnswer?: string;
-        text?: string;
-        [key: string]: unknown;
-      }> = {};
+  // Initialize selected section when questions are loaded
+  useEffect(() => {
+    if (questions.length > 0 && !selectedSectionId) {
+      const firstQuestion = questions[0];
+      if (firstQuestion.sectionId) {
+        setSelectedSectionId(firstQuestion.sectionId);
+      }
+    }
+  }, [questions, selectedSectionId]);
+
+  // Initialize and format answers when questions are loaded
+  useEffect(() => {
+    if (questions.length > 0 && attempt) {
+      // Fetch merged answers from attempt data
+      const savedAnswers: Record<string, { [key: string]: unknown }> = {};
       try {
         const saved = localStorage.getItem(storageKey);
         if (saved) {
@@ -404,144 +149,108 @@ export default function ExamAttemptPage() {
         console.error('Error loading from localStorage:', err);
       }
 
-      attemptData.responses?.forEach((r: { questionId: string; answer?: {
-        chosenOptionIds?: string[];
-        code?: string;
-        language?: string;
-        textAnswer?: string;
-        text?: string;
-        [key: string]: unknown;
-      } }) => {
-        if (r.answer && typeof r.answer === 'object' && Object.keys(r.answer).length > 0) {
-          savedAnswers[r.questionId] = r.answer;
-        }
-      });
-      setAnswers(savedAnswers);
+      // Merge with server responses if available
+      const mergedAnswers = attempt.responses 
+        ? mergeAnswersFromResponses(savedAnswers, attempt.responses)
+        : savedAnswers;
 
-      await fetchQuestions(attemptData);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      console.error(err);
-      setError(error.response?.data?.error?.message || 'Failed to load exam attempt.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchQuestions = async (attemptData: Attempt) => {
-    try {
-      // Build a map of questionId to sectionId from exam sections
-      const questionToSectionMap = new Map<string, string>();
-      if (attemptData.exam.sections) {
-        attemptData.exam.sections.forEach((section) => {
-          section.sectionQuestions.forEach((sq) => {
-            questionToSectionMap.set(sq.questionId, section.id);
-          });
-        });
+      // Format answers based on question types
+      const formattedAnswers = formatAnswersForStorage(questions, mergedAnswers);
+      
+      // Update answers if we have any
+      if (Object.keys(formattedAnswers).length > 0) {
+        updateAnswers(formattedAnswers);
+      } else if (Object.keys(mergedAnswers).length > 0) {
+        updateAnswers(mergedAnswers);
       }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, attempt]);
 
-      const questionIds = attemptData.orderMap || 
-        attemptData.exam.questions.map((q: { id: string; order: number }) => q.id);
+  // Debug: Log sections and questions (MUST be before any early returns)
+  useEffect(() => {
+    if (attempt?.exam?.sections && questions.length > 0) {
+      console.log('Available sections:', attempt.exam.sections);
+      console.log('Total questions:', questions.length);
+      console.log('Questions with sectionIds:', questions.map(q => ({ id: q.id, sectionId: q.sectionId, type: q.type })));
+      console.log('Section-Question mapping:', attempt.exam.sections.map(s => ({
+        sectionId: s.id,
+        sectionTitle: s.title,
+        questionIds: s.sectionQuestions?.map(sq => sq.questionId) || []
+      })));
+      console.log('Current selectedSectionId:', selectedSectionId);
+      console.log('Current questionIndex:', currentQuestionIndex);
+      if (questions[currentQuestionIndex]) {
+        console.log('Current question:', questions[currentQuestionIndex]);
+      }
+    }
+  }, [attempt?.exam?.sections, questions.length, selectedSectionId, currentQuestionIndex]);
 
-      const questionPromises = questionIds.map((questionId: string) =>
-        api.get(`/student/attempts/${attemptId}/question/${questionId}`)
-      );
+  // Sync selectedSectionId with current question's section when question changes
+  // This ensures section buttons stay in sync when using next/prev buttons
+  useEffect(() => {
+    if (questions.length > 0 && currentQuestionIndex < questions.length) {
+      const currentQ = questions[currentQuestionIndex];
+      if (currentQ?.sectionId && currentQ.sectionId !== selectedSectionId) {
+        setSelectedSectionId(currentQ.sectionId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestionIndex, questions.length]);
 
-      const questionResponses = await Promise.all(questionPromises);
-      const fetchedQuestions = questionResponses.map((res) => ({
-        ...res.data,
-        sectionId: questionToSectionMap.get(res.data.id),
-      }));
-      
-      fetchedQuestions.sort((a, b) => (a.order || 0) - (b.order || 0));
-      setQuestions(fetchedQuestions);
-      
-      // Only format answers if they exist - don't create empty answers
-      // This prevents triggering onChange in question components unnecessarily
-      setAnswers((prevAnswers) => {
-        // Check if we actually need to update
-        const hasChanges = fetchedQuestions.some((q) => {
-          const existingAnswer = prevAnswers[q.id];
-          if (!existingAnswer) return false;
-          
-          // Check if formatting is needed
-          if (q.type === QType.MCQ && !existingAnswer.chosenOptionIds) return true;
-          if (q.type === QType.CODING && (!existingAnswer.code || !existingAnswer.language)) return true;
-          if (q.type === QType.ESSAY && !existingAnswer.textAnswer) return true;
-          return false;
-        });
-        
-        if (!hasChanges) {
-          return prevAnswers; // No changes needed
-        }
-        
-        const formattedAnswers: Record<string, {
-          chosenOptionIds?: string[];
-          code?: string;
-          language?: string;
-          textAnswer?: string;
-          [key: string]: unknown;
-        }> = {};
-        fetchedQuestions.forEach((q) => {
-          const existingAnswer = prevAnswers[q.id];
-          if (existingAnswer) {
-            if (q.type === QType.MCQ) {
-              formattedAnswers[q.id] = {
-                chosenOptionIds: existingAnswer.chosenOptionIds || [],
-              };
-            } else if (q.type === QType.CODING) {
-              formattedAnswers[q.id] = {
-                code: existingAnswer.code || '',
-                language: existingAnswer.language || 'javascript',
-              };
-            } else if (q.type === QType.ESSAY) {
-              formattedAnswers[q.id] = {
-                textAnswer: existingAnswer.textAnswer || existingAnswer.text || '',
-              };
-            } else {
-              // Keep other answer types as-is
-              formattedAnswers[q.id] = existingAnswer;
-            }
+  // Ensure current question is from selected section when section changes
+  // This is a safety check to ensure navigation worked correctly
+  useEffect(() => {
+    if (selectedSectionId && questions.length > 0 && currentQuestionIndex < questions.length) {
+      const currentQ = questions[currentQuestionIndex];
+      // If current question is not from selected section, navigate to first question of selected section
+      if (currentQ && currentQ.sectionId !== selectedSectionId) {
+        console.log(`Current question section (${currentQ.sectionId}) doesn't match selected (${selectedSectionId}), correcting...`);
+        const sectionQuestions = questions.filter(q => q.sectionId === selectedSectionId);
+        if (sectionQuestions.length > 0) {
+          const firstQuestion = sectionQuestions[0];
+          const targetIndex = questions.findIndex(q => q.id === firstQuestion.id);
+          if (targetIndex !== -1 && targetIndex !== currentQuestionIndex) {
+            console.log(`Correcting navigation to index ${targetIndex}`);
+            setCurrentQuestionIndex(targetIndex);
           }
-        });
-        return { ...prevAnswers, ...formattedAnswers };
-      });
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      console.error('Error fetching questions:', err);
-      setError(error.response?.data?.error?.message || 'Failed to load questions. Please refresh the page.');
-    }
-  };
-
-  const handleAnswerChange = useCallback((questionId: string, answer: {
-    chosenOptionIds?: string[];
-    code?: string;
-    language?: string;
-    textAnswer?: string;
-    [key: string]: unknown;
-  }) => {
-    setAnswers((prev) => {
-      // Only update if the answer actually changed to prevent infinite loops
-      const currentAnswer = prev[questionId];
-      const answerStr = JSON.stringify(answer);
-      const currentAnswerStr = JSON.stringify(currentAnswer);
-      
-      if (answerStr === currentAnswerStr) {
-        return prev; // No change, return previous state
+        }
       }
-      
-      return {
-        ...prev,
-        [questionId]: answer,
-      };
-    });
-  }, []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSectionId]);
 
   const navigateQuestion = (direction: 'next' | 'prev') => {
+    // Get current question first
+    const currentQ = questions[currentQuestionIndex];
+    if (!currentQ) return;
+    
+    // Get filtered questions for current section
+    const currentSectionIdToUse = selectedSectionId || currentQ.sectionId;
+    const currentSectionType = getCurrentSectionType(currentSectionIdToUse, attempt, questions);
+    const filtered = getFilteredQuestions(questions, currentSectionIdToUse, currentSectionType);
+    
+    // Find current question's index in filtered list
+    const currentFilteredIndex = filtered.findIndex(q => q.id === currentQ.id);
+    
     if (direction === 'next') {
-      setCurrentQuestionIndex((prev) => Math.min(prev + 1, questions.length - 1));
+      if (currentFilteredIndex < filtered.length - 1) {
+        // Navigate to next question in filtered list
+        const nextFilteredQuestion = filtered[currentFilteredIndex + 1];
+        const nextIndex = questions.findIndex(q => q.id === nextFilteredQuestion.id);
+        if (nextIndex !== -1) {
+          setCurrentQuestionIndex(nextIndex);
+        }
+      }
     } else {
-      setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0));
+      if (currentFilteredIndex > 0) {
+        // Navigate to previous question in filtered list
+        const prevFilteredQuestion = filtered[currentFilteredIndex - 1];
+        const prevIndex = questions.findIndex(q => q.id === prevFilteredQuestion.id);
+        if (prevIndex !== -1) {
+          setCurrentQuestionIndex(prevIndex);
+        }
+      }
     }
   };
 
@@ -550,18 +259,7 @@ export default function ExamAttemptPage() {
   };
 
   // Calculate answered count
-  const answeredCount = questions.filter((q) => {
-    const answer = answers[q.id];
-    if (!answer) return false;
-    if (q.type === QType.MCQ) {
-      return answer.chosenOptionIds && answer.chosenOptionIds.length > 0;
-    } else if (q.type === QType.CODING) {
-      return answer.code && answer.code.trim().length > 0;
-    } else if (q.type === QType.ESSAY) {
-      return answer.textAnswer && answer.textAnswer.trim().length > 0;
-    }
-    return Object.keys(answer).length > 0;
-  }).length;
+  const answeredCount = calculateAnsweredCount(questions, answers);
 
   // Loading state
   if (isLoading) {
@@ -583,16 +281,31 @@ export default function ExamAttemptPage() {
     return <ExamLockedScreen timeRemaining={0} />;
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const isCodingQuestion = currentQuestion.type === QType.CODING;
-  const isEssayQuestion = currentQuestion.type === QType.ESSAY;
-  const isMCQQuestion = currentQuestion.type === QType.MCQ;
+  // Determine the current section ID - prioritize selectedSectionId so section button changes are immediate
+  const currentSectionId = selectedSectionId || questions[currentQuestionIndex]?.sectionId || undefined;
   
-  // Get essay questions for navigation
-  const essayQuestions = questions
-    .map((q, index) => ({ id: q.id, index, type: q.type }))
-    .filter((q) => q.type === QType.ESSAY)
-    .map((q) => ({ id: q.id, index: q.index }));
+  // Get the section type from the selected section (not current question)
+  // This ensures when section button changes, we get the type of the selected section, not the current question's section
+  let currentSectionType: QType | undefined;
+  if (selectedSectionId) {
+    // If a section is explicitly selected, get its type
+    const selectedSectionQuestions = questions.filter(q => q.sectionId === selectedSectionId);
+    currentSectionType = selectedSectionQuestions.length > 0 ? selectedSectionQuestions[0].type : undefined;
+  } else {
+    // Fallback to current question's section type
+    currentSectionType = getCurrentSectionType(currentSectionId, attempt, questions);
+  }
+  
+  // Filter questions to show only those matching the current section type
+  const filteredQuestions = getFilteredQuestions(questions, currentSectionId, currentSectionType);
+  
+  const currentQuestion = questions[currentQuestionIndex];
+  const isCodingQuestion = currentQuestion?.type === QType.CODING;
+  const isEssayQuestion = currentQuestion?.type === QType.ESSAY;
+  const isMCQQuestion = currentQuestion?.type === QType.MCQ;
+  
+  // Get essay questions for navigation (only from filtered questions)
+  const essayQuestions = getEssayQuestions(filteredQuestions, questions);
   
   // Get essay answers for navigation display
   const essayAnswers = essayQuestions.reduce((acc, eq) => {
@@ -601,11 +314,15 @@ export default function ExamAttemptPage() {
   }, {} as Record<string, { textAnswer?: string }>);
 
   // Show fullscreen requirement if exam is in progress but not in fullscreen
+  // The hook already checks fullscreen on mount, so we just need to check the state
   const showFullscreenRequirement = attempt?.status === 'IN_PROGRESS' && !isFullscreen;
+
+  // Combine fullscreen warnings
+  const showFullscreenWarning = fullscreenWarningState || cheatingWarning;
 
   return (
     <div ref={containerRef} className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
-      <FullscreenWarning warningCount={warningCount} show={fullscreenWarning} />
+      <FullscreenWarning warningCount={warningCount} show={showFullscreenWarning} />
       
       {/* Fullscreen Requirement Modal */}
       {showFullscreenRequirement && (
@@ -624,7 +341,7 @@ export default function ExamAttemptPage() {
           isFullscreen={isFullscreen}
           isSubmitting={isSubmitting}
           onEnterFullscreen={enterFullscreen}
-          onSubmitExam={() => handleSubmitExam(false)}
+          onSubmitExam={handleSubmitExamClick}
           onTimeUp={handleTimeUp}
           currentQuestionType={currentQuestion?.type}
           essayQuestions={essayQuestions}
@@ -635,112 +352,192 @@ export default function ExamAttemptPage() {
             title: section.title,
             order: section.order,
           }))}
-          currentSectionId={currentQuestion?.sectionId}
+          currentSectionId={selectedSectionId || currentQuestion?.sectionId}
           onSectionChange={(sectionId) => {
-            const firstQuestionIndex = questions.findIndex((q) => q.sectionId === sectionId);
-            if (firstQuestionIndex !== -1) {
-              setCurrentQuestionIndex(firstQuestionIndex);
+            console.log('Section change clicked:', sectionId);
+            if (!sectionId) {
+              console.warn('No sectionId provided');
+              return;
             }
+            
+            // Find the section in the exam
+            const section = attempt?.exam?.sections?.find(s => s.id === sectionId);
+            if (!section) {
+              console.warn(`Section ${sectionId} not found in exam sections`);
+              return;
+            }
+            
+            let sectionQuestions: typeof questions = [];
+            
+            // Method 1: Try using sectionQuestions relationship
+            const sectionQuestionIds = section.sectionQuestions?.map(sq => sq.questionId) || [];
+            console.log(`Method 1 - Section ${sectionId} has ${sectionQuestionIds.length} question IDs from sectionQuestions:`, sectionQuestionIds);
+            
+            if (sectionQuestionIds.length > 0) {
+              sectionQuestions = questions.filter(q => sectionQuestionIds.includes(q.id));
+              console.log(`Method 1 found ${sectionQuestions.length} matching questions`);
+            }
+            
+            // Method 2: Fallback to filtering by sectionId property if method 1 found nothing
+            if (sectionQuestions.length === 0) {
+              console.log('Method 2 - Trying to filter by sectionId property...');
+              const questionsWithSectionIds = questions.map(q => ({ id: q.id, sectionId: q.sectionId, type: q.type }));
+              console.log('All questions with sectionIds:', questionsWithSectionIds);
+              console.log(`Looking for sectionId: "${sectionId}" (type: ${typeof sectionId})`);
+              console.log('Unique sectionIds in questions:', [...new Set(questions.map(q => q.sectionId).filter(Boolean))]);
+              
+              // Try exact match first
+              sectionQuestions = questions.filter(q => q.sectionId === sectionId);
+              console.log(`Method 2a (exact match) found ${sectionQuestions.length} questions`);
+              
+              // If still nothing, try string comparison (in case of type mismatch)
+              if (sectionQuestions.length === 0) {
+                sectionQuestions = questions.filter(q => String(q.sectionId) === String(sectionId));
+                console.log(`Method 2b (string comparison) found ${sectionQuestions.length} questions`);
+              }
+            }
+            
+            // Method 3: Last resort - match by question type if section title matches type
+            if (sectionQuestions.length === 0) {
+              console.log('Method 3 - Trying to match by question type based on section title...');
+              const sectionTitle = section.title.toLowerCase();
+              let targetType: QType | null = null;
+              
+              if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
+                targetType = QType.CODING;
+              } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
+                targetType = QType.MCQ;
+              } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
+                targetType = QType.ESSAY;
+              }
+              
+              if (targetType) {
+                console.log(`Matching questions by type: ${targetType}`);
+                sectionQuestions = questions.filter(q => q.type === targetType);
+                console.log(`Method 3 found ${sectionQuestions.length} questions of type ${targetType}`);
+              } else {
+                console.log('Could not determine question type from section title:', sectionTitle);
+              }
+            }
+            
+            if (sectionQuestions.length === 0) {
+              console.warn(`No questions found in section ${sectionId} using any method`);
+              console.log('Section object:', section);
+              console.log('Section sectionQuestions:', section.sectionQuestions);
+              console.log('All question IDs:', questions.map(q => q.id));
+              return;
+            }
+            
+            // Find the first question in the questions array that belongs to this section
+            const firstQuestion = sectionQuestions[0];
+            const targetIndex = questions.findIndex(q => q.id === firstQuestion.id);
+            console.log(`Target index: ${targetIndex} for question ${firstQuestion.id}`);
+            
+            if (targetIndex === -1) {
+              console.error(`Could not find question ${firstQuestion.id} in questions array`);
+              return;
+            }
+            
+            // Update both states - this ensures immediate UI update
+            setSelectedSectionId(sectionId);
+            setCurrentQuestionIndex(targetIndex);
+            
+            console.log(`✅ Navigated to section ${sectionId}, question index ${targetIndex}`);
           }}
           questions={questions}
           answers={answers}
-          isFullscreen={isFullscreen}
         />
       </div>
 
-      {error && (
-        <div className="max-w-[1920px] mx-auto p-4 w-full">
-          <div className="bg-red-50 border border-red-200 rounded-md text-red-800 p-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              <p>{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {error && <ExamErrorDisplay error={error} />}
 
       {/* Main Content Area */}
       <div className={`flex-1 flex overflow-hidden ${showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}`}>
+        {/* Question Navigation Sidebar */}
+        <QuestionNavigation
+          questions={questions}
+          sections={attempt?.exam.sections?.map((section) => {
+            // Get questionIds using the same fallback logic as onSectionChange
+            let questionIds: string[] = [];
+            
+            // Method 1: Use sectionQuestions relationship
+            if (section.sectionQuestions && section.sectionQuestions.length > 0) {
+              questionIds = section.sectionQuestions.map((sq) => sq.questionId);
+            } else {
+              // Method 2: Filter by sectionId property
+              const sectionQuestions = questions.filter(q => q.sectionId === section.id);
+              if (sectionQuestions.length > 0) {
+                questionIds = sectionQuestions.map(q => q.id);
+              } else {
+                // Method 3: Filter by question type based on section title
+                const sectionTitle = section.title.toLowerCase();
+                let targetType: QType | null = null;
+                
+                if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
+                  targetType = QType.CODING;
+                } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
+                  targetType = QType.MCQ;
+                } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
+                  targetType = QType.ESSAY;
+                }
+                
+                if (targetType) {
+                  questionIds = questions.filter(q => q.type === targetType).map(q => q.id);
+                }
+              }
+            }
+            
+            return {
+              id: section.id,
+              title: section.title,
+              order: section.order,
+              questionIds,
+            };
+          })}
+          currentQuestionIndex={currentQuestionIndex}
+          currentSectionId={selectedSectionId || currentQuestion?.sectionId}
+          answers={answers}
+          onQuestionClick={handleQuestionClick}
+          onSectionClick={(sectionId) => {
+            setSelectedSectionId(sectionId);
+            // Get all questions in this section
+            const sectionQuestions = questions.filter(q => q.sectionId === sectionId);
+            if (sectionQuestions.length > 0) {
+              const sectionType = sectionQuestions[0].type;
+              // Find first question of this section and type
+              const firstQuestionIndex = questions.findIndex((q) => 
+                q.sectionId === sectionId && q.type === sectionType
+              );
+              if (firstQuestionIndex !== -1) {
+                setCurrentQuestionIndex(firstQuestionIndex);
+              } else {
+                // Fallback to any question in section
+                const fallbackIndex = questions.findIndex(q => q.sectionId === sectionId);
+                if (fallbackIndex !== -1) {
+                  setCurrentQuestionIndex(fallbackIndex);
+                }
+              }
+            }
+          }}
+          showQuestionNumbers={true}
+          currentQuestionType={currentQuestion?.type}
+          filteredQuestions={filteredQuestions}
+        />
+        
         {/* Question Content Area */}
         <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? '' : 'p-6'}`}>
           {currentQuestion && (
-            <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? 'h-full' : 'overflow-y-auto'}`}>
-              {!isCodingQuestion && !isEssayQuestion && !isMCQQuestion && (
-                <QuestionHeader type={currentQuestion.type} points={currentQuestion.points} />
-              )}
-
-              <div className={`flex-1 ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? 'flex flex-col h-full' : 'pb-24'}`}>
-                {/* MCQ Question */}
-                {currentQuestion.type === QType.MCQ && currentQuestion.options && (() => {
-                  const chosenOptionIds = answers[currentQuestion.id]?.chosenOptionIds;
-                  return (
-                    <MCQQuestion
-                      questionId={currentQuestion.id}
-                      prompt={currentQuestion.prompt || ''}
-                      options={currentQuestion.options}
-                      points={currentQuestion.points}
-                      answer={chosenOptionIds && Array.isArray(chosenOptionIds) ? { chosenOptionIds } : undefined}
-                      onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                    />
-                  );
-                })()}
-
-                {/* Coding Question */}
-                {currentQuestion.type === QType.CODING && (
-                  <CodingQuestion
-                    questionId={currentQuestion.id}
-                    prompt={currentQuestion.prompt || ''}
-                    starterCode={currentQuestion.starterCode}
-                    testCases={currentQuestion.testcases || []}
-                    points={currentQuestion.points}
-                    attemptId={attemptId}
-                    answer={answers[currentQuestion.id]}
-                    onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                    onNext={() => navigateQuestion('next')}
-                    onPrev={() => navigateQuestion('prev')}
-                    canGoNext={currentQuestionIndex < questions.length - 1}
-                    canGoPrev={currentQuestionIndex > 0}
-                    isLastQuestion={currentQuestionIndex === questions.length - 1}
-                    onSubmit={() => handleSubmitExam(false)}
-                  />
-                )}
-
-                {/* Essay Question */}
-                {currentQuestion.type === QType.ESSAY && (() => {
-                  const answerData = answers[currentQuestion.id];
-                  const textAnswer = answerData?.textAnswer || answerData?.text || '';
-                  return (
-                    <EssayQuestion
-                      questionId={currentQuestion.id}
-                      prompt={currentQuestion.prompt || ''}
-                      wordLimit={currentQuestion.wordLimit}
-                      points={currentQuestion.points}
-                      answer={textAnswer ? { textAnswer } : undefined}
-                      onChange={(answer) => handleAnswerChange(currentQuestion.id, answer)}
-                      onNext={() => navigateQuestion('next')}
-                      onPrev={() => navigateQuestion('prev')}
-                      canGoNext={currentQuestionIndex < questions.length - 1}
-                      canGoPrev={currentQuestionIndex > 0}
-                      isLastQuestion={currentQuestionIndex === questions.length - 1}
-                      onSubmit={() => handleSubmitExam(false)}
-                    />
-                  );
-                })()}
-              </div>
-
-              {/* Navigation Buttons - Only show for MCQ questions */}
-              {!isCodingQuestion && !isEssayQuestion && (
-                <QuestionNavigationButtons
-                  currentQuestionIndex={currentQuestionIndex}
-                  totalQuestions={questions.length}
-                  isSubmitting={isSubmitting}
-                  onPrevious={() => navigateQuestion('prev')}
-                  onNext={() => navigateQuestion('next')}
-                  onSubmit={() => handleSubmitExam(false)}
-                />
-              )}
-            </div>
+            <ExamContentArea
+              currentQuestion={currentQuestion}
+              questions={questions}
+              currentQuestionIndex={currentQuestionIndex}
+              answers={answers}
+              attemptId={attemptId}
+              isSubmitting={isSubmitting}
+              onAnswerChange={handleAnswerChange}
+              onNavigateQuestion={navigateQuestion}
+              onSubmitExam={handleSubmitExamClick}
+            />
           )}
         </div>
       </div>

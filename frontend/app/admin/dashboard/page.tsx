@@ -13,6 +13,8 @@ import {
   Eye,
 } from 'lucide-react';
 import { ExamStatus } from '@/types'; // Make sure ExamStatus is in /types
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 // --- Types ---
 type Exam = {
@@ -47,6 +49,8 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 // --- Component ---
 export default function AdminDashboardPage() {
   useAuth();
+  const { confirm, prompt } = useConfirmationDialog();
+  const toast = useToastNotification();
   const [exams, setExams] = useState<Exam[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +72,21 @@ export default function AdminDashboardPage() {
     fetchExams();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, activeStatus, searchQuery]); // Re-fetch data when these change
+
+  // Refresh exams list when page becomes visible (e.g., when returning from edit page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchExams();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchExams = async () => {
     setIsLoading(true);
@@ -101,18 +120,52 @@ export default function AdminDashboardPage() {
   };
 
   const handleDelete = async (examId: string) => {
-    // This is a safer alternative to alert()
-    if (!confirm('Are you sure you want to delete this exam? This action cannot be undone.')) {
-      return;
-    }
+    // First, check if exam has attempts
     try {
-      await api.delete(`/api/admin/exams/${examId}`);
+      const examRes = await api.get(`/admin/exams/${examId}`);
+      const exam = examRes.data;
+      const attemptCount = exam._count?.attempts || 0;
+      
+      let confirmed = false;
+      if (attemptCount > 0) {
+        const userInput = await prompt({
+          title: 'Delete Exam',
+          message: `⚠️ WARNING: This exam has ${attemptCount} student attempt(s). Deleting will permanently remove all attempts and results. This action cannot be undone.`,
+          inputLabel: 'Type "DELETE" to confirm',
+          inputPlaceholder: 'DELETE',
+          requiredValue: 'DELETE',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+          variant: 'danger',
+        });
+        if (userInput !== 'DELETE') {
+          return; // User cancelled or didn't type DELETE
+        }
+        confirmed = true;
+      } else {
+        confirmed = await confirm({
+          title: 'Delete Exam',
+          message: 'Are you sure you want to delete this exam? This will also delete all associated questions, sections, and assignments.',
+          confirmText: 'Delete',
+          cancelText: 'Cancel',
+          variant: 'danger',
+        });
+      }
+      
+      if (!confirmed) {
+        return;
+      }
+      
+      // Delete with force=true if there are attempts
+      await api.delete(`/admin/exams/${examId}${attemptCount > 0 ? '?force=true' : ''}`);
+      toast.success('Exam deleted successfully!');
       // Refresh the exams list
       fetchExams(); 
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
-      alert(error.response?.data?.error?.message || 'Failed to delete exam.');
+      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || 'Failed to delete exam.';
+      toast.error(errorMessage);
     }
   };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from '@/lib/api';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Exam } from '@/types';
 import { ArrowLeft, Loader2, CheckCircle2, Info } from 'lucide-react';
@@ -9,22 +9,25 @@ import Link from 'next/link';
 import QuestionManager from '@/components/admin/QuestionManager';
 import ExamForm, { toDateTimeLocal, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
 import ExamTabs from '@/components/admin/exam/ExamTabs';
-import SectionManager from '@/components/admin/exam/SectionManager';
 import AssignmentManager from '@/components/admin/exam/AssignmentManager';
 import { Button } from '@/components/ui/Button';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 export default function EditExamPage() {
   const params = useParams();
+  const router = useRouter();
   const examId = params?.examId as string;
+  const { confirm } = useConfirmationDialog();
+  const toast = useToastNotification();
 
   const [examData, setExamData] = useState<Exam | null>(null);
   const [isLoadingExam, setIsLoadingExam] = useState(true);
-  const [activeTab, setActiveTab] = useState<'settings' | 'questions' | 'sections' | 'assignments'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'questions' | 'assignments'>('settings');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [questions, setQuestions] = useState<Array<Record<string, unknown>>>([]);
 
   const fetchExamData = async () => {
     setIsLoadingExam(true);
@@ -34,13 +37,6 @@ export default function EditExamPage() {
       const exam = response.data as Exam;
       setExamData(exam);
       
-      // Also fetch questions for the sections tab
-      try {
-        const questionsRes = await api.get(`/admin/exams/${examId}/questions`);
-        setQuestions(questionsRes.data || []);
-      } catch (err) {
-        console.error('Failed to fetch questions:', err);
-      }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
@@ -82,7 +78,15 @@ export default function EditExamPage() {
   };
 
   const handlePublishExam = async () => {
-    if (!confirm('Are you sure you want to publish this exam? Once published, students will be able to access it based on assignments.')) {
+    const confirmed = await confirm({
+      title: 'Publish Exam',
+      message: 'Are you sure you want to publish this exam? Once published, students will be able to access it based on assignments.',
+      confirmText: 'Publish',
+      cancelText: 'Cancel',
+      variant: 'warning',
+    });
+    
+    if (!confirmed) {
       return;
     }
     
@@ -92,17 +96,21 @@ export default function EditExamPage() {
     try {
       await api.post(`/admin/exams/${examId}/publish`);
       setSuccessMessage('Exam published successfully!');
-      setTimeout(() => setSuccessMessage(null), 3000);
+      toast.success('Exam published successfully!');
       // Refresh exam data to get updated status
       await fetchExamData();
+      // Redirect to exams list after a short delay to show success message
+      setTimeout(() => {
+        router.push('/admin/exams');
+      }, 1500);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
-      setApiError(
-        error.response?.data?.error?.message ||
-          error.response?.data?.message ||
-          'Failed to publish exam. Please try again.'
-      );
+      const errorMessage = error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        'Failed to publish exam. Please try again.';
+      setApiError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsPublishing(false);
     }
@@ -215,10 +223,6 @@ export default function EditExamPage() {
 
       {activeTab === 'questions' && (
         <QuestionManager examId={examId} />
-      )}
-
-      {activeTab === 'sections' && examData && (
-        <SectionManager examId={examId} questions={questions as Array<{ id: string; type: string; prompt: string | null; points: number; order: number }>} />
       )}
 
       {activeTab === 'assignments' && examData && (

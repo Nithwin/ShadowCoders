@@ -19,7 +19,7 @@ export const runCode = async (
   attemptId: string,
   input: RunCodeInput
 ) => {
-  const { questionId, code, language, customInput } = input;
+  const { questionId, code, language, customInput, runAllTests } = input;
 
   // 1. --- Validation: Check Attempt ---
   const attempt = await prisma.attempt.findUnique({
@@ -132,20 +132,25 @@ export const runCode = async (
       timeoutMs?: number;
     }>;
 
-    // Filter to only visible test cases for student testing
-    const visibleTestCases = testCases.filter((tc) => !tc.isHidden);
+    // Filter test cases: if runAllTests is true, use all test cases; otherwise only visible ones
+    const testCasesToRun = runAllTests 
+      ? testCases 
+      : testCases.filter((tc) => !tc.isHidden);
 
-    if (visibleTestCases.length === 0) {
-      throw { status: 400, message: 'No visible test cases found for this question' };
+    if (testCasesToRun.length === 0) {
+      const errorMessage = runAllTests 
+        ? 'No test cases found for this question'
+        : 'No visible test cases found for this question';
+      throw { status: 400, message: errorMessage };
     }
 
-    // Test code against visible test cases using the configured provider - queued
+    // Test code against test cases using the configured provider - queued
     const testResults = await executionQueue.enqueue(async () => {
       return executionProviderValue === 'local'
         ? await testCodeWithTestCasesLocally(
             code,
             language,
-            visibleTestCases.map((tc) => ({
+            testCasesToRun.map((tc) => ({
               input: tc.input,
               expectedOutput: tc.expectedOutput,
               timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
@@ -154,7 +159,7 @@ export const runCode = async (
         : await testCodeWithTestCasesJudge0(
             code,
             language,
-            visibleTestCases.map((tc) => ({
+            testCasesToRun.map((tc) => ({
               input: tc.input,
               expectedOutput: tc.expectedOutput,
               timeoutMs: tc.timeoutMs || 2000,
