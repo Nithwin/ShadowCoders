@@ -1,10 +1,8 @@
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
-import { errorHandler } from './middleware/error';
 import { registerQuestionRoutes } from './modules/questions/question.routes';
 import { registerAttemptRoutes } from './modules/attempts/attempt.routes';
 import { registerEvaluationRoutes } from './modules/evaluations/evaluation.routes';
@@ -13,72 +11,128 @@ import { registerAssetRoutes } from './modules/assets/asset.routes';
 import { registerSectionRoutes } from './modules/sections/section.routes';
 import { registerAiRoutes } from './modules/ai/ai.routes';
 import { registerGradingRoutes } from './modules/grading/grading.routes';
+import { errorHandler } from './middleware/error';
+import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
 import { env } from './config/env';
 
 export const createApp = () => {
     const app = express();
 
-    app.use(helmet());
+    // Trust proxy to get correct client info
+    app.set('trust proxy', true);
 
-    // Configure CORS to allow cookies (credentials) from the frontend origin
-    // Build allowed origins list from environment variables
-    const allowedOrigins: string[] = [];
+    // Configure helmet to not interfere with CORS
+    app.use(helmet({
+        crossOriginEmbedderPolicy: false,
+        crossOriginResourcePolicy: false,
+    }));
+
+    // Custom CORS handler - completely bypass cors package to avoid * issues
+    const allowedOrigins = buildAllowedOrigins();
     
-    // Add default localhost origins for development
-    if (env.NODE_ENV !== 'production') {
-        allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
-    }
+    // CRITICAL: Intercept setHeader BEFORE any other middleware to prevent * from ever being set
+    app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        const originalSetHeader = res.setHeader.bind(res);
+        
+        // Override setHeader to NEVER allow * when there's an origin
+        res.setHeader = function(name: string, value: string | number | string[]) {
+            if (name.toLowerCase() === 'access-control-allow-origin') {
+                if (origin && (value === '*' || value === 'null')) {
+                    const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
+                    if (allowedOrigin) {
+                        if (env.NODE_ENV !== 'production') {
+                            console.log(`[CORS-INTERCEPT] 🚫 Blocked * header, setting: ${allowedOrigin}`);
+                        }
+                        return originalSetHeader(name, allowedOrigin);
+                    }
+                }
+            }
+            return originalSetHeader(name, value);
+        };
+        
+        next();
+    });
     
-    // Add FRONTEND_ORIGIN if specified
-    if (env.FRONTEND_ORIGIN) {
-        allowedOrigins.push(env.FRONTEND_ORIGIN);
-    }
+    // Set CORS headers on ALL requests (including OPTIONS)
+    app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        const originalEnd = res.end.bind(res);
+        const originalJson = res.json.bind(res);
+        const originalWriteHead = res.writeHead.bind(res);
+        
+        // Function to force-set correct CORS headers
+        const forceCorsHeaders = () => {
+            if (origin) {
+                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
+                if (allowedOrigin) {
+                    // CRITICAL: Always remove first, then set to ensure no * can exist
+                    const current = res.getHeader('Access-Control-Allow-Origin');
+                    if (current === '*' || current !== allowedOrigin) {
+                        // Remove any existing CORS headers first
+                        res.removeHeader('Access-Control-Allow-Origin');
+                        res.removeHeader('Access-Control-Allow-Credentials');
+                        // Set correct headers
+                        res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+                        res.setHeader('Access-Control-Allow-Credentials', 'true');
+                        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+                        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
+                        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
+                        
+                        if (env.NODE_ENV !== 'production') {
+                            console.log(`[CORS] 🔧 Fixed header: ${current || 'missing'} -> ${allowedOrigin}`);
+                        }
+                    }
+                } else {
+                    if (env.NODE_ENV !== 'production') {
+                        console.warn(`[CORS] ❌ Rejected origin: ${origin}`);
+                        console.warn(`[CORS] Allowed origins:`, allowedOrigins);
+                    }
+                }
+            }
+        };
+        
+        // Handle preflight OPTIONS requests
+        if (req.method === 'OPTIONS') {
+            forceCorsHeaders();
+            res.setHeader('Access-Control-Max-Age', '86400');
+            return res.status(204).end();
+        }
+        
+        // Set headers immediately
+        forceCorsHeaders();
+        
+        // Override response methods to ensure headers are set right before sending
+        res.writeHead = function(statusCode: number, ...args: any[]) {
+            forceCorsHeaders();
+            return originalWriteHead(statusCode, ...args);
+        };
+        
+        res.end = function(...args: any[]) {
+            forceCorsHeaders();
+            return originalEnd(...args);
+        };
+        
+        res.json = function(body: any) {
+            forceCorsHeaders();
+            return originalJson(body);
+        };
+        
+        next();
+    });
     
-    // Add multiple origins from ALLOWED_ORIGINS (comma-separated)
-    if (env.ALLOWED_ORIGINS) {
-        const origins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(o => o);
-        allowedOrigins.push(...origins);
-    }
-    
-    const corsOptions: cors.CorsOptions = {
-        origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if (!origin) {
-                return callback(null, true);
-            }
-            
-            // Check if origin is in allowed list
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-            
-            // Allow ngrok URLs dynamically if enabled (for development/testing)
-            if (env.ALLOW_NGROK && origin.includes('.ngrok-free.app')) {
-                return callback(null, true);
-            }
-            
-            // Also allow ngrok.io domains (legacy ngrok domains)
-            if (env.ALLOW_NGROK && origin.includes('.ngrok.io')) {
-                return callback(null, true);
-            }
-            
-            // Allow custom ngrok domains if pattern matches
-            if (env.ALLOW_NGROK && origin.includes('.ngrok.app')) {
-                return callback(null, true);
-            }
-            
-            // Reject all other origins
-            callback(new Error(`Not allowed by CORS: ${origin}`));
-        },
-        credentials: true,
-        methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie'],
-        exposedHeaders: ['Set-Cookie', 'Content-Disposition', 'Content-Type'],
-    };
-    app.use(cors(corsOptions));
+    // Body parsing middleware
     app.use(express.json());
     app.use(cookieParser());
 
+    // Test endpoint for CORS debugging
+    app.get('/api/test-cors', (_req, res) => {
+        res.json({
+            message: 'CORS test successful',
+            origin: _req.headers.origin || 'no origin',
+            timestamp: new Date().toISOString(),
+        });
+    });
     app.get('/api/healthz', async (_req, res) => {
         const { checkDatabaseHealth } = await import('./lib/db-health');
         const dbHealth = await checkDatabaseHealth();
@@ -116,6 +170,73 @@ export const createApp = () => {
     registerSectionRoutes(app);
     registerAiRoutes(app);
     registerGradingRoutes(app);
+    
+    // Final CORS fix middleware - runs after all routes to ensure headers are correct
+    app.use((req, res, next) => {
+        const origin = req.headers.origin;
+        
+        // Listen for the 'finish' event which fires right before headers are sent
+        res.on('finish', () => {
+            if (origin) {
+                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
+                if (allowedOrigin) {
+                    const current = res.getHeader('Access-Control-Allow-Origin');
+                    // Force fix if it's * or wrong - but we can't change headers after finish
+                    // So we need to intercept earlier
+                    if (current === '*' && env.NODE_ENV !== 'production') {
+                        console.warn(`[CORS-FINAL] WARNING: * detected but too late to fix!`);
+                    }
+                }
+            }
+        });
+        
+        // Intercept response methods to fix headers before they're sent
+        const originalEnd = res.end.bind(res);
+        const originalJson = res.json.bind(res);
+        const originalWriteHead = res.writeHead.bind(res);
+        
+        const fixCorsBeforeSend = () => {
+            if (origin) {
+                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
+                if (allowedOrigin) {
+                    const current = res.getHeader('Access-Control-Allow-Origin');
+                    // ALWAYS remove and reset to ensure no * can slip through
+                    if (current === '*' || current !== allowedOrigin) {
+                        // Remove ALL CORS headers first
+                        res.removeHeader('Access-Control-Allow-Origin');
+                        res.removeHeader('Access-Control-Allow-Credentials');
+                        // Set correct headers
+                        res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+                        res.setHeader('Access-Control-Allow-Credentials', 'true');
+                        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+                        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
+                        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
+                        if (env.NODE_ENV !== 'production') {
+                            console.log(`[CORS-FINAL] 🔧 Fixed: ${current || 'missing'} -> ${allowedOrigin}`);
+                        }
+                    }
+                }
+            }
+        };
+        
+        res.writeHead = function(statusCode: number, ...args: any[]) {
+            fixCorsBeforeSend();
+            return originalWriteHead(statusCode, ...args);
+        };
+        
+        res.end = function(...args: any[]) {
+            fixCorsBeforeSend();
+            return originalEnd(...args);
+        };
+        
+        res.json = function(body: any) {
+            fixCorsBeforeSend();
+            return originalJson(body);
+        };
+        
+        next();
+    });
+    
     app.use(errorHandler);
 
     return app;

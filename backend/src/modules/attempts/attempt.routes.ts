@@ -25,6 +25,14 @@ export const registerAttemptRoutes = (app: Express) => {
     attemptController.submitAttemptHandler // 2. Run the controller
   );
 
+  // IMPORTANT: This route must come BEFORE /api/student/attempts/:attemptId
+  // to avoid route conflicts (Express matches routes in order)
+  app.get(
+    '/api/student/attempts',
+    verifyAccess, // 1. Ensures user is logged in (provides studentId)
+    attemptController.getStudentAttemptsHandler // 2. Run the controller
+  );
+
   app.get(
     '/api/student/attempts/:attemptId',
     verifyAccess, // 1. Ensure user is logged in (provides studentId)

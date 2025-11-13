@@ -289,6 +289,32 @@ export const listAttemptsForExam = async (params: {
   return { attempts, totalCount };
 };
 
+export const getStudentAttempts = async (studentId: string) => {
+  return prisma.attempt.findMany({
+    where: {
+      studentId: studentId,
+      status: AttemptStatus.SUBMITTED, // Only get submitted attempts
+    },
+    select: {
+      id: true,
+      status: true,
+      score: true,
+      maxScore: true,
+      startedAt: true,
+      submittedAt: true,
+      exam: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
+    orderBy: {
+      submittedAt: 'desc', // Show most recently submitted first
+    },
+  });
+};
+
 export const getFullAttemptForAdmin = (attemptId: string) => {
   return prisma.attempt.findUnique({
     where: { id: attemptId },

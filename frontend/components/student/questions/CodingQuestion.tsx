@@ -769,7 +769,7 @@ export default function CodingQuestion({
                   <Terminal className="w-10 h-10 text-gray-500 opacity-60" />
                 </div>
                 <p className="text-base font-semibold text-gray-400 mb-2">No test results yet</p>
-                <p className="text-sm text-gray-500">Click "Run" to test your solution</p>
+                <p className="text-sm text-gray-500">Click &quot;Run&quot; to test your solution</p>
               </div>
             )}
           </div>

@@ -9,6 +9,7 @@ interface Section {
   id: string;
   title: string;
   order: number;
+  questionIds?: string[];
 }
 
 interface ExamHeaderProps {
@@ -79,7 +80,7 @@ export default function ExamHeader({
   const dropdownValue = currentSectionId || (sortedSections.length > 0 ? sortedSections[0]?.id : '') || '';
 
   return (
-    <div className="bg-white border-b border-gray-200 shadow-md sticky top-0 z-40 flex-shrink-0">
+    <div className={`bg-white border-b border-gray-200 shadow-md sticky top-0 flex-shrink-0 ${isFullscreen ? 'z-[100]' : 'z-40'}`}>
       {/* Progress Bar at Top */}
       <div className="bg-gray-100 border-b border-gray-200">
         <div className="max-w-[1920px] mx-auto px-6 py-2">
@@ -110,8 +111,26 @@ export default function ExamHeader({
               {/* Section Navigation Buttons */}
               {sections.length > 0 && onSectionChange && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  {sortedSections.map((section) => {
-                    const sectionQuestions = questions.filter(q => q.sectionId === section.id);
+                  {sortedSections
+                    .filter((section) => {
+                      // Only show sections that have at least one question
+                      // Method 1: Check if questionIds are provided
+                      if (section.questionIds && section.questionIds.length > 0) {
+                        const sectionQuestions = questions.filter(q => section.questionIds!.includes(q.id));
+                        return sectionQuestions.length > 0;
+                      }
+                      // Method 2: Filter by sectionId property
+                      const sectionQuestions = questions.filter(q => q.sectionId === section.id);
+                      return sectionQuestions.length > 0;
+                    })
+                    .map((section) => {
+                    // Get questions for this section using the same logic as filter
+                    let sectionQuestions: typeof questions = [];
+                    if (section.questionIds && section.questionIds.length > 0) {
+                      sectionQuestions = questions.filter(q => section.questionIds!.includes(q.id));
+                    } else {
+                      sectionQuestions = questions.filter(q => q.sectionId === section.id);
+                    }
                     const sectionType = sectionQuestions.length > 0 ? sectionQuestions[0].type : null;
                     const sectionLabel = sectionType === QType.MCQ ? 'MCQ' : 
                                        sectionType === QType.CODING ? 'Coding' : 
@@ -192,7 +211,11 @@ export default function ExamHeader({
                 }}
                 disabled={isSubmitting}
                 type="button"
-                className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold px-6 py-3 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold px-6 py-3 rounded-lg flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed min-w-[140px] relative"
+                style={{ 
+                  visibility: isSubmitting ? 'visible' : 'visible',
+                  pointerEvents: isSubmitting ? 'none' : 'auto'
+                }}
               >
                 {isSubmitting ? (
                   <>

@@ -89,14 +89,6 @@ export const updateQuestionHandler: RequestHandler = async (req, res, next) => {
       return next({ status: 400, message: 'Question ID parameter is required' });
     }
 
-    console.log('Update question request:', {
-      questionId,
-      updateData: JSON.stringify(updateData, null, 2),
-      testcases: updateData.testcases,
-      testcasesType: typeof updateData.testcases,
-      testcasesIsArray: Array.isArray(updateData.testcases),
-    });
-
     const updatedQuestion = await questionService.updateQuestion(
       questionId,
       updateData

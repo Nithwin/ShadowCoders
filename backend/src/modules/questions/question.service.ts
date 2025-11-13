@@ -153,7 +153,6 @@ export const updateQuestion = async (
             }
           }
           dataToUpdate.testcases = input.testcases as Prisma.JsonArray;
-          console.log(`Updating testcases for question ${questionId}:`, JSON.stringify(input.testcases, null, 2));
         } else {
           throw { status: 400, message: 'Testcases must be an array' };
         }
@@ -170,28 +169,14 @@ export const updateQuestion = async (
   if (input.mediaAssetId !== undefined) dataToUpdate.mediaAsset = { connect: { id: input.mediaAssetId } };
   if (input.passageAssetId !== undefined) dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
 
-
-  // 3. --- Log the update data for debugging ---
-  console.log('Updating question with data:', JSON.stringify(dataToUpdate, null, 2));
-  if (dataToUpdate.testcases) {
-    console.log('Testcases to save:', JSON.stringify(dataToUpdate.testcases, null, 2));
-  }
-
-  // 4. --- Call Repository ---
+  // Call Repository
   const updatedQuestion = await questionRepo.updateQuestion(
     questionId,
     dataToUpdate
   );
 
-  // 5. --- Verify the update was successful ---
+  // Verify the update was successful
   const verifiedQuestion = await questionRepo.getQuestionById(questionId);
-  console.log('Question after update:', {
-    id: verifiedQuestion?.id,
-    type: verifiedQuestion?.type,
-    hasTestcases: !!verifiedQuestion?.testcases,
-    testcasesLength: Array.isArray(verifiedQuestion?.testcases) ? verifiedQuestion.testcases.length : 'not an array',
-    testcases: verifiedQuestion?.testcases,
-  });
 
   return updatedQuestion;
 };

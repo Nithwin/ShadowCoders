@@ -5,6 +5,15 @@ body{
     background: #ffffff;
 }
 
+/* Hide Next.js dev indicator */
+#__next-build-watcher,
+[data-nextjs-toast],
+.nextjs-toast-roots {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
 @theme {
     --color-primary:#000000;
     --color-secondary:#ffffff;

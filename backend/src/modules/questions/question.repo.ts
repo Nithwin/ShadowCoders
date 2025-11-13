@@ -70,12 +70,6 @@ export const updateQuestion = (
   questionId: string,
   data: Prisma.QuestionUpdateInput
 ) => {
-  console.log('Repository updateQuestion called with:', {
-    questionId,
-    data: JSON.stringify(data, null, 2),
-    testcases: data.testcases,
-  });
-  
   return prisma.question.update({
     where: { id: questionId },
     data: data,

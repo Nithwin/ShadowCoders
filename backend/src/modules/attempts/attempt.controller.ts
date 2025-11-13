@@ -150,6 +150,26 @@ export const getAttemptResultsHandler: RequestHandler = async (req, res, next) =
   }
 };
 
+export const getStudentAttemptsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub; // From verifyAccess middleware
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+
+    // Call the service to get all submitted attempts for this student
+    const attempts = await attemptService.getStudentAttempts(studentId);
+
+    // Send back the list of attempts
+    res.status(200).json(attempts);
+
+  } catch (error) {
+    // Pass errors to the central handler
+    next(error);
+  }
+};
+
 export const listAttemptsForExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;

@@ -21,7 +21,9 @@ export async function exitFullscreen() {
     }
 
     // Check if document is ready
-    if (document.readyState === 'uninitialized' || document.readyState === 'loading') {
+    // Note: 'uninitialized' is not a valid DocumentReadyState in modern browsers
+    // DocumentReadyState only includes: 'loading' | 'interactive' | 'complete'
+    if (document.readyState === 'loading') {
       return; // Document not ready, skip
     }
 

@@ -1,341 +1,468 @@
 # ShadowCoders Backend
 
-A TypeScript/Express API with Prisma (PostgreSQL) and Zod validation.
+A modern, scalable TypeScript/Express REST API with Prisma (PostgreSQL) and Zod validation. Built for an online examination system with support for multiple question types, automated grading, and AI-powered question generation.
 
-## Stack
+## 🚀 Quick Start
 
-- Node.js 18+ (recommended 20)
-- TypeScript 5
-- Express 5
-- Prisma 6 (PostgreSQL)
-- Zod 4 (runtime validation)
-- JWT (jsonwebtoken)
-- Helmet, CORS, Cookie Parser
+### Prerequisites
 
-## Project layout
+- **Node.js** 18+ (recommended 20+)
+- **PostgreSQL** database (Supabase recommended)
+- **npm** or **yarn** package manager
 
-```
-backend/
-  src/
-    app.ts                # Express app factory and middleware
-    index.ts              # Server bootstrap
-    config/env.ts         # Env loader and typed access
-    middleware/
-      auth.ts             # AuthN/Z helpers (JWT, requireRole)
-      validate.ts         # Zod-powered request validator
-      error.ts            # Centralized error handler
-    modules/
-      auth/               # Login + me
-      exams/              # Create exams
-      questions/          # Bulk add questions to exam
-  prisma/
-    schema.prisma         # Database schema
-```
+### Installation
 
-## Prerequisites
-
-- PostgreSQL running and reachable
-- Create a database (e.g. `shadowcoders`)
-- Copy your DB URL
-
-## Environment variables
-
-### Quick Setup (Recommended)
-
-Run the interactive setup script:
-
-```powershell
-npm run setup:env
-```
-
-This will guide you through creating your `.env` file with Supabase credentials.
-
-### Manual Setup
-
-Create a `.env` file in `backend/` with:
-
-```env
-# Server
-PORT=4000
-NODE_ENV=development
-
-# Database - Supabase Connection
-# Connect via connection pooling (for application use)
-DATABASE_URL="postgresql://postgres.wvkzbtmofbrftmgqpzwd:[YOUR-PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-
-# Direct connection (used for migrations)
-DIRECT_URL="postgresql://postgres.wvkzbtmofbrftmgqpzwd:[YOUR-PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
-
-# Auth
-JWT_SECRET="replace-with-a-long-random-string"
-
-# Frontend
-FRONTEND_ORIGIN=http://localhost:3000
-
-# For Vercel deployment with ngrok
-# FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
-
-# Multiple allowed origins (comma-separated)
-# ALLOWED_ORIGINS=https://your-vercel-app.vercel.app,https://another-app.vercel.app
-
-# Allow ngrok URLs dynamically (default: true)
-ALLOW_NGROK=true
-
-# Google API Key (for AI features)
-GOOGLE_API_KEY=your_google_api_key
-```
-
-**To get your database password:**
-1. Go to [Supabase Dashboard](https://supabase.com/dashboard)
-2. Select your project: `wvkzbtmofbrftmgqpzwd`
-3. Navigate to **Settings** → **Database**
-4. Find your **Database password** (or reset it if needed)
-5. Replace `[YOUR-PASSWORD]` in both `DATABASE_URL` and `DIRECT_URL`
-
-**To generate JWT_SECRET:**
-- Windows PowerShell: `[guid]::NewGuid().ToString('N') + [guid]::NewGuid().ToString('N')`
-- Or use: `npm run setup:env` (auto-generates it)
-
-See `SETUP_ENV.md` for detailed instructions.
-
-## 🚀 ngrok Setup (for Vercel Frontend)
-
-To expose your local backend to a Vercel-hosted frontend, use ngrok:
-
-### Quick Start
-
-1. **Install ngrok:**
-   ```powershell
-   # Windows (Chocolatey)
-   choco install ngrok
-   
-   # Or download from https://ngrok.com/download
-   ```
-
-2. **Authenticate ngrok:**
-   ```bash
-   ngrok config add-authtoken YOUR_AUTH_TOKEN
-   ```
-   Get your auth token from https://dashboard.ngrok.com/get-started/your-authtoken
-
-3. **Configure backend .env:**
-   ```env
-   FRONTEND_ORIGIN=https://your-vercel-app.vercel.app
-   ALLOW_NGROK=true
-   ```
-
-4. **Start backend and ngrok:**
-   ```powershell
-   # Windows
-   .\scripts\start-backend-ngrok.ps1
-   
-   # Or manually:
-   # Terminal 1: npm run dev
-   # Terminal 2: ngrok http 4000
-   ```
-
-5. **Copy ngrok URL** (e.g., `https://abc123.ngrok-free.app`)
-
-6. **Configure Vercel:**
-   - Go to Vercel project → Settings → Environment Variables
-   - Add `NEXT_PUBLIC_API_BASE_URL=https://your-ngrok-url.ngrok-free.app/api`
-   - Redeploy your Vercel app
-
-See [docs/NGROK_QUICK_START.md](./docs/NGROK_QUICK_START.md) for detailed instructions.
-
-## Install & database setup
-
-```powershell
-cd backend
+```bash
+# 1. Install dependencies
 npm install
-npx prisma migrate dev --name init
+
+# 2. Setup environment variables
+npm run setup:env
+
+# 3. Run database migrations
+npx prisma migrate deploy
 npx prisma generate
-```
 
-Open Prisma Studio (optional):
+# 4. Create admin user
+npm run setup:admin
 
-```powershell
-npx prisma studio
-```
-
-## Run the API in development
-
-```powershell
+# 5. Start development server
 npm run dev
 ```
 
-By default the server listens on http://localhost:4000. Health check: `GET /api/healthz`.
+The server will start on `http://localhost:4000`
 
-## API overview
+## 📁 Project Structure
 
-### Auth
-- **POST** `/api/auth/login` — Email/password login, returns `{ accessToken }` and sets `refreshToken` cookie
-- **POST** `/api/auth/google/callback/` — Google OAuth callback payload (expects profile), returns `{ accessToken }` and sets cookie
-- **GET** `/api/me` — Returns current user profile, requires `Authorization: Bearer <token>`
-
-### Exams (Admin - Staff Only)
-
-#### Create Exam
-- **POST** `/api/admin/exams` — Create a new exam
-  - Protected by `verifyAccess` and `requireRole('STAFF')`
-  - Body validated by `createExamSchema`:
-    - `title` (string, min 3 characters)
-    - `description?` (optional string)
-    - `startAt`, `endAt` (ISO-8601 datetime strings)
-    - `durationMins` (integer >= 1)
-    - `timingMode` (`OVERALL_ONLY | PER_SECTION_ONLY | BOTH`)
-    - `sectionLockPolicy` (`NONE | LOCK_ON_COMPLETE | LINEAR_NO_BACKTRACK`)
-    - `randomizeQuestions?` (optional boolean)
-    - `negativeMarkPerWrong?` (optional number)
-  - Returns created exam with status `DRAFT`
-
-#### Assign Exam
-- **POST** `/api/admin/exams/:examId/assign` — Assign exam to students or cohorts
-  - Protected by `verifyAccess` and `requireRole('STAFF')`
-  - Body validated by `assignExamSchema`:
-    - `cohortYear?` (integer 1-6)
-    - `cohortDepartment?` (string, max 50)
-    - `cohortSection?` (string, max 10)
-    - `studentIds?` (array of CUIDs, max 1000)
-  - Must provide either cohort details OR student IDs (not both)
-  - Returns exam assignment record
-
-#### Publish Exam
-- **POST** `/api/admin/exams/:examId/publish` — Publish a draft exam
-  - Protected by `verifyAccess` and `requireRole('STAFF')`
-  - Only DRAFT exams can be published
-  - Updates exam status to `PUBLISHED`
-  - Returns updated exam
-
-#### List Exams
-- **GET** `/api/admin/exams` — Get paginated list of exams with filtering
-  - Protected by `verifyAccess` and `requireRole('STAFF')`
-  - Query parameters validated by `listExamsSchema`:
-    - `page?` (integer >= 1, default: 1)
-    - `pageSize?` (integer 1-100, default: 10)
-    - `status?` (enum: `DRAFT | PUBLISHED | ONGOING | COMPLETED`)
-    - `q?` (search query - searches in title and description)
-  - Returns:
-    ```json
-    {
-      "data": [...exams],
-      "meta": {
-        "page": 1,
-        "pageSize": 10,
-        "totalCount": 50,
-        "totalPages": 5
-      }
-    }
-    ```
-
-### Questions (Admin - Staff Only)
-- **POST** `/api/admin/exams/:examId/questions` — Bulk add questions to exam
-  - Protected by `verifyAccess` and `requireRole('STAFF')`
-  - Body validated by `bulkQuestionsSchema`
-
-## Middleware
-
-- **`validate(schema)`** — Parses and validates `{ body, query, params }` with Zod schemas
-  - On success: assigns validated data back to request object with defaults applied
-  - On validation failure: responds with 400 and structured error issues
-  - On unexpected errors: responds with 500 and error details
-  - Handles null-prototype objects (Express query params) properly
-  
-- **`verifyAccess`** — JWT authentication middleware
-  - Validates JWT from `Authorization: Bearer <token>` header
-  - Attaches decoded `{ sub, role }` to `req.user`
-  - Returns 401 if token is missing or invalid
-  
-- **`requireRole(role)`** — Role-based authorization middleware
-  - Requires specific role (e.g., `STAFF`, `ADMIN`)
-  - Must be used after `verifyAccess`
-  - Returns 403 if user doesn't have required role
-  
-- **`errorHandler`** — Centralized error handling middleware
-  - Provides consistent JSON error responses
-  - Handles both custom errors and unexpected exceptions
-
-## Current Implementation Status
-
-### ✅ Completed Features
-
-#### Authentication & Authorization
-- [x] User registration and login with email/password
-- [x] JWT-based authentication (access token + refresh token)
-- [x] Google OAuth integration
-- [x] Role-based access control (STUDENT, STAFF, ADMIN)
-- [x] Protected routes with middleware
-
-#### Exam Management (Staff)
-- [x] Create exams with full configuration
-- [x] Assign exams to students (by cohort or individual IDs)
-- [x] Publish draft exams
-- [x] List exams with pagination and filtering
-- [x] Search exams by title/description
-- [x] Filter exams by status
-
-#### Question Management (Staff)
-- [x] Bulk add questions to exams
-- [x] Support for multiple question types
-- [x] Question validation with Zod
-
-#### Database & Validation
-- [x] Prisma ORM with PostgreSQL
-- [x] Type-safe database operations
-- [x] Zod schema validation for all endpoints
-- [x] Proper handling of JSON columns
-- [x] Database migrations setup
-
-### 🚧 In Progress / Planned
-
-- [ ] Student exam taking functionality
-- [ ] Real-time exam timer
-- [ ] Automatic exam submission
-- [ ] Answer submission and validation
-- [ ] Exam results and analytics
-- [ ] Question randomization implementation
-- [ ] Section-based exam navigation
-- [ ] Image upload for questions
-- [ ] Exam preview for staff
-- [ ] Draft saving for students
-
-## Coding standards
-
-- **Module Structure**: Each module follows a consistent pattern:
-  - `*.controller.ts` — Request handlers
-  - `*.service.ts` — Business logic
-  - `*.repo.ts` — Database operations
-  - `*.routes.ts` — Route definitions
-  - `*.zod.ts` — Zod validation schemas
-
-- **Validation**: Zod schemas are defined per module and validate request body, query, and params
-- **Error Handling**: Use structured error objects with `{ status, message }` for custom errors
-- **Database Operations**: 
-  - Use Prisma for all database operations
-  - Use `Prisma.JsonNull` for SQL NULL in JSON columns
-  - Always handle potential null returns from database queries
-- **Type Safety**: Leverage TypeScript strict mode and Zod inference for type safety
-- **Authentication**: All admin endpoints require `verifyAccess` and `requireRole('STAFF')`
-- **Logging**: Minimal logging in production; use `console.error` for error reporting only
-
-## Common Prisma commands
-
-```powershell
-# Create and apply a new migration
-npx prisma migrate dev --name <name>
-
-# Regenerate client
-npx prisma generate
-
-# Open Prisma Studio
-npx prisma studio
+```
+backend/
+├── src/
+│   ├── config/              # Configuration files
+│   │   ├── cors.ts          # CORS configuration
+│   │   └── env.ts           # Environment variables
+│   ├── middleware/          # Express middleware
+│   │   ├── auth.ts          # Authentication & authorization
+│   │   ├── error.ts         # Error handling
+│   │   └── validate.ts      # Request validation
+│   ├── modules/             # Feature modules (MVC pattern)
+│   │   ├── auth/            # Authentication module
+│   │   ├── exams/           # Exam management
+│   │   ├── questions/       # Question management
+│   │   ├── attempts/        # Exam attempts
+│   │   ├── grading/         # Code execution & grading
+│   │   ├── evaluations/     # Manual evaluations
+│   │   ├── rubrics/         # Grading rubrics
+│   │   ├── sections/        # Exam sections
+│   │   ├── assets/          # Media assets
+│   │   └── ai/              # AI question generation
+│   ├── lib/                 # Shared utilities
+│   │   ├── prisma.ts        # Prisma client
+│   │   ├── cookie-utils.ts  # Cookie utilities
+│   │   ├── judge0.ts        # Judge0 integration
+│   │   ├── local-executor.ts # Local code execution
+│   │   ├── execution-queue.ts # Code execution queue
+│   │   ├── gemini.ts        # Google Gemini AI
+│   │   └── db-health.ts     # Database health check
+│   ├── types/               # TypeScript type definitions
+│   ├── app.ts               # Express app setup
+│   └── index.ts             # Server entry point
+├── prisma/
+│   ├── schema.prisma        # Database schema
+│   └── migrations/          # Database migrations
+├── scripts/                 # Utility scripts
+│   ├── setup-env.js         # Environment setup
+│   ├── create-admin-user.js # Create admin user
+│   ├── setup-admin-auto.js  # Auto-setup admin
+│   ├── test-db-connection.ts # Test database
+│   └── check-rls-status.ts  # Check RLS status
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-## Troubleshooting
+## 🔧 Environment Variables
 
-- If Zod methods like `string().datetime()` or `nativeEnum()` are struck-out, ensure `zod` is up to date (`npm i zod@latest`).
-- Type errors assigning `null` to JSON columns: use `Prisma.JsonNull` instead of `null`.
+Create a `.env` file in the `backend/` directory:
 
-## License
+### Option 1: Local PostgreSQL (Recommended for Development)
 
-ISC (see repository root).
+```env
+# Server Configuration
+PORT=4000
+NODE_ENV=development
+
+# Database Configuration - Local PostgreSQL
+USE_SUPABASE=false
+DATABASE_URL="postgresql://postgres:password@localhost:5432/shadowcoders?schema=public"
+LOCAL_DATABASE_URL="postgresql://postgres:password@localhost:5432/shadowcoders?schema=public"
+
+# Authentication
+JWT_SECRET="your_jwt_secret_here"
+
+# Frontend Configuration
+FRONTEND_ORIGIN=http://localhost:3000
+
+# Google AI (Optional)
+GOOGLE_API_KEY=
+
+# Judge0 Code Execution (Optional)
+JUDGE0_API_URL=https://ce.judge0.com
+CODE_EXECUTION_PROVIDER=judge0
+```
+
+### Option 2: Supabase (Cloud Database)
+
+```env
+# Server Configuration
+PORT=4000
+NODE_ENV=development
+
+# Database Configuration - Supabase
+USE_SUPABASE=true
+DATABASE_URL="postgresql://postgres.xxxxx:password@aws-0-xxxxx.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.xxxxx:password@aws-0-xxxxx.pooler.supabase.com:5432/postgres"
+
+# Authentication
+JWT_SECRET="your_jwt_secret_here"
+
+# Frontend Configuration
+FRONTEND_ORIGIN=http://localhost:3000
+
+# Google AI (Optional)
+GOOGLE_API_KEY=
+
+# Judge0 Code Execution (Optional)
+JUDGE0_API_URL=https://ce.judge0.com
+CODE_EXECUTION_PROVIDER=judge0
+```
+
+### Setup Options
+
+**Interactive Setup:**
+```bash
+npm run setup:env
+```
+
+**Local Database Setup (Recommended for Development):**
+```bash
+npm run setup:local-db
+```
+
+This will:
+1. Check if PostgreSQL is installed
+2. Create the database
+3. Run migrations
+4. Update .env file
+5. Generate Prisma Client
+
+**See [Local Database Setup Guide](./docs/LOCAL_DATABASE_SETUP.md) for detailed instructions.**
+
+## 📚 API Documentation
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/auth/login` | Email/password login | No |
+| POST | `/api/auth/google/callback/` | Google OAuth callback | No |
+| GET | `/api/me` | Get current user | Yes |
+| POST | `/api/auth/refresh` | Refresh access token | Yes |
+| POST | `/api/auth/logout` | Logout | Yes |
+
+### Exam Management (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/admin/exams` | Create exam | Staff |
+| GET | `/api/admin/exams` | List exams (paginated) | Staff |
+| GET | `/api/admin/exams/:examId` | Get exam details | Staff |
+| PUT | `/api/admin/exams/:examId` | Update exam | Staff |
+| POST | `/api/admin/exams/:examId/assign` | Assign exam to students | Staff |
+| POST | `/api/admin/exams/:examId/publish` | Publish exam | Staff |
+| GET | `/api/admin/exams/:examId/export` | Export results to Excel | Staff |
+
+### Student Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/student/exams` | List available exams | Student |
+| GET | `/api/student/exams/:examId` | Get exam for taking | Student |
+| POST | `/api/student/exams/:examId/start` | Start exam attempt | Student |
+| GET | `/api/student/attempts/:attemptId` | Get attempt details | Student |
+| POST | `/api/student/attempts/:attemptId/responses` | Submit answer | Student |
+| POST | `/api/student/attempts/:attemptId/submit` | Submit exam | Student |
+| GET | `/api/student/attempts/:attemptId/results` | Get attempt results | Student |
+| GET | `/api/student/attempts/:attemptId/question/:questionId` | Get question | Student |
+
+### Question Management (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/admin/exams/:examId/questions` | Add questions to exam | Staff |
+| GET | `/api/admin/exams/:examId/questions` | List questions for exam | Staff |
+| PUT | `/api/admin/questions/:questionId` | Update question | Staff |
+| DELETE | `/api/admin/questions/:questionId` | Delete question | Staff |
+
+### Section Management (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/admin/exams/:examId/sections` | List sections for exam | Staff |
+| POST | `/api/admin/exams/:examId/sections` | Create section | Staff |
+| PUT | `/api/admin/sections/:sectionId` | Update section | Staff |
+| DELETE | `/api/admin/sections/:sectionId` | Delete section | Staff |
+| POST | `/api/admin/sections/:sectionId/questions` | Add questions to section | Staff |
+| DELETE | `/api/admin/sections/:sectionId/questions/:questionId` | Remove question from section | Staff |
+
+### Code Execution
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/student/attempts/:attemptId/run-code` | Run code (Judge0) | Student |
+| GET | `/api/queue/status` | Get execution queue status | No |
+
+### AI Question Generation (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/admin/exams/:examId/ai/generate-questions` | Generate questions with AI | Staff |
+
+### Asset Management (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/admin/assets` | Upload asset | Staff |
+| GET | `/api/admin/assets` | List assets | Staff |
+| GET | `/api/admin/assets/:assetId` | Get asset | Staff |
+| DELETE | `/api/admin/assets/:assetId` | Delete asset | Staff |
+
+### Evaluation Management (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/admin/evaluations` | List evaluations | Staff |
+| POST | `/api/admin/evaluations` | Create evaluation | Staff |
+| PUT | `/api/admin/evaluations/:evaluationId` | Update evaluation | Staff |
+
+### Rubric Management (Staff Only)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/admin/rubrics` | List rubrics | Staff |
+| POST | `/api/admin/rubrics` | Create rubric | Staff |
+| PUT | `/api/admin/rubrics/:rubricId` | Update rubric | Staff |
+| DELETE | `/api/admin/rubrics/:rubricId` | Delete rubric | Staff |
+
+### Health & Testing
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/healthz` | Health check | No |
+| GET | `/api/test-cors` | CORS test | No |
+
+## 🛠️ Available Scripts
+
+```bash
+# Development
+npm run dev              # Start development server with hot reload
+npm run build            # Build for production
+npm run start            # Start production server
+
+# Database
+npm run prisma:generate  # Generate Prisma client
+npm run prisma:migrate   # Run database migrations
+npm run prisma:studio    # Open Prisma Studio (database GUI)
+
+# Utilities
+npm run setup:env        # Interactive environment setup
+npm run setup:local-db   # Setup local PostgreSQL database
+npm run create:admin     # Create admin user
+npm run setup:admin      # Auto-setup admin (with error handling)
+npm run test:db          # Test database connection
+npm run check:rls        # Check Row Level Security (RLS) status (Supabase only)
+```
+
+## 🏗️ Architecture
+
+### Module Structure
+
+Each feature module follows a consistent MVC-like pattern:
+
+```
+module/
+├── *.controller.ts    # Request handlers (route handlers)
+├── *.service.ts       # Business logic
+├── *.repo.ts          # Database operations (Prisma)
+├── *.routes.ts        # Route definitions
+└── *.zod.ts           # Validation schemas (Zod)
+```
+
+### Middleware Stack
+
+1. **Helmet** - Security headers
+2. **CORS** - Cross-origin resource sharing (custom implementation)
+3. **Cookie Parser** - Parse cookies
+4. **JSON Parser** - Parse JSON bodies
+5. **Authentication** - JWT token verification
+6. **Authorization** - Role-based access control
+7. **Validation** - Request validation with Zod
+8. **Error Handler** - Centralized error handling
+
+### Authentication Flow
+
+1. **Login**: User provides email/password → Server returns access token + refresh token (HTTP-only cookie)
+2. **Protected Routes**: Client sends access token in `Authorization: Bearer <token>` header
+3. **Token Refresh**: Client calls `/api/auth/refresh` → Server returns new access token
+4. **Logout**: Client calls `/api/auth/logout` → Server clears refresh token cookie
+
+### Database Schema
+
+- **Users**: Students and staff
+- **Exams**: Exam definitions
+- **Sections**: Exam sections
+- **Questions**: Questions (MCQ, Coding, Essay, etc.)
+- **Attempts**: Student exam attempts
+- **Responses**: Student answers
+- **Evaluations**: Manual evaluations
+- **Rubrics**: Grading rubrics
+- **Assets**: Media assets (images, audio, video)
+
+### Question Types
+
+- **MCQ**: Multiple choice questions
+- **CODING**: Coding questions with test cases
+- **ESSAY**: Essay questions with word limit
+- **SPEAKING**: Speaking questions (future)
+- **LISTENING**: Listening questions (future)
+- **FILL**: Fill in the blank (future)
+- **READING**: Reading comprehension (future)
+
+### Code Execution
+
+- **Judge0**: External API for code execution (default)
+- **Local**: Local code execution (for development)
+- **Queue System**: Manages concurrent code executions
+- **Supported Languages**: JavaScript, Python, Java, C++, etc.
+
+## 🔒 Security
+
+- **Helmet.js** - Security headers
+- **CORS** - Configured for credentials
+- **JWT** - Token-based authentication
+- **HTTP-only Cookies** - Refresh tokens stored securely
+- **Role-based Authorization** - STUDENT, STAFF roles
+- **Input Validation** - Zod schemas for all inputs
+- **SQL Injection Protection** - Prisma ORM
+- **Password Hashing** - bcrypt with salt rounds
+- **Row Level Security (RLS)** - Database-level security (Supabase)
+
+## 📝 Code Standards
+
+- **TypeScript** - Strict mode enabled
+- **Zod** - Runtime validation
+- **Prisma** - Type-safe database access
+- **Error Handling** - Centralized error handler
+- **Modular Architecture** - Feature-based modules
+- **Consistent Naming** - camelCase for variables, PascalCase for types
+- **Code Organization** - Clear separation of concerns
+
+## 🧪 Testing
+
+### Health Check
+
+```bash
+curl http://localhost:4000/api/healthz
+```
+
+### CORS Test
+
+```bash
+curl -H "Origin: http://localhost:3000" \
+     http://localhost:4000/api/test-cors
+```
+
+### Database Connection Test
+
+```bash
+npm run test:db
+```
+
+### RLS Status Check
+
+```bash
+npm run check:rls
+```
+
+## 🐛 Troubleshooting
+
+### Database Connection Issues
+
+```bash
+# Test connection
+npm run test:db
+
+# Check RLS status (Supabase only)
+npm run check:rls
+
+# Verify DATABASE_URL in .env
+# For Supabase: Make sure project is active (not paused)
+# For Local: Make sure PostgreSQL is running
+```
+
+### Local Database Setup
+
+If your network blocks Supabase, use local PostgreSQL:
+
+```bash
+# Setup local database
+npm run setup:local-db
+
+# This will:
+# 1. Create database
+# 2. Run migrations
+# 3. Update .env file
+# 4. Generate Prisma Client
+```
+
+**See [Local Database Setup Guide](./docs/LOCAL_DATABASE_SETUP.md) for detailed instructions.**
+
+### CORS Errors
+
+- Ensure `FRONTEND_ORIGIN` is set correctly in `.env`
+- Restart backend after changing CORS settings
+- Test in Postman first to isolate the issue
+- Check browser console for CORS errors
+
+### Port Already in Use
+
+```bash
+# Change PORT in .env file
+PORT=4001
+
+# Or kill the process using the port
+# Windows: netstat -ano | findstr :4000
+# Linux/Mac: lsof -i :4000
+```
+
+### JWT Token Issues
+
+- Ensure `JWT_SECRET` is set in `.env`
+- Generate a new secret: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+- Clear browser cookies and login again
+
+### Prisma Issues
+
+```bash
+# Regenerate Prisma client
+npm run prisma:generate
+
+# Reset database (WARNING: Deletes all data)
+npx prisma migrate reset
+
+# Check migration status
+npx prisma migrate status
+```
+
+## 📄 License
+
+ISC

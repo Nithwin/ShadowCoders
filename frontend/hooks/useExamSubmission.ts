@@ -42,6 +42,13 @@ export function useExamSubmission(
       return;
     }
     
+    // Check if attempt is still in progress before submitting
+    if (attempt.status !== 'IN_PROGRESS') {
+      console.error('Cannot submit: Attempt is not in progress', { status: attempt.status });
+      setError(`Cannot submit exam: Attempt has already been ${attempt.status.toLowerCase()}.`);
+      return;
+    }
+    
     if (isSubmitting) {
       console.log('Already submitting, ignoring request');
       return;
@@ -106,9 +113,29 @@ export function useExamSubmission(
       
       router.push('/student/dashboard?submitted=true');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      const error = err as { response?: { data?: { error?: { message?: string } }; status?: number } };
       console.error('Error submitting exam:', err);
-      setError(error.response?.data?.error?.message || 'Failed to submit exam. Please try again.');
+      
+      // Handle 403 errors specifically
+      if (error.response?.status === 403) {
+        const errorMessage = error.response?.data?.error?.message || 'Forbidden: Cannot submit exam';
+        setError(errorMessage);
+        // If attempt was already submitted, redirect to dashboard
+        if (errorMessage.toLowerCase().includes('already been submitted') || 
+            errorMessage.toLowerCase().includes('already been')) {
+          console.log('Attempt already submitted, redirecting...');
+          clearLocalStorage();
+          if (isFullscreenStateRef.current && exitFullscreenFnRef.current) {
+            await exitFullscreenFnRef.current();
+          }
+          setTimeout(() => {
+            router.push('/student/dashboard?submitted=true');
+          }, 2000);
+          return;
+        }
+      } else {
+        setError(error.response?.data?.error?.message || 'Failed to submit exam. Please try again.');
+      }
       setIsSubmitting(false);
     }
   }, [attempt, answers, questions, attemptId, clearLocalStorage, router, isSubmitting, confirmSubmit]);

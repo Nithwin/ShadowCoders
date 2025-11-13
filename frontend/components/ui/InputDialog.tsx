@@ -104,7 +104,7 @@ export default function InputDialog({
                     />
                     {requiredValue && (
                       <p className="mt-2 text-xs text-primary/60">
-                        Type <strong>"{requiredValue}"</strong> to confirm
+                        Type <strong>&quot;{requiredValue}&quot;</strong> to confirm
                       </p>
                     )}
                   </div>

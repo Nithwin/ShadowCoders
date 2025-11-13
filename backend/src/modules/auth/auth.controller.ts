@@ -1,18 +1,30 @@
 import { RequestHandler } from "express";
-import * as authService from './auth.service';  
+import * as authService from './auth.service';
+import { getCookieOptions } from '../../lib/cookie-utils';
 
 export const googleOAuthHandler: RequestHandler = async (req, res, next) => {
     try{
         const userProfile = req.body;
         const {accessToken, refreshToken} = await authService.handleGoogleLogin(userProfile);
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+        const cookieOptions = getCookieOptions(req);
+        
+        // Debug: Log cookie options (only in development)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[AUTH] Setting cookie with options:', {
+                httpOnly: cookieOptions.httpOnly,
+                secure: cookieOptions.secure,
+                sameSite: cookieOptions.sameSite,
+                path: cookieOptions.path,
+                maxAge: '7 days',
+                origin: req.headers.origin,
+            });
+        }
+        
+        res.cookie('refreshToken', refreshToken, {
+            ...cookieOptions,
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
         res.json({accessToken});
     } catch(error){
@@ -24,13 +36,25 @@ export const emailLoginHandler: RequestHandler = async (req, res, next) => {
     try{
         const {accessToken, refreshToken} = await authService.handleEmailLogin(req.body);
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+        const cookieOptions = getCookieOptions(req);
+        
+        // Debug: Log cookie options (only in development)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[AUTH] Setting cookie with options:', {
+                httpOnly: cookieOptions.httpOnly,
+                secure: cookieOptions.secure,
+                sameSite: cookieOptions.sameSite,
+                path: cookieOptions.path,
+                maxAge: '7 days',
+                origin: req.headers.origin,
+                host: req.get('host'),
+            });
+        }
+        
+        res.cookie('refreshToken', refreshToken, {
+            ...cookieOptions,
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
         res.json({accessToken});
     } catch(error){
@@ -56,6 +80,17 @@ export const refreshAccessTokenHandler: RequestHandler = async (req, res, next) 
   try {
     const refreshToken = req.cookies.refreshToken;
 
+    // Debug: Log cookie details (only in development)
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('[AUTH] Refresh token request:', {
+            hasRefreshToken: !!refreshToken,
+            refreshTokenLength: refreshToken?.length || 0,
+            origin: req.headers.origin,
+            host: req.get('host'),
+            cookies: Object.keys(req.cookies),
+        });
+    }
+
     if (!refreshToken) {
       return next({ status: 401, message: 'Refresh token not found' });
     }
@@ -78,12 +113,9 @@ export const logoutHandler: RequestHandler = async (req, res, next) => {
     }
 
     // 2. Clear the httpOnly cookie from the browser
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+    // Use same settings as when setting the cookie
+    const cookieOptions = getCookieOptions(req);
+    res.clearCookie('refreshToken', cookieOptions);
 
     // 3. Send a success response
     res.status(200).json({ message: 'Logged out successfully' });

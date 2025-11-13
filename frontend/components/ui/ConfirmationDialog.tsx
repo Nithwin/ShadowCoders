@@ -5,6 +5,12 @@ import { AlertTriangle, X } from 'lucide-react';
 import { Button } from './Button';
 import * as React from 'react';
 
+// Type for document with fullscreen API extensions
+interface DocumentWithFullscreen extends Document {
+  webkitFullscreenElement?: Element | null;
+  msFullscreenElement?: Element | null;
+}
+
 interface ConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,9 +36,63 @@ export default function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   const contentRef = React.useRef<HTMLDivElement>(null);
   const [isMounted, setIsMounted] = React.useState(false);
+  const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
+
+  React.useEffect(() => {
+    // Get the fullscreen element if in fullscreen, otherwise use document.body
+    const getPortalContainer = () => {
+      if (typeof window === 'undefined') return null;
+      
+      // Check if we're in fullscreen mode
+      const doc = document as DocumentWithFullscreen;
+      const fullscreenElement = 
+        document.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.msFullscreenElement;
+      
+      // If in fullscreen, use the fullscreen element as container
+      // Otherwise use document.body
+      return fullscreenElement ? (fullscreenElement as HTMLElement) : document.body;
+    };
+
+    setPortalContainer(getPortalContainer());
+
+    // Listen for fullscreen changes to update container
+    const handleFullscreenChange = () => {
+      setPortalContainer(getPortalContainer());
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (open) {
+      // Update portal container when dialog opens (in case fullscreen state changed)
+      const getPortalContainer = () => {
+        if (typeof window === 'undefined') return null;
+        
+        const doc = document as DocumentWithFullscreen;
+        const fullscreenElement = 
+          document.fullscreenElement ||
+          doc.webkitFullscreenElement ||
+          doc.msFullscreenElement;
+        
+        return fullscreenElement ? (fullscreenElement as HTMLElement) : document.body;
+      };
+      
+      const container = getPortalContainer();
+      if (container) {
+        setPortalContainer(container);
+      }
+      
       // Small delay to ensure dialog is fully mounted before allowing interactions
       const timer = setTimeout(() => {
         setIsMounted(true);
@@ -78,13 +138,36 @@ export default function ConfirmationDialog({
 
   console.log('ConfirmationDialog render - open:', open, 'title:', title);
 
+  if (!portalContainer) {
+    return null;
+  }
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange} modal={true}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+      <Dialog.Portal container={portalContainer}>
+        <Dialog.Overlay 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+          style={{ 
+            zIndex: 999999, 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            width: '100%',
+            height: '100%'
+          }}
+        />
         <Dialog.Content
           ref={contentRef}
-          className="fixed left-[50%] top-[50%] z-[10000] w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-0 border border-primary/20 bg-secondary shadow-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg overflow-hidden"
+          className="fixed left-[50%] top-[50%] w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-0 border border-primary/20 bg-white shadow-xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg overflow-hidden"
+          style={{ 
+            zIndex: 1000000, 
+            backgroundColor: '#ffffff',
+            position: 'fixed',
+            maxWidth: '28rem',
+            width: '90%'
+          }}
           onPointerDownOutside={(e) => {
             // Prevent closing on outside click for confirmation dialogs
             // User must explicitly click Cancel or Confirm
@@ -106,7 +189,7 @@ export default function ConfirmationDialog({
             }
             e.preventDefault();
           }}
-          onEscapeKeyDown={(e) => {
+          onEscapeKeyDown={() => {
             // Allow ESC to close - will trigger onOpenChange(false)
             // Don't prevent default, let it close
             console.log('onEscapeKeyDown - allowing close');

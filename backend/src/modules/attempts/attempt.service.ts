@@ -573,6 +573,12 @@ export const listAttemptsForExam = async (
   };
 };
 
+export const getStudentAttempts = async (studentId: string) => {
+  // Get all submitted attempts for this student
+  const attempts = await attemptRepo.getStudentAttempts(studentId);
+  return attempts;
+};
+
 export const getAttemptForAdmin = async (attemptId: string) => {
   // 1. Fetch all attempt data from the repository
   const attempt = await attemptRepo.getFullAttemptForAdmin(attemptId);

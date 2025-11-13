@@ -60,13 +60,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Login function
   const login = async (email: string, pass: string) => {
-    const { data } = await api.post('/auth/login', { email, password: pass });
-    
-    setAccessToken(data.accessToken);
-    setAuthToken(data.accessToken);
-    
-    const { data: userData } = await api.get('/me');
-    setUser(userData);
+    try {
+      // Step 1: Login and get access token
+      const { data } = await api.post('/auth/login', { email, password: pass });
+      
+      if (!data || !data.accessToken) {
+        throw new Error('No access token received from server');
+      }
+      
+      // Step 2: Set access token for future requests
+      setAccessToken(data.accessToken);
+      setAuthToken(data.accessToken);
+      
+      // Step 3: Get user profile
+      const { data: userData } = await api.get('/me');
+      setUser(userData);
+    } catch (error: any) {
+      // Log error for debugging
+      console.error('Login error:', error);
+      
+      // Re-throw error so the login page can handle it
+      throw error;
+    }
   };
 
   // Google Login function

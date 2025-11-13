@@ -347,11 +347,44 @@ export default function ExamAttemptPage() {
           essayQuestions={essayQuestions}
           onEssayQuestionClick={(index) => setCurrentQuestionIndex(index)}
           essayAnswers={essayAnswers}
-          sections={attempt?.exam.sections?.map((section) => ({
-            id: section.id,
-            title: section.title,
-            order: section.order,
-          }))}
+          sections={attempt?.exam.sections?.map((section) => {
+            // Get questionIds using the same fallback logic as QuestionNavigation
+            let questionIds: string[] = [];
+            
+            // Method 1: Use sectionQuestions relationship
+            if (section.sectionQuestions && section.sectionQuestions.length > 0) {
+              questionIds = section.sectionQuestions.map((sq) => sq.questionId);
+            } else {
+              // Method 2: Filter by sectionId property
+              const sectionQuestions = questions.filter(q => q.sectionId === section.id);
+              if (sectionQuestions.length > 0) {
+                questionIds = sectionQuestions.map(q => q.id);
+              } else {
+                // Method 3: Filter by question type based on section title
+                const sectionTitle = section.title.toLowerCase();
+                let targetType: QType | null = null;
+                
+                if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
+                  targetType = QType.CODING;
+                } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
+                  targetType = QType.MCQ;
+                } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
+                  targetType = QType.ESSAY;
+                }
+                
+                if (targetType) {
+                  questionIds = questions.filter(q => q.type === targetType).map(q => q.id);
+                }
+              }
+            }
+            
+            return {
+              id: section.id,
+              title: section.title,
+              order: section.order,
+              questionIds,
+            };
+          })}
           currentSectionId={selectedSectionId || currentQuestion?.sectionId}
           onSectionChange={(sectionId) => {
             console.log('Section change clicked:', sectionId);
