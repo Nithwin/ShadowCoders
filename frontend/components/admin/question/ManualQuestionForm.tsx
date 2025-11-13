@@ -5,10 +5,11 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { QType } from '@/types';
-import { Loader2, Save, Plus, Trash2, Info } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Info, Upload, X } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import { AdminAPI } from '@/lib/api-admin';
 
 // Schema for MCQ question
 const mcqQuestionSchema = z.object({
@@ -69,10 +70,60 @@ const essayQuestionSchema = z.object({
   }).pipe(z.number().int().positive().optional()),
 });
 
+// Schema for Listening question
+const listeningQuestionSchema = z.object({
+  type: z.literal(QType.LISTENING),
+  prompt: z.string().min(1, 'Prompt is required'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
+  options: z
+    .array(
+      z.object({
+        id: z.string(),
+        text: z.string().min(1, 'Option text is required'),
+      })
+    )
+    .min(2, 'At least 2 options required')
+    .max(8, 'Maximum 8 options allowed'),
+  correctOptionIds: z.array(z.string()).min(1, 'At least one correct answer required'),
+  mediaAssetId: z.string().min(1, 'Audio file is required'),
+  maxListenCount: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = typeof val === 'string' ? Number(val) : val;
+    return isNaN(num) ? undefined : num;
+  }).pipe(z.number().int().positive().optional()),
+});
+
+// Schema for Speaking question
+const speakingQuestionSchema = z.object({
+  type: z.literal(QType.SPEAKING),
+  prompt: z.string().min(1, 'Prompt is required'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
+  maxDurationSec: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = typeof val === 'string' ? Number(val) : val;
+    return isNaN(num) ? undefined : num;
+  }).pipe(z.number().int().positive().optional()),
+  maxReattempts: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === '' || val === null || val === undefined) return undefined;
+    const num = typeof val === 'string' ? Number(val) : val;
+    return isNaN(num) ? undefined : num;
+  }).pipe(z.number().int().nonnegative().optional()),
+});
+
 const questionFormSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
   codingQuestionSchema,
   essayQuestionSchema,
+  listeningQuestionSchema,
+  speakingQuestionSchema,
 ]);
 
 type QuestionFormInput = z.input<typeof questionFormSchema>;
@@ -94,6 +145,9 @@ export default function ManualQuestionForm({
 }: ManualQuestionFormProps) {
   const [questionType, setQuestionType] = useState<QType>(QType.MCQ);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioAssetId, setAudioAssetId] = useState<string | null>(null);
 
   const {
     register,
@@ -142,8 +196,10 @@ export default function ManualQuestionForm({
 
   const handleTypeChange = (newType: QType) => {
     setQuestionType(newType);
+    setAudioFile(null);
+    setAudioAssetId(null);
     reset({
-      type: newType as QType.MCQ | QType.CODING | QType.ESSAY,
+      type: newType as QType.MCQ | QType.CODING | QType.ESSAY | QType.LISTENING | QType.SPEAKING,
       prompt: '',
       points: 10,
       ...(newType === QType.MCQ && {
@@ -162,7 +218,42 @@ export default function ManualQuestionForm({
       ...(newType === QType.ESSAY && {
         wordLimit: undefined,
       }),
+      ...(newType === QType.LISTENING && {
+        options: [
+          { id: 'opt1', text: '' },
+          { id: 'opt2', text: '' },
+          { id: 'opt3', text: '' },
+          { id: 'opt4', text: '' },
+        ],
+        correctOptionIds: [],
+        mediaAssetId: '',
+        maxListenCount: undefined,
+      }),
+      ...(newType === QType.SPEAKING && {
+        maxDurationSec: undefined,
+        maxReattempts: undefined,
+      }),
     } as QuestionFormInput);
+  };
+
+  const handleAudioUpload = async (file: File) => {
+    setUploadingAudio(true);
+    setApiError(null);
+    try {
+      const formData = new FormData();
+      formData.append('assetFile', file);
+      formData.append('kind', 'AUDIO');
+      
+      const asset = await AdminAPI.uploadAsset(formData);
+      setAudioAssetId(asset.id);
+      setValue('mediaAssetId', asset.id);
+      setAudioFile(file);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      setApiError(error?.response?.data?.message || error?.message || 'Failed to upload audio file');
+    } finally {
+      setUploadingAudio(false);
+    }
   };
 
   const toggleCorrectOption = (optionId: string) => {
@@ -210,6 +301,20 @@ export default function ManualQuestionForm({
         if (validatedData.wordLimit) {
           questionData.wordLimit = validatedData.wordLimit;
         }
+      } else if (validatedData.type === QType.LISTENING) {
+        questionData.options = validatedData.options;
+        questionData.correctOptionIds = validatedData.correctOptionIds || [];
+        questionData.mediaAssetId = validatedData.mediaAssetId;
+        if (validatedData.maxListenCount) {
+          questionData.config = { maxListenCount: validatedData.maxListenCount };
+        }
+      } else if (validatedData.type === QType.SPEAKING) {
+        if (validatedData.maxDurationSec) {
+          questionData.maxDurationSec = validatedData.maxDurationSec;
+        }
+        if (validatedData.maxReattempts !== undefined) {
+          questionData.config = { maxReattempts: validatedData.maxReattempts };
+        }
       }
 
       // Call API to create question
@@ -222,6 +327,8 @@ export default function ManualQuestionForm({
       onOpenChange(false);
       reset();
       setQuestionType(QType.MCQ);
+      setAudioFile(null);
+      setAudioAssetId(null);
     } catch (err: unknown) {
       const error = err as { 
         response?: { 
@@ -256,6 +363,8 @@ export default function ManualQuestionForm({
             <option value={QType.MCQ}>Multiple Choice (MCQ)</option>
             <option value={QType.CODING}>Coding</option>
             <option value={QType.ESSAY}>Essay</option>
+            <option value={QType.LISTENING}>Listening</option>
+            <option value={QType.SPEAKING}>Speaking</option>
           </select>
         </div>
 
@@ -448,6 +557,180 @@ export default function ManualQuestionForm({
               placeholder="e.g. 500"
               className="w-full"
             />
+          </div>
+        )}
+
+        {/* Listening Specific Fields */}
+        {questionType === QType.LISTENING && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Audio File <span className="text-red-500">*</span>
+              </label>
+              {!audioAssetId ? (
+                <div className="border-2 border-dashed border-primary/30 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAudioUpload(file);
+                    }}
+                    className="hidden"
+                    id="audio-upload"
+                    disabled={uploadingAudio}
+                  />
+                  <label
+                    htmlFor="audio-upload"
+                    className={`cursor-pointer flex flex-col items-center gap-2 ${uploadingAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <Upload className="w-8 h-8 text-primary/60" />
+                    <span className="text-sm text-primary/80">
+                      {uploadingAudio ? 'Uploading...' : 'Click to upload audio file'}
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-green-800 font-medium">
+                      {audioFile?.name || 'Audio uploaded'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAudioFile(null);
+                      setAudioAssetId(null);
+                      setValue('mediaAssetId', '');
+                    }}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              <input
+                type="hidden"
+                {...register('mediaAssetId')}
+                value={audioAssetId || ''}
+              />
+              {errors.mediaAssetId && (
+                <p className="mt-1.5 text-sm text-red-500">{errors.mediaAssetId.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Max Listen Count (Optional)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                {...register('maxListenCount')}
+                placeholder="e.g. 3 (leave empty for unlimited)"
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-primary/60">
+                Maximum number of times students can listen to the audio
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-primary">
+                  Options <span className="text-red-500">*</span>
+                </label>
+                {optionFields.length < 8 && (
+                  <Button
+                    type="button"
+                    onClick={() => appendOption({ id: `opt${Date.now()}`, text: '' })}
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Option
+                  </Button>
+                )}
+              </div>
+              {optionFields.map((field, index) => (
+                <div key={field.id} className="flex gap-2 items-start">
+                  <input
+                    type="checkbox"
+                    checked={watchedCorrectOptions?.includes(field.id) || false}
+                    onChange={() => toggleCorrectOption(field.id)}
+                    className="mt-2 h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50"
+                  />
+                  <div className="flex-1">
+                    <Input
+                      {...register(`options.${index}.text` as const)}
+                      placeholder={`Option ${index + 1}`}
+                      className="w-full"
+                    />
+                    <input
+                      type="hidden"
+                      {...register(`options.${index}.id` as const)}
+                      value={field.id}
+                    />
+                  </div>
+                  {optionFields.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (watchedCorrectOptions?.includes(field.id)) {
+                          toggleCorrectOption(field.id);
+                        }
+                        removeOption(index);
+                      }}
+                      className="p-2 text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {'options' in errors && errors.options && (
+                <p className="text-sm text-red-500">{errors.options.message}</p>
+              )}
+              {'correctOptionIds' in errors && errors.correctOptionIds && (
+                <p className="text-sm text-red-500">{errors.correctOptionIds.message}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Speaking Specific Fields */}
+        {questionType === QType.SPEAKING && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Max Recording Duration (seconds) (Optional)
+              </label>
+              <Input
+                type="number"
+                min="1"
+                {...register('maxDurationSec')}
+                placeholder="e.g. 60"
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-primary/60">
+                Maximum duration for student audio recording
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Max Reattempts (Optional)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                {...register('maxReattempts')}
+                placeholder="e.g. 2 (leave empty for unlimited)"
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-primary/60">
+                Maximum number of times students can re-record their answer
+              </p>
+            </div>
           </div>
         )}
 

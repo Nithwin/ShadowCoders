@@ -1,180 +1,247 @@
-'use client'; // This component must be a client component to use hooks
+'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { useDebouncedCallback } from 'use-debounce';
-import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Eye,
+import Link from 'next/link';
+import { 
+  Users, 
+  FileText, 
+  ClipboardCheck, 
+  TrendingUp,
+  BarChart3,
+  PieChart,
+  Activity,
+  Award,
+  Clock
 } from 'lucide-react';
-import { ExamStatus } from '@/types'; // Make sure ExamStatus is in /types
-import { useConfirmationDialog } from '@/context/ConfirmationContext';
-import { useToastNotification } from '@/context/ToastContext';
+import { 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  PieChart as RechartsPieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
+import { Loader2, Plus } from 'lucide-react';
 
-// --- Types ---
 type Exam = {
   id: string;
   title: string;
-  status: ExamStatus;
+  status: string;
   startAt: string;
   updatedAt: string;
+  _count?: {
+    attempts: number;
+    assignments: number;
+  };
 };
 
-type ApiMeta = {
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
+type Attempt = {
+  id: string;
+  exam: {
+    id: string;
+    title: string;
+  };
+  student: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  status: string;
+  score: number | string | null;
+  maxScore: number | string | null;
+  submittedAt: string | null;
 };
 
-type ApiResponse = {
-  data: Exam[];
-  meta: ApiMeta;
-};
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-const STATUS_FILTERS = [
-  'ALL',
-  'DRAFT',
-  'PUBLISHED',
-  'CLOSED',
-] as const;
-
-type StatusFilter = (typeof STATUS_FILTERS)[number];
-
-// --- Component ---
 export default function AdminDashboardPage() {
   useAuth();
-  const { confirm, prompt } = useConfirmationDialog();
-  const toast = useToastNotification();
   const [exams, setExams] = useState<Exam[]>([]);
-  const [meta, setMeta] = useState<ApiMeta | null>(null);
+  const [recentAttempts, setRecentAttempts] = useState<Attempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- State for Filters and Pagination ---
-  const [currentPage, setCurrentPage] = useState(1);
-  const [activeStatus, setActiveStatus] = useState<StatusFilter>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Debounce the search query
-  const debouncedSetSearch = useDebouncedCallback((query: string) => {
-    setSearchQuery(query);
-    setCurrentPage(1); // Reset to page 1 on new search
-  }, 500);
-
-  // Fetch exams whenever filters or page change
   useEffect(() => {
-    fetchExams();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, activeStatus, searchQuery]); // Re-fetch data when these change
-
-  // Refresh exams list when page becomes visible (e.g., when returning from edit page)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchExams();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchDashboardData();
   }, []);
 
-  const fetchExams = async () => {
+  const fetchDashboardData = async () => {
     setIsLoading(true);
     setError(null);
-    const params = new URLSearchParams();
-    params.append('page', String(currentPage));
-    params.append('pageSize', '10');
-    if (activeStatus !== 'ALL') {
-      params.append('status', activeStatus);
-    }
-    if (searchQuery) {
-      params.append('q', searchQuery);
-    }
-
     try {
-      const res = await api.get<ApiResponse>(`/admin/exams?${params.toString()}`);
-      setExams(res.data.data);
-      setMeta(res.data.meta);
-    } catch (err) {
+      // Fetch exams
+      const examsRes = await api.get<{ data: Exam[]; meta: any }>('/admin/exams?pageSize=100');
+      setExams(examsRes.data.data);
+
+      // Fetch recent attempts (we'll get from all exams)
+      const allAttempts: Attempt[] = [];
+      for (const exam of examsRes.data.data.slice(0, 10)) {
+        try {
+          const attemptsRes = await api.get<{ data: Attempt[] }>(`/admin/attempts/exam/${exam.id}?pageSize=5`);
+          allAttempts.push(...attemptsRes.data.data);
+        } catch (err) {
+          // Skip if fails
+        }
+      }
+      // Sort by submittedAt and take most recent
+      allAttempts.sort((a, b) => {
+        const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+        const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      setRecentAttempts(allAttempts.slice(0, 10));
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError('Failed to fetch exams. Please try again.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch dashboard data.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage > 0 && newPage <= (meta?.totalPages || 1)) {
-      setCurrentPage(newPage);
-    }
+  const formatScore = (score: number | string | null): number => {
+    if (score === null || score === undefined) return 0;
+    const num = typeof score === 'string' ? parseFloat(score) : Number(score);
+    return isNaN(num) ? 0 : num;
   };
 
-  const handleDelete = async (examId: string) => {
-    // First, check if exam has attempts
-    try {
-      const examRes = await api.get(`/admin/exams/${examId}`);
-      const exam = examRes.data;
-      const attemptCount = exam._count?.attempts || 0;
-      
-      let confirmed = false;
-      if (attemptCount > 0) {
-        const userInput = await prompt({
-          title: 'Delete Exam',
-          message: `⚠️ WARNING: This exam has ${attemptCount} student attempt(s). Deleting will permanently remove all attempts and results. This action cannot be undone.`,
-          inputLabel: 'Type "DELETE" to confirm',
-          inputPlaceholder: 'DELETE',
-          requiredValue: 'DELETE',
-          confirmText: 'Delete',
-          cancelText: 'Cancel',
-          variant: 'danger',
-        });
-        if (userInput !== 'DELETE') {
-          return; // User cancelled or didn't type DELETE
-        }
-        confirmed = true;
-      } else {
-        confirmed = await confirm({
-          title: 'Delete Exam',
-          message: 'Are you sure you want to delete this exam? This will also delete all associated questions, sections, and assignments.',
-          confirmText: 'Delete',
-          cancelText: 'Cancel',
-          variant: 'danger',
-        });
-      }
-      
-      if (!confirmed) {
-        return;
-      }
-      
-      // Delete with force=true if there are attempts
-      await api.delete(`/admin/exams/${examId}${attemptCount > 0 ? '?force=true' : ''}`);
-      toast.success('Exam deleted successfully!');
-      // Refresh the exams list
-      fetchExams(); 
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      console.error(err);
-      const errorMessage = error?.response?.data?.error?.message || error?.response?.data?.message || 'Failed to delete exam.';
-      toast.error(errorMessage);
-    }
+  const getScorePercentage = (score: number | string | null, maxScore: number | string | null): number => {
+    const scoreNum = formatScore(score);
+    const maxScoreNum = formatScore(maxScore);
+    if (!scoreNum || !maxScoreNum) return 0;
+    return Math.round((scoreNum / maxScoreNum) * 100);
   };
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalExams = exams.length;
+    const publishedExams = exams.filter(e => e.status === 'PUBLISHED').length;
+    const totalSubmissions = exams.reduce((sum, e) => sum + (e._count?.attempts || 0), 0);
+    const totalStudents = new Set(recentAttempts.map(a => a.student.id)).size;
+
+    return {
+      totalExams,
+      publishedExams,
+      totalSubmissions,
+      totalStudents
+    };
+  }, [exams, recentAttempts]);
+
+  // Exam status distribution
+  const examStatusData = useMemo(() => {
+    const statusCounts = {
+      'PUBLISHED': 0,
+      'DRAFT': 0,
+      'CLOSED': 0
+    };
+    
+    exams.forEach(exam => {
+      if (exam.status in statusCounts) {
+        statusCounts[exam.status as keyof typeof statusCounts]++;
+      }
+    });
+    
+    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+  }, [exams]);
+
+  // Submissions over time (by exam)
+  const submissionsByExam = useMemo(() => {
+    return exams
+      .filter(e => e._count && e._count.attempts > 0)
+      .map(exam => ({
+        name: exam.title.length > 15 ? exam.title.substring(0, 15) + '...' : exam.title,
+        submissions: exam._count?.attempts || 0
+      }))
+      .sort((a, b) => b.submissions - a.submissions)
+      .slice(0, 8);
+  }, [exams]);
+
+  // Performance distribution
+  const performanceDistribution = useMemo(() => {
+    const submittedAttempts = recentAttempts.filter(
+      a => a.status === 'SUBMITTED' && a.score !== null && a.maxScore !== null
+    );
+    
+    const distribution = {
+      'Excellent (90-100)': 0,
+      'Good (80-89)': 0,
+      'Average (70-79)': 0,
+      'Below Average (60-69)': 0,
+      'Needs Improvement (<60)': 0
+    };
+    
+    submittedAttempts.forEach(attempt => {
+      const percentage = getScorePercentage(attempt.score, attempt.maxScore);
+      if (percentage >= 90) distribution['Excellent (90-100)']++;
+      else if (percentage >= 80) distribution['Good (80-89)']++;
+      else if (percentage >= 70) distribution['Average (70-79)']++;
+      else if (percentage >= 60) distribution['Below Average (60-69)']++;
+      else distribution['Needs Improvement (<60)']++;
+    });
+    
+    return Object.entries(distribution).map(([name, value]) => ({ name, value }));
+  }, [recentAttempts]);
+
+  // Recent submissions timeline
+  const recentSubmissions = useMemo(() => {
+    return recentAttempts
+      .filter(a => a.submittedAt)
+      .slice(0, 7)
+      .map(attempt => ({
+        name: new Date(attempt.submittedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count: 1
+      }))
+      .reduce((acc, curr) => {
+        const existing = acc.find(item => item.name === curr.name);
+        if (existing) {
+          existing.count += 1;
+        } else {
+          acc.push(curr);
+        }
+        return acc;
+      }, [] as { name: string; count: number }[])
+      .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
+  }, [recentAttempts]);
+
+  if (isLoading) {
+    return (
+      <div className="flex-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-primary/70">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-primary">
+        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="text-primary">
-      {/* 1. Header Row */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-4xl font-bold font-alan-sans">Exam Dashboard</h1>
-        
+        <div>
+          <h1 className="text-4xl font-bold font-alan-sans mb-2">Dashboard</h1>
+          <p className="text-primary/70">Overview of exams and student performance</p>
+        </div>
         <Link
           href="/admin/exams/new"
           className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors"
@@ -184,115 +251,219 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-      {/* 2. Filter & Search Controls */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
-        {/* Filter Tabs */}
-        <div className="flex bg-primary/10 p-1 rounded-lg">
-          {STATUS_FILTERS.map((status) => (
-            <button
-              key={status}
-              onClick={() => {
-                setActiveStatus(status);
-                setCurrentPage(1);
-              }}
-              className={`
-                px-4 py-1.5 rounded-md text-sm font-medium transition-colors
-                ${activeStatus === status
-                  ? 'bg-secondary shadow' // Use bg-secondary for the active tab
-                  : 'text-primary/70 hover:bg-secondary/50 hover:text-primary'}
-              `}
-            >
-              {status}
-            </button>
-          ))}
+      {/* Bento Grid Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        {/* Stat Card 1 - Total Exams */}
+        <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-6 border border-blue-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <FileText className="w-6 h-6 text-blue-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalExams}</h3>
+          <p className="text-sm text-primary/60">Total Exams</p>
         </div>
-        {/* Search Bar */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search by title..."
-            onChange={(e) => debouncedSetSearch(e.target.value)}
-            className="w-full md:w-64 pl-10 pr-4 py-2 rounded-lg bg-primary/10 border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2" />
+
+        {/* Stat Card 2 - Published Exams */}
+        <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 rounded-xl p-6 border border-green-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <Activity className="w-6 h-6 text-green-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.publishedExams}</h3>
+          <p className="text-sm text-primary/60">Published Exams</p>
+        </div>
+
+        {/* Stat Card 3 - Total Submissions */}
+        <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-6 border border-purple-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <ClipboardCheck className="w-6 h-6 text-purple-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalSubmissions}</h3>
+          <p className="text-sm text-primary/60">Total Submissions</p>
+        </div>
+
+        {/* Stat Card 4 - Active Students */}
+        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 rounded-xl p-6 border border-orange-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-orange-500/20 rounded-lg">
+              <Users className="w-6 h-6 text-orange-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalStudents}</h3>
+          <p className="text-sm text-primary/60">Active Students</p>
         </div>
       </div>
 
-      {/* 3. Exams Table */}
-      <div className="bg-secondary rounded-lg shadow-md overflow-hidden">
-        {isLoading && <div className="p-6 text-center text-primary/70">Loading exams...</div>}
-        {error && <div className="p-6 text-center text-red-500">{error}</div>}
-        {!isLoading && !error && exams.length === 0 && (
-          <div className="p-6 text-center text-primary/60">
-            No exams found.
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Exam Status Distribution */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <PieChart className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Exam Status</h2>
           </div>
-        )}
-
-        {!isLoading && !error && exams.length > 0 && (
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-primary/5 border-b border-primary/10">
-              <tr>
-                <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Title</th>
-                <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Status</th>
-                <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Start Date</th>
-                <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-primary/10">
-              {exams.map((exam) => (
-                <tr key={exam.id} className="hover:bg-primary/5">
-                  <td className="p-3 font-medium">{exam.title}</td>
-                  <td className="p-3">
-                    <span className={`
-                      px-2 py-0.5 rounded-full text-xs font-medium
-                      ${exam.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' : ''}
-                      ${exam.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' : ''}
-                      ${exam.status === 'CLOSED' ? 'bg-red-100 text-red-800' : ''}
-                    `}>
-                      {exam.status}
-                    </span>
-                  </td>
-                  <td className="p-3 text-sm text-primary/70">
-                    {new Date(exam.startAt).toLocaleString()}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-2 text-primary/70">
-                      <Link href={`/admin/exams/${exam.id}/submissions`} title="View Submissions" className="p-1.5 hover:text-blue-600"><Eye className="w-4 h-4" /></Link>
-                      <Link href={`/admin/exams/${exam.id}/edit`} title="Edit Exam" className="p-1.5 hover:text-green-600"><Edit className="w-4 h-4" /></Link>
-                      <button onClick={() => handleDelete(exam.id)} title="Delete Exam" className="p-1.5 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+          {examStatusData.some(d => d.value > 0) ? (
+            <div className="w-full">
+              <ResponsiveContainer width="100%" height={280}>
+                <RechartsPieChart>
+                  <Pie
+                    data={examStatusData}
+                    cx="50%"
+                    cy="45%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    paddingAngle={2}
+                  >
+                    {examStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151', 
+                      borderRadius: '8px',
+                      padding: '8px 12px'
+                    }}
+                    labelStyle={{ color: '#f3f4f6', marginBottom: '4px' }}
+                    formatter={(value: number, name: string) => [value, name]}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+              {/* Custom Legend */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 px-2">
+                {examStatusData.map((entry, index) => {
+                  const total = examStatusData.reduce((sum, d) => sum + d.value, 0);
+                  const percentage = total > 0 ? ((entry.value / total) * 100).toFixed(0) : 0;
+                  return (
+                    <div 
+                      key={entry.name} 
+                      className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs sm:text-sm text-primary/80 font-medium truncate">
+                          {entry.name}
+                        </div>
+                        <div className="text-xs text-primary/60">
+                          {entry.value} exam{entry.value !== 1 ? 's' : ''} • {percentage}%
+                        </div>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No exams yet</p>
+            </div>
+          )}
+        </div>
+
+        {/* Submissions Timeline */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Recent Submissions</h2>
+          </div>
+          {recentSubmissions.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={recentSubmissions}>
+                <defs>
+                  <linearGradient id="colorSubmissions" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
+                <YAxis stroke="#9ca3af" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#f3f4f6' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="count" 
+                  stroke="#10b981" 
+                  fillOpacity={1} 
+                  fill="url(#colorSubmissions)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No submissions yet</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 4. Pagination */}
-      {meta && meta.totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4">
-          <span className="text-sm text-primary/70">
-            Showing page {meta.page} of {meta.totalPages} ({meta.totalCount} total exams)
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded-md bg-secondary shadow-sm text-sm disabled:opacity-50 hover:bg-primary/5"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === meta.totalPages}
-              className="px-3 py-1 rounded-md bg-secondary shadow-sm text-sm disabled:opacity-50 hover:bg-primary/5"
-            >
-              Next
-            </button>
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Submissions by Exam */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Submissions by Exam</h2>
           </div>
+          {submissionsByExam.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={submissionsByExam}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} angle={-45} textAnchor="end" height={80} />
+                <YAxis stroke="#9ca3af" fontSize={12} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#f3f4f6' }}
+                />
+                <Bar dataKey="submissions" fill="#10b981" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No submissions yet</p>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Performance Distribution */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <Award className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Performance Distribution</h2>
+          </div>
+          {performanceDistribution.some(d => d.value > 0) ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={performanceDistribution} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <XAxis type="number" stroke="#9ca3af" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="#9ca3af" fontSize={12} width={120} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#f3f4f6' }}
+                />
+                <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No performance data yet</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -185,11 +185,12 @@ export default function ReattemptsPage() {
     }
   };
 
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (student.reg_no && student.reg_no.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredStudents = students.filter(student => {
+    const nameMatch = student.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    const emailMatch = student.email?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    const regNoMatch = student.reg_no?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+    return nameMatch || emailMatch || regNoMatch;
+  });
 
   const selectedExam = exams.find(e => e.id === selectedExamId);
 

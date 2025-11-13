@@ -41,6 +41,32 @@ const essaySchema = z.object({
   wordLimit: z.number().int().positive().optional(),
 });
 
+const listeningSchema = z.object({
+  type: z.literal(QType.LISTENING),
+  prompt: z.string().min(1, 'Listening prompt cannot be empty'),
+  options: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        text: z.string().min(1),
+      })
+    )
+    .min(2, 'Listening must have at least 2 options')
+    .max(8, 'Listening can have at most 8 options'),
+  correctOptionIds: z
+    .array(z.string().min(1))
+    .min(1, 'Listening must have at least 1 correct option'),
+  mediaAssetId: z.string().cuid('Media asset ID must be a valid CUID'),
+  maxListenCount: z.number().int().positive().optional(),
+});
+
+const speakingSchema = z.object({
+  type: z.literal(QType.SPEAKING),
+  prompt: z.string().min(1, 'Speaking prompt cannot be empty'),
+  maxDurationSec: z.number().int().positive().optional(),
+  maxReattempts: z.number().int().nonnegative().optional(),
+});
+
 
 export const addQuestionsSchema = z.object({
   body: z.object({
@@ -50,6 +76,8 @@ export const addQuestionsSchema = z.object({
           mcqSchema,
           codingSchema,
           essaySchema,
+          listeningSchema,
+          speakingSchema,
         ])
         .and(
           z.object({
@@ -117,5 +145,8 @@ export const updateQuestionSchema = z.object({
     // Add other fields (mediaAssetId, passageAssetId, etc.) as optional
     mediaAssetId: z.string().cuid().optional(),
     passageAssetId: z.string().cuid().optional(),
+    maxDurationSec: z.number().int().positive().optional(),
+    // Config field for LISTENING (maxListenCount) and SPEAKING (maxReattempts)
+    config: z.record(z.unknown()).optional(),
   }),
 });

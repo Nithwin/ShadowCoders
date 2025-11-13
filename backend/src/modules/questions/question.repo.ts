@@ -50,9 +50,17 @@ export const getQuestionById = (questionId: string) => {
       languageHints: true,
       wordLimit: true,
       mediaAssetId: true,
+      mediaAsset: {
+        select: {
+          id: true,
+          url: true,
+          kind: true,
+        },
+      },
       passageAssetId: true,
       maxDurationSec: true,
       clozeTemplate: true,
+      config: true,
       
       // Explicitly select fields needed for scrubbing
       testcases: true, 

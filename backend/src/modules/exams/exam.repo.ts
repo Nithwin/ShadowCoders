@@ -166,7 +166,7 @@ export const findExamByIdForStudent = async (params: {
     },
   };
 
-  // Fetch the exam with attempt status
+  // Fetch the exam with attempt status and question types
   const exam = await prisma.exam.findFirst({
     where: whereClause,
     select: {
@@ -190,6 +190,13 @@ export const findExamByIdForStudent = async (params: {
         },
         take: 1,
       },
+      // Include question types to check if exam has speaking questions
+      questions: {
+        select: {
+          type: true,
+        },
+        distinct: ['type'],
+      },
     },
   });
 
@@ -197,14 +204,20 @@ export const findExamByIdForStudent = async (params: {
     return null;
   }
 
-  // Transform to include attempt status
+  // Transform to include attempt status and question types
   const hasCompletedAttempt = exam.attempts && exam.attempts.length > 0;
-  const { attempts, ...examData } = exam;
+  const { attempts, questions, ...examData } = exam;
+  
+  // Extract unique question types
+  const questionTypes = questions ? [...new Set(questions.map(q => q.type))] : [];
+  const hasSpeakingQuestions = questionTypes.includes('SPEAKING');
   
   return {
     ...examData,
     hasAttempt: hasCompletedAttempt,
     attemptId: hasCompletedAttempt ? exam.attempts[0].id : null,
+    questionTypes,
+    hasSpeakingQuestions,
   };
 };
 

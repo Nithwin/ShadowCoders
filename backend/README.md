@@ -108,6 +108,10 @@ GOOGLE_API_KEY=
 # Judge0 Code Execution (Optional)
 JUDGE0_API_URL=https://ce.judge0.com
 CODE_EXECUTION_PROVIDER=judge0
+
+# File Uploads (Optional - defaults to 'uploads' in project root)
+# Used for storing LISTENING audio files and SPEAKING recordings
+# UPLOADS_DIR=/path/to/custom/uploads/directory
 ```
 
 ### Option 2: Supabase (Cloud Database)
@@ -134,6 +138,10 @@ GOOGLE_API_KEY=
 # Judge0 Code Execution (Optional)
 JUDGE0_API_URL=https://ce.judge0.com
 CODE_EXECUTION_PROVIDER=judge0
+
+# File Uploads (Optional - defaults to 'uploads' in project root)
+# Used for storing LISTENING audio files and SPEAKING recordings
+# UPLOADS_DIR=/path/to/custom/uploads/directory
 ```
 
 ### Setup Options

@@ -6,11 +6,8 @@ const nextConfig: NextConfig = {
   // This allows the frontend to be accessed from other devices on the network
   // In production, remove this or configure properly
   
-  // Hide Next.js dev indicator/icon
-  devIndicators: {
-    buildActivity: false,
-    buildActivityPosition: 'bottom-right',
-  },
+  // Hide Next.js dev indicator/icon completely
+  devIndicators: false,
 };
 
 export default nextConfig;

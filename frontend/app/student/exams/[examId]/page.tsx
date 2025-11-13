@@ -19,6 +19,8 @@ type Exam = {
   status: string;
   hasAttempt?: boolean;
   attemptId?: string | null;
+  hasSpeakingQuestions?: boolean;
+  questionTypes?: string[];
 };
 
 export default function ExamDetailPage() {
@@ -60,8 +62,42 @@ export default function ExamDetailPage() {
   }, [examId]);
 
 
+  const requestMicrophoneAccess = async (): Promise<boolean> => {
+    // Check if we're in a browser environment and mediaDevices is available
+    if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast.error('Microphone access is not available in this browser. Please use a modern browser with microphone support.');
+      return false;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop the stream immediately - we just needed permission
+      stream.getTracks().forEach(track => track.stop());
+      return true;
+    } catch (err) {
+      console.error('Error requesting microphone access:', err);
+      const error = err as Error;
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        toast.error('Microphone access denied. Please allow microphone access in your browser settings to continue with speaking questions.');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        toast.error('No microphone found. Please connect a microphone to continue.');
+      } else {
+        toast.error('Failed to access microphone. Please check your browser settings and try again.');
+      }
+      return false;
+    }
+  };
+
   const handleStartExam = async () => {
     if (!examId) return;
+    
+    // Check if exam has speaking questions and request microphone access first
+    if (exam?.hasSpeakingQuestions) {
+      const hasAccess = await requestMicrophoneAccess();
+      if (!hasAccess) {
+        return; // Don't proceed if microphone access was denied
+      }
+    }
     
     const confirmed = await confirm({
       title: 'Start Exam',
@@ -254,6 +290,9 @@ export default function ExamDetailPage() {
             <li>Once you start, the timer will begin and cannot be paused</li>
             <li>Make sure to submit your answers before the time runs out</li>
             <li>You can review and change your answers before final submission</li>
+            {exam.hasSpeakingQuestions && (
+              <li className="text-amber-600 font-medium">This exam contains speaking questions. Microphone access will be requested when you start the exam.</li>
+            )}
           </ul>
         </div>
 

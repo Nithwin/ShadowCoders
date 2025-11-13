@@ -47,6 +47,7 @@ export interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => Promise<void>;
   logout: () => void;
+  updateUser: (updateData: { name?: string | null; reg_no?: string | null; year?: number | null; department?: string | null; section?: string | null; pictureUrl?: string | null }) => Promise<void>;
 }
 
 // You can add other types here as you build pages

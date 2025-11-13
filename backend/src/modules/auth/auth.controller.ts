@@ -123,3 +123,18 @@ export const logoutHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const updateMeHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user?.sub;
+    if (!userId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+
+    const updateData = req.body;
+    const updatedUser = await authService.updateUserProfile(userId, updateData);
+    res.json(updatedUser);
+  } catch (error) {
+    next(error);
+  }
+};

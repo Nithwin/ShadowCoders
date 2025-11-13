@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-
+import path from 'path';
 
 dotenv.config();
 
@@ -20,6 +20,7 @@ export const env = {
     JWT_SECRET: process.env.JWT_SECRET!,
     GOOGLE_API_KEY:process.env.GOOGLE_API_KEY!,
     FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
+    FRONTEND_URL: process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     // Comma-separated list of allowed origins (e.g., "http://localhost:3000,http://localhost:3001")
     ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
     // Allow ALL origins (bypass CORS restrictions) - WARNING: Only use in development!
@@ -33,4 +34,7 @@ export const env = {
     CODE_EXECUTION_PROVIDER: process.env.CODE_EXECUTION_PROVIDER || 'judge0',
     // Maximum concurrent code executions (default: 5, recommended: 5-10 for moderate systems, 10-20 for powerful systems)
     MAX_CONCURRENT_EXECUTIONS: process.env.MAX_CONCURRENT_EXECUTIONS || '5',
+    // File uploads directory (optional - defaults to 'uploads' in project root)
+    // Used for storing LISTENING audio files and SPEAKING recordings
+    UPLOADS_DIR: process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads'),
 }

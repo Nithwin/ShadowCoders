@@ -2,33 +2,88 @@ import { z } from 'zod';
 import { createAssetSchema } from './asset.zod';
 import * as assetRepo from './asset.repo';
 import { Prisma, AssetKind } from '@prisma/client';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Import 'multer' just for its type definitions
 import 'multer'; 
-
-// We can remove 'Express' from this import as it's not directly used
-// (the 'file' parameter type will be read from the global namespace)
 
 // Infer the TypeScript type from the Zod schema's body
 type CreateAssetInput = z.infer<typeof createAssetSchema>['body'];
 
 /**
- * --- MOCK UPLOAD FUNCTION ---
- * (This part is unchanged)
+ * Get the uploads directory path
+ * Creates the directory if it doesn't exist
  */
-const uploadFileToCloudStorage = async (file: Express.Multer.File) => {
-  await new Promise(resolve => setTimeout(resolve, 100)); 
+const getUploadsDirectory = async (): Promise<string> => {
+  // Import env config for type safety
+  const { env } = await import('../../config/env');
+  const uploadsDir = env.UPLOADS_DIR;
   
-  const mockUrl = `/uploads/mock/${file.filename}-${Date.now()}`;
+  // Create directory structure: uploads/{kind}/{year}/{month}
+  const now = new Date();
+  const year = now.getFullYear().toString();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  
+  const fullPath = path.join(uploadsDir, year, month);
+  
+  try {
+    await fs.mkdir(fullPath, { recursive: true });
+  } catch (error) {
+    // Directory might already exist, that's fine
+    console.log(`Uploads directory check: ${fullPath}`);
+  }
+  
+  return fullPath;
+};
+
+/**
+ * Generate a unique filename to prevent collisions
+ */
+const generateUniqueFilename = (originalName: string): string => {
+  const ext = path.extname(originalName);
+  const baseName = path.basename(originalName, ext);
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 9);
+  return `${baseName}-${timestamp}-${random}${ext}`;
+};
+
+/**
+ * Upload file to local filesystem storage
+ * Files are organized by: uploads/{year}/{month}/{unique-filename}
+ */
+const uploadFileToStorage = async (file: Express.Multer.File, kind: AssetKind): Promise<{ url: string; meta: Record<string, unknown> }> => {
+  if (!file.buffer) {
+    throw new Error('File buffer is missing');
+  }
+
+  // Get the uploads directory
+  const uploadsDir = await getUploadsDirectory();
+  
+  // Generate unique filename
+  const uniqueFilename = generateUniqueFilename(file.originalname || 'file');
+  const filePath = path.join(uploadsDir, uniqueFilename);
+  
+  // Write file to disk
+  await fs.writeFile(filePath, file.buffer);
+  
+  // Generate URL path (relative to server root)
+  // This will be served statically or via an API endpoint
+  const now = new Date();
+  const year = now.getFullYear().toString();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const url = `/uploads/${year}/${month}/${uniqueFilename}`;
+  
   const meta = {
     originalName: file.originalname,
     mimeType: file.mimetype,
     sizeInBytes: file.size,
+    storedPath: filePath, // Internal path for reference
+    storedAt: new Date().toISOString(),
   };
   
-  return { url: mockUrl, meta: meta };
+  return { url, meta };
 };
-// --- END OF MOCK UPLOAD FUNCTION ---
 
 
 /**
@@ -44,8 +99,8 @@ export const createAsset = async (
     throw { status: 400, message: 'No file was uploaded' };
   }
 
-  // 2. --- Upload to Cloud Storage (Simulated) ---
-  const { url, meta } = await uploadFileToCloudStorage(file);
+  // 2. --- Upload to Storage (Local filesystem) ---
+  const { url, meta } = await uploadFileToStorage(file, input.kind);
 
   // 3. --- Prepare Data for Database ---
   const dataToSave: Prisma.AssetCreateInput = {

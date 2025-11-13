@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
 import { registerQuestionRoutes } from './modules/questions/question.routes';
@@ -124,6 +125,29 @@ export const createApp = () => {
     // Body parsing middleware
     app.use(express.json());
     app.use(cookieParser());
+
+    // Serve uploaded files statically
+    // Files are stored in: uploads/{year}/{month}/{filename}
+    const uploadsDir = env.UPLOADS_DIR;
+    app.use('/uploads', express.static(uploadsDir, {
+        // Set appropriate headers for audio/video files
+        setHeaders: (res, filePath) => {
+            // Allow CORS for media files
+            const origin = (res.req as any).headers?.origin;
+            if (origin) {
+                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
+                if (allowedOrigin) {
+                    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+                    res.setHeader('Access-Control-Allow-Credentials', 'true');
+                }
+            }
+            
+            // Set cache headers for media files
+            if (filePath.endsWith('.mp3') || filePath.endsWith('.wav') || filePath.endsWith('.webm') || filePath.endsWith('.ogg')) {
+                res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+            }
+        }
+    }));
 
     // Test endpoint for CORS debugging
     app.get('/api/test-cors', (_req, res) => {

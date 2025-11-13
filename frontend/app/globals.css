@@ -5,13 +5,16 @@ body{
     background: #ffffff;
 }
 
-/* Hide Next.js dev indicator */
+/* Hide Next.js dev indicator and build watcher */
 #__next-build-watcher,
 [data-nextjs-toast],
-.nextjs-toast-roots {
+.nextjs-toast-roots,
+[data-nextjs-dialog],
+.nextjs-toast-container {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 @theme {

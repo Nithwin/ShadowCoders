@@ -22,6 +22,7 @@ import { useFullscreenManagement } from '@/hooks/useFullscreenManagement';
 import { useExamSubmission } from '@/hooks/useExamSubmission';
 import { useCheatingPrevention } from '@/hooks/useCheatingPrevention';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { useExamSocket } from '@/hooks/useExamSocket';
 
 export default function ExamAttemptPage() {
   const params = useParams();
@@ -77,6 +78,17 @@ export default function ExamAttemptPage() {
         cancelText: 'Cancel',
         variant: 'warning',
       });
+    },
+    (activity) => {
+      // Emit final submitted status
+      emitActivity({
+        ...activity,
+        answeredCount: questions.length,
+        timeSpent: attempt?.startedAt
+          ? Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000)
+          : 0,
+        currentQuestionIndex: questions.length - 1,
+      });
     }
   );
 
@@ -105,6 +117,40 @@ export default function ExamAttemptPage() {
     fullscreenWarning: cheatingWarning,
     setFullscreenWarning: setCheatingWarning,
   } = useCheatingPrevention(attempt, handleAutoSubmit);
+
+  // Socket.IO activity tracking
+  const { emitActivity } = useExamSocket({
+    examId: attempt?.exam?.id || '',
+    attemptId: attemptId,
+  });
+
+  // Calculate answered count
+  const answeredCount = calculateAnsweredCount(questions, answers);
+
+  // Track activity and emit updates
+  useEffect(() => {
+    if (!attempt || questions.length === 0) return;
+
+    // Calculate time spent (in seconds)
+    const timeSpent = attempt.startedAt
+      ? Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000)
+      : 0;
+
+    // Find current question index in filtered questions
+    const currentQ = questions[currentQuestionIndex];
+    const currentSectionIdToUse = selectedSectionId || currentQ?.sectionId;
+    const currentSectionType = getCurrentSectionType(currentSectionIdToUse, attempt, questions);
+    const filtered = getFilteredQuestions(questions, currentSectionIdToUse, currentSectionType);
+    const currentFilteredIndex = currentQ ? filtered.findIndex(q => q.id === currentQ.id) : 0;
+
+    emitActivity({
+      currentQuestionIndex: currentFilteredIndex >= 0 ? currentFilteredIndex : 0,
+      answeredCount,
+      timeSpent,
+      status: attempt.status === 'IN_PROGRESS' ? 'active' : 'submitted',
+      currentSection: selectedSectionId || undefined,
+    });
+  }, [currentQuestionIndex, answeredCount, selectedSectionId, attempt, questions, emitActivity]);
 
   // Combine errors
   const error = fetchError || submissionError;
@@ -257,9 +303,6 @@ export default function ExamAttemptPage() {
   const handleQuestionClick = (index: number) => {
     setCurrentQuestionIndex(index);
   };
-
-  // Calculate answered count
-  const answeredCount = calculateAnsweredCount(questions, answers);
 
   // Loading state
   if (isLoading) {

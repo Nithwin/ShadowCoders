@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Activity } from 'lucide-react';
 import { ExamStatus } from '@/types';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
@@ -237,6 +237,13 @@ export default function ExamManagementPage() {
                   </td>
                   <td className="p-3">
                     <div className="flex gap-2 text-primary/70">
+                      <Link
+                        href={`/admin/exams/${exam.id}/monitor`}
+                        title="Live Monitor"
+                        className="p-1.5 hover:text-purple-600"
+                      >
+                        <Activity className="w-4 h-4" />
+                      </Link>
                       <Link
                         href={`/admin/exams/${exam.id}/submissions`}
                         title="View Submissions"

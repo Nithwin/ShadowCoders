@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Attempt, Question } from '@/types/exam';
 import { formatAnswerForSubmission } from '@/utils/answerFormatting';
+import { socketService } from '@/lib/socket';
 
 export function useExamSubmission(
   attempt: Attempt | null,
@@ -12,7 +13,8 @@ export function useExamSubmission(
   clearLocalStorage: () => void,
   exitFullscreenRef?: React.MutableRefObject<(() => Promise<void>) | null>,
   isFullscreenRef?: React.MutableRefObject<boolean>,
-  confirmSubmit?: () => Promise<boolean>
+  confirmSubmit?: () => Promise<boolean>,
+  emitActivityUpdate?: (activity: { status: 'submitted' }) => void
 ) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -105,6 +107,25 @@ export function useExamSubmission(
       console.log('All answers saved, submitting exam...');
       await api.post(`/student/attempts/${attemptId}/submit`);
       console.log('Exam submitted successfully');
+      
+      // Emit final activity update with submitted status
+      if (emitActivityUpdate) {
+        emitActivityUpdate({ status: 'submitted' });
+      } else {
+        // Fallback: emit directly via socket service
+        const socket = socketService.getSocket();
+        if (socket?.connected && attempt?.exam?.id) {
+          socket.emit('activity-update', {
+            status: 'submitted',
+            answeredCount: questions.length,
+            timeSpent: attempt.startedAt
+              ? Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000)
+              : 0,
+            currentQuestionIndex: questions.length - 1,
+          });
+        }
+      }
+      
       clearLocalStorage();
       
       if (isFullscreenStateRef.current && exitFullscreenFnRef.current) {

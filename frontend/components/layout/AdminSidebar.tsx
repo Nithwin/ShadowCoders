@@ -67,13 +67,13 @@ export default function AdminSidebar() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
             <Image 
-              src="/images/logo-light.png" 
-              alt="ShadowCoders Logo" 
+              src="/images/codepath.png" 
+              alt="CodePath Logo" 
               width={40} 
               height={40}
               priority
             />
-            <span className="ml-2 text-xl font-bold font-alan-sans">ShadowCoders</span>
+            <span className="ml-2 text-xl font-bold font-alan-sans">CodePath</span>
           </div>
           {/* Mobile-only close button */}
           <button 

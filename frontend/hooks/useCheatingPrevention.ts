@@ -18,7 +18,7 @@ export function useCheatingPrevention(
   }, [onAutoSubmit]);
 
   // Increment warning and auto-submit if needed (defined as ref callback to avoid dependency issues)
-  const incrementWarningRef = useRef<() => void>();
+  const incrementWarningRef = useRef<(() => void) | undefined>(undefined);
   
   useEffect(() => {
     incrementWarningRef.current = () => {
@@ -237,7 +237,9 @@ export function useCheatingPrevention(
     // Disable text selection via CSS
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';
+    // @ts-expect-error - Vendor prefix properties
     document.body.style.mozUserSelect = 'none';
+    // @ts-expect-error - Vendor prefix properties
     document.body.style.msUserSelect = 'none';
 
     // Allow selection in inputs and textareas
@@ -258,7 +260,9 @@ export function useCheatingPrevention(
       document.removeEventListener('dragstart', handleDragStart);
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
+      // @ts-expect-error - Vendor prefix properties
       document.body.style.mozUserSelect = '';
+      // @ts-expect-error - Vendor prefix properties
       document.body.style.msUserSelect = '';
       document.head.removeChild(style);
     };
@@ -322,7 +326,7 @@ export function useCheatingPrevention(
   useEffect(() => {
     if (attempt?.status !== 'IN_PROGRESS') return;
 
-    let devToolsCheckInterval: NodeJS.Timeout;
+    let devToolsCheckInterval: NodeJS.Timeout | null = null;
 
     const checkDevTools = () => {
       const widthThreshold = window.outerWidth - window.innerWidth > 160;
@@ -349,7 +353,10 @@ export function useCheatingPrevention(
     window.addEventListener('resize', handleResize);
 
     return () => {
-      clearInterval(devToolsCheckInterval);
+      if (devToolsCheckInterval) {
+        clearInterval(devToolsCheckInterval);
+        devToolsCheckInterval = null; // Clear ref to prevent memory leak
+      }
       window.removeEventListener('resize', handleResize);
     };
   }, [attempt]);
@@ -390,6 +397,7 @@ export function useCheatingPrevention(
     return () => {
       if (screenCheckIntervalRef.current) {
         clearInterval(screenCheckIntervalRef.current);
+        screenCheckIntervalRef.current = null; // Clear ref to prevent memory leak
       }
     };
   }, [attempt]);

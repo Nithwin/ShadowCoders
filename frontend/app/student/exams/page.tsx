@@ -273,7 +273,7 @@ export default function StudentExamsPage() {
                       {exam.hasAttempt && exam.attemptId && exam.attemptStatus === 'SUBMITTED' && (
                         <>
                           <Link href={`/student/attempts/${exam.attemptId}/results`}>
-                            <Button className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
+                            <Button className="!bg-green-600 !text-white border border-green-700 hover:!bg-green-700">
                               <CheckCircle2 className="w-4 h-4 mr-2" />
                               View Results
                             </Button>

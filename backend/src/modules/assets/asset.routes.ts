@@ -17,6 +17,7 @@ const upload = multer({
 });
 
 export const registerAssetRoutes = (app: Express) => {
+  // Admin asset upload (requires STAFF role)
   app.post(
     '/api/admin/assets',
     verifyAccess,              // 1. Must be logged in
@@ -31,5 +32,20 @@ export const registerAssetRoutes = (app: Express) => {
     
     // 5. Run the controller
     assetController.createAssetHandler 
+  );
+
+  // Student asset upload (for speaking responses - only AUDIO allowed)
+  app.post(
+    '/api/student/assets',
+    verifyAccess,              // 1. Must be logged in (any authenticated user)
+    
+    // 2. Multer middleware runs first to handle the file
+    upload.single('assetFile'), 
+    
+    // 3. Validate the non-file form fields (like 'kind')
+    validate(createAssetSchema), 
+    
+    // 4. Run the controller (same handler, but students can only upload AUDIO)
+    assetController.createStudentAssetHandler 
   );
 };

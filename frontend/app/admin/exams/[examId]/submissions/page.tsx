@@ -164,56 +164,12 @@ export default function ExamSubmissionsPage() {
           />
           <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2" />
         </div>
-        <Button
-          onClick={async () => {
-            if (isExporting) return;
-            setIsExporting(true);
-            try {
-              const response = await api.get(`/admin/exams/${examId}/export`, {
-                responseType: 'blob',
-              });
-              
-              // Check if response is actually a blob
-              if (!response.data || response.data.size === 0) {
-                throw new Error('Empty response from server');
-              }
-              
-              const blob = new Blob([response.data], {
-                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              });
-              const url = window.URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              const safeTitle = (examTitle || examId).replace(/[^a-z0-9]/gi, '_');
-              link.download = `exam_results_${safeTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
-            } catch (err: unknown) {
-              const error = err as { response?: { data?: { message?: string } }; message?: string };
-              console.error('Error downloading Excel:', err);
-              const errorMessage = error.response?.data?.message || error.message || 'Failed to download Excel file';
-              toast.error(`${errorMessage}. Please make sure you are logged in and have the necessary permissions.`);
-            } finally {
-              setIsExporting(false);
-            }
-          }}
-          disabled={isExporting}
-          className="bg-green-600 hover:bg-green-700 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isExporting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Exporting...
-            </>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              Download Excel
-            </>
-          )}
-        </Button>
+        <Link href={`/admin/export?examId=${examId}`}>
+          <Button className="bg-green-600 hover:bg-green-700 text-white border-0">
+            <Download className="w-4 h-4 mr-2" />
+            Custom Export
+          </Button>
+        </Link>
       </div>
 
       {/* Attempts Table */}

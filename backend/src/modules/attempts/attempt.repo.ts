@@ -22,8 +22,9 @@ export const upsertResponse = async (data: {
   questionId: string;
   type: QType;
   answer: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull;
+  audioAssetId?: string;
 }) => {
-  const { attemptId, questionId, type, answer, ...otherData } = data;
+  const { attemptId, questionId, type, answer, audioAssetId, ...otherData } = data;
 
   // Check if response already exists
   const existing = await prisma.response.findFirst({
@@ -33,25 +34,34 @@ export const upsertResponse = async (data: {
     },
   });
 
+  const updateData: Prisma.ResponseUpdateInput = {
+    answer: answer,
+    ...otherData,
+  };
+  if (audioAssetId !== undefined) {
+    updateData.audioAsset = audioAssetId ? { connect: { id: audioAssetId } } : { disconnect: true };
+  }
+
   if (existing) {
     // Update existing response
     return prisma.response.update({
       where: { id: existing.id },
-      data: {
-        answer: answer,
-        ...otherData,
-      },
+      data: updateData,
     });
   } else {
     // Create new response
+    const createData: Prisma.ResponseCreateInput = {
+      attempt: { connect: { id: attemptId } },
+      question: { connect: { id: questionId } },
+      type: type,
+      answer: answer,
+      ...otherData,
+    };
+    if (audioAssetId) {
+      createData.audioAsset = { connect: { id: audioAssetId } };
+    }
     return prisma.response.create({
-      data: {
-        attemptId: attemptId,
-        questionId: questionId,
-        type: type,
-        answer: answer,
-        ...otherData,
-      },
+      data: createData,
     });
   }
 };
@@ -349,6 +359,14 @@ export const getFullAttemptForAdmin = (attemptId: string) => {
           verdict: true,
           earnedPoints: true,
           feedback: true,
+          // Include audioAsset for SPEAKING questions
+          audioAsset: {
+            select: {
+              id: true,
+              url: true,
+              kind: true,
+            },
+          },
           // Get the original question for context
           question: {
             select: {

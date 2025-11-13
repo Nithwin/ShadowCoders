@@ -143,7 +143,22 @@ export const exportExamResultsHandler: RequestHandler = async (req, res, next) =
   try {
     const examId = req.params.examId;
     
-    const workbook = await exportService.exportExamResultsToExcel(examId);
+    // Parse field selection from query parameters
+    const fieldsParam = req.query.fields;
+    const fields: exportService.ExportField[] = fieldsParam 
+      ? (Array.isArray(fieldsParam) ? fieldsParam : fieldsParam.split(',')) as exportService.ExportField[]
+      : undefined;
+    
+    const includeSummary = req.query.includeSummary !== 'false';
+    const includeExamInfo = req.query.includeExamInfo !== 'false';
+    
+    const options: exportService.ExportOptions = {
+      fields,
+      includeSummary,
+      includeExamInfo,
+    };
+    
+    const workbook = await exportService.exportExamResultsToExcel(examId, options);
     
     // Get exam title for filename
     const exam = await examService.getExamById(examId);

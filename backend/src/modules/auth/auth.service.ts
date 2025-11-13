@@ -110,3 +110,36 @@ export const handleLogout = async (rawRefreshToken: string) => {
 
   return true;
 };
+
+export const updateUserProfile = async (userId: string, updateData: {
+  name?: string | null;
+  reg_no?: string | null;
+  year?: number | null;
+  department?: string | null;
+  section?: string | null;
+  pictureUrl?: string | null;
+}) => {
+  // Only allow updating specific fields
+  const dataToUpdate: any = {};
+  
+  if (updateData.name !== undefined) {
+    dataToUpdate.name = updateData.name;
+  }
+  if (updateData.reg_no !== undefined) {
+    dataToUpdate.reg_no = updateData.reg_no;
+  }
+  if (updateData.year !== undefined) {
+    dataToUpdate.year = updateData.year;
+  }
+  if (updateData.department !== undefined) {
+    dataToUpdate.department = updateData.department;
+  }
+  if (updateData.section !== undefined) {
+    dataToUpdate.section = updateData.section;
+  }
+  if (updateData.pictureUrl !== undefined) {
+    dataToUpdate.pictureUrl = updateData.pictureUrl;
+  }
+
+  return authRepo.updateUser(userId, dataToUpdate);
+};

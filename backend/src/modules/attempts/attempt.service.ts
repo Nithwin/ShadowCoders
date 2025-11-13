@@ -75,69 +75,127 @@ export const startAttempt = async (studentId: string, examId: string) => {
     throw { status: 403, message: "You are not assigned to this exam" };
   }
 
-  // Check for multiple attempts
-  const existingAttempts = exam.attempts || [];
-  const submittedAttempts = existingAttempts.filter(a => a.status === AttemptStatus.SUBMITTED);
-  const currentAttemptCount = existingAttempts.length;
-  const submittedAttemptCount = submittedAttempts.length;
-
-  // Check if student has reached max attempts
-  if (exam.maxAttempts !== null && exam.maxAttempts !== undefined) {
-    if (submittedAttemptCount >= exam.maxAttempts) {
-      throw { 
-        status: 403, 
-        message: `You have reached the maximum number of attempts (${exam.maxAttempts}) for this exam.` 
-      };
-    }
-  }
-
-  // Check if there's an in-progress attempt
-  const inProgressAttempt = existingAttempts.find(a => a.status === AttemptStatus.IN_PROGRESS);
-  if (inProgressAttempt) {
-    // Return the existing in-progress attempt
-    return await prisma.attempt.findUnique({
-      where: { id: inProgressAttempt.id },
+  // Use a transaction to prevent race conditions when multiple students start simultaneously
+  // This ensures atomicity and prevents duplicate attempts
+  return await prisma.$transaction(async (tx) => {
+    // Re-fetch attempts within transaction to get latest state
+    const currentAttempts = await tx.attempt.findMany({
+      where: {
+        examId: examId,
+        studentId: studentId,
+      },
       select: {
         id: true,
-        examId: true,
-        studentId: true,
-        startedAt: true,
-        status: true,
-        orderMap: true,
         attemptNo: true,
+        status: true,
+      },
+      orderBy: {
+        attemptNo: 'desc',
       },
     });
-  }
 
-  // Calculate the next attempt number
-  const nextAttemptNo = currentAttemptCount + 1;
+    const submittedAttempts = currentAttempts.filter(a => a.status === AttemptStatus.SUBMITTED);
+    const submittedAttemptCount = submittedAttempts.length;
 
-  let orderMap: Prisma.InputJsonValue | null = null;
-  if (exam.randomizeQuestions && exam.questions.length > 0) {
-    const questionIds = exam.questions.map((q) => q.id);
-    orderMap = shuffleArray(questionIds) as Prisma.InputJsonValue;
-  }
-
-  const attemptData: Prisma.AttemptCreateInput = {
-    status: AttemptStatus.IN_PROGRESS,
-    attemptNo: nextAttemptNo,
-    orderMap: orderMap ?? Prisma.JsonNull,
-    student: { connect: { id: studentId } },
-    exam: { connect: { id: examId } },
-  };
-
-  try {
-    const newAttempt = await attemptRepo.createAttempt(attemptData);
-    return newAttempt;
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      throw { status: 409, message: "Attempt already exists. Please refresh and try again." };
+    // Check if student has reached max attempts
+    if (exam.maxAttempts !== null && exam.maxAttempts !== undefined) {
+      if (submittedAttemptCount >= exam.maxAttempts) {
+        throw { 
+          status: 403, 
+          message: `You have reached the maximum number of attempts (${exam.maxAttempts}) for this exam.` 
+        };
+      }
     }
-    throw error;
-  }
+
+    // Check if there's an in-progress attempt (within transaction)
+    const inProgressAttempt = currentAttempts.find(a => a.status === AttemptStatus.IN_PROGRESS);
+    if (inProgressAttempt) {
+      // Return the existing in-progress attempt
+      return await tx.attempt.findUnique({
+        where: { id: inProgressAttempt.id },
+        select: {
+          id: true,
+          examId: true,
+          studentId: true,
+          startedAt: true,
+          status: true,
+          orderMap: true,
+          attemptNo: true,
+        },
+      });
+    }
+
+    // Calculate the next attempt number
+    const nextAttemptNo = currentAttempts.length + 1;
+
+    let orderMap: Prisma.InputJsonValue | null = null;
+    if (exam.randomizeQuestions && exam.questions.length > 0) {
+      const questionIds = exam.questions.map((q) => q.id);
+      orderMap = shuffleArray(questionIds) as Prisma.InputJsonValue;
+    }
+
+    const attemptData: Prisma.AttemptCreateInput = {
+      status: AttemptStatus.IN_PROGRESS,
+      attemptNo: nextAttemptNo,
+      orderMap: orderMap ?? Prisma.JsonNull,
+      student: { connect: { id: studentId } },
+      exam: { connect: { id: examId } },
+    };
+
+    try {
+      const newAttempt = await tx.attempt.create({
+        data: attemptData,
+        select: {
+          id: true,
+          examId: true,
+          studentId: true,
+          startedAt: true,
+          status: true,
+          orderMap: true,
+          attemptNo: true,
+        },
+      });
+      return newAttempt;
+    } catch (error) {
+      // Handle race condition: if another attempt was created between our check and create
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        // Re-check for in-progress attempt (it might have been created by another request)
+        const latestAttempt = await tx.attempt.findFirst({
+          where: {
+            examId: examId,
+            studentId: studentId,
+            status: AttemptStatus.IN_PROGRESS,
+          },
+          select: {
+            id: true,
+            examId: true,
+            studentId: true,
+            startedAt: true,
+            status: true,
+            orderMap: true,
+            attemptNo: true,
+          },
+          orderBy: {
+            startedAt: 'desc',
+          },
+        });
+        
+        if (latestAttempt) {
+          return latestAttempt;
+        }
+        
+        throw { status: 409, message: "Attempt already exists. Please refresh and try again." };
+      }
+      throw error;
+    }
+  }, {
+    // Increase timeout for transaction (in case of high concurrency)
+    timeout: 10000, // 10 seconds
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable, // Strongest isolation
+  });
 };
 
 type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
@@ -189,11 +247,18 @@ export const submitAnswer = async (
       message: "Forbidden: Question does not belong to this exam",
     };
   }
-  const responseData = {
+  // For SPEAKING questions, extract audioAssetId from answer if present
+  let audioAssetId: string | undefined;
+  if (question.type === QType.SPEAKING && answer && typeof answer === 'object' && 'audioAssetId' in answer) {
+    audioAssetId = answer.audioAssetId as string;
+  }
+
+  const responseData: Parameters<typeof attemptRepo.upsertResponse>[0] = {
     attemptId: attemptId,
     questionId: questionId,
     answer: answer ? (answer as Prisma.InputJsonValue) : Prisma.JsonNull,
     type: question.type,
+    ...(audioAssetId && { audioAssetId }),
   };
   const savedResponse = await attemptRepo.upsertResponse(responseData);
 
@@ -438,9 +503,17 @@ export const getQuestionById = (questionId: string) => {
       languageHints: true,
       wordLimit: true,
       mediaAssetId: true,
+      mediaAsset: {
+        select: {
+          id: true,
+          url: true,
+          kind: true,
+        },
+      },
       passageAssetId: true,
       maxDurationSec: true,
       clozeTemplate: true,
+      config: true,
       
       // Explicitly select fields needed for scrubbing
       testcases: true, 

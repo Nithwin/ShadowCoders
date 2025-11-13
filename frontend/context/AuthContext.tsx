@@ -109,6 +109,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     router.push('/login');
   };
 
+  // Update user profile function
+  const updateUser = async (updateData: { 
+    name?: string | null; 
+    reg_no?: string | null; 
+    year?: number | null; 
+    department?: string | null; 
+    section?: string | null;
+    pictureUrl?: string | null;
+  }) => {
+    try {
+      const { data: updatedUser } = await api.patch('/me', updateData);
+      setUser(updatedUser);
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  };
+
   const value = {
     user,
     accessToken,
@@ -116,6 +134,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     login,
     loginWithGoogle,
     logout,
+    updateUser,
   };
 
   // Don't render the app until we've checked for a session.

@@ -92,6 +92,16 @@ export const findStudentWithCohortInfo = (id: string) => {
     );
 }
 
+export const updateUser = (id: string, data: Prisma.UserUpdateInput) => {
+    return withDatabaseErrorHandling(
+        () => prisma.user.update({
+            where: { id },
+            data,
+        }),
+        'updateUser'
+    );
+}
+
 export const saveRefreshToken = (userId: string, tokenHash: string, expiresAt: Date) => {
   return withDatabaseErrorHandling(
     () => prisma.refreshToken.create({

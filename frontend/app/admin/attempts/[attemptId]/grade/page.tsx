@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock, Play, Pause, Volume2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -37,6 +37,11 @@ type Response = {
   verdict: string | null;
   earnedPoints: number | null;
   feedback: string | null;
+  audioAsset?: {
+    id: string;
+    url: string;
+    kind: string;
+  } | null;
   question: Question;
   evaluations: Array<{
     id: string;
@@ -72,6 +77,122 @@ type Attempt = {
   };
   responses: Response[];
 };
+
+// Audio Player Component for Speaking Responses
+function AudioPlayer({ audioUrl, responseId }: { audioUrl: string; responseId: string }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [duration, setDuration] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api';
+
+  // Construct full audio URL
+  const fullAudioUrl = audioUrl.startsWith('http') 
+    ? audioUrl 
+    : `${apiBaseUrl.replace('/api', '')}${audioUrl}`;
+
+  useEffect(() => {
+    // Create audio element
+    const audio = new Audio(fullAudioUrl);
+    audioRef.current = audio;
+
+    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateDuration = () => setDuration(audio.duration);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    const handleError = () => {
+      setError('Failed to load audio file. Please try again.');
+      setIsLoading(false);
+      setIsPlaying(false);
+    };
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      setDuration(audio.duration);
+    };
+
+    audio.addEventListener('timeupdate', updateTime);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateTime);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.pause();
+      audio.src = '';
+    };
+  }, [fullAudioUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      setIsLoading(true);
+      setError(null);
+      audioRef.current.play().catch((err) => {
+        console.error('Error playing audio:', err);
+        setError('Failed to play audio. Please try again.');
+        setIsLoading(false);
+      });
+      setIsPlaying(true);
+    }
+  };
+
+  const formatTime = (seconds: number): string => {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/20">
+        <button
+          onClick={togglePlay}
+          disabled={isLoading || !!error}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-secondary hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : isPlaying ? (
+            <Pause className="w-5 h-5" />
+          ) : (
+            <Play className="w-5 h-5 ml-0.5" />
+          )}
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <Volume2 className="w-4 h-4 text-primary/60" />
+            <span className="text-sm font-medium text-primary">Student Recording</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-primary/60">
+            <span>{formatTime(currentTime)}</span>
+            <span>/</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      </div>
+      {error && (
+        <p className="text-sm text-red-600 flex items-center gap-1">
+          <AlertCircle className="w-4 h-4" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function AdminGradingPage() {
   const params = useParams();
@@ -109,11 +230,11 @@ export default function AdminGradingPage() {
   }, [attemptId]);
 
   useEffect(() => {
-    // Initialize grading data from existing evaluations (only for Essay questions)
+    // Initialize grading data from existing evaluations (for Essay and Speaking questions)
     if (attempt?.responses) {
       const initialGrading: Record<string, { score: number; feedback: string }> = {};
       attempt.responses
-        .filter((response) => response.question.type === QType.ESSAY)
+        .filter((response) => response.question.type === QType.ESSAY || response.question.type === QType.SPEAKING)
         .forEach((response) => {
           const finalEvaluation = response.evaluations.find((e) => e.isFinal);
           if (finalEvaluation) {
@@ -197,17 +318,19 @@ export default function AdminGradingPage() {
   const handleSaveAllGrades = async () => {
     if (!attempt) return;
 
-    // Filter only Essay questions
-    const essayResponses = attempt.responses.filter((r) => r.question.type === QType.ESSAY);
+    // Filter Essay and Speaking questions
+    const manualGradingResponses = attempt.responses.filter(
+      (r) => r.question.type === QType.ESSAY || r.question.type === QType.SPEAKING
+    );
     
-    if (essayResponses.length === 0) {
-      toast.warning('No essay questions to grade.');
+    if (manualGradingResponses.length === 0) {
+      toast.warning('No questions require manual grading.');
       return;
     }
 
     const confirmed = await confirm({
       title: 'Save All Grades',
-      message: `Are you sure you want to save all grades for ${essayResponses.length} essay question(s)? This will update the final scores.`,
+      message: `Are you sure you want to save all grades for ${manualGradingResponses.length} question(s)? This will update the final scores.`,
       confirmText: 'Save All',
       cancelText: 'Cancel',
       variant: 'warning',
@@ -219,7 +342,7 @@ export default function AdminGradingPage() {
 
     setIsSaving(true);
     try {
-      const savePromises = essayResponses.map((response) => {
+      const savePromises = manualGradingResponses.map((response) => {
         const grade = gradingData[response.id];
         if (!grade) return Promise.resolve();
 
@@ -249,8 +372,8 @@ export default function AdminGradingPage() {
       // Refresh attempt to get updated scores
       await fetchAttempt();
       
-      // Mark all essay responses as saved
-      setSavedResponses(new Set(essayResponses.map((r) => r.id)));
+      // Mark all manual grading responses as saved
+      setSavedResponses(new Set(manualGradingResponses.map((r) => r.id)));
       
       toast.success('All grades saved successfully!');
     } catch (err: unknown) {
@@ -316,8 +439,10 @@ export default function AdminGradingPage() {
   const maxScore = typeof attempt.maxScore === 'string' ? parseFloat(attempt.maxScore) : (attempt.maxScore ?? 0);
   const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
 
-  const essayResponses = attempt.responses.filter((r) => r.question.type === QType.ESSAY);
-  const unsavedCount = essayResponses.filter((r) => !savedResponses.has(r.id)).length;
+  const manualGradingResponses = attempt.responses.filter(
+    (r) => r.question.type === QType.ESSAY || r.question.type === QType.SPEAKING
+  );
+  const unsavedCount = manualGradingResponses.filter((r) => !savedResponses.has(r.id)).length;
 
   return (
     <div className="max-w-7xl mx-auto text-primary">
@@ -410,15 +535,15 @@ export default function AdminGradingPage() {
       </div>
 
       {/* Info about auto-graded questions */}
-      {attempt.responses.filter((r) => r.question.type !== QType.ESSAY).length > 0 && (
+      {attempt.responses.filter((r) => r.question.type !== QType.ESSAY && r.question.type !== QType.SPEAKING).length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-blue-800 mb-1">Auto-Graded Questions</p>
               <p className="text-sm text-blue-700">
-                MCQ and Coding questions are automatically graded. Only Essay questions require manual grading.
-                {attempt.responses.filter((r) => r.question.type === QType.ESSAY).length === 0 && (
+                MCQ and Coding questions are automatically graded. Essay and Speaking questions require manual grading.
+                {manualGradingResponses.length === 0 && (
                   <span className="block mt-1 font-medium">All questions have been auto-graded. No manual grading required.</span>
                 )}
               </p>
@@ -427,7 +552,7 @@ export default function AdminGradingPage() {
         </div>
       )}
 
-      {attempt.responses.filter((r) => r.question.type === QType.ESSAY).length === 0 && (
+      {manualGradingResponses.length === 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
           <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
           <p className="text-lg font-semibold text-green-800 mb-2">All Questions Auto-Graded</p>
@@ -437,10 +562,10 @@ export default function AdminGradingPage() {
         </div>
       )}
 
-      {/* Questions and Answers - Only show Essay questions for manual grading */}
+      {/* Questions and Answers - Show Essay and Speaking questions for manual grading */}
       <div className="space-y-6">
         {attempt.responses
-          .filter((response) => response.question.type === QType.ESSAY)
+          .filter((response) => response.question.type === QType.ESSAY || response.question.type === QType.SPEAKING)
           .map((response, index) => {
             const question = response.question;
             const grade = gradingData[response.id] || { score: 0, feedback: '' };
@@ -545,6 +670,19 @@ export default function AdminGradingPage() {
                       <p className="text-xs text-primary/60 mt-2">
                         Word count: {(response.answer?.textAnswer || response.answer?.text || '').split(/\s+/).filter((w: string) => w.length > 0).length} / {question.wordLimit}
                       </p>
+                    )}
+                  </div>
+                )}
+
+                {question.type === QType.SPEAKING && (
+                  <div>
+                    {response.audioAsset ? (
+                      <AudioPlayer 
+                        audioUrl={response.audioAsset.url}
+                        responseId={response.id}
+                      />
+                    ) : (
+                      <p className="text-sm text-primary/60 italic">No audio recording submitted</p>
                     )}
                   </div>
                 )}

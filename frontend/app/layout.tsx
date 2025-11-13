@@ -36,9 +36,9 @@ const aerospace = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "ShadowCoders",
+  title: "CodePath",
   description: "A Platform which takes your skills to whole another level",
-  icons:'/images/logo-light.png'
+  icons:'/images/codepath.png'
 };
 
 export default function RootLayout({

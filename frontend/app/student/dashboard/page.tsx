@@ -1,362 +1,431 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { useDebouncedCallback } from 'use-debounce';
-import { Search, Clock, Play, CheckCircle2, Calendar } from 'lucide-react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
+import { 
+  TrendingUp, 
+  Award, 
+  Target, 
+  Clock, 
+  BarChart3,
+  PieChart,
+  Activity,
+  FileText
+} from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  PieChart as RechartsPieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
-type Exam = {
+type Attempt = {
   id: string;
-  title: string;
-  description: string | null;
-  startAt: string;
-  endAt: string;
-  durationMins: number;
+  exam: {
+    id: string;
+    title: string;
+  };
   status: string;
-  maxAttempts?: number | null;
-  hasAttempt?: boolean;
-  attemptId?: string | null;
-  attemptStatus?: string | null;
-  attemptCount?: number;
-  latestScore?: number | null;
-  latestMaxScore?: number | null;
+  score: number | string | null;
+  maxScore: number | string | null;
+  startedAt: string;
+  submittedAt: string | null;
 };
 
-type ApiMeta = {
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-};
-
-type ApiResponse = {
-  data: Exam[];
-  meta: ApiMeta;
-};
-
-const FILTERS = [
-  { key: 'UPCOMING', label: 'Upcoming' },
-  { key: 'LIVE', label: 'Live' },
-  { key: 'COMPLETED', label: 'Completed' },
-] as const;
-type Filter = (typeof FILTERS)[number]['key'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function StudentDashboard() {
   useAuth();
-  const [exams, setExams] = useState<Exam[]>([]);
-  const [meta, setMeta] = useState<ApiMeta | null>(null);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [activeFilter, setActiveFilter] = useState<Filter>('LIVE');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const debouncedSetSearch = useDebouncedCallback((query: string) => {
-    setSearchQuery(query);
-    setCurrentPage(1);
-  }, 500);
 
   useEffect(() => {
-    fetchExams();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, activeFilter, searchQuery]);
+    fetchAttempts();
+  }, []);
 
-  const fetchExams = async () => {
+  const fetchAttempts = async () => {
     setIsLoading(true);
     setError(null);
-    const params = new URLSearchParams();
-    params.append('page', String(currentPage));
-    params.append('pageSize', '10');
-    params.append('filter', activeFilter);
-    if (searchQuery) {
-      params.append('q', searchQuery);
-    }
-
     try {
-      const res = await api.get<ApiResponse>(`/student/exams?${params.toString()}`);
-      setExams(res.data.data);
-      setMeta(res.data.meta);
+      const res = await api.get<Attempt[]>('/student/attempts');
+      setAttempts(res.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(error.response?.data?.error?.message || 'Failed to fetch exams. Please try again.');
+      setError(error.response?.data?.error?.message || 'Failed to fetch performance data.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage > 0 && newPage <= (meta?.totalPages || 1)) {
-      setCurrentPage(newPage);
-    }
+  const formatScore = (score: number | string | null): number => {
+    if (score === null || score === undefined) return 0;
+    const num = typeof score === 'string' ? parseFloat(score) : Number(score);
+    return isNaN(num) ? 0 : num;
   };
 
-  const getExamStatus = (exam: Exam): { label: string; color: string; icon: React.ReactNode; canStart: boolean; canRetake: boolean } => {
-    const now = new Date();
-    const start = new Date(exam.startAt);
-    const end = new Date(exam.endAt);
-    const hasSubmittedAttempt = exam.hasAttempt && exam.attemptStatus === 'SUBMITTED';
-    const isWithinTimeWindow = now >= start && now <= end;
-    const maxAttempts = exam.maxAttempts;
-    const attemptCount = exam.attemptCount || 0;
+  const getScorePercentage = (score: number | string | null, maxScore: number | string | null): number => {
+    const scoreNum = formatScore(score);
+    const maxScoreNum = formatScore(maxScore);
+    if (!scoreNum || !maxScoreNum) return 0;
+    return Math.round((scoreNum / maxScoreNum) * 100);
+  };
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const submittedAttempts = attempts.filter(a => a.status === 'SUBMITTED' && a.score !== null && a.maxScore !== null);
+    const totalExams = submittedAttempts.length;
+    const avgScore = submittedAttempts.length > 0
+      ? submittedAttempts.reduce((sum, a) => sum + getScorePercentage(a.score, a.maxScore), 0) / submittedAttempts.length
+      : 0;
+    const highestScore = submittedAttempts.length > 0
+      ? Math.max(...submittedAttempts.map(a => getScorePercentage(a.score, a.maxScore)))
+      : 0;
+    const totalAttempts = attempts.length;
+
+    return {
+      totalExams,
+      avgScore: Math.round(avgScore),
+      highestScore,
+      totalAttempts
+    };
+  }, [attempts]);
+
+  // Prepare score trend data
+  const scoreTrendData = useMemo(() => {
+    const submittedAttempts = attempts
+      .filter(a => a.status === 'SUBMITTED' && a.score !== null && a.maxScore !== null)
+      .sort((a, b) => new Date(a.submittedAt || a.startedAt).getTime() - new Date(b.submittedAt || b.startedAt).getTime());
     
-    // Check if student can retake (if maxAttempts is null/unlimited, or attemptCount < maxAttempts)
-    const canRetake = maxAttempts === null || maxAttempts === undefined || attemptCount < maxAttempts;
+    return submittedAttempts.map((attempt, index) => ({
+      name: `Exam ${index + 1}`,
+      score: getScorePercentage(attempt.score, attempt.maxScore),
+      date: new Date(attempt.submittedAt || attempt.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }));
+  }, [attempts]);
 
-    // If student has submitted an attempt
-    if (hasSubmittedAttempt) {
-      // Check if they can retake and exam is still live
-      if (canRetake && isWithinTimeWindow) {
-        return {
-          label: 'Completed - Can Retake',
-          color: 'bg-purple-100 text-purple-800',
-          icon: <CheckCircle2 className="w-4 h-4" />,
-          canStart: true,
-          canRetake: true,
-        };
-      }
-      // Exam is completed (submitted and can't retake or exam ended)
-      return {
-        label: 'Completed',
-        color: 'bg-gray-100 text-gray-800',
-        icon: <CheckCircle2 className="w-4 h-4" />,
-        canStart: false,
-        canRetake: false,
-      };
-    }
+  // Prepare performance by exam data
+  const performanceByExam = useMemo(() => {
+    const examMap = new Map<string, { name: string; score: number; count: number }>();
+    
+    attempts
+      .filter(a => a.status === 'SUBMITTED' && a.score !== null && a.maxScore !== null)
+      .forEach(attempt => {
+        const examId = attempt.exam.id;
+        const examTitle = attempt.exam.title.length > 20 
+          ? attempt.exam.title.substring(0, 20) + '...' 
+          : attempt.exam.title;
+        const score = getScorePercentage(attempt.score, attempt.maxScore);
+        
+        if (examMap.has(examId)) {
+          const existing = examMap.get(examId)!;
+          existing.score = (existing.score * existing.count + score) / (existing.count + 1);
+          existing.count += 1;
+        } else {
+          examMap.set(examId, { name: examTitle, score, count: 1 });
+        }
+      });
+    
+    return Array.from(examMap.values()).sort((a, b) => b.score - a.score).slice(0, 5);
+  }, [attempts]);
 
-    // No submitted attempt yet
-    if (now < start) {
-      return {
-        label: 'Upcoming',
-        color: 'bg-blue-100 text-blue-800',
-        icon: <Calendar className="w-4 h-4" />,
-        canStart: false,
-        canRetake: false,
-      };
-    } else if (isWithinTimeWindow) {
-      return {
-        label: 'Live',
-        color: 'bg-green-100 text-green-800',
-        icon: <Play className="w-4 h-4" />,
-        canStart: true,
-        canRetake: false,
-      };
-    } else {
-      // Exam has ended and no attempt
-      return {
-        label: 'Completed',
-        color: 'bg-gray-100 text-gray-800',
-        icon: <CheckCircle2 className="w-4 h-4" />,
-        canStart: false,
-        canRetake: false,
-      };
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+  // Prepare grade distribution data
+  const gradeDistribution = useMemo(() => {
+    const submittedAttempts = attempts.filter(a => a.status === 'SUBMITTED' && a.score !== null && a.maxScore !== null);
+    const distribution = {
+      'A': 0,
+      'B': 0,
+      'C': 0,
+      'D': 0,
+      'F': 0
+    };
+    
+    const gradeRanges = {
+      'A': '90-100',
+      'B': '80-89',
+      'C': '70-79',
+      'D': '60-69',
+      'F': '<60'
+    };
+    
+    submittedAttempts.forEach(attempt => {
+      const percentage = getScorePercentage(attempt.score, attempt.maxScore);
+      if (percentage >= 90) distribution['A']++;
+      else if (percentage >= 80) distribution['B']++;
+      else if (percentage >= 70) distribution['C']++;
+      else if (percentage >= 60) distribution['D']++;
+      else distribution['F']++;
     });
-  };
+    
+    return Object.entries(distribution).map(([name, value]) => ({ 
+      name, 
+      value,
+      fullName: `${name} (${gradeRanges[name as keyof typeof gradeRanges]})`
+    }));
+  }, [attempts]);
 
-  // Check for success message from URL params
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('submitted') === 'true') {
-        // Clean up URL after 5 seconds
-        setTimeout(() => {
-          window.history.replaceState({}, '', window.location.pathname);
-        }, 5000);
-      }
-    }
-  }, []);
+  // Recent activity
+  const recentActivity = useMemo(() => {
+    return attempts
+      .filter(a => a.status === 'SUBMITTED')
+      .sort((a, b) => new Date(b.submittedAt || b.startedAt).getTime() - new Date(a.submittedAt || a.startedAt).getTime())
+      .slice(0, 5);
+  }, [attempts]);
+
+  if (isLoading) {
+    return (
+      <div className="flex-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-primary/70">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-primary">
+        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="text-primary">
       <div className="mb-6">
         <h1 className="text-4xl font-bold font-alan-sans mb-2">My Dashboard</h1>
-        <p className="text-primary/70">View and take your assigned exams</p>
+        <p className="text-primary/70">Track your performance and progress</p>
       </div>
 
-      {/* Success Message */}
-      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('submitted') === 'true' && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5" />
-            <p className="font-medium">Exam submitted successfully! Results will be available once grading is complete.</p>
+      {/* Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        {/* Stat Card 1 - Total Exams */}
+        <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-6 border border-blue-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <FileText className="w-6 h-6 text-blue-500" />
+            </div>
           </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalExams}</h3>
+          <p className="text-sm text-primary/60">Exams Completed</p>
         </div>
-      )}
 
-      {/* Filter & Search Controls */}
-      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
-        {/* Filter Tabs */}
-        <div className="flex bg-primary/10 p-1 rounded-lg">
-          {FILTERS.map((filter) => (
-            <button
-              key={filter.key}
-              onClick={() => {
-                setActiveFilter(filter.key);
-                setCurrentPage(1);
-              }}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeFilter === filter.key
-                  ? 'bg-secondary shadow'
-                  : 'text-primary/70 hover:bg-secondary/50 hover:text-primary'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+        {/* Stat Card 2 - Average Score */}
+        <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 rounded-xl p-6 border border-green-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <Target className="w-6 h-6 text-green-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.avgScore}%</h3>
+          <p className="text-sm text-primary/60">Average Score</p>
         </div>
-        {/* Search Bar */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search exams..."
-            onChange={(e) => debouncedSetSearch(e.target.value)}
-            className="w-full md:w-64 pl-10 pr-4 py-2 rounded-lg bg-primary/10 border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
-          <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2" />
+
+        {/* Stat Card 3 - Highest Score */}
+        <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-6 border border-purple-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <Award className="w-6 h-6 text-purple-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.highestScore}%</h3>
+          <p className="text-sm text-primary/60">Highest Score</p>
+        </div>
+
+        {/* Stat Card 4 - Total Attempts */}
+        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 rounded-xl p-6 border border-orange-500/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-2 bg-orange-500/20 rounded-lg">
+              <Activity className="w-6 h-6 text-orange-500" />
+            </div>
+          </div>
+          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalAttempts}</h3>
+          <p className="text-sm text-primary/60">Total Attempts</p>
         </div>
       </div>
 
-      {/* Exams List */}
-      <div className="bg-secondary rounded-lg shadow-md overflow-hidden">
-        {isLoading && (
-          <div className="p-8 text-center text-primary/70">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-            <p>Loading exams...</p>
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Score Trend Chart */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Score Trend</h2>
           </div>
-        )}
-        {error && (
-          <div className="p-6 text-center text-red-500">
-            <p>{error}</p>
-          </div>
-        )}
-        {!isLoading && !error && exams.length === 0 && (
-          <div className="p-8 text-center text-primary/60">
-            <p className="text-lg mb-2">No exams found</p>
-            <p className="text-sm">There are no {activeFilter.toLowerCase()} exams available.</p>
-          </div>
-        )}
+          {scoreTrendData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={scoreTrendData}>
+                <defs>
+                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} />
+                <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#f3f4f6' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="score" 
+                  stroke="#3b82f6" 
+                  fillOpacity={1} 
+                  fill="url(#colorScore)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No data available yet</p>
+            </div>
+          )}
+        </div>
 
-        {!isLoading && !error && exams.length > 0 && (
-          <div className="divide-y divide-primary/10">
-            {exams.map((exam) => {
-              const status = getExamStatus(exam);
-              return (
-                <div
-                  key={exam.id}
-                  className="p-6 hover:bg-primary/5 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
+        {/* Grade Distribution */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <PieChart className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Grade Distribution</h2>
+          </div>
+          {gradeDistribution.some(d => d.value > 0) ? (
+            <div className="flex flex-col items-center">
+              <ResponsiveContainer width="100%" height={250}>
+                <RechartsPieChart>
+                  <Pie
+                    data={gradeDistribution}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => value > 0 ? `${name} (${value})` : ''}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {gradeDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value: number) => [value, 'Count']}
+                    labelFormatter={(label, payload) => {
+                      const entry = payload?.[0]?.payload;
+                      return entry?.fullName || label;
+                    }}
+                  />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+              {/* Legend */}
+              <div className="flex flex-wrap justify-center gap-3 mt-4 text-sm">
+                {gradeDistribution.filter(d => d.value > 0).map((entry, index) => (
+                  <div key={entry.name} className="flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded" 
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <span className="text-primary/80 font-medium">
+                      {entry.fullName}: {entry.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No data available yet</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Performance by Exam */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Performance by Exam</h2>
+          </div>
+          {performanceByExam.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={performanceByExam}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} angle={-45} textAnchor="end" height={80} />
+                <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                  labelStyle={{ color: '#f3f4f6' }}
+                />
+                <Bar dataKey="score" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No data available yet</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Recent Activity</h2>
+          </div>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {recentActivity.map((attempt) => {
+                const percentage = getScorePercentage(attempt.score, attempt.maxScore);
+                return (
+                  <div key={attempt.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-semibold text-primary">{exam.title}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${status.color}`}>
-                          {status.icon}
-                          {status.label}
-                        </span>
-                      </div>
-                      {exam.description && (
-                        <p className="text-primary/70 mb-3 line-clamp-2">{exam.description}</p>
-                      )}
-                      <div className="flex flex-wrap gap-4 text-sm text-primary/60">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>Start: {formatDate(exam.startAt)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          <span>Duration: {exam.durationMins} minutes</span>
-                        </div>
-                      </div>
+                      <p className="font-medium text-primary">{attempt.exam.title}</p>
+                      <p className="text-sm text-primary/60">
+                        {new Date(attempt.submittedAt || attempt.startedAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
                     </div>
-                    <div className="ml-4 flex flex-col gap-2 items-end">
-                      {status.canStart && (
-                        <Link href={`/student/exams/${exam.id}`}>
-                          <Button className="bg-green-600 hover:bg-green-700 text-white border-0">
-                            <Play className="w-4 h-4 mr-2" />
-                            {status.canRetake ? 'Retake Exam' : 'Start Exam'}
-                          </Button>
-                        </Link>
-                      )}
-                      {!status.canStart && status.label === 'Upcoming' && (
-                        <Button disabled className="bg-primary/10 text-primary/50 border-0">
-                          <Clock className="w-4 h-4 mr-2" />
-                          Starts Soon
-                        </Button>
-                      )}
-                      {exam.hasAttempt && exam.attemptId && exam.attemptStatus === 'SUBMITTED' && (
-                        <>
-                          <Link href={`/student/attempts/${exam.attemptId}/results`}>
-                            <Button className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              View Results
-                            </Button>
-                          </Link>
-                          {exam.latestScore != null && exam.latestMaxScore != null && (
-                            <div className="text-xs text-primary/60 text-right">
-                              Score: {exam.latestScore.toFixed(2)} / {exam.latestMaxScore.toFixed(2)}
-                            </div>
-                          )}
-                          {exam.attemptCount !== undefined && exam.attemptCount > 0 && (
-                            <div className="text-xs text-primary/60 text-right">
-                              Attempts: {exam.attemptCount}{exam.maxAttempts ? ` / ${exam.maxAttempts}` : ''}
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {status.label === 'Completed' && !exam.hasAttempt && (
-                        <Button disabled className="bg-primary/10 text-primary/50 border-0">
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Exam Ended
-                        </Button>
-                      )}
+                    <div className="text-right">
+                      <p className="font-bold text-primary">{percentage}%</p>
+                      <p className="text-xs text-primary/60">
+                        {formatScore(attempt.score).toFixed(1)} / {formatScore(attempt.maxScore).toFixed(1)}
+                      </p>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {meta && meta.totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4">
-          <span className="text-sm text-primary/70">
-            Showing page {meta.page} of {meta.totalPages} ({meta.totalCount} total exams)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="text-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
-            >
-              Previous
-            </Button>
-            <Button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === (meta?.totalPages || 1)}
-              className="text-sm bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
-            >
-              Next
-            </Button>
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-primary/50">
+              <p>No recent activity</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

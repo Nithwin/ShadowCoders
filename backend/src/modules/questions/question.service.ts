@@ -36,6 +36,17 @@ export const addQuestionsToExam = async (examId: string, questions: AddQuestions
       case QType.ESSAY:
         baseData.wordLimit = q.wordLimit ?? null;
         break;
+      case QType.LISTENING:
+        baseData.options = q.options ? (q.options as Prisma.JsonArray) : Prisma.JsonNull;
+        baseData.correctOptionIds = q.correctOptionIds ? (q.correctOptionIds as Prisma.JsonArray) : Prisma.JsonNull;
+        // Use mediaAssetId directly (createMany doesn't support relation syntax)
+        baseData.mediaAssetId = q.mediaAssetId ?? null;
+        baseData.config = q.maxListenCount ? ({ maxListenCount: q.maxListenCount } as Prisma.InputJsonValue) : Prisma.JsonNull;
+        break;
+      case QType.SPEAKING:
+        baseData.maxDurationSec = q.maxDurationSec ?? null;
+        baseData.config = q.maxReattempts !== undefined ? ({ maxReattempts: q.maxReattempts } as Prisma.InputJsonValue) : Prisma.JsonNull;
+        break;
       default:
         const exhaustiveCheck: never = q; 
         throw new Error(`Unsupported question type encountered: ${JSON.stringify(exhaustiveCheck)}`);
@@ -97,6 +108,12 @@ const question = await questionRepo.getQuestionById(questionId);
   } else {
     // Ensure testcases are removed for non-coding questions
     delete scrubbedQuestion.testcases;
+  }
+
+  // For LISTENING questions, include mediaAsset but remove correctOptionIds
+  if (question.type === QType.LISTENING) {
+    // mediaAsset is already included in the question object
+    delete scrubbedQuestion.correctOptionIds;
   }
 
   return scrubbedQuestion;
@@ -162,11 +179,28 @@ export const updateQuestion = async (
       if (input.wordLimit !== undefined)
         dataToUpdate.wordLimit = input.wordLimit ?? null;
       break;
-    // Add cases for SPEAKING, LISTENING, FILL, READING here...
+    case QType.LISTENING:
+      if (input.options !== undefined)
+        dataToUpdate.options = input.options as Prisma.JsonArray;
+      if (input.correctOptionIds !== undefined)
+        dataToUpdate.correctOptionIds = input.correctOptionIds as Prisma.JsonArray;
+      if (input.mediaAssetId !== undefined)
+        dataToUpdate.mediaAsset = input.mediaAssetId ? { connect: { id: input.mediaAssetId } } : { disconnect: true };
+      if (input.config !== undefined)
+        dataToUpdate.config = input.config as Prisma.InputJsonValue;
+      break;
+    case QType.SPEAKING:
+      if (input.maxDurationSec !== undefined)
+        dataToUpdate.maxDurationSec = input.maxDurationSec ?? null;
+      if (input.config !== undefined)
+        dataToUpdate.config = input.config as Prisma.InputJsonValue;
+      break;
+    // Add cases for FILL, READING here...
   }
   
-  // Add other optional fields
-  if (input.mediaAssetId !== undefined) dataToUpdate.mediaAsset = { connect: { id: input.mediaAssetId } };
+  // Add other optional fields (only if not already handled in switch)
+  if (input.mediaAssetId !== undefined && existingQuestion.type !== QType.LISTENING)
+    dataToUpdate.mediaAsset = { connect: { id: input.mediaAssetId } };
   if (input.passageAssetId !== undefined) dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
 
   // Call Repository

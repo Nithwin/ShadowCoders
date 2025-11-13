@@ -1,0 +1,295 @@
+import { Server as HTTPServer } from 'http';
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
+import { prisma } from './prisma';
+import { Role } from '@prisma/client';
+
+export interface AuthenticatedSocket extends Socket {
+  userId?: string;
+  userRole?: Role;
+  examId?: string;
+  attemptId?: string;
+}
+
+interface ExamActivity {
+  examId: string;
+  attemptId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  currentQuestionIndex: number;
+  totalQuestions: number;
+  answeredCount: number;
+  timeSpent: number;
+  lastActivity: Date;
+  status: 'active' | 'idle' | 'submitted';
+  currentSection?: string;
+}
+
+class ExamMonitoringService {
+  private io: SocketIOServer | null = null;
+  private examRooms: Map<string, Set<string>> = new Map(); // examId -> Set of socketIds
+  private studentActivities: Map<string, ExamActivity> = new Map(); // attemptId -> activity
+  private socketToAttempt: Map<string, string> = new Map(); // socketId -> attemptId
+
+  initialize(server: HTTPServer) {
+    this.io = new SocketIOServer(server, {
+      cors: {
+        origin: env.FRONTEND_URL?.split(',') || ['http://localhost:3000'],
+        credentials: true,
+        methods: ['GET', 'POST'],
+      },
+      transports: ['websocket', 'polling'],
+    });
+
+    // Authentication middleware
+    this.io.use(async (socket: AuthenticatedSocket, next) => {
+      try {
+        const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+        
+        if (!token) {
+          return next(new Error('Authentication token required'));
+        }
+
+        const decoded = jwt.verify(token, env.JWT_SECRET) as { sub: string; role: Role };
+        
+        if (!decoded.sub || !decoded.role) {
+          return next(new Error('Invalid token payload'));
+        }
+
+        socket.userId = decoded.sub;
+        socket.userRole = decoded.role;
+        next();
+      } catch (error) {
+        next(new Error('Authentication failed'));
+      }
+    });
+
+    this.io.on('connection', (socket: AuthenticatedSocket) => {
+      console.log(`[Socket] User connected: ${socket.userId} (${socket.userRole})`);
+
+      // Student joins exam room
+      socket.on('join-exam', async (data: { examId: string; attemptId: string }) => {
+        try {
+          if (socket.userRole !== Role.STUDENT) {
+            socket.emit('error', { message: 'Only students can join exam rooms' });
+            return;
+          }
+
+          // Verify the attempt belongs to the student
+          const attempt = await prisma.attempt.findUnique({
+            where: { id: data.attemptId },
+            include: {
+              student: {
+                select: { id: true, name: true, email: true },
+              },
+              exam: {
+                select: { id: true, title: true },
+              },
+            },
+          });
+
+          if (!attempt || attempt.studentId !== socket.userId) {
+            socket.emit('error', { message: 'Invalid attempt' });
+            return;
+          }
+
+          socket.examId = data.examId;
+          socket.attemptId = data.attemptId;
+
+          const roomName = `exam:${data.examId}`;
+          socket.join(roomName);
+
+          // Track socket in exam room
+          if (!this.examRooms.has(data.examId)) {
+            this.examRooms.set(data.examId, new Set());
+          }
+          this.examRooms.get(data.examId)!.add(socket.id);
+          this.socketToAttempt.set(socket.id, data.attemptId);
+
+          // Initialize or update activity
+          const questionCount = await prisma.question.count({
+            where: { examId: data.examId },
+          });
+
+          const activity: ExamActivity = {
+            examId: data.examId,
+            attemptId: data.attemptId,
+            studentId: socket.userId,
+            studentName: attempt.student.name || 'Unknown',
+            studentEmail: attempt.student.email,
+            currentQuestionIndex: 0,
+            totalQuestions: questionCount,
+            answeredCount: 0,
+            timeSpent: 0,
+            lastActivity: new Date(),
+            status: 'active',
+          };
+
+          this.studentActivities.set(data.attemptId, activity);
+
+          // Notify admins about new student joining
+          this.io?.to(`admin:exam:${data.examId}`).emit('student-joined', {
+            attemptId: data.attemptId,
+            studentId: socket.userId,
+            studentName: activity.studentName,
+            timestamp: new Date(),
+          });
+
+          // Send current exam stats to the student
+          socket.emit('exam-stats', {
+            totalStudents: this.examRooms.get(data.examId)?.size || 0,
+          });
+
+          console.log(`[Socket] Student ${socket.userId} joined exam ${data.examId}`);
+        } catch (error) {
+          console.error('[Socket] Error joining exam:', error);
+          socket.emit('error', { message: 'Failed to join exam' });
+        }
+      });
+
+      // Admin joins exam monitoring room
+      socket.on('admin-join-exam', async (data: { examId: string }) => {
+        try {
+          if (socket.userRole !== Role.STAFF) {
+            socket.emit('error', { message: 'Only staff can monitor exams' });
+            return;
+          }
+
+          const roomName = `admin:exam:${data.examId}`;
+          socket.join(roomName);
+          socket.examId = data.examId;
+
+          // Send current activity to admin
+          const activities = Array.from(this.studentActivities.values())
+            .filter(a => a.examId === data.examId);
+
+          socket.emit('exam-activity', {
+            totalStudents: this.examRooms.get(data.examId)?.size || 0,
+            activities: activities,
+          });
+
+          console.log(`[Socket] Admin ${socket.userId} monitoring exam ${data.examId}`);
+        } catch (error) {
+          console.error('[Socket] Error admin joining exam:', error);
+          socket.emit('error', { message: 'Failed to join monitoring room' });
+        }
+      });
+
+      // Student activity updates
+      socket.on('activity-update', (data: {
+        currentQuestionIndex: number;
+        answeredCount: number;
+        timeSpent: number;
+        status?: 'active' | 'idle' | 'submitted';
+        currentSection?: string;
+      }) => {
+        if (!socket.attemptId) return;
+
+        const activity = this.studentActivities.get(socket.attemptId);
+        if (activity) {
+          activity.currentQuestionIndex = data.currentQuestionIndex;
+          activity.answeredCount = data.answeredCount;
+          activity.timeSpent = data.timeSpent;
+          activity.lastActivity = new Date();
+          activity.status = data.status || activity.status;
+          activity.currentSection = data.currentSection;
+
+          // Broadcast to admins monitoring this exam
+          if (socket.examId) {
+            this.io?.to(`admin:exam:${socket.examId}`).emit('activity-update', {
+              attemptId: socket.attemptId,
+              activity: activity,
+            });
+          }
+        }
+      });
+
+      // Student heartbeat (to track if they're still active)
+      socket.on('heartbeat', () => {
+        if (socket.attemptId) {
+          const activity = this.studentActivities.get(socket.attemptId);
+          if (activity) {
+            activity.lastActivity = new Date();
+            activity.status = 'active';
+          }
+        }
+        socket.emit('heartbeat-ack');
+      });
+
+      // Disconnect handling
+      socket.on('disconnect', () => {
+        console.log(`[Socket] User disconnected: ${socket.userId}`);
+
+        if (socket.examId && socket.attemptId) {
+          // Remove from exam room
+          const examRoom = this.examRooms.get(socket.examId);
+          if (examRoom) {
+            examRoom.delete(socket.id);
+            if (examRoom.size === 0) {
+              this.examRooms.delete(socket.examId);
+            }
+          }
+
+          // Update activity status
+          const activity = this.studentActivities.get(socket.attemptId);
+          if (activity) {
+            activity.status = 'idle';
+            // Notify admins
+            this.io?.to(`admin:exam:${socket.examId}`).emit('student-disconnected', {
+              attemptId: socket.attemptId,
+              timestamp: new Date(),
+            });
+          }
+
+          this.socketToAttempt.delete(socket.id);
+        }
+      });
+    });
+
+    // Periodic cleanup of idle students (mark as idle if no activity for 2 minutes)
+    setInterval(() => {
+      const now = new Date();
+      const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+
+      this.studentActivities.forEach((activity, attemptId) => {
+        if (activity.lastActivity < twoMinutesAgo && activity.status === 'active') {
+          activity.status = 'idle';
+          this.io?.to(`admin:exam:${activity.examId}`).emit('activity-update', {
+            attemptId,
+            activity,
+          });
+        }
+      });
+    }, 30000); // Check every 30 seconds
+
+    return this.io;
+  }
+
+  // Get current exam statistics
+  getExamStats(examId: string) {
+    const activities = Array.from(this.studentActivities.values())
+      .filter(a => a.examId === examId);
+
+    const activeCount = activities.filter(a => a.status === 'active').length;
+    const idleCount = activities.filter(a => a.status === 'idle').length;
+    const submittedCount = activities.filter(a => a.status === 'submitted').length;
+
+    const avgProgress = activities.length > 0
+      ? activities.reduce((sum, a) => sum + (a.answeredCount / a.totalQuestions), 0) / activities.length
+      : 0;
+
+    return {
+      totalStudents: activities.length,
+      activeStudents: activeCount,
+      idleStudents: idleCount,
+      submittedStudents: submittedCount,
+      averageProgress: Math.round(avgProgress * 100),
+      activities: activities,
+    };
+  }
+}
+
+export const examMonitoring = new ExamMonitoringService();
+
