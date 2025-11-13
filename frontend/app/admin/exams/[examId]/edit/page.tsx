@@ -211,6 +211,7 @@ export default function EditExamPage() {
             sectionLockPolicy: examData.sectionLockPolicy,
             randomizeQuestions: examData.randomizeQuestions,
             negativeMarkPerWrong: examData.negativeMarkPerWrong?.toString(),
+            allowedLanguages: Array.isArray(examData.allowedLanguages) ? examData.allowedLanguages : [],
           }}
           onSubmit={handleFormSubmit}
           isSubmitting={isSubmitting}

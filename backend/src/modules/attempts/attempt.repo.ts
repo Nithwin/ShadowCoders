@@ -136,6 +136,7 @@ export const getAttemptDetails = (attemptId: string) => {
           timingMode: true,
           durationMins: true,
           sectionLockPolicy: true,
+          allowedLanguages: true, // Include allowed languages for coding questions
           // Get the list of all questions in the exam
           questions: {
             select: {

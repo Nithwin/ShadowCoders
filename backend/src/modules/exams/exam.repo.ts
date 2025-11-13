@@ -177,6 +177,7 @@ export const findExamByIdForStudent = async (params: {
       endAt: true,
       durationMins: true,
       status: true,
+      allowedLanguages: true, // Include allowed languages for coding questions
       // Include attempts to check if student has completed this exam
       attempts: {
         where: {

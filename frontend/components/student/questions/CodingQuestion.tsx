@@ -30,6 +30,7 @@ type CodingQuestionProps = {
   canGoPrev?: boolean;
   isLastQuestion?: boolean;
   onSubmit?: () => void;
+  allowedLanguages?: string[] | null; // Allowed programming languages from exam
 };
 
 const LANGUAGES = [
@@ -39,6 +40,7 @@ const LANGUAGES = [
   { value: 'cpp', label: 'C++', monacoLang: 'cpp' },
   { value: 'c', label: 'C', monacoLang: 'c' },
   { value: 'csharp', label: 'C#', monacoLang: 'csharp' },
+  { value: 'sql', label: 'SQL (SQLite)', monacoLang: 'sql' },
 ];
 
 // Theme is fixed to 'vs-dark' (dark theme only)
@@ -67,9 +69,22 @@ export default function CodingQuestion({
   canGoPrev = false,
   isLastQuestion = false,
   onSubmit,
+  allowedLanguages,
 }: CodingQuestionProps) {
+  // Filter available languages based on exam's allowedLanguages
+  const availableLanguages = allowedLanguages && allowedLanguages.length > 0
+    ? LANGUAGES.filter(lang => allowedLanguages.includes(lang.value))
+    : LANGUAGES; // If no restrictions, show all languages
+
+  // Ensure the default language is in the allowed list
+  const defaultLanguage = availableLanguages.length > 0 
+    ? (answer?.language && availableLanguages.some(l => l.value === answer.language) 
+        ? answer.language 
+        : availableLanguages[0].value)
+    : 'javascript';
+
   const [code, setCode] = useState(answer?.code || starterCode || '');
-  const [language, setLanguage] = useState(answer?.language || 'javascript');
+  const [language, setLanguage] = useState(defaultLanguage);
   const [theme] = useState('vs-dark'); // Fixed to dark theme only, no state changes to prevent flicker
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,7 +108,7 @@ export default function CodingQuestion({
   const previousQuestionIdRef = useRef<string>(questionId);
 
   // Get Monaco language for current language
-  const monacoLanguage = LANGUAGES.find(lang => lang.value === language)?.monacoLang || 'javascript';
+  const monacoLanguage = availableLanguages.find(lang => lang.value === language)?.monacoLang || availableLanguages[0]?.monacoLang || 'javascript';
 
   // Reset state when question changes
   useEffect(() => {
@@ -117,13 +132,13 @@ export default function CodingQuestion({
         setCode('');
       }
       
-      if (answer?.language !== undefined) {
+      if (answer?.language !== undefined && availableLanguages.some(l => l.value === answer.language)) {
         setLanguage(answer.language);
       } else {
-        setLanguage('javascript');
+        setLanguage(defaultLanguage);
       }
     }
-  }, [questionId, answer?.code, answer?.language, starterCode]);
+  }, [questionId, answer?.code, answer?.language, starterCode, availableLanguages, defaultLanguage]);
 
   // Sync with answer prop changes from parent (external updates) - only if question hasn't changed
   useEffect(() => {
@@ -132,11 +147,14 @@ export default function CodingQuestion({
         setCode(answer.code);
       }
       if (answer.language !== undefined && answer.language !== language) {
-        setLanguage(answer.language);
+        // Only update if the language is in the allowed list
+        if (availableLanguages.some(l => l.value === answer.language)) {
+          setLanguage(answer.language);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answer?.code, answer?.language]);
+  }, [answer?.code, answer?.language, availableLanguages]);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -487,11 +505,15 @@ export default function CodingQuestion({
               <select
                 value={language}
                 onChange={(e) => {
-                  setLanguage(e.target.value);
+                  const newLang = e.target.value;
+                  // Ensure the selected language is in the allowed list
+                  if (availableLanguages.some(l => l.value === newLang)) {
+                    setLanguage(newLang);
+                  }
                 }}
                 className="px-3 py-1.5 bg-[#2d2d2d] text-gray-200 border border-gray-600 rounded text-sm font-medium cursor-pointer hover:bg-[#3d3d3d] hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
               >
-                {LANGUAGES.map((lang) => (
+                {availableLanguages.map((lang) => (
                   <option key={lang.value} value={lang.value} className="bg-[#2d2d2d]">
                     {lang.label}
                   </option>

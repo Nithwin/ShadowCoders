@@ -9,6 +9,17 @@ import { Loader2, Save, Info, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
+// Available programming languages
+export const AVAILABLE_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'python', label: 'Python 3' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'c', label: 'C' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'sql', label: 'SQL (SQLite)' },
+];
+
 // Form schema for exam settings
 export const examFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters'),
@@ -30,6 +41,7 @@ export const examFormSchema = z.object({
     .optional()
     .transform((val) => (val === '' || val === undefined ? undefined : Number(val)))
     .refine((val) => val === undefined || !isNaN(val), 'Invalid number'),
+  allowedLanguages: z.array(z.string()).optional(),
 }).refine((data) => new Date(data.startAt) < new Date(data.endAt), {
   message: 'Start time must be before end time',
   path: ['startAt'],
@@ -82,6 +94,7 @@ export default function ExamForm({
     handleSubmit,
     formState: { errors, isDirty },
     watch,
+    setValue,
   } = useForm<ExamFormInput>({
     resolver: zodResolver(examFormSchema),
     defaultValues: {
@@ -91,9 +104,21 @@ export default function ExamForm({
       startAt: localDateTimeValue(new Date()),
       endAt: localDateTimeValue(new Date(Date.now() + 2 * 60 * 60 * 1000)),
       randomizeQuestions: false,
+      allowedLanguages: defaultValues?.allowedLanguages || [],
       ...defaultValues,
     },
   });
+
+  const selectedLanguages = watch('allowedLanguages') || [];
+  
+  const toggleLanguage = (langValue: string) => {
+    const current = selectedLanguages || [];
+    if (current.includes(langValue)) {
+      setValue('allowedLanguages', current.filter((l) => l !== langValue), { shouldDirty: true });
+    } else {
+      setValue('allowedLanguages', [...current, langValue], { shouldDirty: true });
+    }
+  };
 
   const handleFormSubmit = async (raw: ExamFormInput) => {
     setApiError(null);
@@ -284,6 +309,33 @@ export default function ExamForm({
             )}
           </div>
         )}
+
+        {/* Allowed Programming Languages */}
+        <div className="pt-4 border-t border-primary/10">
+          <label className="block text-sm font-semibold text-primary mb-3">
+            Allowed Programming Languages (for coding questions)
+          </label>
+          <p className="text-xs text-primary/60 mb-3">
+            Select which programming languages students can use when solving coding questions. Leave empty to allow all languages.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {AVAILABLE_LANGUAGES.map((lang) => (
+              <div key={lang.value} className="flex items-center gap-2">
+                <input
+                  id={`lang-${lang.value}`}
+                  type="checkbox"
+                  checked={selectedLanguages.includes(lang.value)}
+                  onChange={() => toggleLanguage(lang.value)}
+                  className="h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50"
+                />
+                <label htmlFor={`lang-${lang.value}`} className="text-sm font-medium text-primary/80 cursor-pointer">
+                  {lang.label}
+                </label>
+              </div>
+            ))}
+          </div>
+          <input type="hidden" {...register('allowedLanguages')} />
+        </div>
       </div>
 
       {successMessage && (

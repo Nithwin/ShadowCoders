@@ -86,6 +86,7 @@ export interface Exam {
   randomizeQuestions: boolean;
   negativeMarkPerWrong: number | null;
   status: ExamStatus;
+  allowedLanguages?: string[] | null;
   createdAt: string;
   updatedAt: string;
 }

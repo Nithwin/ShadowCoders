@@ -65,6 +65,32 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     },
     timeout: 10000,
   },
+  csharp: {
+    extension: 'cs',
+    command: 'csc',
+    compileCommand: (filePath) => {
+      const outputFile = filePath.replace('.cs', '.exe');
+      return `csc /out:"${outputFile}" "${filePath}"`;
+    },
+    runCommand: (filePath) => {
+      const outputFile = filePath.replace('.cs', '.exe');
+      return `"${outputFile}"`;
+    },
+    timeout: 10000,
+  },
+  sql: {
+    extension: 'sql',
+    command: 'sqlite3',
+    runCommand: (filePath) => {
+      // SQLite will execute the SQL file
+      // The database will be created in the temp directory
+      const dbPath = path.join(path.dirname(filePath), 'test.db');
+      // Execute SQL from file - sqlite3 reads from stdin or file
+      // Use input redirection to execute the SQL file
+      return `sqlite3 "${dbPath}" < "${filePath}"`;
+    },
+    timeout: 10000,
+  },
 };
 
 interface ExecutionResult {
@@ -112,8 +138,36 @@ export async function executeCodeLocally(
   const filePath = path.join(tempDir, fileName);
 
   try {
-    // Write code to file
-    await fs.writeFile(filePath, code, 'utf-8');
+    // For SQL, handle input as database setup and code as query
+    if (language.toLowerCase() === 'sql') {
+      // If input is provided, it's the database setup (schema/data)
+      // The code is the query to execute
+      if (input && input.trim()) {
+        // Write setup SQL to a separate file
+        const setupFilePath = path.join(tempDir, 'setup.sql');
+        await fs.writeFile(setupFilePath, input, 'utf-8');
+        
+        // For SQLite, create database and run setup
+        const dbPath = path.join(tempDir, 'test.db');
+        // First run setup to create schema/data
+        try {
+          await execAsync(`sqlite3 "${dbPath}" < "${setupFilePath}"`, {
+            cwd: tempDir,
+            timeout: timeoutMs,
+            maxBuffer: 1024 * 1024,
+          });
+        } catch (setupError) {
+          // Setup errors are not fatal, continue with query execution
+          console.warn('SQL setup warning:', setupError);
+        }
+      }
+      
+      // Write the query code to file
+      await fs.writeFile(filePath, code, 'utf-8');
+    } else {
+      // For other languages, write code to file normally
+      await fs.writeFile(filePath, code, 'utf-8');
+    }
 
     // Compile if needed (for compiled languages)
     if (langConfig.compileCommand) {
@@ -161,9 +215,14 @@ export async function executeCodeLocally(
     const startTime = Date.now();
     
     try {
+      // For SQL, don't pass input to stdin (already handled in setup)
+      const inputForExecution = (language.toLowerCase() === 'sql') 
+        ? '' 
+        : (input || '');
+      
       const result = await executeWithTimeout(
         runCmd,
-        input || '',
+        inputForExecution,
         tempDir,
         timeoutMs
       );

@@ -24,6 +24,7 @@ export const createExamSchema = z.object({
     randomizeQuestions: z.boolean().optional(),
     negativeMarkPerWrong: z.number().optional(),
     maxAttempts: z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
+    allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
   }),
 });
 
@@ -140,6 +141,7 @@ export const updateExamSchema = z.object({
       randomizeQuestions: z.boolean().optional(),
       negativeMarkPerWrong: z.number().optional(),
       maxAttempts: z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
+      allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
     })
     // Add a refinement to ensure if both dates are sent, start is before end
     .refine(

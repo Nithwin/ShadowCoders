@@ -613,6 +613,7 @@ export default function ExamAttemptPage() {
               onAnswerChange={handleAnswerChange}
               onNavigateQuestion={navigateQuestion}
               onSubmitExam={handleSubmitExamClick}
+              allowedLanguages={attempt?.exam?.allowedLanguages}
             />
           )}
         </div>

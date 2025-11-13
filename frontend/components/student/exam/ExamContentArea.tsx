@@ -27,6 +27,7 @@ interface ExamContentAreaProps {
   onAnswerChange: (questionId: string, answer: AnswerData) => void;
   onNavigateQuestion: (direction: 'next' | 'prev') => void;
   onSubmitExam: () => void;
+  allowedLanguages?: string[] | null; // Allowed programming languages from exam
 }
 
 export default function ExamContentArea({
@@ -39,6 +40,7 @@ export default function ExamContentArea({
   onAnswerChange,
   onNavigateQuestion,
   onSubmitExam,
+  allowedLanguages,
 }: ExamContentAreaProps) {
   const isCodingQuestion = currentQuestion?.type === QType.CODING;
   const isEssayQuestion = currentQuestion?.type === QType.ESSAY;
@@ -137,6 +139,7 @@ export default function ExamContentArea({
             canGoPrev={currentQuestionIndex > 0}
             isLastQuestion={currentQuestionIndex === questions.length - 1}
             onSubmit={onSubmitExam}
+            allowedLanguages={allowedLanguages}
           />
         )}
 
