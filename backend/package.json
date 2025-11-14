@@ -31,6 +31,7 @@
     "create:admin": "node scripts/create-admin-user.js",
     "setup:admin": "node scripts/setup-admin-auto.js",
     "create:user": "node scripts/create-user.js",
+    "add:students": "node scripts/add-students.js",
     "get:ip": "node scripts/get-local-ip.js",
     "setup:lan": "powershell -ExecutionPolicy Bypass -File scripts/setup-lan.ps1"
   },
