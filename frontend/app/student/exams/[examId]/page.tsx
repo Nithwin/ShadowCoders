@@ -44,7 +44,9 @@ export default function ExamDetailPage() {
       setExam(res.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      console.error(err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching exam details:', err);
+      }
       setError(
         error.response?.data?.error?.message || 
         error.response?.data?.message || 
@@ -75,7 +77,9 @@ export default function ExamDetailPage() {
       stream.getTracks().forEach(track => track.stop());
       return true;
     } catch (err) {
-      console.error('Error requesting microphone access:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error requesting microphone access:', err);
+      }
       const error = err as Error;
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
         toast.error('Microphone access denied. Please allow microphone access in your browser settings to continue with speaking questions.');
@@ -120,7 +124,9 @@ export default function ExamDetailPage() {
       router.push(`/student/attempts/${attemptId}`);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
-      console.error('Error starting exam:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error starting exam:', err);
+      }
       setError(
         error.response?.data?.error?.message ||
           error.response?.data?.message ||
@@ -294,6 +300,51 @@ export default function ExamDetailPage() {
               <li className="text-amber-600 font-medium">This exam contains speaking questions. Microphone access will be requested when you start the exam.</li>
             )}
           </ul>
+        </div>
+
+        {/* Important Warnings */}
+        <div className="border-t border-primary/10 pt-6">
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg mb-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-amber-900 mb-3">⚠️ Important Security & Browser Restrictions</h3>
+                <div className="space-y-3 text-amber-900">
+                  <div>
+                    <p className="font-semibold mb-1">📋 Copy/Paste Restrictions:</p>
+                    <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
+                      <li><strong>Allowed:</strong> Copy/paste shortcuts (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A) work normally <strong>inside the code editor only</strong></li>
+                      <li><strong>Blocked:</strong> Copy/paste from outside the exam window will be prevented</li>
+                      <li><strong>Blocked:</strong> Copying text from question prompts or other exam content is restricted</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold mb-1">⌨️ Blocked Keyboard Shortcuts:</p>
+                    <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
+                      <li>Developer tools (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C)</li>
+                      <li>Tab/window switching (Ctrl+T, Ctrl+N, Ctrl+W, Alt+Tab)</li>
+                      <li>Print shortcuts (Ctrl+P, Print Screen)</li>
+                      <li>View source (Ctrl+U)</li>
+                      <li>Save page (Ctrl+S)</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold mb-1">🖥️ Browser Restrictions:</p>
+                    <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
+                      <li>Switching tabs or windows may trigger warnings and auto-submit after 3 warnings</li>
+                      <li>Right-click context menu is disabled</li>
+                      <li>Opening developer tools is blocked and monitored</li>
+                      <li>You must stay in fullscreen mode during the exam</li>
+                    </ul>
+                  </div>
+                  <div className="bg-amber-100 border border-amber-300 rounded p-3 mt-3">
+                    <p className="text-sm font-semibold text-amber-900">✅ What's Allowed:</p>
+                    <p className="text-sm text-amber-800 mt-1">All standard coding editor shortcuts work normally inside the code editor. You can freely use Ctrl+A (select all), Ctrl+C (copy), Ctrl+V (paste), Ctrl+X (cut), and Ctrl+Z (undo) while typing your code.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Status Message */}

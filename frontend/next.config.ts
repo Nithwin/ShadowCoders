@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   
   // Hide Next.js dev indicator/icon completely
   devIndicators: false,
+  
+  // Allow all origins in development mode
+  // This fixes the warning: "Cross origin request detected from 10.11.16.132 to /_next/* resource"
+  // ⚠️ WARNING: Only use this in development! Never in production.
+  // Setting to undefined allows all origins in development
+  ...(process.env.NODE_ENV === 'development' ? {} : { allowedDevOrigins: [] }),
 };
 
 export default nextConfig;

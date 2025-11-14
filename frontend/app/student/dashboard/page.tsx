@@ -11,7 +11,11 @@ import {
   BarChart3,
   PieChart,
   Activity,
-  FileText
+  FileText,
+  CheckCircle2,
+  Eye,
+  XCircle,
+  Calendar
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -66,7 +70,9 @@ export default function StudentDashboard() {
       setAttempts(res.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
-      console.error(err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching dashboard data:', err);
+      }
       setError(error.response?.data?.error?.message || 'Failed to fetch performance data.');
     } finally {
       setIsLoading(false);
@@ -189,10 +195,10 @@ export default function StudentDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex-center min-h-screen">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-primary/70">Loading dashboard...</p>
+          <p className="text-lg font-medium text-primary/70">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -200,91 +206,106 @@ export default function StudentDashboard() {
 
   if (error) {
     return (
-      <div className="text-primary">
-        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          <p>{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 text-primary">
+        <div className="p-6 bg-red-50 border-2 border-red-200 rounded-xl text-red-800 shadow-lg">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-5 h-5" />
+            <p className="font-semibold">{error}</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="text-primary">
-      <div className="mb-6">
-        <h1 className="text-4xl font-bold font-alan-sans mb-2">My Dashboard</h1>
-        <p className="text-primary/70">Track your performance and progress</p>
-      </div>
-
-      {/* Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        {/* Stat Card 1 - Total Exams */}
-        <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-6 border border-blue-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
-              <FileText className="w-6 h-6 text-blue-500" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalExams}</h3>
-          <p className="text-sm text-primary/60">Exams Completed</p>
+    <div className="text-primary min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="mb-6">
+          <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            My Dashboard
+          </h1>
+          <p className="text-lg text-primary/70 font-medium">Track your performance and progress</p>
         </div>
 
-        {/* Stat Card 2 - Average Score */}
-        <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 rounded-xl p-6 border border-green-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-green-500/20 rounded-lg">
-              <Target className="w-6 h-6 text-green-500" />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Stat Card 1 - Total Exams */}
+          <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-6 border border-blue-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-blue-500/20 rounded-lg">
+                <FileText className="w-6 h-6 text-blue-600" />
+              </div>
             </div>
+            <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalExams}</h3>
+            <p className="text-sm text-primary/60 font-medium">Exams Completed</p>
           </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.avgScore}%</h3>
-          <p className="text-sm text-primary/60">Average Score</p>
-        </div>
 
-        {/* Stat Card 3 - Highest Score */}
-        <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-6 border border-purple-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <Award className="w-6 h-6 text-purple-500" />
+          {/* Stat Card 2 - Average Score */}
+          <div className="bg-gradient-to-br from-green-500/10 to-emerald-600/5 rounded-xl p-6 border border-green-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-green-500/20 rounded-lg">
+                <Target className="w-6 h-6 text-green-600" />
+              </div>
             </div>
+            <h3 className="text-3xl font-bold text-primary mb-1">{stats.avgScore}%</h3>
+            <p className="text-sm text-primary/60 font-medium">Average Score</p>
           </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.highestScore}%</h3>
-          <p className="text-sm text-primary/60">Highest Score</p>
-        </div>
 
-        {/* Stat Card 4 - Total Attempts */}
-        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 rounded-xl p-6 border border-orange-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-orange-500/20 rounded-lg">
-              <Activity className="w-6 h-6 text-orange-500" />
+          {/* Stat Card 3 - Highest Score */}
+          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-6 border border-purple-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-purple-500/20 rounded-lg">
+                <Award className="w-6 h-6 text-purple-600" />
+              </div>
             </div>
+            <h3 className="text-3xl font-bold text-primary mb-1">{stats.highestScore}%</h3>
+            <p className="text-sm text-primary/60 font-medium">Highest Score</p>
           </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalAttempts}</h3>
-          <p className="text-sm text-primary/60">Total Attempts</p>
+
+          {/* Stat Card 4 - Total Attempts */}
+          <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 rounded-xl p-6 border border-orange-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-orange-500/20 rounded-lg">
+                <Activity className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+            <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalAttempts}</h3>
+            <p className="text-sm text-primary/60 font-medium">Total Attempts</p>
+          </div>
         </div>
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Score Trend Chart */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Score Trend</h2>
+        <div className="bg-secondary rounded-2xl p-6 border-2 border-primary/10 shadow-xl">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-primary">Score Trend</h2>
           </div>
           {scoreTrendData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={scoreTrendData}>
                 <defs>
                   <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.2} />
                 <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} />
                 <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f3f4f6' }}
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: '1px solid #374151', 
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                  }}
+                  labelStyle={{ color: '#f3f4f6', fontWeight: 'bold' }}
                 />
                 <Area 
                   type="monotone" 
@@ -292,22 +313,26 @@ export default function StudentDashboard() {
                   stroke="#3b82f6" 
                   fillOpacity={1} 
                   fill="url(#colorScore)"
-                  strokeWidth={2}
+                  strokeWidth={3}
                 />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No data available yet</p>
+            <div className="h-[300px] flex flex-col items-center justify-center text-primary/50">
+              <TrendingUp className="w-16 h-16 mb-4 text-primary/30" />
+              <p className="text-lg font-medium">No data available yet</p>
+              <p className="text-sm mt-1">Complete exams to see your score trend</p>
             </div>
           )}
         </div>
 
         {/* Grade Distribution */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChart className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Grade Distribution</h2>
+        <div className="bg-secondary rounded-2xl p-6 border-2 border-primary/10 shadow-xl">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <PieChart className="w-6 h-6 text-purple-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-primary">Grade Distribution</h2>
           </div>
           {gradeDistribution.some(d => d.value > 0) ? (
             <div className="flex flex-col items-center">
@@ -319,7 +344,7 @@ export default function StudentDashboard() {
                     cy="50%"
                     labelLine={false}
                     label={({ name, value }) => value > 0 ? `${name} (${value})` : ''}
-                    outerRadius={80}
+                    outerRadius={90}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -333,95 +358,145 @@ export default function StudentDashboard() {
                       const entry = payload?.[0]?.payload;
                       return entry?.fullName || label;
                     }}
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151', 
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                    }}
+                    labelStyle={{ color: '#f3f4f6', fontWeight: 'bold' }}
                   />
                 </RechartsPieChart>
               </ResponsiveContainer>
               {/* Legend */}
-              <div className="flex flex-wrap justify-center gap-3 mt-4 text-sm">
+              <div className="flex flex-wrap justify-center gap-4 mt-6 text-sm">
                 {gradeDistribution.filter(d => d.value > 0).map((entry, index) => (
-                  <div key={entry.name} className="flex items-center gap-2">
+                  <div key={entry.name} className="flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-lg border border-primary/10">
                     <div 
-                      className="w-4 h-4 rounded" 
+                      className="w-4 h-4 rounded shadow-sm" 
                       style={{ backgroundColor: COLORS[index % COLORS.length] }}
                     />
-                    <span className="text-primary/80 font-medium">
-                      {entry.fullName}: {entry.value}
+                    <span className="text-primary font-semibold">
+                      {entry.fullName}: <span className="font-bold">{entry.value}</span>
                     </span>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No data available yet</p>
+            <div className="h-[300px] flex flex-col items-center justify-center text-primary/50">
+              <PieChart className="w-16 h-16 mb-4 text-primary/30" />
+              <p className="text-lg font-medium">No data available yet</p>
+              <p className="text-sm mt-1">Complete exams to see grade distribution</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Performance by Exam */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Performance by Exam</h2>
+        <div className="bg-secondary rounded-2xl p-6 border-2 border-primary/10 shadow-xl">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <BarChart3 className="w-6 h-6 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-primary">Performance by Exam</h2>
           </div>
           {performanceByExam.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={performanceByExam}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.2} />
                 <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} angle={-45} textAnchor="end" height={80} />
                 <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f3f4f6' }}
+                  contentStyle={{ 
+                    backgroundColor: '#1f2937', 
+                    border: '1px solid #374151', 
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                  }}
+                  labelStyle={{ color: '#f3f4f6', fontWeight: 'bold' }}
                 />
-                <Bar dataKey="score" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="score" fill="#10b981" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No data available yet</p>
+            <div className="h-[300px] flex flex-col items-center justify-center text-primary/50">
+              <BarChart3 className="w-16 h-16 mb-4 text-primary/30" />
+              <p className="text-lg font-medium">No data available yet</p>
+              <p className="text-sm mt-1">Complete exams to see performance breakdown</p>
             </div>
           )}
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Recent Activity</h2>
+        <div className="bg-secondary rounded-2xl p-6 border-2 border-primary/10 shadow-xl">
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+            <div className="p-2 bg-orange-500/20 rounded-lg">
+              <Clock className="w-6 h-6 text-orange-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-primary">Recent Activity</h2>
           </div>
           {recentActivity.length > 0 ? (
             <div className="space-y-3">
               {recentActivity.map((attempt) => {
                 const percentage = getScorePercentage(attempt.score, attempt.maxScore);
+                const scoreColor = percentage >= 80 ? 'from-green-500 to-emerald-600' :
+                                  percentage >= 60 ? 'from-yellow-400 to-orange-500' :
+                                  percentage >= 40 ? 'from-orange-400 to-red-500' :
+                                  'from-red-500 to-red-700';
+                
                 return (
-                  <div key={attempt.id} className="flex items-center justify-between p-3 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors">
-                    <div className="flex-1">
-                      <p className="font-medium text-primary">{attempt.exam.title}</p>
-                      <p className="text-sm text-primary/60">
-                        {new Date(attempt.submittedAt || attempt.startedAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
+                  <Link 
+                    key={attempt.id} 
+                    href={`/student/attempts/${attempt.id}/results`}
+                    className="block group"
+                  >
+                    <div className="flex items-center justify-between p-4 bg-primary/5 rounded-xl hover:bg-primary/10 border border-primary/10 hover:border-primary/20 transition-all duration-300 hover:shadow-md">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-primary truncate mb-1">{attempt.exam.title}</p>
+                        <div className="flex items-center gap-2 text-sm text-primary/60">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>
+                            {new Date(attempt.submittedAt || attempt.startedAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 ml-4">
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xl font-bold text-primary">{percentage}%</p>
+                            <CheckCircle2 className={`w-4 h-4 ${
+                              percentage >= 60 ? 'text-green-500' : 'text-orange-500'
+                            }`} />
+                          </div>
+                          <p className="text-xs text-primary/60 font-medium">
+                            {formatScore(attempt.score).toFixed(1)} / {formatScore(attempt.maxScore).toFixed(1)}
+                          </p>
+                        </div>
+                        <div className="w-16 bg-primary/10 rounded-full h-2 overflow-hidden shadow-inner">
+                          <div
+                            className={`h-2 rounded-full bg-gradient-to-r ${scoreColor} transition-all duration-500`}
+                            style={{ width: `${Math.max(percentage, 5)}%` }}
+                          />
+                        </div>
+                        <Eye className="w-5 h-5 text-primary/40 group-hover:text-primary transition-colors" />
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary">{percentage}%</p>
-                      <p className="text-xs text-primary/60">
-                        {formatScore(attempt.score).toFixed(1)} / {formatScore(attempt.maxScore).toFixed(1)}
-                      </p>
-                    </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
           ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No recent activity</p>
+            <div className="h-[300px] flex flex-col items-center justify-center text-primary/50">
+              <Clock className="w-16 h-16 mb-4 text-primary/30" />
+              <p className="text-lg font-medium">No recent activity</p>
+              <p className="text-sm mt-1">Complete exams to see your activity here</p>
             </div>
           )}
         </div>

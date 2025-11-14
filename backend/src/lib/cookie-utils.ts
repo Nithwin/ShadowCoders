@@ -88,9 +88,11 @@ export const getCookieOptions = (req: Request) => {
         path: '/',
     };
     
-    // For localhost cross-origin, don't set domain (browsers handle this automatically)
-    // Setting domain explicitly can cause issues with localhost cookies
-    // Browsers will automatically use the correct domain (localhost) for both origins
+    // For localhost or LAN IP (HTTP), don't set domain (browsers handle this automatically)
+    // Setting domain explicitly can cause issues with localhost/LAN IP cookies
+    // Browsers will automatically use the correct domain/IP for both origins
+    // Note: For LAN IPs (e.g., 192.168.1.100), cookies work across ports on the same IP
+    // with sameSite='lax' even without setting domain
     
     return cookieOptions;
 };

@@ -612,11 +612,11 @@ export default function ManualQuestionForm({
               )}
               <input
                 type="hidden"
-                {...register('mediaAssetId')}
+                {...register('mediaAssetId' as any)}
                 value={audioAssetId || ''}
               />
-              {errors.mediaAssetId && (
-                <p className="mt-1.5 text-sm text-red-500">{errors.mediaAssetId.message}</p>
+              {questionType === QType.LISTENING && 'mediaAssetId' in errors && errors.mediaAssetId && (
+                <p className="mt-1.5 text-sm text-red-500">{(errors.mediaAssetId as { message?: string }).message}</p>
               )}
             </div>
 

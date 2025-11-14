@@ -136,8 +136,6 @@ export default function ConfirmationDialog({
 
   const styles = variantStyles[variant];
 
-  console.log('ConfirmationDialog render - open:', open, 'title:', title);
-
   if (!portalContainer) {
     return null;
   }
@@ -171,7 +169,6 @@ export default function ConfirmationDialog({
           onPointerDownOutside={(e) => {
             // Prevent closing on outside click for confirmation dialogs
             // User must explicitly click Cancel or Confirm
-            console.log('onPointerDownOutside - preventing close, isMounted:', isMounted);
             if (!isMounted) {
               // If not fully mounted yet, definitely prevent
               e.preventDefault();
@@ -182,17 +179,11 @@ export default function ConfirmationDialog({
           }}
           onInteractOutside={(e) => {
             // Prevent closing on outside interaction
-            console.log('onInteractOutside - preventing close, isMounted:', isMounted);
             if (!isMounted) {
               e.preventDefault();
               return;
             }
             e.preventDefault();
-          }}
-          onEscapeKeyDown={() => {
-            // Allow ESC to close - will trigger onOpenChange(false)
-            // Don't prevent default, let it close
-            console.log('onEscapeKeyDown - allowing close');
           }}
           onOpenAutoFocus={(e) => {
             // Prevent auto-focus issues

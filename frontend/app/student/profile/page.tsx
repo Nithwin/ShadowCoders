@@ -15,7 +15,9 @@ import {
   X, 
   Camera,
   Clock,
-  UserCircle
+  UserCircle,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function StudentProfilePage() {
@@ -96,305 +98,338 @@ export default function StudentProfilePage() {
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-primary">Loading user data...</p>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-lg font-medium text-primary/70">Loading user data...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="text-primary max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold font-alan-sans">My Profile</h1>
-        {!isEditing && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-            Edit Profile
-          </button>
-        )}
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-600">
-          {error}
+    <div className="text-primary min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="max-w-5xl mx-auto p-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              My Profile
+            </h1>
+            <p className="text-lg text-primary/70 font-medium">Manage your account settings and information</p>
+          </div>
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-secondary border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl font-semibold"
+            >
+              <Edit2 className="w-5 h-5" />
+              Edit Profile
+            </button>
+          )}
         </div>
-      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Picture & Basic Info Card */}
-        <div className="lg:col-span-1">
-          <div className="bg-secondary rounded-xl shadow-lg p-6 border border-primary/10">
-            <div className="flex flex-col items-center">
-              {/* Profile Picture */}
-              <div className="relative mb-4">
-                {isEditing ? (
-                  <div className="relative">
-                    {formData.pictureUrl ? (
-                      <img
-                        src={formData.pictureUrl}
-                        alt="Profile"
-                        className="w-[120px] h-[120px] rounded-full object-cover border-4 border-primary/20"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          target.style.display = 'none';
-                          const placeholder = target.nextElementSibling as HTMLElement;
-                          if (placeholder) placeholder.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className={`w-[120px] h-[120px] rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20 ${formData.pictureUrl ? 'hidden' : ''}`}
-                    >
-                      <UserCircle className="w-16 h-16 text-primary/40" />
-                    </div>
-                    <button
-                      type="button"
-                      className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90 transition-colors"
-                      title="Edit profile picture URL"
-                    >
-                      <Camera className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  user.pictureUrl ? (
-                    <>
-                      <img
-                        src={user.pictureUrl}
-                        alt="Profile"
-                        className="w-[120px] h-[120px] rounded-full object-cover border-4 border-primary/20"
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          target.style.display = 'none';
-                          const placeholder = target.nextElementSibling as HTMLElement;
-                          if (placeholder) placeholder.style.display = 'flex';
-                        }}
-                      />
-                      <div className="w-[120px] h-[120px] rounded-full bg-primary/10 hidden items-center justify-center border-4 border-primary/20">
-                        <UserCircle className="w-16 h-16 text-primary/40" />
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-800 shadow-lg">
+            <div className="flex items-center gap-2">
+              <X className="w-5 h-5" />
+              <p className="font-semibold">{error}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Profile Picture & Basic Info Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
+              <div className="flex flex-col items-center">
+                {/* Profile Picture */}
+                <div className="relative mb-6">
+                  {isEditing ? (
+                    <div className="relative">
+                      {formData.pictureUrl ? (
+                        <img
+                          src={formData.pictureUrl}
+                          alt="Profile"
+                          className="w-[140px] h-[140px] rounded-full object-cover border-4 border-primary/30 shadow-lg"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            const placeholder = target.nextElementSibling as HTMLElement;
+                            if (placeholder) placeholder.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/30 shadow-lg ${formData.pictureUrl ? 'hidden' : ''}`}
+                      >
+                        <UserCircle className="w-20 h-20 text-primary/50" />
                       </div>
-                    </>
-                  ) : (
-                    <div className="w-[120px] h-[120px] rounded-full bg-primary/10 flex items-center justify-center border-4 border-primary/20">
-                      <UserCircle className="w-16 h-16 text-primary/40" />
+                      <button
+                        type="button"
+                        className="absolute bottom-0 right-0 bg-gradient-to-r from-primary to-primary/90 text-white p-3 rounded-full cursor-pointer hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-secondary"
+                        title="Edit profile picture URL"
+                      >
+                        <Camera className="w-5 h-5" />
+                      </button>
                     </div>
-                  )
-                )}
-              </div>
+                  ) : (
+                    user.pictureUrl ? (
+                      <>
+                        <img
+                          src={user.pictureUrl}
+                          alt="Profile"
+                          className="w-[140px] h-[140px] rounded-full object-cover border-4 border-primary/30 shadow-lg"
+                          onError={(e) => {
+                            const target = e.currentTarget;
+                            target.style.display = 'none';
+                            const placeholder = target.nextElementSibling as HTMLElement;
+                            if (placeholder) placeholder.style.display = 'flex';
+                          }}
+                        />
+                        <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 hidden items-center justify-center border-4 border-primary/30 shadow-lg">
+                          <UserCircle className="w-20 h-20 text-primary/50" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/30 shadow-lg">
+                        <UserCircle className="w-20 h-20 text-primary/50" />
+                      </div>
+                    )
+                  )}
+                </div>
 
-              <h2 className="text-2xl font-bold text-primary mb-2">
-                {isEditing ? (
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="text-center bg-transparent border-b-2 border-primary/30 focus:border-primary focus:outline-none"
-                    placeholder="Your Name"
-                  />
-                ) : (
-                  user.name || 'No Name'
-                )}
-              </h2>
-              <p className="text-primary/60 text-sm mb-4">{user.email}</p>
-              
-              {/* Role Badge */}
-              <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full">
-                <Shield className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium capitalize">{user.role.toLowerCase()}</span>
+                <h2 className="text-2xl font-bold text-primary mb-2 text-center">
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="text-center bg-transparent border-b-2 border-primary/30 focus:border-primary focus:outline-none px-2 py-1 w-full max-w-[200px]"
+                      placeholder="Your Name"
+                    />
+                  ) : (
+                    user.name || 'No Name'
+                  )}
+                </h2>
+                <p className="text-primary/60 text-sm mb-4 text-center">{user.email}</p>
+                
+                {/* Role Badge */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full border border-primary/20 shadow-sm">
+                  <Shield className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold capitalize text-primary">{user.role.toLowerCase()}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Main Information Card */}
-        <div className="lg:col-span-2">
-          <div className="bg-secondary rounded-xl shadow-lg p-6 border border-primary/10">
-            <h2 className="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
-              <User className="w-6 h-6" />
-              Personal Information
-            </h2>
-
-            <div className="space-y-5">
-              {/* Registration Number */}
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Hash className="w-5 h-5 text-primary" />
+          {/* Main Information Card */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
+              <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-primary/10">
+                <div className="p-2.5 bg-blue-500/20 rounded-lg">
+                  <User className="w-6 h-6 text-blue-600" />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-primary/70 mb-1">
-                    Registration Number
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="reg_no"
-                      value={formData.reg_no}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-background border border-primary/20 rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter registration number"
-                    />
-                  ) : (
-                    <p className="text-lg text-primary">{user.reg_no || 'Not set'}</p>
-                  )}
-                </div>
+                <h2 className="text-2xl font-bold text-primary">Personal Information</h2>
               </div>
 
-              {/* Department */}
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Building2 className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-primary/70 mb-1">
-                    Department
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-background border border-primary/20 rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter department"
-                    />
-                  ) : (
-                    <p className="text-lg text-primary">{user.department || 'Not set'}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Year */}
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Calendar className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-primary/70 mb-1">
-                    Year
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="number"
-                      name="year"
-                      value={formData.year}
-                      onChange={handleInputChange}
-                      min="1"
-                      max="10"
-                      className="w-full px-3 py-2 bg-background border border-primary/20 rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter year"
-                    />
-                  ) : (
-                    <p className="text-lg text-primary">{user.year || 'Not set'}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Section */}
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Users className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-primary/70 mb-1">
-                    Section
-                  </label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="section"
-                      value={formData.section}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-background border border-primary/20 rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Enter section"
-                    />
-                  ) : (
-                    <p className="text-lg text-primary">{user.section || 'Not set'}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Email - Read Only */}
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Mail className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-primary/70 mb-1">
-                    Email Address
-                  </label>
-                  <p className="text-lg text-primary">{user.email}</p>
-                </div>
-              </div>
-
-              {/* Profile Picture URL - Editable */}
-              {isEditing && (
-                <div className="flex items-start gap-4">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Camera className="w-5 h-5 text-primary" />
+              <div className="space-y-6">
+                {/* Registration Number */}
+                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                  <div className="p-2.5 bg-blue-500/20 rounded-lg">
+                    <Hash className="w-5 h-5 text-blue-600" />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-primary/70 mb-1">
-                      Profile Picture URL
+                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      Registration Number
                     </label>
-                    <input
-                      type="url"
-                      name="pictureUrl"
-                      value={formData.pictureUrl}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-background border border-primary/20 rounded-lg text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                    <p className="text-xs text-primary/50 mt-1">Enter a URL to your profile picture</p>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="reg_no"
+                        value={formData.reg_no}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        placeholder="Enter registration number"
+                      />
+                    ) : (
+                      <p className="text-lg font-semibold text-primary">{user.reg_no || 'Not set'}</p>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Account Information Card */}
-          <div className="bg-secondary rounded-xl shadow-lg p-6 border border-primary/10 mt-6">
-            <h2 className="text-2xl font-bold mb-6 text-primary flex items-center gap-2">
-              <Clock className="w-6 h-6" />
-              Account Information
-            </h2>
+                {/* Department */}
+                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                  <div className="p-2.5 bg-green-500/20 rounded-lg">
+                    <Building2 className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      Department
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="department"
+                        value={formData.department}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        placeholder="Enter department"
+                      />
+                    ) : (
+                      <p className="text-lg font-semibold text-primary">{user.department || 'Not set'}</p>
+                    )}
+                  </div>
+                </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-2 border-b border-primary/10">
-                <span className="text-sm font-medium text-primary/70">Member Since</span>
-                <span className="text-primary">{formatDate(user.createdAt)}</span>
+                {/* Year */}
+                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                  <div className="p-2.5 bg-purple-500/20 rounded-lg">
+                    <Calendar className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      Year
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="number"
+                        name="year"
+                        value={formData.year}
+                        onChange={handleInputChange}
+                        min="1"
+                        max="10"
+                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        placeholder="Enter year"
+                      />
+                    ) : (
+                      <p className="text-lg font-semibold text-primary">{user.year || 'Not set'}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Section */}
+                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                  <div className="p-2.5 bg-orange-500/20 rounded-lg">
+                    <Users className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      Section
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="section"
+                        value={formData.section}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        placeholder="Enter section"
+                      />
+                    ) : (
+                      <p className="text-lg font-semibold text-primary">{user.section || 'Not set'}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Email - Read Only */}
+                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                  <div className="p-2.5 bg-yellow-500/20 rounded-lg">
+                    <Mail className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      Email Address
+                    </label>
+                    <p className="text-lg font-semibold text-primary">{user.email}</p>
+                    <p className="text-xs text-primary/50 mt-1">Email cannot be changed</p>
+                  </div>
+                </div>
+
+                {/* Profile Picture URL - Editable */}
+                {isEditing && (
+                  <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                    <div className="p-2.5 bg-pink-500/20 rounded-lg">
+                      <Camera className="w-5 h-5 text-pink-600" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-sm font-semibold text-primary/70 mb-2">
+                        Profile Picture URL
+                      </label>
+                      <input
+                        type="url"
+                        name="pictureUrl"
+                        value={formData.pictureUrl}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        placeholder="https://example.com/image.jpg"
+                      />
+                      <p className="text-xs text-primary/50 mt-2">Enter a URL to your profile picture</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm font-medium text-primary/70">Last Updated</span>
-                <span className="text-primary">{formatDate(user.updatedAt)}</span>
+            </div>
+
+            {/* Account Information Card */}
+            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+                <div className="p-2.5 bg-indigo-500/20 rounded-lg">
+                  <Clock className="w-6 h-6 text-indigo-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-primary">Account Information</h2>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 rounded-xl border border-primary/10">
+                  <span className="text-sm font-semibold text-primary/70 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    Member Since
+                  </span>
+                  <span className="text-primary font-semibold">{formatDate(user.createdAt)}</span>
+                </div>
+                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 rounded-xl border border-primary/10">
+                  <span className="text-sm font-semibold text-primary/70 flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-blue-500" />
+                    Last Updated
+                  </span>
+                  <span className="text-primary font-semibold">{formatDate(user.updatedAt)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          {isEditing && (
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={handleSave}
-                disabled={isLoading}
-                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                <Save className="w-4 h-4" />
-                {isLoading ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={isLoading}
-                className="flex items-center gap-2 px-6 py-3 bg-secondary border-2 border-primary/20 text-primary rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-              >
-                <X className="w-4 h-4" />
-                Cancel
-              </button>
-            </div>
-          )}
+            {/* Action Buttons */}
+            {isEditing && (
+              <div className="flex gap-4">
+                <button
+                  onClick={handleSave}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={isLoading}
+                  className="flex items-center gap-2 px-8 py-3 bg-secondary border-2 border-primary/20 text-primary rounded-xl hover:bg-primary/5 hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                >
+                  <X className="w-5 h-5" />
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

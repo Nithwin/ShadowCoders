@@ -56,12 +56,16 @@ export function useAutoSave({
 
       return true;
     } catch (error) {
-      console.error(`[AutoSave] Failed to save answer for question ${questionId}:`, error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[AutoSave] Failed to save answer for question ${questionId}:`, error);
+      }
       
       // Retry logic
       if (retryCount < MAX_RETRIES) {
         const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
-        console.log(`[AutoSave] Retrying save for question ${questionId} in ${retryDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[AutoSave] Retrying save for question ${questionId} in ${retryDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        }
         
         setTimeout(() => {
           saveAnswer(questionId, retryCount + 1);
@@ -120,7 +124,9 @@ export function useAutoSave({
     const retryInterval = setInterval(() => {
       failedSavesRef.current.forEach((retryCount, questionId) => {
         if (retryCount < MAX_RETRIES) {
-          console.log(`[AutoSave] Retrying failed save for question ${questionId}`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[AutoSave] Retrying failed save for question ${questionId}`);
+          }
           saveAnswer(questionId, retryCount);
         }
       });

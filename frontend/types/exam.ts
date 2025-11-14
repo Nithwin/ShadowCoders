@@ -11,6 +11,13 @@ export type Question = {
   testcases?: Array<{ input: string; expectedOutput: string; isHidden?: boolean; timeoutMs?: number }>;
   starterCode?: string | null;
   wordLimit?: number | null;
+  mediaAsset?: {
+    id: string;
+    url: string;
+    kind: string;
+  } | null;
+  config?: Record<string, unknown> | null;
+  maxDurationSec?: number | null;
 };
 
 export type Attempt = {
@@ -21,6 +28,7 @@ export type Attempt = {
     id: string;
     title: string;
     durationMins: number;
+    allowedLanguages?: string[] | null;
     questions: Array<{ id: string; order: number }>;
     sections?: Array<{
       id: string;

@@ -12,6 +12,7 @@ import { registerAssetRoutes } from './modules/assets/asset.routes';
 import { registerSectionRoutes } from './modules/sections/section.routes';
 import { registerAiRoutes } from './modules/ai/ai.routes';
 import { registerGradingRoutes } from './modules/grading/grading.routes';
+import { registerAnalyticsRoutes } from './modules/analytics/analytics.routes';
 import { errorHandler } from './middleware/error';
 import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
 import { env } from './config/env';
@@ -194,6 +195,7 @@ export const createApp = () => {
     registerSectionRoutes(app);
     registerAiRoutes(app);
     registerGradingRoutes(app);
+    registerAnalyticsRoutes(app);
     
     // Final CORS fix middleware - runs after all routes to ensure headers are correct
     app.use((req, res, next) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -137,12 +137,16 @@ export default function CodingQuestion({
       } else {
         setLanguage(defaultLanguage);
       }
+      
+      // Reset initial mount flag for new question
+      isInitialMount.current = true;
     }
   }, [questionId, answer?.code, answer?.language, starterCode, availableLanguages, defaultLanguage]);
 
-  // Sync with answer prop changes from parent (external updates) - only if question hasn't changed
+  // Sync with answer prop changes from parent ONLY on initial mount (not after user edits)
+  // This prevents server responses from overwriting user edits after submission
   useEffect(() => {
-    if (previousQuestionIdRef.current === questionId && answer) {
+    if (previousQuestionIdRef.current === questionId && isInitialMount.current && answer) {
       if (answer.code !== undefined && answer.code !== code) {
         setCode(answer.code);
       }
@@ -152,6 +156,10 @@ export default function CodingQuestion({
           setLanguage(answer.language);
         }
       }
+      // Mark as no longer initial mount to prevent future syncing
+      isInitialMount.current = false;
+    } else if (previousQuestionIdRef.current === questionId && !isInitialMount.current) {
+      // After initial mount, don't sync - let user edits persist
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer?.code, answer?.language, availableLanguages]);
@@ -175,7 +183,9 @@ export default function CodingQuestion({
         setQueueStatus(response.data);
       } catch (err) {
         // Silently fail - queue status is not critical
-        console.error('Failed to fetch queue status:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to fetch queue status:', err);
+        }
       }
     };
 
@@ -239,16 +249,33 @@ export default function CodingQuestion({
     const newCode = value || '';
     setCode(newCode);
     
+    // Mark that user has made edits - don't let answer prop overwrite
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+    }
+    
     // Debounce the onChange callback
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
-      if (!isInitialMount.current) {
-        onChange({ code: newCode, language });
-      }
+      onChange({ code: newCode, language });
     }, 500); // 500ms debounce for code
   };
+
+  // Handle clear button - reset to starter code or empty
+  const handleClearCode = useCallback(() => {
+    const newCode = starterCode || '';
+    setCode(newCode);
+    setError('');
+    setOutput('');
+    setTestResults(null);
+    setIsSubmitMode(false);
+    // Mark as no longer initial mount
+    isInitialMount.current = false;
+    // Immediately update parent
+    onChange({ code: newCode, language });
+  }, [starterCode, language, onChange]);
 
   // Run code with visible test cases only (for testing) - memoized to prevent flicker
   const handleRunCode = useCallback(async () => {
@@ -275,7 +302,9 @@ export default function CodingQuestion({
       setOutput(result.message || '');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      console.error('Error running code:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error running code:', err);
+      }
       setError(error.response?.data?.message || 'Failed to run code. Please try again.');
     } finally {
       setIsRunning(false);
@@ -332,7 +361,9 @@ export default function CodingQuestion({
       });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
-      console.error('Error submitting code:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error submitting code:', err);
+      }
       
       // Try to save anyway even if run fails
       try {
@@ -509,6 +540,12 @@ export default function CodingQuestion({
                   // Ensure the selected language is in the allowed list
                   if (availableLanguages.some(l => l.value === newLang)) {
                     setLanguage(newLang);
+                    // Mark that user has made changes
+                    if (isInitialMount.current) {
+                      isInitialMount.current = false;
+                    }
+                    // Update parent with new language
+                    onChange({ code, language: newLang });
                   }
                 }}
                 className="px-3 py-1.5 bg-[#2d2d2d] text-gray-200 border border-gray-600 rounded text-sm font-medium cursor-pointer hover:bg-[#3d3d3d] hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
@@ -530,6 +567,17 @@ export default function CodingQuestion({
             <div className="w-px h-6 bg-gray-600"></div>
 
             {/* Action Buttons - Compact LeetCode style */}
+            <button
+              onClick={handleClearCode}
+              disabled={isRunning || isSubmitting}
+              type="button"
+              className="px-4 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-[#2d2d2d]"
+              title="Clear code and reset to starter code"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Clear
+            </button>
+            
             <button
               onClick={handleRunCode}
               disabled={isRunning || isSubmitting || !code.trim()}

@@ -33,9 +33,8 @@ export const runCode = async (
   if (attempt.studentId !== studentId) {
     throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
   }
-  if (attempt.status !== AttemptStatus.IN_PROGRESS) {
-    throw { status: 403, message: 'Attempt is not in progress' };
-  }
+  // Allow students to run code even after submission
+  // We allow running code for both IN_PROGRESS and SUBMITTED status
 
   // 2. --- Validation: Check Question ---
   const question = await prisma.question.findUnique({

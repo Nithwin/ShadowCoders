@@ -61,14 +61,18 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('[Socket] Connected to server');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Socket] Connected to server');
+      }
       this.reconnectAttempts = 0;
       // Notify all reconnect callbacks
       this.reconnectCallbacks.forEach(cb => cb());
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      console.log('[Socket] Disconnected from server:', reason);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Socket] Disconnected from server:', reason);
+      }
       // Notify disconnect callbacks
       this.disconnectCallbacks.forEach(cb => cb());
       
@@ -80,17 +84,23 @@ class SocketService {
     });
 
     this.socket.on('reconnect', (attemptNumber: number) => {
-      console.log(`[Socket] Reconnected after ${attemptNumber} attempts`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Socket] Reconnected after ${attemptNumber} attempts`);
+      }
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('reconnect_attempt', (attemptNumber: number) => {
-      console.log(`[Socket] Reconnection attempt ${attemptNumber}/${this.maxReconnectAttempts}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Socket] Reconnection attempt ${attemptNumber}/${this.maxReconnectAttempts}`);
+      }
       this.reconnectAttempts = attemptNumber;
     });
 
     this.socket.on('reconnect_error', (error: Error) => {
-      console.error('[Socket] Reconnection error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Socket] Reconnection error:', error);
+      }
     });
 
     this.socket.on('reconnect_failed', () => {

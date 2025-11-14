@@ -34,7 +34,9 @@ export function useExamAttemptData(attemptId: string | undefined) {
           Object.assign(savedAnswers, JSON.parse(saved));
         }
       } catch (err) {
-        console.error('Error loading from localStorage:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error loading from localStorage:', err);
+        }
       }
 
       // Merge with server responses
@@ -46,7 +48,9 @@ export function useExamAttemptData(attemptId: string | undefined) {
       return { attemptData, mergedAnswers, fetchedQuestions };
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
-      console.error(err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error loading exam attempt:', err);
+      }
       setError(error.response?.data?.error?.message || 'Failed to load exam attempt.');
       return null;
     } finally {

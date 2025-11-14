@@ -1,287 +1,415 @@
-# ShadowCoders
+# ShadowCoders - Online Examination Platform
 
-A comprehensive online examination platform built with Next.js, Express, TypeScript, and PostgreSQL. Features multiple question types, automated grading, AI-powered question generation, and real-time code execution.
+A comprehensive online examination platform built with Next.js 16 and Express.js, featuring multiple question types, automated grading, AI-powered question generation, and real-time monitoring capabilities.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Node.js** 18+ (recommended 20+)
-- **PostgreSQL** database (Supabase or Local PostgreSQL)
-- **npm** or **yarn** package manager
+- **Node.js**: 18+ (recommended 20+)
+- **PostgreSQL**: Database (Supabase recommended)
+- **npm** or **yarn**: Package manager
 
 ### Installation
 
-```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd ShadowCoders
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ShadowCoders
+   ```
 
-# 2. Setup Backend
-cd backend
-npm install
+2. **Backend Setup**
+   ```bash
+   cd backend
+   npm install
+   npm run setup:env
+   npm run prisma:migrate
+   npm run prisma:generate
+   npm run setup:admin
+   npm run dev
+   ```
 
-# Option A: Local PostgreSQL (Recommended for Development)
-npm run setup:local-db
-npm run setup:admin
+3. **Frontend Setup**
+   ```bash
+   cd frontend
+   npm install
+   # Create .env.local (see Environment Variables)
+   npm run dev
+   ```
 
-# Option B: Supabase (Cloud Database)
-npm run setup:env
-# Choose option 1 (Supabase) when prompted
-npx prisma migrate deploy
-npx prisma generate
-npm run setup:admin
+4. **Access the Application**
+   - Frontend: `http://localhost:3000`
+   - Backend: `http://localhost:4000`
+   - Admin Dashboard: `http://localhost:3000/admin/dashboard`
+   - Student Portal: `http://localhost:3000/student/dashboard`
 
-# 3. Start Backend
-npm run dev
+## 📚 Documentation
 
-# 4. Setup Frontend (in a new terminal)
-cd frontend
-npm install
-# Create .env.local with NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api
-npm run dev
-```
+### Architecture & Design
 
-The backend will start on `http://localhost:4000` and frontend on `http://localhost:3000`
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Complete system architecture documentation
+  - System architecture overview
+  - Technology stack
+  - Backend architecture
+  - Frontend architecture
+  - Database schema
+  - Authentication & authorization
+  - API design
+  - Real-time features
+  - Security features
+  - Deployment architecture
 
-### Database Options
+### Developer Guides
 
-**Local PostgreSQL (Recommended for Development):**
-- ✅ Works behind firewalls
-- ✅ Faster (no network latency)
-- ✅ Full control
-- ✅ Offline development
-- Setup: `npm run setup:local-db`
+- **[Backend Developer Guide](./backend/DEVELOPER_GUIDE.md)** - Complete backend documentation
+  - Project structure
+  - Module architecture
+  - API documentation
+  - Database models
+  - Authentication & authorization
+  - Error handling
+  - Code execution
+  - AI integration
+  - Testing & deployment
 
-**Supabase (Cloud Database):**
-- ✅ No installation required
-- ✅ Managed database
-- ✅ Good for production
-- Setup: `npm run setup:env` (choose option 1)
+- **[Frontend Developer Guide](./frontend/DEVELOPER_GUIDE.md)** - Complete frontend documentation
+  - Project structure
+  - Next.js App Router
+  - Component architecture
+  - State management
+  - API integration
+  - Authentication
+  - Custom hooks
+  - Styling
+  - Testing & deployment
 
-**See [Local Database Setup Guide](./backend/docs/LOCAL_DATABASE_SETUP.md) for detailed instructions.**
+### Quick References
 
-## 📁 Project Structure
+- **[Backend README](./backend/README.md)** - Backend quick start and API reference
+- **[Frontend README](./frontend/README.md)** - Frontend quick start and overview
+
+## 🏗️ Project Structure
 
 ```
 ShadowCoders/
-├── backend/                 # Express API server
-│   ├── src/                 # Source code
-│   │   ├── config/          # Configuration
-│   │   ├── middleware/      # Express middleware
-│   │   ├── modules/         # Feature modules
-│   │   ├── lib/             # Shared utilities
-│   │   └── types/           # TypeScript types
-│   ├── prisma/              # Database schema & migrations
-│   ├── scripts/             # Utility scripts
-│   └── README.md            # Backend documentation
+├── backend/                # Express.js API Server
+│   ├── src/               # Source code
+│   │   ├── modules/      # Feature modules (MVC pattern)
+│   │   ├── middleware/   # Express middleware
+│   │   ├── lib/          # Shared utilities
+│   │   └── config/       # Configuration files
+│   ├── prisma/           # Database schema & migrations
+│   ├── scripts/          # Utility scripts
+│   └── package.json
 │
-├── frontend/                # Next.js application
-│   ├── app/                 # Next.js App Router
-│   ├── components/          # React components
-│   ├── context/             # React contexts
-│   ├── hooks/               # Custom React hooks
-│   ├── lib/                 # Library utilities
-│   ├── utils/               # Utility functions
-│   ├── types/               # TypeScript types
-│   └── README.md            # Frontend documentation
+├── frontend/              # Next.js Frontend Application
+│   ├── app/              # Next.js App Router
+│   ├── components/       # React components
+│   ├── hooks/            # Custom React hooks
+│   ├── context/          # React context providers
+│   ├── lib/              # Utilities & services
+│   ├── utils/            # Helper functions
+│   └── package.json
 │
-└── README.md                # This file
+├── ARCHITECTURE.md        # System architecture documentation
+├── README.md              # This file
+└── package.json           # Root package.json (optional)
 ```
 
-## 🏗️ Architecture
+## ✨ Features
 
-### Backend
+### Question Types
 
-- **Express.js** - RESTful API server
-- **TypeScript** - Type-safe code
-- **Prisma** - Type-safe database ORM
-- **PostgreSQL** - Database (Supabase)
-- **JWT** - Authentication
-- **Zod** - Runtime validation
-- **Judge0** - Code execution
-- **Google Gemini** - AI question generation
-
-### Frontend
-
-- **Next.js 15** - React framework with App Router
-- **React 19** - UI library
-- **TypeScript** - Type-safe code
-- **Tailwind CSS** - Utility-first CSS
-- **Axios** - HTTP client
-- **React Hook Form** - Form management
-- **Monaco Editor** - Code editor
-- **Zod** - Schema validation
-
-## 📚 Features
-
-### Authentication
-
-- Email/password login
-- Google OAuth
-- JWT token-based authentication
-- Role-based access control (Student, Staff)
-- Automatic token refresh
+- **MCQ**: Multiple Choice Questions with single/multiple correct answers
+- **Coding**: Programming questions with automated code execution
+- **Essay**: Long-form text answers with manual grading
+- **Speaking**: Audio recording questions
+- **Listening**: Audio-based comprehension questions
+- **Reading**: Text-based comprehension questions
+- **Fill-in-the-blank**: Cloze test questions
 
 ### Exam Management
 
-- Create and manage exams
-- Multiple question types (MCQ, Coding, Essay)
-- AI-powered question generation
-- Assign exams to students
-- Publish exams
-- Export results to Excel
+- **Flexible Timing**: Overall timer, per-section timer, or both
+- **Section Management**: Organize questions into sections
+- **Assignment Control**: Assign exams to specific students or cohorts
+- **Attempt Limits**: Control maximum attempts per exam
+- **Randomization**: Randomize question order
+- **Negative Marking**: Configure negative marks for wrong answers
 
-### Exam Taking
+### Grading & Evaluation
 
-- Start exam attempts
-- Answer questions
-- Run code (Judge0 integration)
-- Real-time timer
-- Auto-save answers
-- Fullscreen mode
-- Submit exams
+- **Automated Grading**: Real-time code execution and automated scoring
+- **Manual Grading**: Rubric-based evaluation for subjective questions
+- **AI Grading**: AI-powered evaluation (future)
+- **Hybrid Grading**: Combination of automated and manual grading
+- **Detailed Feedback**: Provide feedback for each question
 
-### Grading
+### Real-time Monitoring
 
-- Automated grading (MCQ, Coding)
-- Manual grading (Essay)
-- Rubric-based grading
-- View and review submissions
-- Export results
+- **Live Activity Tracking**: Monitor student activity in real-time
+- **Progress Tracking**: Track student progress through exam
+- **Status Indicators**: See active, idle, and submitted students
+- **Connection Status**: Monitor student connection status
 
-### Code Execution
+### Security & Anti-cheating
 
-- Judge0 integration
-- Multiple programming languages
-- Test cases
-- Queue system for concurrent executions
-- Real-time feedback
+- **Fullscreen Enforcement**: Force fullscreen during exams
+- **Tab Switch Detection**: Detect and warn on tab switches
+- **Copy/Paste Prevention**: Disable copy/paste functionality
+- **Keyboard Shortcut Blocking**: Block common shortcuts
+- **Developer Tools Detection**: Warn when dev tools are opened
+- **Audio Monitoring**: Monitor for suspicious audio activity
 
-## 🔧 Configuration
+### AI Integration
 
-### Backend Environment Variables
+- **Question Generation**: Generate questions using Google Gemini AI
+- **Content Creation**: AI-assisted content creation for exams
+- **Smart Recommendations**: AI-powered exam recommendations (future)
 
-Create `backend/.env`:
-
-```env
-PORT=4000
-NODE_ENV=development
-DATABASE_URL=your_database_url
-JWT_SECRET=your_jwt_secret
-FRONTEND_ORIGIN=http://localhost:3000
-GOOGLE_API_KEY=your_google_api_key
-JUDGE0_API_URL=https://ce.judge0.com
-CODE_EXECUTION_PROVIDER=judge0
-```
-
-### Frontend Environment Variables
-
-Create `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-```
-
-## 🛠️ Available Scripts
+## 🛠️ Technology Stack
 
 ### Backend
 
-```bash
-npm run dev              # Start development server
-npm run build            # Build for production
-npm run start            # Start production server
-npm run setup:env        # Interactive environment setup
-npm run setup:admin      # Create admin user
-npm run test:db          # Test database connection
-npm run check:rls        # Check RLS status
-```
+- **Runtime**: Node.js 18+ (TypeScript)
+- **Framework**: Express.js 5.x
+- **Database**: PostgreSQL (via Supabase)
+- **ORM**: Prisma 6.x
+- **Validation**: Zod 4.x
+- **Authentication**: JWT + bcrypt
+- **WebSocket**: Socket.IO 4.x
+- **Code Execution**: Judge0 API + Local Executor
+- **AI Service**: Google Generative AI (Gemini)
 
 ### Frontend
 
-```bash
-npm run dev              # Start development server
-npm run build            # Build for production
-npm run start            # Start production server
-npm run lint             # Run ESLint
+- **Framework**: Next.js 16.x (React 19)
+- **Language**: TypeScript 5.x
+- **Styling**: Tailwind CSS 4.x
+- **UI Components**: Radix UI
+- **Code Editor**: Monaco Editor
+- **Charts**: Recharts 3.x
+- **State Management**: React Context + Custom Hooks
+- **HTTP Client**: Axios
+- **WebSocket Client**: Socket.IO Client
+- **Form Handling**: React Hook Form + Zod
+
+## 🔐 Authentication
+
+### User Roles
+
+- **Student**: Can take exams, view results
+- **Staff**: Can create exams, grade submissions, monitor exams
+
+### Authentication Flow
+
+1. User logs in with email/password or Google OAuth
+2. Server generates JWT access token and refresh token
+3. Access token stored in memory/localStorage
+4. Refresh token stored in HTTP-only cookie
+5. Access token included in Authorization header for authenticated requests
+6. Refresh token used to obtain new access token when expired
+
+## 📡 API Documentation
+
+### Base URL
+
+- **Development**: `http://localhost:4000/api`
+- **Production**: Set via `NEXT_PUBLIC_API_BASE_URL`
+
+### Authentication
+
+Include JWT token in Authorization header:
+```
+Authorization: Bearer <access_token>
 ```
 
-## 📖 Documentation
+### Main Endpoints
 
-- [Backend Documentation](./backend/README.md) - Complete backend API documentation
-- [Frontend Documentation](./frontend/README.md) - Frontend architecture and components
-- [Exam Components](./frontend/docs/EXAM_COMPONENTS.md) - Exam component structure
-- [Judge0 Integration](./frontend/docs/JUDGE0_INTEGRATION.md) - Judge0 integration guide
+- **Auth**: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`
+- **Exams**: `/api/admin/exams`, `/api/student/exams`
+- **Attempts**: `/api/student/attempts`, `/api/admin/attempts`
+- **Questions**: `/api/admin/questions`
+- **Grading**: `/api/student/attempts/:id/run-code`
+- **Monitoring**: Socket.IO namespace `/exam-monitoring`
 
-## 🔒 Security
+See [Backend Developer Guide](./backend/DEVELOPER_GUIDE.md) for complete API documentation.
 
-- JWT authentication
-- HTTP-only cookies for refresh tokens
-- CORS configuration
-- Role-based authorization
-- Input validation with Zod
-- SQL injection protection (Prisma)
-- Password hashing (bcrypt)
-- Row Level Security (RLS) on database
+## 🗄️ Database
+
+### Database Setup
+
+1. **Using Supabase** (Recommended)
+   - Create a Supabase project
+   - Get connection strings from Supabase dashboard
+   - Set `DATABASE_URL` and `DIRECT_URL` in `.env`
+
+2. **Using Local PostgreSQL**
+   - Install PostgreSQL locally
+   - Create a database
+   - Set `DATABASE_URL` in `.env`
+
+### Database Migrations
+
+```bash
+cd backend
+npm run prisma:migrate    # Apply migrations
+npm run prisma:generate   # Generate Prisma client
+npm run prisma:studio     # Open Prisma Studio (database GUI)
+```
+
+## 🚀 Deployment
+
+### Backend Deployment
+
+1. **Build for production**
+   ```bash
+   npm run build
+   ```
+
+2. **Run migrations**
+   ```bash
+   npm run prisma:migrate
+   ```
+
+3. **Start server**
+   ```bash
+   npm start
+   ```
+
+### Frontend Deployment
+
+1. **Build for production**
+   ```bash
+   npm run build
+   ```
+
+2. **Start server**
+   ```bash
+   npm start
+   ```
+
+### Recommended Platforms
+
+- **Backend**: Railway, Render, AWS EC2, DigitalOcean
+- **Frontend**: Vercel, Netlify
+- **Database**: Supabase, AWS RDS, Railway PostgreSQL
+
+### Environment Variables
+
+#### Backend (`.env`)
+
+```env
+# Database
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."  # Optional (Supabase only)
+
+# Server
+PORT=4000
+NODE_ENV=production
+
+# Authentication
+JWT_SECRET="your-secret-key"
+
+# External Services
+GOOGLE_API_KEY="your-google-api-key"
+JUDGE0_API_KEY="your-judge0-api-key"  # Optional
+
+# CORS
+CORS_ORIGINS="https://yourdomain.com"
+```
+
+#### Frontend (`.env.local`)
+
+```env
+# API Configuration
+NEXT_PUBLIC_API_URL="https://api.yourdomain.com"
+NEXT_PUBLIC_API_BASE_URL="https://api.yourdomain.com/api"
+
+# Google OAuth (optional)
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+```
 
 ## 🧪 Testing
 
-### Backend
+### Backend Testing (Future)
 
 ```bash
-# Health check
-curl http://localhost:4000/api/healthz
-
-# CORS test
-curl -H "Origin: http://localhost:3000" http://localhost:4000/api/test-cors
-
-# Database connection test
-npm run test:db
+cd backend
+npm test                  # Run tests
+npm run test:watch        # Watch mode
+npm run test:coverage     # Coverage report
 ```
 
-### Frontend
+### Frontend Testing (Future)
 
 ```bash
-# Start development server
-npm run dev
-
-# Test in browser
-# Navigate to http://localhost:3000
+cd frontend
+npm test                  # Run tests
+npm run test:watch        # Watch mode
+npm run test:e2e          # E2E tests
 ```
 
-## 🐛 Troubleshooting
+## 📝 Scripts
 
-### Database Connection Issues
+### Backend Scripts
 
-- Verify `DATABASE_URL` in `backend/.env`
-- Check Supabase project status (should be active, not paused)
-- Test connection: `npm run test:db`
+```bash
+npm run dev               # Start development server
+npm run build             # Build for production
+npm run start             # Start production server
+npm run prisma:generate   # Generate Prisma client
+npm run prisma:migrate    # Run migrations
+npm run prisma:studio     # Open Prisma Studio
+npm run setup:admin       # Create admin user
+npm run add:students      # Add students from CSV
+```
 
-### CORS Errors
+### Frontend Scripts
 
-- Ensure `FRONTEND_ORIGIN` is set correctly in `backend/.env`
-- Restart backend after changing CORS settings
-- Check browser console for CORS errors
-
-### Authentication Issues
-
-- Clear browser cookies and localStorage
-- Check JWT token in browser DevTools
-- Verify backend authentication endpoints
-- Check token expiration
-
-## 📄 License
-
-ISC
+```bash
+npm run dev               # Start development server
+npm run dev:local         # Local development (localhost only)
+npm run build             # Build for production
+npm run start             # Start production server
+npm run lint              # Run ESLint
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the ISC License.
+
+## 👥 Authors
+
+- ShadowCoders Team
+
+## 🙏 Acknowledgments
+
+- Prisma for the excellent ORM
+- Next.js team for the amazing framework
+- React team for the incredible library
+- All contributors and users of this project
 
 ## 📞 Support
 
-For support, please open an issue in the repository.
+For support, please open an issue on GitHub or contact the development team.
+
+## 🔗 Links
+
+- [Architecture Documentation](./ARCHITECTURE.md)
+- [Backend Developer Guide](./backend/DEVELOPER_GUIDE.md)
+- [Frontend Developer Guide](./frontend/DEVELOPER_GUIDE.md)
+- [Backend API Documentation](./backend/README.md)
+
+---
+
+**Last Updated**: November 2024
+**Version**: 1.0.0

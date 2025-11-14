@@ -11,6 +11,7 @@ export function useCheatingPrevention(
   const lastFocusTimeRef = useRef<number>(Date.now());
   const devToolsOpenRef = useRef<boolean>(false);
   const screenCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const initialLoadTimeRef = useRef<number>(Date.now());
 
   // Store submit function in ref for access in other effects
   useEffect(() => {
@@ -37,23 +38,63 @@ export function useCheatingPrevention(
     };
   }, []);
 
+
   // 1. Detect page visibility changes (tab switching, window minimize)
+  // Only trigger warnings for tab switches, NOT page reloads
   useEffect(() => {
     if (attempt?.status !== 'IN_PROGRESS') return;
 
+    // Check if page was reloaded (only works after page loads)
+    const isPageReload = () => {
+      if (typeof window === 'undefined' || typeof performance === 'undefined') return false;
+      
+      // Modern API
+      const navigationEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+      if (navigationEntries.length > 0) {
+        return navigationEntries[0].type === 'reload';
+      }
+      
+      // Fallback for older browsers
+      if ('navigation' in performance && (performance as any).navigation) {
+        return (performance as any).navigation.type === 1; // RELOAD = 1
+      }
+      
+      return false;
+    };
+
+    // Check if we're in the initial load phase (first 2 seconds) - likely a reload
+    const isInitialLoad = () => {
+      return Date.now() - initialLoadTimeRef.current < 2000;
+    };
+
     const handleVisibilityChange = () => {
+      // Don't trigger warnings during page reload or initial load
+      // Only warn for actual tab switches, not page reloads
+      if (isInitialLoad() || isPageReload()) return;
+      
       if (document.hidden) {
         incrementWarningRef.current?.();
       }
     };
 
     const handleBlur = () => {
-      // Window lost focus (switched to another app/window)
+      // Don't trigger warnings during page reload or initial load
+      // Only warn for actual tab/window switches, not page reloads
+      if (isInitialLoad()) return;
+      
+      // Window lost focus (switched to another app/window or tab)
       incrementWarningRef.current?.();
     };
 
     const handleFocus = () => {
-      // Check if focus was lost for too long
+      // Don't trigger warnings during page reload or initial load
+      if (isInitialLoad()) {
+        lastFocusTimeRef.current = Date.now();
+        return;
+      }
+      
+      // Check if focus was lost for too long (tab switch detection)
+      // This detects when user switches tabs and comes back
       const timeDiff = Date.now() - lastFocusTimeRef.current;
       if (timeDiff > 2000) {
         incrementWarningRef.current?.();
@@ -128,14 +169,21 @@ export function useCheatingPrevention(
         return false;
       }
 
-      // Block copy shortcuts (but allow within exam content)
+      // Block copy shortcuts (but allow within exam content and Monaco editor)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        // Only block if not in input/textarea (allow normal typing)
+        // Only block if not in input/textarea or Monaco editor (allow normal typing)
         const target = e.target as HTMLElement;
         const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
         const isContentEditable = target.isContentEditable;
         
-        if (!isInput && !isContentEditable) {
+        // Check if inside Monaco editor
+        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
+                              target.closest('[class*="monaco"]') !== null ||
+                              target.closest('[data-uri]') !== null ||
+                              (isContentEditable && target.closest('.view-lines') !== null) ||
+                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+        
+        if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
           incrementWarningRef.current?.();
@@ -143,14 +191,21 @@ export function useCheatingPrevention(
         }
       }
 
-      // Block paste shortcuts (but allow within exam content)
+      // Block paste shortcuts (but allow within exam content and Monaco editor)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
-        // Only block if not in input/textarea (allow normal typing)
+        // Only block if not in input/textarea or Monaco editor (allow normal typing)
         const target = e.target as HTMLElement;
         const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
         const isContentEditable = target.isContentEditable;
         
-        if (!isInput && !isContentEditable) {
+        // Check if inside Monaco editor
+        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
+                              target.closest('[class*="monaco"]') !== null ||
+                              target.closest('[data-uri]') !== null ||
+                              (isContentEditable && target.closest('.view-lines') !== null) ||
+                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+        
+        if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
           incrementWarningRef.current?.();
@@ -158,13 +213,20 @@ export function useCheatingPrevention(
         }
       }
 
-      // Block cut shortcuts
+      // Block cut shortcuts (but allow in Monaco editor)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
         const target = e.target as HTMLElement;
         const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
         const isContentEditable = target.isContentEditable;
         
-        if (!isInput && !isContentEditable) {
+        // Check if inside Monaco editor
+        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
+                              target.closest('[class*="monaco"]') !== null ||
+                              target.closest('[data-uri]') !== null ||
+                              (isContentEditable && target.closest('.view-lines') !== null) ||
+                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+        
+        if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
           incrementWarningRef.current?.();
@@ -172,13 +234,28 @@ export function useCheatingPrevention(
         }
       }
 
-      // Block select all (but allow in inputs)
+      // Block select all (but allow in inputs and Monaco editor)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
         const target = e.target as HTMLElement;
+        const activeElement = document.activeElement as HTMLElement;
         const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-        const isContentEditable = target.isContentEditable;
+        const isContentEditable = target.isContentEditable || activeElement?.isContentEditable;
         
-        if (!isInput && !isContentEditable) {
+        // Check if inside Monaco editor - Monaco editor uses specific containers
+        // Check both target and active element for Monaco editor containers
+        const checkMonaco = (el: HTMLElement | null): boolean => {
+          if (!el) return false;
+          return el.closest('.monaco-editor') !== null ||
+                 el.closest('[class*="monaco"]') !== null ||
+                 el.closest('[data-uri]') !== null ||
+                 (el.isContentEditable && el.closest('.view-lines') !== null) ||
+                 // Check if in an iframe that might be Monaco (but not other inputs)
+                 (el.ownerDocument !== document && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA');
+        };
+        
+        const isMonacoEditor = checkMonaco(target) || checkMonaco(activeElement);
+        
+        if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
           incrementWarningRef.current?.();

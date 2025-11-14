@@ -73,7 +73,9 @@ export default function StudentTrackingDetailPage() {
         const questionsRes = await api.get<Question[]>(`/admin/exams/${examId}/questions`);
         setQuestions(questionsRes.data || []);
       } catch (questionsErr) {
-        console.warn('Could not fetch exam questions:', questionsErr);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Could not fetch exam questions:', questionsErr);
+        }
         // Fallback: Extract questions from responses if available
         if (attemptRes.data.responses && attemptRes.data.responses.length > 0) {
           const questionsFromResponses = attemptRes.data.responses
@@ -84,7 +86,9 @@ export default function StudentTrackingDetailPage() {
         }
       }
     } catch (err: any) {
-      console.error('Error fetching attempt details:', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching attempt details:', err);
+      }
       setError(err.response?.data?.error?.message || 'Failed to load student tracking details');
     } finally {
       setIsLoading(false);

@@ -1,7 +1,34 @@
 import axios from 'axios';
 
+// Auto-detect API URL from current hostname (supports LAN IP access)
+function getApiBaseUrl(): string {
+  // Check environment variable first
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  // In browser, auto-detect from current location
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If accessing via LAN IP (not localhost), use the same IP for API
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      // Use the same hostname but port 4000 for backend
+      const apiUrl = `${protocol}//${hostname}:4000/api`;
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[API] Auto-detected API URL: ${apiUrl}`);
+      }
+      return apiUrl;
+    }
+  }
+
+  // Default to localhost
+  return 'http://localhost:4000/api';
+}
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api',
+  baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
 
@@ -97,7 +124,9 @@ api.interceptors.response.use(
       // Exponential backoff: wait longer for each retry
       const delay = RETRY_DELAY * Math.pow(2, retryCount);
       
-      console.log(`[API] Retrying request (${originalRequest._retryCount}/${MAX_RETRIES}): ${originalRequest.url} after ${delay}ms`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[API] Retrying request (${originalRequest._retryCount}/${MAX_RETRIES}): ${originalRequest.url} after ${delay}ms`);
+      }
       
       await sleep(delay);
       

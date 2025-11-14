@@ -36,37 +36,31 @@ export function useExamSubmission(
   }, [isFullscreenRef]);
 
   const handleSubmitExam = useCallback(async (isAutoSubmit: boolean = false) => {
-    console.log('handleSubmitExam called', { isAutoSubmit, attempt: !!attempt, attemptId, isSubmitting });
-    
     if (!attempt || !attemptId) {
-      console.error('Cannot submit: missing attempt or attemptId', { attempt: !!attempt, attemptId });
       setError('Cannot submit exam: Attempt data is missing.');
       return;
     }
     
     // Check if attempt is still in progress before submitting
     if (attempt.status !== 'IN_PROGRESS') {
-      console.error('Cannot submit: Attempt is not in progress', { status: attempt.status });
       setError(`Cannot submit exam: Attempt has already been ${attempt.status.toLowerCase()}.`);
       return;
     }
     
     if (isSubmitting) {
-      console.log('Already submitting, ignoring request');
       return;
     }
 
     if (!isAutoSubmit && confirmSubmit) {
       try {
-        console.log('Showing confirmation dialog...');
         const confirmed = await confirmSubmit();
-        console.log('Confirmation result:', confirmed);
         if (!confirmed) {
-          console.log('User cancelled submission');
           return;
         }
       } catch (err) {
-        console.error('Error in confirmation dialog:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error in confirmation dialog:', err);
+        }
         setError('Error showing confirmation dialog. Please try again.');
         return;
       }
@@ -77,13 +71,11 @@ export function useExamSubmission(
       }
     }
 
-    console.log('Starting submission process...');
     setIsSubmitting(true);
     setError(null);
 
     try {
       // Save all answers to server before submission
-      console.log('Saving answers to server...');
       const savePromises = [];
       
       for (const question of questions) {
@@ -96,7 +88,9 @@ export function useExamSubmission(
               questionId: question.id,
               answer: formattedAnswer,
             }).catch((err) => {
-              console.error(`Error saving answer for question ${question.id}:`, err);
+              if (process.env.NODE_ENV === 'development') {
+                console.error(`Error saving answer for question ${question.id}:`, err);
+              }
               return null;
             })
           );
@@ -104,9 +98,7 @@ export function useExamSubmission(
       }
       
       await Promise.allSettled(savePromises);
-      console.log('All answers saved, submitting exam...');
       await api.post(`/student/attempts/${attemptId}/submit`);
-      console.log('Exam submitted successfully');
       
       // Emit final activity update with submitted status
       if (emitActivityUpdate) {
@@ -135,7 +127,10 @@ export function useExamSubmission(
       router.push('/student/dashboard?submitted=true');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } }; status?: number } };
-      console.error('Error submitting exam:', err);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error submitting exam:', err);
+      }
       
       // Handle 403 errors specifically
       if (error.response?.status === 403) {
@@ -144,7 +139,6 @@ export function useExamSubmission(
         // If attempt was already submitted, redirect to dashboard
         if (errorMessage.toLowerCase().includes('already been submitted') || 
             errorMessage.toLowerCase().includes('already been')) {
-          console.log('Attempt already submitted, redirecting...');
           clearLocalStorage();
           if (isFullscreenStateRef.current && exitFullscreenFnRef.current) {
             await exitFullscreenFnRef.current();

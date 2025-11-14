@@ -16,7 +16,9 @@ export function useExamLocalStorage(attemptId: string | undefined) {
           setLocalAnswers(parsed);
         }
       } catch (err) {
-        console.error('Error loading from localStorage:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error loading from localStorage:', err);
+        }
       }
     }
   }, [attemptId, storageKey]);
@@ -28,7 +30,9 @@ export function useExamLocalStorage(attemptId: string | undefined) {
         try {
           localStorage.setItem(storageKey, JSON.stringify(answers));
         } catch (err) {
-          console.error('Error saving to localStorage:', err);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error saving to localStorage:', err);
+          }
         }
       }, 500); // Debounce by 500ms
       
@@ -42,7 +46,9 @@ export function useExamLocalStorage(attemptId: string | undefined) {
       try {
         localStorage.removeItem(storageKey);
       } catch (err) {
-        console.error('Error clearing localStorage:', err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error clearing localStorage:', err);
+        }
       }
     }
   }, [storageKey]);

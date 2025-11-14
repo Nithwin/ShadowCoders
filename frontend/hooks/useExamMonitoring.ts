@@ -2,6 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { socketService, type ExamActivity, type ExamStats } from '@/lib/socket';
 import { useAuth } from '@/context/AuthContext';
 
+// Re-export ExamStats for convenience
+export type { ExamStats };
+
 export interface UseExamMonitoringOptions {
   examId: string;
   onActivityUpdate?: (stats: ExamStats) => void;
@@ -40,19 +43,25 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
 
     // Handle connection events
     socket.on('connect', () => {
-      console.log('[Monitoring] Socket connected');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Monitoring] Socket connected');
+      }
       setIsConnected(true);
       // Join admin monitoring room after connection is established
       socket.emit('admin-join-exam', { examId });
     });
 
     socket.on('disconnect', () => {
-      console.log('[Monitoring] Socket disconnected');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Monitoring] Socket disconnected');
+      }
       setIsConnected(false);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('[Monitoring] Connection error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Monitoring] Connection error:', error);
+      }
       setIsConnected(false);
     });
 
@@ -164,7 +173,9 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
 
     // Listen for errors
     socket.on('error', (error: { message: string }) => {
-      console.error('[Monitoring] Socket error:', error.message);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Monitoring] Socket error:', error.message);
+      }
     });
 
     // Cleanup

@@ -160,13 +160,15 @@ export default function ExamAttemptPage() {
     handleSubmitExam(true);
   };
 
-  // Wrapper for submit exam button click with logging
+  // Wrapper for submit exam button click
   const handleSubmitExamClick = () => {
-    console.log('Submit Exam button clicked');
     try {
       handleSubmitExam(false);
     } catch (err) {
-      console.error('Error in handleSubmitExamClick:', err);
+      const error = err instanceof Error ? err.message : 'An unexpected error occurred';
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error in handleSubmitExamClick:', err);
+      }
       setSubmissionError('An error occurred when trying to submit. Please try again.');
     }
   };
@@ -192,7 +194,10 @@ export default function ExamAttemptPage() {
           Object.assign(savedAnswers, JSON.parse(saved));
         }
       } catch (err) {
-        console.error('Error loading from localStorage:', err);
+        // Silently handle localStorage errors (corrupted data or quota exceeded)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error loading from localStorage:', err);
+        }
       }
 
       // Merge with server responses if available
@@ -213,24 +218,6 @@ export default function ExamAttemptPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, attempt]);
 
-  // Debug: Log sections and questions (MUST be before any early returns)
-  useEffect(() => {
-    if (attempt?.exam?.sections && questions.length > 0) {
-      console.log('Available sections:', attempt.exam.sections);
-      console.log('Total questions:', questions.length);
-      console.log('Questions with sectionIds:', questions.map(q => ({ id: q.id, sectionId: q.sectionId, type: q.type })));
-      console.log('Section-Question mapping:', attempt.exam.sections.map(s => ({
-        sectionId: s.id,
-        sectionTitle: s.title,
-        questionIds: s.sectionQuestions?.map(sq => sq.questionId) || []
-      })));
-      console.log('Current selectedSectionId:', selectedSectionId);
-      console.log('Current questionIndex:', currentQuestionIndex);
-      if (questions[currentQuestionIndex]) {
-        console.log('Current question:', questions[currentQuestionIndex]);
-      }
-    }
-  }, [attempt?.exam?.sections, questions.length, selectedSectionId, currentQuestionIndex]);
 
   // Sync selectedSectionId with current question's section when question changes
   // This ensures section buttons stay in sync when using next/prev buttons
@@ -251,13 +238,11 @@ export default function ExamAttemptPage() {
       const currentQ = questions[currentQuestionIndex];
       // If current question is not from selected section, navigate to first question of selected section
       if (currentQ && currentQ.sectionId !== selectedSectionId) {
-        console.log(`Current question section (${currentQ.sectionId}) doesn't match selected (${selectedSectionId}), correcting...`);
         const sectionQuestions = questions.filter(q => q.sectionId === selectedSectionId);
         if (sectionQuestions.length > 0) {
           const firstQuestion = sectionQuestions[0];
           const targetIndex = questions.findIndex(q => q.id === firstQuestion.id);
           if (targetIndex !== -1 && targetIndex !== currentQuestionIndex) {
-            console.log(`Correcting navigation to index ${targetIndex}`);
             setCurrentQuestionIndex(targetIndex);
           }
         }
@@ -319,10 +304,8 @@ export default function ExamAttemptPage() {
     return null;
   }
 
-  // Locked exam state
-  if (attempt.status !== 'IN_PROGRESS') {
-    return <ExamLockedScreen timeRemaining={0} />;
-  }
+  // Allow editing even after submission (both IN_PROGRESS and SUBMITTED)
+  // Only show locked screen if there's an error loading the attempt
 
   // Determine the current section ID - prioritize selectedSectionId so section button changes are immediate
   const currentSectionId = selectedSectionId || questions[currentQuestionIndex]?.sectionId || undefined;
@@ -430,16 +413,13 @@ export default function ExamAttemptPage() {
           })}
           currentSectionId={selectedSectionId || currentQuestion?.sectionId}
           onSectionChange={(sectionId) => {
-            console.log('Section change clicked:', sectionId);
             if (!sectionId) {
-              console.warn('No sectionId provided');
               return;
             }
             
             // Find the section in the exam
             const section = attempt?.exam?.sections?.find(s => s.id === sectionId);
             if (!section) {
-              console.warn(`Section ${sectionId} not found in exam sections`);
               return;
             }
             
@@ -447,35 +427,23 @@ export default function ExamAttemptPage() {
             
             // Method 1: Try using sectionQuestions relationship
             const sectionQuestionIds = section.sectionQuestions?.map(sq => sq.questionId) || [];
-            console.log(`Method 1 - Section ${sectionId} has ${sectionQuestionIds.length} question IDs from sectionQuestions:`, sectionQuestionIds);
-            
             if (sectionQuestionIds.length > 0) {
               sectionQuestions = questions.filter(q => sectionQuestionIds.includes(q.id));
-              console.log(`Method 1 found ${sectionQuestions.length} matching questions`);
             }
             
             // Method 2: Fallback to filtering by sectionId property if method 1 found nothing
             if (sectionQuestions.length === 0) {
-              console.log('Method 2 - Trying to filter by sectionId property...');
-              const questionsWithSectionIds = questions.map(q => ({ id: q.id, sectionId: q.sectionId, type: q.type }));
-              console.log('All questions with sectionIds:', questionsWithSectionIds);
-              console.log(`Looking for sectionId: "${sectionId}" (type: ${typeof sectionId})`);
-              console.log('Unique sectionIds in questions:', [...new Set(questions.map(q => q.sectionId).filter(Boolean))]);
-              
               // Try exact match first
               sectionQuestions = questions.filter(q => q.sectionId === sectionId);
-              console.log(`Method 2a (exact match) found ${sectionQuestions.length} questions`);
               
               // If still nothing, try string comparison (in case of type mismatch)
               if (sectionQuestions.length === 0) {
                 sectionQuestions = questions.filter(q => String(q.sectionId) === String(sectionId));
-                console.log(`Method 2b (string comparison) found ${sectionQuestions.length} questions`);
               }
             }
             
             // Method 3: Last resort - match by question type if section title matches type
             if (sectionQuestions.length === 0) {
-              console.log('Method 3 - Trying to match by question type based on section title...');
               const sectionTitle = section.title.toLowerCase();
               let targetType: QType | null = null;
               
@@ -488,37 +456,27 @@ export default function ExamAttemptPage() {
               }
               
               if (targetType) {
-                console.log(`Matching questions by type: ${targetType}`);
                 sectionQuestions = questions.filter(q => q.type === targetType);
-                console.log(`Method 3 found ${sectionQuestions.length} questions of type ${targetType}`);
-              } else {
-                console.log('Could not determine question type from section title:', sectionTitle);
               }
             }
             
             if (sectionQuestions.length === 0) {
-              console.warn(`No questions found in section ${sectionId} using any method`);
-              console.log('Section object:', section);
-              console.log('Section sectionQuestions:', section.sectionQuestions);
-              console.log('All question IDs:', questions.map(q => q.id));
+              // No questions found for this section - don't navigate
               return;
             }
             
             // Find the first question in the questions array that belongs to this section
             const firstQuestion = sectionQuestions[0];
             const targetIndex = questions.findIndex(q => q.id === firstQuestion.id);
-            console.log(`Target index: ${targetIndex} for question ${firstQuestion.id}`);
             
             if (targetIndex === -1) {
-              console.error(`Could not find question ${firstQuestion.id} in questions array`);
+              // Question not found in main questions array - shouldn't happen but handle gracefully
               return;
             }
             
             // Update both states - this ensures immediate UI update
             setSelectedSectionId(sectionId);
             setCurrentQuestionIndex(targetIndex);
-            
-            console.log(`✅ Navigated to section ${sectionId}, question index ${targetIndex}`);
           }}
           questions={questions}
           answers={answers}

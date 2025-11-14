@@ -159,12 +159,8 @@ export default function ExamHeader({
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('Button clicked for section:', section.id, sectionLabel);
                           if (onSectionChange && section.id) {
-                            console.log('Calling onSectionChange with:', section.id);
                             onSectionChange(section.id);
-                          } else {
-                            console.warn('onSectionChange not available or section.id missing', { onSectionChange: !!onSectionChange, sectionId: section.id });
                           }
                         }}
                         className={`px-4 py-1.5 rounded-lg text-sm font-bold border-2 transition-all shadow-sm hover:shadow-md cursor-pointer ${getButtonStyles()}`}

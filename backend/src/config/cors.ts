@@ -1,8 +1,29 @@
 import cors from 'cors';
 import { env } from './env';
+import os from 'os';
+
+/**
+ * Gets the local network IP address for LAN access
+ */
+const getLocalIP = (): string | null => {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        const nets = interfaces[name];
+        if (nets) {
+            for (const net of nets) {
+                // Skip internal (loopback) and non-IPv4 addresses
+                if (net.family === 'IPv4' && !net.internal) {
+                    return net.address;
+                }
+            }
+        }
+    }
+    return null;
+};
 
 /**
  * Builds the list of allowed origins from environment variables
+ * Automatically includes LAN IPs in development mode for cross-device access
  */
 export const buildAllowedOrigins = (): string[] => {
     const allowedOrigins: string[] = [];
@@ -10,6 +31,18 @@ export const buildAllowedOrigins = (): string[] => {
     // Add default localhost origins for development
     if (env.NODE_ENV !== 'production') {
         allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+        
+        // Automatically add LAN IP origins for cross-device access
+        const localIP = getLocalIP();
+        if (localIP) {
+            allowedOrigins.push(
+                `http://${localIP}:3000`,
+                `http://${localIP}:3001`
+            );
+            if (env.NODE_ENV !== 'production') {
+                console.log(`[CORS] Auto-allowing LAN origins: http://${localIP}:3000, http://${localIP}:3001`);
+            }
+        }
     }
     
     // Add FRONTEND_ORIGIN if specified
@@ -56,6 +89,31 @@ export const isOriginAllowed = (
     // Check if origin is in allowed list
     if (allowedOrigins.includes(normalizedOrigin)) {
         return normalizedOrigin;
+    }
+    
+    // In development, also check if origin is a LAN IP with common frontend ports
+    // This helps when accessing from different devices on the same network
+    if (env.NODE_ENV !== 'production') {
+        try {
+            const url = new URL(normalizedOrigin);
+            const hostname = url.hostname;
+            const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+            
+            // Check if it's a LAN IP (not localhost, not public domain)
+            const isLanIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) && 
+                           hostname !== '127.0.0.1' && 
+                           !hostname.startsWith('0.');
+            
+            // Allow LAN IPs on common frontend ports (3000, 3001, etc.)
+            if (isLanIP && ['3000', '3001', '3002', '3003'].includes(port)) {
+                if (env.NODE_ENV !== 'production') {
+                    console.log(`[CORS] Auto-allowing LAN origin: ${normalizedOrigin}`);
+                }
+                return normalizedOrigin;
+            }
+        } catch (error) {
+            // Invalid URL format, skip LAN IP check
+        }
     }
     
     return false;

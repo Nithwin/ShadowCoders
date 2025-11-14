@@ -226,12 +226,8 @@ export const submitAnswer = async (
     };
   }
 
-  if (attempt.status !== AttemptStatus.IN_PROGRESS) {
-    throw {
-      status: 403,
-      message: "Cannot submit answer to a completed or submitted attempt",
-    };
-  }
+  // Allow students to edit answers even after submission
+  // We allow editing for both IN_PROGRESS and SUBMITTED status
 
   const question = await prisma.question.findUnique({
     where: { id: questionId },

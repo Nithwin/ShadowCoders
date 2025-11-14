@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// This function runs on every matched request
-export function middleware(request: NextRequest) {
+// Proxy function runs on every matched request
+// This replaces the deprecated middleware.ts convention
+export function proxy(request: NextRequest) {
   // Get the refresh token from the user's cookies
   const refreshToken = request.cookies.get('refreshToken');
   const { pathname } = request.nextUrl;
@@ -22,7 +23,7 @@ export function middleware(request: NextRequest) {
 }
 
 // --- Config ---
-// This config specifies which paths the middleware should run on.
+// This config specifies which paths the proxy should run on.
 export const config = {
   matcher: [
     /*
@@ -35,3 +36,4 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
+
