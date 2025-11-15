@@ -36,14 +36,11 @@ export default function FullscreenRequirement({ onEnterFullscreen }: FullscreenR
               <div className="flex-1">
                 <p className="font-bold text-amber-900 mb-2 text-sm">⚠️ Important Security & Browser Restrictions:</p>
                 <ul className="text-xs text-amber-900 space-y-1.5 list-disc list-inside">
-                  <li><strong>Copy/Paste:</strong> Works normally <strong>inside code editor only</strong>. External copy/paste is blocked.</li>
+                  <li><strong>Editor Shortcuts:</strong> Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X are <strong>blocked</strong>. These shortcuts will not work during the exam.</li>
                   <li><strong>Blocked:</strong> Tab switching (Ctrl+T), Dev tools (F12), Print Screen, and other shortcuts</li>
                   <li><strong>Warning:</strong> Switching tabs/windows may trigger warnings and auto-submit after 3 warnings</li>
                   <li><strong>Required:</strong> Stay in fullscreen mode throughout the exam</li>
                 </ul>
-                <div className="bg-amber-100 border border-amber-300 rounded p-2 mt-2">
-                  <p className="text-xs font-semibold text-amber-900">✅ Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X) work normally inside the code editor.</p>
-                </div>
               </div>
             </div>
           </div>

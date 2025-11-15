@@ -129,6 +129,12 @@ export default function ExamForm({
       setSuccessMessage('Saved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: unknown) {
+      // Check if this is a cancellation error (user cancelled the confirmation dialog)
+      if (err instanceof Error && (err as any).isCancellation) {
+        // Silently handle cancellation - don't show error message
+        return;
+      }
+      
       const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
       setApiError(

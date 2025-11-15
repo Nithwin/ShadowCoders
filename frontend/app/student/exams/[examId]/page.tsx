@@ -313,7 +313,7 @@ export default function ExamDetailPage() {
                   <div>
                     <p className="font-semibold mb-1">📋 Copy/Paste Restrictions:</p>
                     <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                      <li><strong>Allowed:</strong> Copy/paste shortcuts (Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A) work normally <strong>inside the code editor only</strong></li>
+                      <li><strong>Blocked:</strong> Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X) are <strong>disabled</strong> and will not work during the exam</li>
                       <li><strong>Blocked:</strong> Copy/paste from outside the exam window will be prevented</li>
                       <li><strong>Blocked:</strong> Copying text from question prompts or other exam content is restricted</li>
                     </ul>
@@ -337,9 +337,9 @@ export default function ExamDetailPage() {
                       <li>You must stay in fullscreen mode during the exam</li>
                     </ul>
                   </div>
-                  <div className="bg-amber-100 border border-amber-300 rounded p-3 mt-3">
-                    <p className="text-sm font-semibold text-amber-900">✅ What's Allowed:</p>
-                    <p className="text-sm text-amber-800 mt-1">All standard coding editor shortcuts work normally inside the code editor. You can freely use Ctrl+A (select all), Ctrl+C (copy), Ctrl+V (paste), Ctrl+X (cut), and Ctrl+Z (undo) while typing your code.</p>
+                  <div className="bg-red-50 border border-red-300 rounded p-3 mt-3">
+                    <p className="text-sm font-semibold text-red-900">⚠️ Important:</p>
+                    <p className="text-sm text-red-800 mt-1">Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z) are <strong>blocked</strong> and will not work during the exam. You must type your code manually without using these keyboard shortcuts.</p>
                   </div>
                 </div>
               </div>

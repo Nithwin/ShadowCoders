@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Exam } from '@/types';
-import { ArrowLeft, Loader2, CheckCircle2, Info } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import QuestionManager from '@/components/admin/QuestionManager';
 import ExamForm, { toDateTimeLocal, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
@@ -54,6 +54,25 @@ export default function EditExamPage() {
 
 
   const handleFormSubmit = async (data: ExamFormType) => {
+    // If exam is published, show confirmation dialog
+    if (examData?.status === 'PUBLISHED') {
+      const confirmed = await confirm({
+        title: 'Edit Published Exam',
+        message: 'This exam is currently published and may have active student attempts. Changes to exam settings may affect students who are currently taking or have already taken this exam. Are you sure you want to proceed?',
+        confirmText: 'Yes, Save Changes',
+        cancelText: 'Cancel',
+        variant: 'warning',
+      });
+      
+      if (!confirmed) {
+        // User cancelled - throw a special error that ExamForm will handle gracefully
+        // We use a specific error message that won't be displayed to the user
+        const cancelError = new Error('CANCELLED');
+        (cancelError as any).isCancellation = true;
+        throw cancelError;
+      }
+    }
+
     setIsSubmitting(true);
     setApiError(null);
     setSuccessMessage(null);
@@ -64,6 +83,12 @@ export default function EditExamPage() {
       // Refresh exam data
       await fetchExamData();
     } catch (err: unknown) {
+      // Check if this is a cancellation error
+      if (err instanceof Error && (err as any).isCancellation) {
+        // Don't show error for cancellation, just re-throw so form knows it was cancelled
+        throw err;
+      }
+      
       const error = err as { response?: { data?: { error?: { message?: string }; message?: string } } };
       console.error(err);
       setApiError(
@@ -192,6 +217,20 @@ export default function EditExamPage() {
             <div>
               <strong className="font-semibold">Error:</strong>
               <p className="mt-1">{apiError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {examData?.status === 'PUBLISHED' && (
+        <div className="mb-4 p-4 rounded-md bg-amber-50 border border-amber-200 text-amber-800">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="font-semibold">Warning: Editing Published Exam</strong>
+              <p className="mt-1 text-sm">
+                This exam is currently published and may have active student attempts. Changes to exam settings, questions, or other details may affect students who are currently taking or have already taken this exam. Please proceed with caution.
+              </p>
             </div>
           </div>
         </div>
