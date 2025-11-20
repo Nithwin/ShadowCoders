@@ -29,7 +29,7 @@ function extractJavaClassName(code: string): string {
   }
   
   // Default fallback
-  return 'Solution';
+  return 'Main';
 }
 
 /**
@@ -210,13 +210,12 @@ export async function executeCodeLocally(
   // Create temporary directory for this execution
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-exec-'));
   
-  // For Java, extract the class name and use it as the filename
+  // For Java, always use Main.java as the filename (no class-name extraction)
   let fileName = `code.${langConfig.extension}`;
-  let className = 'code'; // default class name
+  let className = 'Main'; // default class name
   let javaPackage: string | null = null;
   let javaRelDir = '';
   if (language.toLowerCase() === 'java') {
-    className = extractJavaClassName(code);
     javaPackage = extractJavaPackageName(code);
     if (javaPackage) {
       javaRelDir = javaPackage.replace(/\./g, path.sep);
@@ -270,7 +269,10 @@ export async function executeCodeLocally(
 
     // Compile if needed (for compiled languages)
     if (langConfig.compileCommand) {
-      const compileCmd = langConfig.compileCommand(filePath);
+      // For Java, direct class files to tempDir to ensure classpath alignment
+      const compileCmd = language.toLowerCase() === 'java'
+        ? `javac -encoding UTF-8 -d "${tempDir}" "${filePath}"`
+        : langConfig.compileCommand(filePath);
       
       try {
         const compileResult = await execAsync(compileCmd, {
@@ -419,32 +421,12 @@ async function executeWithTimeout(
   timedOut: boolean;
 }> {
   return new Promise((resolve) => {
-    // Use shell execution for better cross-platform compatibility
-    // On Windows, use cmd.exe /c for proper command execution
-    let spawnCommand: string;
-    let spawnArgs: string[] = [];
-    let spawnOptions: any;
-    
-    if (process.platform === 'win32') {
-      // On Windows, use cmd.exe /c to execute the command
-      spawnCommand = 'cmd.exe';
-      spawnArgs = ['/c', command];
-      spawnOptions = {
-        cwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      };
-    } else {
-      // On Unix-like systems, use shell
-      spawnCommand = command;
-      spawnArgs = [];
-      spawnOptions = {
-        cwd,
-        shell: true,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      };
-    }
-    
-    const childProcess = spawn(spawnCommand, spawnArgs, spawnOptions);
+    // Use shell execution uniformly for robust quoting/parsing across OSes
+    const childProcess = spawn(command, {
+      cwd,
+      shell: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
 
     let stdout = '';
     let stderr = '';
@@ -654,13 +636,12 @@ async function testCompiledCodeWithTestCases(
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-exec-'));
   
   try {
-    // For Java, extract the class name and use it as the filename
+    // For Java, always use Main.java as the filename (no class-name extraction)
     let fileName = `code.${langConfig.extension}`;
-    let className = 'code';
+    let className = 'Main';
     let javaPackage: string | null = null;
     let javaRelDir = '';
     if (language.toLowerCase() === 'java') {
-      className = extractJavaClassName(code);
       javaPackage = extractJavaPackageName(code);
       if (javaPackage) {
         javaRelDir = javaPackage.replace(/\./g, path.sep);
@@ -683,7 +664,9 @@ async function testCompiledCodeWithTestCases(
     
     // Compile ONCE for all test cases
     if (langConfig.compileCommand) {
-      const compileCmd = langConfig.compileCommand(filePath);
+      const compileCmd = language.toLowerCase() === 'java'
+        ? `javac -encoding UTF-8 -d "${tempDir}" "${filePath}"`
+        : langConfig.compileCommand(filePath);
       console.log(`[Compiler] Cmd: ${compileCmd}`);
       
       try {
