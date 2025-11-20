@@ -33,6 +33,17 @@ function extractJavaClassName(code: string): string {
 }
 
 /**
+ * Extract the package name from Java code if present
+ */
+function extractJavaPackageName(code: string): string | null {
+  const codeWithoutComments = code
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+  const pkgMatch = codeWithoutComments.match(/\bpackage\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*;/);
+  return pkgMatch?.[1] || null;
+}
+
+/**
  * Check if a command is available in the system
  */
 async function isCommandAvailable(command: string): Promise<boolean> {
@@ -72,6 +83,8 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     command: 'javac',
     compileCommand: (filePath) => `javac "${filePath}"`,
     runCommand: (filePath) => {
+      // Note: For Java we override run command per-call to support packages.
+      // This fallback keeps previous behavior for non-overridden paths.
       const className = path.basename(filePath, '.java');
       const dir = path.dirname(filePath);
       return `java -cp "${dir}" ${className}`;
@@ -200,10 +213,21 @@ export async function executeCodeLocally(
   // For Java, extract the class name and use it as the filename
   let fileName = `code.${langConfig.extension}`;
   let className = 'code'; // default class name
+  let javaPackage: string | null = null;
+  let javaRelDir = '';
   if (language.toLowerCase() === 'java') {
     className = extractJavaClassName(code);
-    fileName = `${className}.${langConfig.extension}`;
+    javaPackage = extractJavaPackageName(code);
+    if (javaPackage) {
+      javaRelDir = javaPackage.replace(/\./g, path.sep);
+      fileName = path.join(javaRelDir, `${className}.${langConfig.extension}`);
+    } else {
+      fileName = `${className}.${langConfig.extension}`;
+    }
     console.log(`[LocalExecutor] Extracted Java class name: ${className}`);
+    if (javaPackage) {
+      console.log(`[LocalExecutor] Extracted Java package: ${javaPackage}`);
+    }
   }
   
   const filePath = path.join(tempDir, fileName);
@@ -236,7 +260,11 @@ export async function executeCodeLocally(
       // Write the query code to file
       await fs.writeFile(filePath, code, 'utf-8');
     } else {
-      // For other languages, write code to file normally
+      // For other languages (and Java), write code to file.
+      // Ensure package directories exist for Java.
+      if (language.toLowerCase() === 'java' && javaRelDir) {
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+      }
       await fs.writeFile(filePath, code, 'utf-8');
     }
 
@@ -287,7 +315,12 @@ export async function executeCodeLocally(
     }
 
     // Execute the code
-    const runCmd = langConfig.runCommand(filePath);
+    // Build run command (override for Java to handle package + classpath root)
+    let runCmd = langConfig.runCommand(filePath);
+    if (language.toLowerCase() === 'java') {
+      const fqcn = javaPackage ? `${javaPackage}.${className}` : className;
+      runCmd = `java -cp "${tempDir}" ${fqcn}`;
+    }
     const startTime = Date.now();
     
     try {
@@ -623,17 +656,35 @@ async function testCompiledCodeWithTestCases(
   try {
     // For Java, extract the class name and use it as the filename
     let fileName = `code.${langConfig.extension}`;
+    let className = 'code';
+    let javaPackage: string | null = null;
+    let javaRelDir = '';
     if (language.toLowerCase() === 'java') {
-      const className = extractJavaClassName(code);
-      fileName = `${className}.${langConfig.extension}`;
+      className = extractJavaClassName(code);
+      javaPackage = extractJavaPackageName(code);
+      if (javaPackage) {
+        javaRelDir = javaPackage.replace(/\./g, path.sep);
+        fileName = path.join(javaRelDir, `${className}.${langConfig.extension}`);
+      } else {
+        fileName = `${className}.${langConfig.extension}`;
+      }
+      console.log(`[Java] Class: ${className}, File: ${fileName}`);
+      if (javaPackage) {
+        console.log(`[Java] Package: ${javaPackage}`);
+      }
     }
     
     const filePath = path.join(tempDir, fileName);
+    console.log(`[Executor] Dir: ${tempDir}, File: ${filePath}`);
+    if (language.toLowerCase() === 'java' && javaRelDir) {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+    }
     await fs.writeFile(filePath, code, 'utf-8');
     
     // Compile ONCE for all test cases
     if (langConfig.compileCommand) {
       const compileCmd = langConfig.compileCommand(filePath);
+      console.log(`[Compiler] Cmd: ${compileCmd}`);
       
       try {
         const compileResult = await execAsync(compileCmd, {
@@ -643,8 +694,22 @@ async function testCompiledCodeWithTestCases(
           shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
         });
         
+        console.log(`[Compiler] Success`);
+        
+        // Verify class file for Java
+        if (language.toLowerCase() === 'java') {
+          const classFile = fileName.replace('.java', '.class');
+          try {
+            await fs.access(path.join(tempDir, classFile));
+            console.log(`[Java] ✓ ${classFile} created`);
+          } catch {
+            console.log(`[Java] ✗ ${classFile} NOT FOUND!`);
+          }
+        }
+        
         // Check for actual compilation errors (not warnings/notes)
         if (compileResult.stderr && !compileResult.stderr.includes('Note:') && !compileResult.stderr.includes('warning:')) {
+          console.log(`[Compiler] Error: ${compileResult.stderr}`);
           return {
             passed: 0,
             total: testCases.length,
@@ -677,9 +742,15 @@ async function testCompiledCodeWithTestCases(
     
     // Run against all test cases (code is already compiled)
     const results = await Promise.all(
-      testCases.map(async (testCase) => {
+      testCases.map(async (testCase, idx) => {
         try {
-          const runCmd = langConfig.runCommand(filePath);
+          // Build run command (override for Java to handle package + classpath root)
+          let runCmd = langConfig.runCommand(filePath);
+          if (language.toLowerCase() === 'java') {
+            const fqcn = javaPackage ? `${javaPackage}.${className}` : className;
+            runCmd = `java -cp "${tempDir}" ${fqcn}`;
+          }
+          console.log(`[Test ${idx+1}] Cmd: ${runCmd}`);
           
           const result = await executeWithTimeout(
             runCmd,
@@ -687,6 +758,8 @@ async function testCompiledCodeWithTestCases(
             tempDir,
             testCase.timeoutMs || 5000
           );
+          
+          console.log(`[Test ${idx+1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
           
           const actualOutput = result.stdout?.trim() || null;
           const expectedOutputTrimmed = testCase.expectedOutput.trim();
