@@ -38,7 +38,7 @@ const students = [
   { student_reg_id: '22CS015', firstname: 'Deepa', lastname: 'R', dob: '25-10-2004', parental_status: 'Both' },
   { student_reg_id: '22CS016', firstname: 'Deepika', lastname: 'R', dob: '06-12-2004', parental_status: 'Both' },
   { student_reg_id: '22CS017', firstname: 'Y', lastname: 'Deepika', dob: '20-07-2004', parental_status: 'Both' },
-  { student_reg_id: '22CS018', firstname: 'Dhamodharan', lastname: 'S P', dob: '24-07-2005', parental_status: 'Mother' },
+  { student_reg_id: '22CS018', firstname: 'Dhamodharan' , lastname: 'S P', dob: '24-07-2005', parental_status: 'Mother' },
   { student_reg_id: '22CS019', firstname: 'V', lastname: 'Dhanasree', dob: '16-11-2004', parental_status: 'Both' },
   { student_reg_id: '22CS020', firstname: 'Dhanuskh', lastname: 'R', dob: '07-04-2005', parental_status: 'Mother' },
   { student_reg_id: '22CS021', firstname: 'R', lastname: 'Dharun Raj', dob: '25-10-2004', parental_status: 'Both' },

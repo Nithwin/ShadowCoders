@@ -100,7 +100,7 @@ export const runCode = async (
     const executionResult = await executionQueue.enqueue(async () => {
       return executionProviderValue === 'local'
         ? await executeCodeLocally(code, language, customInput, 5000)
-        : await executeCodeJudge0(code, language, customInput, 5000);
+        : await executeCodeJudge0(code, language, customInput, undefined, 5000);
     });
 
     // Format result for custom input
@@ -112,9 +112,9 @@ export const runCode = async (
       customOutput: {
         input: customInput,
         output: executionResult.stdout || '',
-        error: executionResult.stderr || executionResult.error || null,
+        error: executionResult.stderr || ('compile_output' in executionResult ? executionResult.compile_output : null) || ('message' in executionResult ? executionResult.message : null) || ('error' in executionResult ? (executionResult as any).error : null) || null,
         status: executionResult.status.description,
-        time: executionResult.time,
+        time: typeof executionResult.time === 'string' ? parseFloat(executionResult.time) : executionResult.time,
         memory: executionResult.memory || 0,
       },
     };
