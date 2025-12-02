@@ -33,7 +33,7 @@ export const listRubrics = async (query: ListRubricsQuery) => {
   const { rubrics, totalCount } = await rubricRepo.listRubrics({
     page,
     pageSize,
-    searchQuery: q,
+    ...(q && { searchQuery: q }),
   });
 
   const totalPages = Math.ceil(totalCount / pageSize);

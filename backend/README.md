@@ -105,9 +105,11 @@ FRONTEND_ORIGIN=http://localhost:3000
 # Google AI (Optional)
 GOOGLE_API_KEY=
 
-# Judge0 Code Execution (Optional)
-JUDGE0_API_URL=https://ce.judge0.com
-CODE_EXECUTION_PROVIDER=judge0
+# Code Execution Configuration
+# OS for code execution: 'windows', 'linux', or 'darwin' (macOS)
+# This determines which commands to use (e.g., python vs python3)
+EXECUTION_OS=windows  # Use 'linux' or 'darwin' for Unix-based systems
+MAX_CONCURRENT_EXECUTIONS=5
 
 # File Uploads (Optional - defaults to 'uploads' in project root)
 # Used for storing LISTENING audio files and SPEAKING recordings
@@ -135,9 +137,11 @@ FRONTEND_ORIGIN=http://localhost:3000
 # Google AI (Optional)
 GOOGLE_API_KEY=
 
-# Judge0 Code Execution (Optional)
-JUDGE0_API_URL=https://ce.judge0.com
-CODE_EXECUTION_PROVIDER=judge0
+# Code Execution Configuration
+# OS for code execution: 'windows', 'linux', or 'darwin' (macOS)
+# This determines which commands to use (e.g., python vs python3)
+EXECUTION_OS=windows  # Use 'linux' or 'darwin' for Unix-based systems
+MAX_CONCURRENT_EXECUTIONS=5
 
 # File Uploads (Optional - defaults to 'uploads' in project root)
 # Used for storing LISTENING audio files and SPEAKING recordings

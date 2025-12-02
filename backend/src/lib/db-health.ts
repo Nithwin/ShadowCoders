@@ -5,7 +5,7 @@
  */
 
 import { prisma } from './prisma';
-import { PrismaClientInitializationError } from '@prisma/client/runtime/library';
+import type { Prisma } from '@prisma/client';
 
 export interface DatabaseHealthStatus {
   connected: boolean;
@@ -35,7 +35,7 @@ export async function checkDatabaseHealth(): Promise<DatabaseHealthStatus> {
     status.error = error.message || 'Unknown database error';
     
     // Handle Prisma connection errors
-    if (error instanceof PrismaClientInitializationError) {
+    if (error.name === 'PrismaClientInitializationError') {
       status.errorCode = error.errorCode || 'P1001';
       
       // Provide helpful error messages based on error code
@@ -79,7 +79,7 @@ export async function withDatabaseErrorHandling<T>(
   } catch (error: any) {
     // Check if it's a database connection error
     if (
-      error instanceof PrismaClientInitializationError ||
+      error.name === 'PrismaClientInitializationError' ||
       error.code === 'P1001' ||
       error.message?.includes("Can't reach database server") ||
       error.message?.includes('database server')

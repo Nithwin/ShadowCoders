@@ -3,7 +3,6 @@ import { runCodeSchema } from './grading.zod';
 import * as gradingRepo from './grading.repo';
 import { prisma } from '../../lib/prisma';
 import { AttemptStatus, QType, Prisma } from '@prisma/client';
-import { testCodeWithTestCases as testCodeWithTestCasesJudge0, executeCode as executeCodeJudge0 } from '../../lib/judge0';
 import { testCodeWithTestCasesLocally, executeCodeLocally } from '../../lib/local-executor';
 import { env } from '../../config/env';
 import { executionQueue } from '../../lib/execution-queue';
@@ -82,9 +81,8 @@ export const runCode = async (
   }
 
   // 4. --- Create Grading Job ---
-  const executionProvider = env.CODE_EXECUTION_PROVIDER || 'judge0';
   const jobData: Prisma.GradingJobCreateInput = {
-    provider: executionProvider === 'local' ? 'local' : 'judge0',
+    provider: 'local',
     status: 'QUEUED',
     payload: { code, language, customInput: customInput || null },
     response: { connect: { id: response.id } },
@@ -92,15 +90,12 @@ export const runCode = async (
   const job = await gradingRepo.createGradingJob(jobData);
 
   // 5. --- Execute Code (via Queue) ---
-  const executionProviderValue = executionProvider === 'local' ? 'local' : 'judge0';
   let result: any;
 
   if (customInput !== undefined && customInput !== null && customInput !== '') {
     // Run with custom input (single execution) - queued
     const executionResult = await executionQueue.enqueue(async () => {
-      return executionProviderValue === 'local'
-        ? await executeCodeLocally(code, language, customInput, 5000)
-        : await executeCodeJudge0(code, language, customInput, undefined, 5000);
+      return await executeCodeLocally(code, language, customInput, 5000);
     });
 
     // Format result for custom input
@@ -143,27 +138,17 @@ export const runCode = async (
       throw { status: 400, message: errorMessage };
     }
 
-    // Test code against test cases using the configured provider - queued
+    // Test code against test cases using local executor - queued
     const testResults = await executionQueue.enqueue(async () => {
-      return executionProviderValue === 'local'
-        ? await testCodeWithTestCasesLocally(
-            code,
-            language,
-            testCasesToRun.map((tc) => ({
-              input: tc.input,
-              expectedOutput: tc.expectedOutput,
-              timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-            }))
-          )
-        : await testCodeWithTestCasesJudge0(
-            code,
-            language,
-            testCasesToRun.map((tc) => ({
-              input: tc.input,
-              expectedOutput: tc.expectedOutput,
-              timeoutMs: tc.timeoutMs || 2000,
-            }))
-          );
+      return await testCodeWithTestCasesLocally(
+        code,
+        language,
+        testCasesToRun.map((tc) => ({
+          input: tc.input,
+          expectedOutput: tc.expectedOutput,
+          timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+        }))
+      );
     });
 
     // Format Result

@@ -22,6 +22,7 @@ run('npm', ['run', 'export'], frontendDir);
 
 console.log('\n=== Building Backend ===');
 run('npm', ['ci'], backendDir);
+run('npx', ['prisma', 'generate'], backendDir);
 run('npm', ['run', 'build'], backendDir);
 
 console.log('\n✅ Build complete. Start with:');

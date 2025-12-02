@@ -371,9 +371,9 @@ export const submitAttempt = async (studentId: string, attemptId: string) => {
               }
 
               // Execute code against ALL test cases (both visible and hidden)
-              const { testCodeWithTestCases } = await import('../../lib/judge0');
+              const { testCodeWithTestCasesLocally } = await import('../../lib/local-executor');
               
-              const testResults = await testCodeWithTestCases(
+              const testResults = await testCodeWithTestCasesLocally(
                 code,
                 language,
                 testcases.map((tc) => ({

@@ -52,9 +52,9 @@ export const listAvailableModels = async () => {
 };
 
 // Get model instance - will try models in priority order
-const getModel = (modelName: string = MODEL_PRIORITIES[0]) => {
+const getModel = (modelName?: string) => {
   return genAI.getGenerativeModel({
-    model: modelName,
+    model: modelName || MODEL_PRIORITIES[0]!,
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.7, // Lower temperature for more consistent output

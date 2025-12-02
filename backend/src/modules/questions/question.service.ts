@@ -100,7 +100,7 @@ const question = await questionRepo.getQuestionById(questionId);
   // For coding questions, only return non-hidden test cases
   if (question.type === QType.CODING && Array.isArray(question.testcases)) {
     scrubbedQuestion.testcases = question.testcases
-      .filter((tc: any) => tc.isHidden === false)
+      .filter((tc: any) => tc && tc.isHidden === false)
       .map((tc: any) => ({
         input: tc.input,
         expectedOutput: tc.expectedOutput,
@@ -165,7 +165,7 @@ export const updateQuestion = async (
           // Validate each testcase has required fields
           for (let i = 0; i < input.testcases.length; i++) {
             const tc = input.testcases[i];
-            if (!tc.input || !tc.expectedOutput) {
+            if (!tc || !tc.input || !tc.expectedOutput) {
               throw { status: 400, message: `Test case ${i + 1} must have both input and expectedOutput` };
             }
           }
@@ -184,8 +184,11 @@ export const updateQuestion = async (
         dataToUpdate.options = input.options as Prisma.JsonArray;
       if (input.correctOptionIds !== undefined)
         dataToUpdate.correctOptionIds = input.correctOptionIds as Prisma.JsonArray;
-      if (input.mediaAssetId !== undefined)
-        dataToUpdate.mediaAsset = input.mediaAssetId ? { connect: { id: input.mediaAssetId } } : { disconnect: true };
+      if (input.mediaAssetId !== undefined) {
+        if (input.mediaAssetId) {
+          dataToUpdate.mediaAsset = { connect: { id: input.mediaAssetId } };
+        }
+      }
       if (input.config !== undefined)
         dataToUpdate.config = input.config as Prisma.InputJsonValue;
       break;
@@ -199,9 +202,12 @@ export const updateQuestion = async (
   }
   
   // Add other optional fields (only if not already handled in switch)
-  if (input.mediaAssetId !== undefined && existingQuestion.type !== QType.LISTENING)
+  if (input.mediaAssetId !== undefined && existingQuestion.type !== QType.LISTENING && input.mediaAssetId) {
     dataToUpdate.mediaAsset = { connect: { id: input.mediaAssetId } };
-  if (input.passageAssetId !== undefined) dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
+  }
+  if (input.passageAssetId !== undefined && input.passageAssetId) {
+    dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
+  }
 
   // Call Repository
   const updatedQuestion = await questionRepo.updateQuestion(

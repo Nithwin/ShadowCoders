@@ -1,6 +1,5 @@
 import { Prisma , User} from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { withDatabaseErrorHandling } from "../../lib/db-health";
 
 interface GoogleProfile {
@@ -30,8 +29,8 @@ export const findUserByEmailAndLinkGoogle = async ({email, name, pictureUrl, goo
             })
             return user;
             
-        } catch(error){
-            if(error instanceof PrismaClientKnownRequestError && error.code === 'P2025'){
+        } catch(error: any){
+            if(error.name === 'PrismaClientKnownRequestError' && error.code === 'P2025'){
                 console.log('User not found, creating new user with email:', email);
                 try {
                     const newUser = await prisma.user.create({

@@ -39,6 +39,9 @@ export const listRubricsHandler: RequestHandler = async (req, res, next) => {
 export const getRubricByIdHandler: RequestHandler = async (req, res, next) => {
   try {
     const rubricId = req.params.rubricId;
+    if (!rubricId) {
+      return next({ status: 400, message: 'Missing rubricId parameter' });
+    }
     const rubric = await rubricService.getRubricById(rubricId);
     res.status(200).json(rubric);
   } catch (error) {
@@ -49,6 +52,9 @@ export const getRubricByIdHandler: RequestHandler = async (req, res, next) => {
 export const updateRubricHandler: RequestHandler = async (req, res, next) => {
   try {
     const rubricId = req.params.rubricId;
+    if (!rubricId) {
+      return next({ status: 400, message: 'Missing rubricId parameter' });
+    }
     const rubricData = req.validatedData?.body as z.infer<typeof updateRubricSchema>['body'] || req.body;
     const updatedRubric = await rubricService.updateRubric(rubricId, rubricData);
     res.status(200).json(updatedRubric);
@@ -60,6 +66,9 @@ export const updateRubricHandler: RequestHandler = async (req, res, next) => {
 export const deleteRubricHandler: RequestHandler = async (req, res, next) => {
   try {
     const rubricId = req.params.rubricId;
+    if (!rubricId) {
+      return next({ status: 400, message: 'Missing rubricId parameter' });
+    }
     await rubricService.deleteRubric(rubricId);
     res.status(200).json({ message: 'Rubric deleted successfully' });
   } catch (error) {

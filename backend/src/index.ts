@@ -35,7 +35,7 @@ const getLocalIP = (): string | null => {
 const HOST = '0.0.0.0';
 const localIP = getLocalIP();
 
-server.listen(PORT, HOST, () => {
+server.listen(Number(PORT), HOST, () => {
     console.log('\n' + '='.repeat(60));
     console.log('🚀 Backend Server Started Successfully!');
     console.log('='.repeat(60));

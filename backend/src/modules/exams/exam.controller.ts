@@ -19,6 +19,9 @@ export const listExamsHandler: RequestHandler = async (req, res, next) => {
 export const getExamByIdHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const exam = await examService.getExamById(examId);
 
     if (!exam) {
@@ -46,6 +49,9 @@ export const createExamHandler: RequestHandler = async (req, res, next) => {
 export const updateExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     // Get validated data from middleware, fallback to req.body
     const examData = req.validatedData?.body || req.body;
     const updatedExam = await examService.updateExam(examId, examData);
@@ -63,12 +69,11 @@ export const updateExamHandler: RequestHandler = async (req, res, next) => {
 export const deleteExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
-    // Allow force deletion via query parameter (e.g., ?force=true)
-    const force = req.query.force === 'true' || req.query.force === true;
-    
     if (!examId) {
       return next({ status: 400, message: 'Exam ID parameter is required' });
     }
+    // Allow force deletion via query parameter (e.g., ?force=true)
+    const force = req.query.force === 'true';
 
     const result = await examService.deleteExam(examId, force);
     res.status(200).json(result);
@@ -102,6 +107,9 @@ export const getExamByIdForStudentHandler: RequestHandler = async (req, res, nex
     if (!studentId) {
       return next({ status: 401, message: 'Unauthorized' });
     }
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
 
     const exam = await examService.getExamByIdForStudent(studentId, examId);
 
@@ -118,6 +126,9 @@ export const getExamByIdForStudentHandler: RequestHandler = async (req, res, nex
 export const assignExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     // Get validated data from middleware, fallback to req.body
     const assignmentData = req.validatedData?.body || req.body;
     const assignment = await examService.assignExam(examId, assignmentData);
@@ -131,6 +142,9 @@ export const assignExamHandler: RequestHandler = async (req, res, next) => {
 export const publishExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const updatedExam = await examService.pubishExam(examId);
 
     res.status(200).json(updatedExam);
@@ -142,18 +156,26 @@ export const publishExamHandler: RequestHandler = async (req, res, next) => {
 export const exportExamResultsHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     
     // Parse field selection from query parameters
     const fieldsParam = req.query.fields;
-    const fields: exportService.ExportField[] = fieldsParam 
-      ? (Array.isArray(fieldsParam) ? fieldsParam : fieldsParam.split(',')) as exportService.ExportField[]
-      : undefined;
+    let fields: exportService.ExportField[] | undefined = undefined;
+    if (fieldsParam) {
+      if (Array.isArray(fieldsParam)) {
+        fields = fieldsParam as exportService.ExportField[];
+      } else if (typeof fieldsParam === 'string') {
+        fields = fieldsParam.split(',') as exportService.ExportField[];
+      }
+    }
     
     const includeSummary = req.query.includeSummary !== 'false';
     const includeExamInfo = req.query.includeExamInfo !== 'false';
     
     const options: exportService.ExportOptions = {
-      fields,
+      ...(fields && { fields }),
       includeSummary,
       includeExamInfo,
     };

@@ -1,6 +1,5 @@
 import { prisma } from '../../lib/prisma';
 import { Prisma, QType, GradingMode } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 
 /**
  * Calculate question difficulty (p-value) - proportion of students who answered correctly
@@ -30,8 +29,8 @@ export const calculateQuestionDifficulty = async (questionId: string): Promise<n
   let correctAnswers = 0;
 
   responses.forEach((response) => {
-    const earned = response.earnedPoints?.toNumber() || 0;
-    const total = response.question.points?.toNumber() || 0;
+    const earned = response.earnedPoints ? Number(response.earnedPoints) : 0;
+    const total = response.question.points ? Number(response.question.points) : 0;
     
     // Consider a question correct if earned >= 50% of points
     if (total > 0 && earned / total >= 0.5) {
@@ -79,8 +78,8 @@ export const calculateDiscriminationIndex = async (questionId: string): Promise<
 
   // Calculate total scores for each attempt
   const attemptScores = attempts.map((attempt) => {
-    const total = attempt.maxScore?.toNumber() || 0;
-    const score = attempt.score?.toNumber() || 0;
+    const total = attempt.maxScore ? Number(attempt.maxScore) : 0;
+    const score = attempt.score ? Number(attempt.score) : 0;
     return {
       attemptId: attempt.id,
       percentage: total > 0 ? score / total : 0,
@@ -103,8 +102,8 @@ export const calculateDiscriminationIndex = async (questionId: string): Promise<
   const calculateProportionCorrect = (group: typeof attemptScores) => {
     let correct = 0;
     group.forEach((item) => {
-      const earned = item.questionResponse?.earnedPoints?.toNumber() || 0;
-      const total = item.questionResponse?.question.points?.toNumber() || 0;
+      const earned = item.questionResponse?.earnedPoints ? Number(item.questionResponse.earnedPoints) : 0;
+      const total = item.questionResponse?.question.points ? Number(item.questionResponse.question.points) : 0;
       if (total > 0 && earned / total >= 0.5) {
         correct++;
       }
@@ -175,14 +174,14 @@ export const getQuestionPerformanceMetrics = async (examId: string) => {
       }
 
       const totalAttempts = responses.length;
-      const totalPoints = question.points?.toNumber() || 0;
+      const totalPoints = question.points ? Number(question.points) : 0;
       
       let totalEarned = 0;
       let totalTimeSpent = 0;
       let passedCount = 0;
 
       responses.forEach((response) => {
-        const earned = response.earnedPoints?.toNumber() || 0;
+        const earned = response.earnedPoints ? Number(response.earnedPoints) : 0;
         totalEarned += earned;
         totalTimeSpent += response.attempt.timeSpentSec || 0;
         
@@ -247,8 +246,8 @@ export const getStudentPerformanceTrends = async (examId: string) => {
   });
 
   const trends = attempts.map((attempt, index) => {
-    const score = attempt.score?.toNumber() || 0;
-    const maxScore = attempt.maxScore?.toNumber() || 0;
+    const score = attempt.score ? Number(attempt.score) : 0;
+    const maxScore = attempt.maxScore ? Number(attempt.maxScore) : 0;
     const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
 
     return {
@@ -338,12 +337,12 @@ export const getTimeSpentAnalysis = async (examId: string) => {
       }
 
       const average = timeSpent.reduce((a, b) => a + b, 0) / timeSpent.length;
-      const min = timeSpent[0];
-      const max = timeSpent[timeSpent.length - 1];
+      const min = timeSpent[0]!;
+      const max = timeSpent[timeSpent.length - 1]!;
       const median =
         timeSpent.length % 2 === 0
-          ? (timeSpent[timeSpent.length / 2 - 1] + timeSpent[timeSpent.length / 2]) / 2
-          : timeSpent[Math.floor(timeSpent.length / 2)];
+          ? ((timeSpent[timeSpent.length / 2 - 1]!) + (timeSpent[timeSpent.length / 2]!)) / 2
+          : timeSpent[Math.floor(timeSpent.length / 2)]!;
 
       return {
         questionId: question.id,
@@ -422,8 +421,8 @@ export const getExamStatistics = async (examId: string) => {
   const scores = submittedAttempts
     .filter((a) => a.score !== null && a.maxScore !== null)
     .map((a) => {
-      const score = a.score?.toNumber() || 0;
-      const maxScore = a.maxScore?.toNumber() || 0;
+      const score = a.score ? Number(a.score) : 0;
+      const maxScore = a.maxScore ? Number(a.maxScore) : 0;
       return {
         score,
         maxScore,

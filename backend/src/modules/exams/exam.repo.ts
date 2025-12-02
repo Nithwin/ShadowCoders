@@ -216,7 +216,7 @@ export const findExamByIdForStudent = async (params: {
   return {
     ...examData,
     hasAttempt: hasCompletedAttempt,
-    attemptId: hasCompletedAttempt ? exam.attempts[0].id : null,
+    attemptId: hasCompletedAttempt ? exam.attempts[0]!.id : null,
     questionTypes,
     hasSpeakingQuestions,
   };

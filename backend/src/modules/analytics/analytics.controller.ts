@@ -4,6 +4,9 @@ import * as analyticsService from './analytics.service';
 export const getExamAnalyticsHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const analytics = await analyticsService.getExamAnalytics(examId);
     res.status(200).json(analytics);
   } catch (error: any) {
@@ -20,6 +23,9 @@ export const getExamAnalyticsHandler: RequestHandler = async (req, res, next) =>
 export const getExamStatisticsHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const statistics = await analyticsService.getExamStatistics(examId);
     res.status(200).json(statistics);
   } catch (error: any) {
@@ -36,6 +42,9 @@ export const getExamStatisticsHandler: RequestHandler = async (req, res, next) =
 export const getQuestionMetricsHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const metrics = await analyticsService.getQuestionPerformanceMetrics(examId);
     res.status(200).json(metrics);
   } catch (error: any) {
@@ -49,6 +58,9 @@ export const getQuestionMetricsHandler: RequestHandler = async (req, res, next) 
 export const getPerformanceTrendsHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const trends = await analyticsService.getStudentPerformanceTrends(examId);
     res.status(200).json(trends);
   } catch (error: any) {
@@ -62,6 +74,9 @@ export const getPerformanceTrendsHandler: RequestHandler = async (req, res, next
 export const getTimeAnalysisHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
     const analysis = await analyticsService.getTimeSpentAnalysis(examId);
     res.status(200).json(analysis);
   } catch (error: any) {

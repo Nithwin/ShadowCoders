@@ -194,7 +194,9 @@ class ExamMonitoringService {
           activity.timeSpent = data.timeSpent;
           activity.lastActivity = new Date();
           activity.status = data.status || activity.status;
-          activity.currentSection = data.currentSection;
+          if (data.currentSection !== undefined) {
+            activity.currentSection = data.currentSection;
+          }
 
           // Broadcast to admins monitoring this exam
           if (socket.examId) {

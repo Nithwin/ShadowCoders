@@ -218,7 +218,7 @@ export const generateQuestions = async (input: GenerateInput) => {
       // Remove first line (```json or ```)
       lines.shift();
       // Remove last line (```)
-      if (lines[lines.length - 1].trim() === '```') {
+      if (lines.length > 0 && lines[lines.length - 1]!.trim() === '```') {
         lines.pop();
       }
       cleanedResponse = lines.join('\n').trim();
@@ -243,8 +243,10 @@ export const generateQuestions = async (input: GenerateInput) => {
       console.error('AI returned:', JSON.stringify(parsedJson, null, 2));
       
       // Create a more helpful error message
-      const errorDetails = validationResult.error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
+      const issues = validationResult.error.issues || [];
+      const errorDetails = issues
+        .map((err: any) => `${err.path.join('.')}: ${err.message}`)
+        .slice(0, 5)
         .join('; ');
       
       throw { 

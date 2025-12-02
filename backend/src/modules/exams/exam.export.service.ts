@@ -1,7 +1,6 @@
 import * as ExcelJS from 'exceljs';
 import { prisma } from '../../lib/prisma';
 import { QType } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 
 export type ExportField = 
   | 'studentName'
@@ -186,12 +185,8 @@ export const exportExamResultsToExcel = async (
   if (attempts.length > 0) {
     attempts.forEach((attempt) => {
       // Convert Decimal to number if needed
-      const score = attempt.score instanceof Decimal 
-        ? attempt.score.toNumber() 
-        : (typeof attempt.score === 'string' ? parseFloat(attempt.score) : (attempt.score ?? 0));
-      const maxScore = attempt.maxScore instanceof Decimal
-        ? attempt.maxScore.toNumber()
-        : (typeof attempt.maxScore === 'string' ? parseFloat(attempt.maxScore) : (attempt.maxScore ?? 0));
+      const score = attempt.score ? Number(attempt.score) : 0;
+      const maxScore = attempt.maxScore ? Number(attempt.maxScore) : 0;
       const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
       const rowData: any = {};
@@ -225,16 +220,10 @@ export const exportExamResultsToExcel = async (
       if (fields.includes('questionScores') || fields.includes('questionAnswers') || fields.includes('questionVerdicts')) {
         exam.questions.forEach((question) => {
           const response = attempt.responses.find((r) => r.question.id === question.id);
-          const questionPoints = question.points instanceof Decimal
-            ? question.points.toNumber()
-            : (typeof question.points === 'string' ? parseFloat(question.points) : question.points);
+          const questionPoints = question.points ? Number(question.points) : 0;
           
           if (response) {
-            const earnedPoints = response.earnedPoints instanceof Decimal
-              ? response.earnedPoints.toNumber()
-              : (typeof response.earnedPoints === 'string' 
-                ? parseFloat(response.earnedPoints) 
-                : (response.earnedPoints ?? 0));
+            const earnedPoints = response.earnedPoints ? Number(response.earnedPoints) : 0;
             
             if (fields.includes('questionScores')) {
               rowData[`q${question.id}_score`] = `${earnedPoints.toFixed(2)} / ${questionPoints}`;
@@ -325,15 +314,11 @@ export const exportExamResultsToExcel = async (
   if (includeSummary && attempts.length > 0) {
     const totalStudents = attempts.length;
     const avgScore = attempts.reduce((sum, a) => {
-      const score = a.score instanceof Decimal
-        ? a.score.toNumber()
-        : (typeof a.score === 'string' ? parseFloat(a.score) : (a.score ?? 0));
+      const score = a.score ? Number(a.score) : 0;
       return sum + score;
     }, 0) / totalStudents;
     const avgMaxScore = attempts.reduce((sum, a) => {
-      const maxScore = a.maxScore instanceof Decimal
-        ? a.maxScore.toNumber()
-        : (typeof a.maxScore === 'string' ? parseFloat(a.maxScore) : (a.maxScore ?? 0));
+      const maxScore = a.maxScore ? Number(a.maxScore) : 0;
       return sum + maxScore;
     }, 0) / totalStudents;
     const avgPercentage = avgMaxScore > 0 ? Math.round((avgScore / avgMaxScore) * 100) : 0;

@@ -51,7 +51,7 @@ export const createExam = async (input: CreateExamInput) => {
     timingMode: input.timingMode,
     sectionLockPolicy: input.sectionLockPolicy,
     randomizeQuestions: input.randomizeQuestions ?? false,
-    allowedLanguages: input.allowedLanguages ? (input.allowedLanguages as Prisma.InputJsonValue) : null,
+    allowedLanguages: input.allowedLanguages ? (input.allowedLanguages as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
   };
 
   const newExam = await examRepo.createExam(dataToSave);
@@ -282,7 +282,7 @@ export const updateExam = async (examId: string, input: UpdateExamInput) => {
     dataToUpdate.maxAttempts = input.maxAttempts ?? null; // null means unlimited
   }
   if (input.allowedLanguages !== undefined) {
-    dataToUpdate.allowedLanguages = input.allowedLanguages ? (input.allowedLanguages as Prisma.InputJsonValue) : null;
+    dataToUpdate.allowedLanguages = input.allowedLanguages ? (input.allowedLanguages as unknown as Prisma.InputJsonValue) : Prisma.JsonNull;
   }
 
   // 3. --- Call Repository ---
