@@ -131,22 +131,22 @@ export const updateQuestionSchema = z.object({
     prompt: z.string().min(1).optional(),
     options: z.array(z.object({ id: z.string(), text: z.string() })).min(2).optional(),
     correctOptionIds: z.array(z.string()).min(1).optional(),
-    starterCode: z.string().optional(),
+    starterCode: z.string().nullable().optional(),
     // Properly validate testcases structure
     testcases: z.array(
       z.object({
-        input: z.string().min(1, 'Input is required'),
-        expectedOutput: z.string().min(1, 'Expected output is required'),
+        input: z.string(),
+        expectedOutput: z.string(),
         isHidden: z.boolean().default(false),
         timeoutMs: z.number().int().positive().default(2000),
       })
     ).optional(),
-    wordLimit: z.number().int().positive().optional(),
+    wordLimit: z.number().int().positive().nullable().optional(),
     // Add other fields (mediaAssetId, passageAssetId, etc.) as optional
-    mediaAssetId: z.string().cuid().optional(),
-    passageAssetId: z.string().cuid().optional(),
-    maxDurationSec: z.number().int().positive().optional(),
+    mediaAssetId: z.string().cuid().nullable().optional(),
+    passageAssetId: z.string().cuid().nullable().optional(),
+    maxDurationSec: z.number().int().positive().nullable().optional(),
     // Config field for LISTENING (maxListenCount) and SPEAKING (maxReattempts)
-    config: z.record(z.unknown()).optional(),
+    config: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
 });

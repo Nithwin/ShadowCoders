@@ -20,6 +20,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     setAccessToken(null);
     setAuthToken(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+    }
     router.push('/login');
   };
 
@@ -32,13 +35,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Try to get a new access token from our /refresh endpoint.
+        // 1. Check if we have a token in localStorage
+        const storedToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        
+        if (storedToken) {
+          // If we have a stored token, try to use it
+          setAccessToken(storedToken);
+          setAuthToken(storedToken);
+          
+          try {
+            // Try to get the user profile with the stored token
+            const { data: userData } = await api.get('/me');
+            setUser(userData);
+            setIsLoading(false);
+            return; // We're done if this works
+          } catch (error) {
+            // If the stored token is invalid/expired, clear it and fall back to refresh
+            console.log('Stored token invalid, trying refresh...');
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('accessToken');
+            }
+          }
+        }
+
+        // 2. If no stored token or it was invalid, try to get a new one via refresh endpoint
         // This relies on the httpOnly cookie.
         const { data } = await api.post('/auth/refresh');
         
         if (data.accessToken) {
           setAccessToken(data.accessToken);
           setAuthToken(data.accessToken); // Set token for all future api requests
+          
+          // Save the new token to localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('accessToken', data.accessToken);
+          }
 
           // If refresh succeeds, get the user's profile
           const { data: userData } = await api.get('/me');
@@ -51,6 +82,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setAccessToken(null);
         setAuthToken(null);
         setUser(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('accessToken');
+        }
       }
       // We're done loading, whether we found a user or not
       setIsLoading(false);
@@ -72,6 +106,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setAccessToken(data.accessToken);
       setAuthToken(data.accessToken);
       
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', data.accessToken);
+      }
+      
       // Step 3: Get user profile
       const { data: userData } = await api.get('/me');
       setUser(userData);
@@ -91,6 +130,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setAccessToken(data.accessToken);
     setAuthToken(data.accessToken);
     
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('accessToken', data.accessToken);
+    }
+    
     const { data: userData } = await api.get('/me');
     setUser(userData);
   };
@@ -106,6 +150,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(null);
     setAccessToken(null);
     setAuthToken(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('accessToken');
+    }
     router.push('/login');
   };
 

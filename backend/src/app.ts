@@ -16,6 +16,7 @@ import { registerAnalyticsRoutes } from './modules/analytics/analytics.routes';
 import { errorHandler } from './middleware/error';
 import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
 import { env } from './config/env';
+import fs from 'fs';
 
 export const createApp = () => {
     const app = express();
@@ -197,6 +198,30 @@ export const createApp = () => {
     registerGradingRoutes(app);
     registerAnalyticsRoutes(app);
     
+    // In production, serve the built frontend (Next.js static export)
+    if (env.NODE_ENV === 'production') {
+        const frontendOutDir = path.resolve(__dirname, '../../frontend/out');
+        if (fs.existsSync(frontendOutDir)) {
+            // Serve static assets
+            app.use(express.static(frontendOutDir));
+
+            // Serve index.html for non-API routes (client-side routing fallback)
+            app.get('*', (req, res, next) => {
+                const url = req.path;
+                if (
+                    url.startsWith('/api') ||
+                    url.startsWith('/uploads') ||
+                    url.startsWith('/socket.io')
+                ) {
+                    return next();
+                }
+                return res.sendFile(path.join(frontendOutDir, 'index.html'));
+            });
+        } else if (env.NODE_ENV !== 'production') {
+            console.warn(`[FE] Frontend build not found at ${frontendOutDir}`);
+        }
+    }
+
     // Final CORS fix middleware - runs after all routes to ensure headers are correct
     app.use((req, res, next) => {
         const origin = req.headers.origin;

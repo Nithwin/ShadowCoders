@@ -520,15 +520,17 @@ export default function ManualQuestionForm({
                     )}
                   </div>
                 </div>
-                <Input
+                <textarea
+                  rows={3}
                   {...register(`testcases.${index}.input`)}
                   placeholder="Input"
-                  className="w-full"
+                  className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 />
-                <Input
+                <textarea
+                  rows={3}
                   {...register(`testcases.${index}.expectedOutput`)}
                   placeholder="Expected Output"
-                  className="w-full"
+                  className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 />
                 <Input
                   type="number"

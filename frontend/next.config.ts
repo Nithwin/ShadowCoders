@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
   /* config options here */
   // Allow access from LAN (for development)
@@ -14,6 +16,9 @@ const nextConfig: NextConfig = {
   // ⚠️ WARNING: Only use this in development! Never in production.
   // Setting to undefined allows all origins in development
   ...(process.env.NODE_ENV === 'development' ? {} : { allowedDevOrigins: [] }),
+
+  // In production, export static files for serving via Express
+  ...(isProd ? { output: 'export' } : {}),
 };
 
 export default nextConfig;

@@ -33,6 +33,11 @@ export const validate = (schema: ZodObject<ZodRawShape>): RequestHandler => {
       return next();
     } catch (error) {
       if (error instanceof ZodError) {
+        // Log the validation error details for debugging
+        console.error('❌ Validation Error Details:');
+        console.error('Request Body:', JSON.stringify(req.body, null, 2));
+        console.error('Validation Issues:', JSON.stringify(error.issues, null, 2));
+        
         return res.status(400).json({
           error: 'Validation failed',
           issues: error.issues.map((e: ZodIssue) => ({

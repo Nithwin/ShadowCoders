@@ -287,24 +287,21 @@ export default function EditQuestionModal({
 
       onSuccess();
       onOpenChange(false);
-    } catch (err: unknown) {
-      const error = err as { 
-        response?: { 
-          data?: { 
-            error?: { message?: string };
-            message?: string;
-          };
-        };
-        message?: string;
-      };
+    } catch (err: any) {
       console.error('Error updating question:', err);
-      console.error('Error response:', error.response?.data);
-      setApiError(
-        error.response?.data?.error?.message ||
-          error.response?.data?.message ||
-          error.message ||
-          'Failed to update question. Please try again.'
-      );
+      
+      // Safely extract error message
+      let errorMessage = 'Failed to update question. Please try again.';
+      
+      if (err.response?.data?.error?.message) {
+        errorMessage = err.response.data.error.message;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setApiError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
