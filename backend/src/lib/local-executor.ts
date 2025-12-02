@@ -3,8 +3,21 @@ import { promisify } from 'util';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
+import { env } from '../config/env';
 
 const execAsync = promisify(exec);
+
+/**
+ * Get Python command based on OS
+ * Linux/macOS use 'python3', Windows uses 'python'
+ */
+function getPythonCommand(): string {
+  const executionOS = env.EXECUTION_OS.toLowerCase();
+  if (executionOS === 'linux' || executionOS === 'darwin') {
+    return 'python3';
+  }
+  return 'python';
+}
 
 /**
  * Extract the public class name from Java code
@@ -74,8 +87,8 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
   },
   python: {
     extension: 'py',
-    command: 'python',
-    runCommand: (filePath) => `python "${filePath}"`,
+    command: getPythonCommand(),
+    runCommand: (filePath) => `${getPythonCommand()} "${filePath}"`,
     timeout: 5000,
   },
   java: {
