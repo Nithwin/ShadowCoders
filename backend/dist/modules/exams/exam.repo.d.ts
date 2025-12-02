@@ -15,7 +15,7 @@ export declare const createExam: (data: Prisma.ExamCreateInput) => Prisma.Prisma
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
     allowedLanguages: Prisma.JsonValue | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const createExamAssignment: (examId: string, assignmentData: Omit<Prisma.ExamAssignmentCreateManyInput, "examId">) => Prisma.Prisma__ExamAssignmentClient<{
     id: string;
     examId: string;
@@ -24,7 +24,7 @@ export declare const createExamAssignment: (examId: string, assignmentData: Omit
     cohortDepartment: string | null;
     cohortSection: string | null;
     studentIds: Prisma.JsonValue | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const updateExamStatus: (examId: string, status: ExamStatus) => Prisma.Prisma__ExamClient<{
     id: string;
     createdAt: Date;
@@ -41,7 +41,7 @@ export declare const updateExamStatus: (examId: string, status: ExamStatus) => P
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
     allowedLanguages: Prisma.JsonValue | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient<({
     sections: ({
         sectionQuestions: ({
@@ -100,7 +100,7 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
     allowedLanguages: Prisma.JsonValue | null;
-}) | null, null, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}) | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const listExams: (params: {
     status?: ExamStatus;
     searchQuery?: string;
@@ -183,7 +183,7 @@ export declare const updateExam: (examId: string, data: Prisma.ExamUpdateInput) 
     durationMins: number;
     timingMode: import(".prisma/client").$Enums.TimingMode;
     sectionLockPolicy: import(".prisma/client").$Enums.SectionLockPolicy;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const deleteExamAndChildren: (examId: string) => Promise<{
     id: string;
     createdAt: Date;

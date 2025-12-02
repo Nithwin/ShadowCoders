@@ -8,5 +8,5 @@ export declare const createAsset: (data: Prisma.AssetCreateInput) => Prisma.Pris
     createdAt: Date;
     kind: import(".prisma/client").$Enums.AssetKind;
     url: string;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 //# sourceMappingURL=asset.repo.d.ts.map

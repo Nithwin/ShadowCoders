@@ -7,7 +7,7 @@ export declare const createRubric: (data: Prisma.RubricCreateInput) => Prisma.Pr
     id: string;
     createdAt: Date;
     criteria: Prisma.JsonValue;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 /**
  * Lists all rubrics with pagination and search
  */
@@ -40,7 +40,7 @@ export declare const getRubricById: (id: string) => Prisma.Prisma__RubricClient<
         evaluations: number;
     };
     criteria: Prisma.JsonValue;
-} | null, null, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 /**
  * Updates a rubric
  */
@@ -49,7 +49,7 @@ export declare const updateRubric: (id: string, data: Prisma.RubricUpdateInput) 
     id: string;
     createdAt: Date;
     criteria: Prisma.JsonValue;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 /**
  * Deletes a rubric
  */
@@ -59,5 +59,5 @@ export declare const deleteRubric: (id: string) => Prisma.Prisma__RubricClient<{
     createdAt: Date;
     criteria: Prisma.JsonValue;
     createdBy: string | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 //# sourceMappingURL=rubric.repo.d.ts.map

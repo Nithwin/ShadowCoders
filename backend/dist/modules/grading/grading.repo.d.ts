@@ -5,7 +5,7 @@ import { Prisma } from '@prisma/client';
 export declare const createGradingJob: (data: Prisma.GradingJobCreateInput) => Prisma.Prisma__GradingJobClient<{
     id: string;
     status: string;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 /**
  * Updates a grading job with the result from the code judge.
  */
@@ -13,5 +13,5 @@ export declare const updateGradingJob: (jobId: string, status: string, result: P
     result: Prisma.JsonValue;
     id: string;
     status: string;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 //# sourceMappingURL=grading.repo.d.ts.map

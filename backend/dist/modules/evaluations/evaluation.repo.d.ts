@@ -9,5 +9,5 @@ data: Prisma.EvaluationCreateWithoutResponseInput) => Prisma.Prisma__EvaluationC
     kind: import(".prisma/client").$Enums.EvaluationKind;
     comments: string | null;
     isFinal: boolean;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 //# sourceMappingURL=evaluation.repo.d.ts.map

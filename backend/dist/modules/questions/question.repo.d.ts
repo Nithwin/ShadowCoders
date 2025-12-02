@@ -39,7 +39,7 @@ export declare const getQuestionById: (questionId: string) => Prisma.Prisma__Que
         kind: import(".prisma/client").$Enums.AssetKind;
         url: string;
     } | null;
-} | null, null, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const updateQuestion: (questionId: string, data: Prisma.QuestionUpdateInput) => Prisma.Prisma__QuestionClient<{
     id: string;
     order: number;
@@ -51,7 +51,7 @@ export declare const updateQuestion: (questionId: string, data: Prisma.QuestionU
     starterCode: string | null;
     testcases: Prisma.JsonValue;
     wordLimit: number | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const deleteQuestion: (questionId: string) => Promise<{
     id: string;
     createdAt: Date;

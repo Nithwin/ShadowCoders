@@ -1,21 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 import { env } from "../config/env";
 
 const globalForPrisma = global as unknown as {prisma: PrismaClient};
 
-// Create PostgreSQL connection pool
-const pool = new Pool({
-    connectionString: env.DATABASE_URL,
-});
-
-// Create Prisma adapter for PostgreSQL
-const adapter = new PrismaPg(pool);
-
-// Configure Prisma client with PostgreSQL adapter for Prisma 7
+// Configure Prisma client with the correct database URL from env config
 export const prisma = globalForPrisma.prisma || new PrismaClient({
-    adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 })
 

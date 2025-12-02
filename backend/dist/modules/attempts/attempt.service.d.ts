@@ -100,7 +100,7 @@ export declare const getQuestionById: (questionId: string) => Prisma.Prisma__Que
         kind: import(".prisma/client").$Enums.AssetKind;
         url: string;
     } | null;
-} | null, null, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const getQuestionForStudent: (attemptId: string, questionId: string, studentId: string) => Promise<any>;
 export declare const getAttemptResults: (studentId: string, attemptId: string) => Promise<{
     id: string;

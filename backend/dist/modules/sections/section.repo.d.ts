@@ -8,7 +8,7 @@ export declare const createSection: (examId: string, data: Omit<Prisma.ExamSecti
     title: string;
     description: string | null;
     durationMins: number | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const addQuestionsToSection: (sectionId: string, questionsData: Prisma.SectionQuestionCreateManyInput[]) => Prisma.PrismaPromise<Prisma.BatchPayload>;
 export declare const updateSection: (sectionId: string, data: Prisma.ExamSectionUpdateInput) => Prisma.Prisma__ExamSectionClient<{
     id: string;
@@ -16,7 +16,7 @@ export declare const updateSection: (sectionId: string, data: Prisma.ExamSection
     title: string;
     description: string | null;
     durationMins: number | null;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const deleteSection: (sectionId: string) => Promise<{
     id: string;
     createdAt: Date;
@@ -34,5 +34,5 @@ export declare const removeQuestionFromSection: (sectionId: string, questionId: 
     order: number;
     sectionId: string;
     questionId: string;
-}, never, import("@prisma/client/runtime/client").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 //# sourceMappingURL=section.repo.d.ts.map
