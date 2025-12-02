@@ -13,9 +13,20 @@
 
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
+const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 
-const prisma = new PrismaClient();
+// Create PostgreSQL connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || process.env.LOCAL_DATABASE_URL,
+});
+
+// Create Prisma adapter
+const adapter = new PrismaPg(pool);
+
+// Initialize Prisma Client with adapter
+const prisma = new PrismaClient({ adapter });
 const SALT_ROUNDS = 10;
 
 async function createUser() {
