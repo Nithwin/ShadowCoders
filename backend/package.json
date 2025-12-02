@@ -13,6 +13,7 @@
     "build:prod": "node scripts/build-with-frontend.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
+    "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "create:user": "node scripts/create-user.js",
     "list:users": "node scripts/list-users.js",
