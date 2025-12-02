@@ -1,4 +1,4 @@
-const config = {
+module.exports = {
   datasources: {
     db: {
       url: process.env.USE_SUPABASE === 'false'
@@ -8,5 +8,3 @@ const config = {
     },
   },
 }
-
-export default config
