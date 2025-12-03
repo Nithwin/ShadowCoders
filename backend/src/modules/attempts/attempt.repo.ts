@@ -95,7 +95,6 @@ export const getAttemptDetails = (attemptId: string) => {
           durationMins: true,
           allowedLanguages: true,
           maxAttempts: true,
-          maxTabSwitches: true,
           questions: {
             select: {
               id: true,
@@ -351,7 +350,7 @@ export const getFullAttemptForAdmin = (attemptId: string) => {
               id: true,
               url: true,
               kind: true,
-            },
+              },
           },
           // Get the original question for context
           question: {

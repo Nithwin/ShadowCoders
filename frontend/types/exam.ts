@@ -28,6 +28,7 @@ export type Attempt = {
     id: string;
     title: string;
     durationMins: number;
+    maxTabSwitches?: number | null;
     allowedLanguages?: string[] | null;
     questions: Array<{ id: string; order: number }>;
     sections?: Array<{

@@ -7,22 +7,22 @@ import ExamHeader from '@/components/student/exam/ExamHeader';
 import FullscreenWarning from '@/components/student/exam/FullscreenWarning';
 import FullscreenRequirement from '@/components/student/exam/FullscreenRequirement';
 import QuestionNavigation from '@/components/student/exam/QuestionNavigation';
-import ExamLockedScreen from '@/components/student/exam/ExamLockedScreen';
 import ExamErrorScreen from '@/components/student/exam/ExamErrorScreen';
 import ExamLoadingScreen from '@/components/student/exam/ExamLoadingScreen';
 import ExamErrorDisplay from '@/components/student/exam/ExamErrorDisplay';
 import ExamContentArea from '@/components/student/exam/ExamContentArea';
-import { findFirstQuestionInSection } from '@/utils/examSectionUtils';
 import { calculateAnsweredCount } from '@/utils/examCalculations';
 import { getFilteredQuestions, getEssayQuestions, getCurrentSectionType } from '@/utils/examQuestionUtils';
 import { mergeAnswersFromResponses } from '@/utils/examDataUtils';
 import { useExamAttemptData } from '@/hooks/useExamAttemptData';
-import { useAnswerManagement, type AnswerData } from '@/hooks/useAnswerManagement';
+import { useAnswerManagement } from '@/hooks/useAnswerManagement';
 import { useFullscreenManagement } from '@/hooks/useFullscreenManagement';
 import { useExamSubmission } from '@/hooks/useExamSubmission';
 import { useCheatingPrevention } from '@/hooks/useCheatingPrevention';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useExamSocket } from '@/hooks/useExamSocket';
+import { useSectionNavigation } from '@/hooks/useSectionNavigation';
+import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
 
 export default function ExamAttemptPage() {
   const params = useParams();
@@ -31,7 +31,6 @@ export default function ExamAttemptPage() {
   const { confirm } = useConfirmationDialog();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
 
   // Fetch attempt and questions data
   const {
@@ -39,7 +38,6 @@ export default function ExamAttemptPage() {
     questions,
     isLoading,
     error: fetchError,
-    fetchAttempt,
     formatAnswersForStorage,
     storageKey,
   } = useExamAttemptData(attemptId);
@@ -100,7 +98,6 @@ export default function ExamAttemptPage() {
   const {
     isFullscreen,
     fullscreenWarning: fullscreenWarningState,
-    setFullscreenWarning: setFullscreenWarningState,
     enterFullscreen,
     exitFullscreen,
   } = useFullscreenManagement(containerRef, attempt, handleAutoSubmit);
@@ -115,7 +112,6 @@ export default function ExamAttemptPage() {
   const {
     warningCount,
     fullscreenWarning: cheatingWarning,
-    setFullscreenWarning: setCheatingWarning,
   } = useCheatingPrevention(
     attempt, 
     handleAutoSubmit,
@@ -127,6 +123,20 @@ export default function ExamAttemptPage() {
     examId: attempt?.exam?.id || '',
     attemptId: attemptId,
   });
+
+  // Section Navigation Hook
+  const {
+    selectedSectionId,
+    setSelectedSectionId,
+    sectionsWithQuestions,
+    handleSectionChange,
+  } = useSectionNavigation(attempt, questions, currentQuestionIndex, setCurrentQuestionIndex);
+
+  // Question Navigation Hook
+  const {
+    navigateQuestion,
+    handleQuestionClick,
+  } = useQuestionNavigation(questions, currentQuestionIndex, setCurrentQuestionIndex, selectedSectionId, attempt);
 
   // Calculate answered count
   const answeredCount = calculateAnsweredCount(questions, answers);
@@ -177,16 +187,6 @@ export default function ExamAttemptPage() {
     }
   };
 
-  // Initialize selected section when questions are loaded
-  useEffect(() => {
-    if (questions.length > 0 && !selectedSectionId) {
-      const firstQuestion = questions[0];
-      if (firstQuestion.sectionId) {
-        setSelectedSectionId(firstQuestion.sectionId);
-      }
-    }
-  }, [questions, selectedSectionId]);
-
   // Initialize and format answers when questions are loaded
   useEffect(() => {
     if (questions.length > 0 && attempt) {
@@ -222,77 +222,6 @@ export default function ExamAttemptPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, attempt]);
 
-
-  // Sync selectedSectionId with current question's section when question changes
-  // This ensures section buttons stay in sync when using next/prev buttons
-  useEffect(() => {
-    if (questions.length > 0 && currentQuestionIndex < questions.length) {
-      const currentQ = questions[currentQuestionIndex];
-      if (currentQ?.sectionId && currentQ.sectionId !== selectedSectionId) {
-        setSelectedSectionId(currentQ.sectionId);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQuestionIndex, questions.length]);
-
-  // Ensure current question is from selected section when section changes
-  // This is a safety check to ensure navigation worked correctly
-  useEffect(() => {
-    if (selectedSectionId && questions.length > 0 && currentQuestionIndex < questions.length) {
-      const currentQ = questions[currentQuestionIndex];
-      // If current question is not from selected section, navigate to first question of selected section
-      if (currentQ && currentQ.sectionId !== selectedSectionId) {
-        const sectionQuestions = questions.filter(q => q.sectionId === selectedSectionId);
-        if (sectionQuestions.length > 0) {
-          const firstQuestion = sectionQuestions[0];
-          const targetIndex = questions.findIndex(q => q.id === firstQuestion.id);
-          if (targetIndex !== -1 && targetIndex !== currentQuestionIndex) {
-            setCurrentQuestionIndex(targetIndex);
-          }
-        }
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSectionId]);
-
-  const navigateQuestion = (direction: 'next' | 'prev') => {
-    // Get current question first
-    const currentQ = questions[currentQuestionIndex];
-    if (!currentQ) return;
-    
-    // Get filtered questions for current section
-    const currentSectionIdToUse = selectedSectionId || currentQ.sectionId;
-    const currentSectionType = getCurrentSectionType(currentSectionIdToUse, attempt, questions);
-    const filtered = getFilteredQuestions(questions, currentSectionIdToUse, currentSectionType);
-    
-    // Find current question's index in filtered list
-    const currentFilteredIndex = filtered.findIndex(q => q.id === currentQ.id);
-    
-    if (direction === 'next') {
-      if (currentFilteredIndex < filtered.length - 1) {
-        // Navigate to next question in filtered list
-        const nextFilteredQuestion = filtered[currentFilteredIndex + 1];
-        const nextIndex = questions.findIndex(q => q.id === nextFilteredQuestion.id);
-        if (nextIndex !== -1) {
-          setCurrentQuestionIndex(nextIndex);
-        }
-      }
-    } else {
-      if (currentFilteredIndex > 0) {
-        // Navigate to previous question in filtered list
-        const prevFilteredQuestion = filtered[currentFilteredIndex - 1];
-        const prevIndex = questions.findIndex(q => q.id === prevFilteredQuestion.id);
-        if (prevIndex !== -1) {
-          setCurrentQuestionIndex(prevIndex);
-        }
-      }
-    }
-  };
-
-  const handleQuestionClick = (index: number) => {
-    setCurrentQuestionIndex(index);
-  };
-
   // Loading state
   if (isLoading) {
     return <ExamLoadingScreen />;
@@ -308,21 +237,15 @@ export default function ExamAttemptPage() {
     return null;
   }
 
-  // Allow editing even after submission (both IN_PROGRESS and SUBMITTED)
-  // Only show locked screen if there's an error loading the attempt
-
   // Determine the current section ID - prioritize selectedSectionId so section button changes are immediate
   const currentSectionId = selectedSectionId || questions[currentQuestionIndex]?.sectionId || undefined;
   
   // Get the section type from the selected section (not current question)
-  // This ensures when section button changes, we get the type of the selected section, not the current question's section
   let currentSectionType: QType | undefined;
   if (selectedSectionId) {
-    // If a section is explicitly selected, get its type
     const selectedSectionQuestions = questions.filter(q => q.sectionId === selectedSectionId);
     currentSectionType = selectedSectionQuestions.length > 0 ? selectedSectionQuestions[0].type : undefined;
   } else {
-    // Fallback to current question's section type
     currentSectionType = getCurrentSectionType(currentSectionId, attempt, questions);
   }
   
@@ -330,9 +253,6 @@ export default function ExamAttemptPage() {
   const filteredQuestions = getFilteredQuestions(questions, currentSectionId, currentSectionType);
   
   const currentQuestion = questions[currentQuestionIndex];
-  const isCodingQuestion = currentQuestion?.type === QType.CODING;
-  const isEssayQuestion = currentQuestion?.type === QType.ESSAY;
-  const isMCQQuestion = currentQuestion?.type === QType.MCQ;
   
   // Get essay questions for navigation (only from filtered questions)
   const essayQuestions = getEssayQuestions(filteredQuestions, questions);
@@ -344,7 +264,6 @@ export default function ExamAttemptPage() {
   }, {} as Record<string, { textAnswer?: string }>);
 
   // Show fullscreen requirement if exam is in progress but not in fullscreen
-  // The hook already checks fullscreen on mount, so we just need to check the state
   const showFullscreenRequirement = attempt?.status === 'IN_PROGRESS' && !isFullscreen;
 
   // Combine fullscreen warnings
@@ -381,111 +300,9 @@ export default function ExamAttemptPage() {
           essayQuestions={essayQuestions}
           onEssayQuestionClick={(index) => setCurrentQuestionIndex(index)}
           essayAnswers={essayAnswers}
-          sections={attempt?.exam.sections?.map((section) => {
-            // Get questionIds using the same fallback logic as QuestionNavigation
-            let questionIds: string[] = [];
-            
-            // Method 1: Use sectionQuestions relationship
-            if (section.sectionQuestions && section.sectionQuestions.length > 0) {
-              questionIds = section.sectionQuestions.map((sq) => sq.questionId);
-            } else {
-              // Method 2: Filter by sectionId property
-              const sectionQuestions = questions.filter(q => q.sectionId === section.id);
-              if (sectionQuestions.length > 0) {
-                questionIds = sectionQuestions.map(q => q.id);
-              } else {
-                // Method 3: Filter by question type based on section title
-                const sectionTitle = section.title.toLowerCase();
-                let targetType: QType | null = null;
-                
-                if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
-                  targetType = QType.CODING;
-                } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
-                  targetType = QType.MCQ;
-                } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
-                  targetType = QType.ESSAY;
-                }
-                
-                if (targetType) {
-                  questionIds = questions.filter(q => q.type === targetType).map(q => q.id);
-                }
-              }
-            }
-            
-            return {
-              id: section.id,
-              title: section.title,
-              order: section.order,
-              questionIds,
-            };
-          })}
+          sections={sectionsWithQuestions}
           currentSectionId={selectedSectionId || currentQuestion?.sectionId}
-          onSectionChange={(sectionId) => {
-            if (!sectionId) {
-              return;
-            }
-            
-            // Find the section in the exam
-            const section = attempt?.exam?.sections?.find(s => s.id === sectionId);
-            if (!section) {
-              return;
-            }
-            
-            let sectionQuestions: typeof questions = [];
-            
-            // Method 1: Try using sectionQuestions relationship
-            const sectionQuestionIds = section.sectionQuestions?.map(sq => sq.questionId) || [];
-            if (sectionQuestionIds.length > 0) {
-              sectionQuestions = questions.filter(q => sectionQuestionIds.includes(q.id));
-            }
-            
-            // Method 2: Fallback to filtering by sectionId property if method 1 found nothing
-            if (sectionQuestions.length === 0) {
-              // Try exact match first
-              sectionQuestions = questions.filter(q => q.sectionId === sectionId);
-              
-              // If still nothing, try string comparison (in case of type mismatch)
-              if (sectionQuestions.length === 0) {
-                sectionQuestions = questions.filter(q => String(q.sectionId) === String(sectionId));
-              }
-            }
-            
-            // Method 3: Last resort - match by question type if section title matches type
-            if (sectionQuestions.length === 0) {
-              const sectionTitle = section.title.toLowerCase();
-              let targetType: QType | null = null;
-              
-              if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
-                targetType = QType.CODING;
-              } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
-                targetType = QType.MCQ;
-              } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
-                targetType = QType.ESSAY;
-              }
-              
-              if (targetType) {
-                sectionQuestions = questions.filter(q => q.type === targetType);
-              }
-            }
-            
-            if (sectionQuestions.length === 0) {
-              // No questions found for this section - don't navigate
-              return;
-            }
-            
-            // Find the first question in the questions array that belongs to this section
-            const firstQuestion = sectionQuestions[0];
-            const targetIndex = questions.findIndex(q => q.id === firstQuestion.id);
-            
-            if (targetIndex === -1) {
-              // Question not found in main questions array - shouldn't happen but handle gracefully
-              return;
-            }
-            
-            // Update both states - this ensures immediate UI update
-            setSelectedSectionId(sectionId);
-            setCurrentQuestionIndex(targetIndex);
-          }}
+          onSectionChange={handleSectionChange}
           questions={questions}
           answers={answers}
         />
@@ -498,44 +315,7 @@ export default function ExamAttemptPage() {
         {/* Question Navigation Sidebar */}
         <QuestionNavigation
           questions={questions}
-          sections={attempt?.exam.sections?.map((section) => {
-            // Get questionIds using the same fallback logic as onSectionChange
-            let questionIds: string[] = [];
-            
-            // Method 1: Use sectionQuestions relationship
-            if (section.sectionQuestions && section.sectionQuestions.length > 0) {
-              questionIds = section.sectionQuestions.map((sq) => sq.questionId);
-            } else {
-              // Method 2: Filter by sectionId property
-              const sectionQuestions = questions.filter(q => q.sectionId === section.id);
-              if (sectionQuestions.length > 0) {
-                questionIds = sectionQuestions.map(q => q.id);
-              } else {
-                // Method 3: Filter by question type based on section title
-                const sectionTitle = section.title.toLowerCase();
-                let targetType: QType | null = null;
-                
-                if (sectionTitle.includes('coding') || sectionTitle.includes('code')) {
-                  targetType = QType.CODING;
-                } else if (sectionTitle.includes('mcq') || sectionTitle.includes('multiple choice') || sectionTitle.includes('choice')) {
-                  targetType = QType.MCQ;
-                } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
-                  targetType = QType.ESSAY;
-                }
-                
-                if (targetType) {
-                  questionIds = questions.filter(q => q.type === targetType).map(q => q.id);
-                }
-              }
-            }
-            
-            return {
-              id: section.id,
-              title: section.title,
-              order: section.order,
-              questionIds,
-            };
-          })}
+          sections={sectionsWithQuestions}
           currentQuestionIndex={currentQuestionIndex}
           currentSectionId={selectedSectionId || currentQuestion?.sectionId}
           answers={answers}
@@ -567,7 +347,7 @@ export default function ExamAttemptPage() {
         />
         
         {/* Question Content Area */}
-        <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isEssayQuestion || isMCQQuestion ? '' : 'p-6'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
           {currentQuestion && (
             <ExamContentArea
               currentQuestion={currentQuestion}

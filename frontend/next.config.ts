@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   ...(process.env.NODE_ENV === 'development' ? {} : { allowedDevOrigins: [] }),
 
   // In production, export static files for serving via Express
-  ...(isProd ? { output: 'export' } : {}),
+  // ...(isProd ? { output: 'export' } : {}),
 };
 
 export default nextConfig;
