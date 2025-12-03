@@ -26,6 +26,7 @@ const navLinks = [
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
   { name: 'Rubrics', href: '/admin/rubrics', icon: BookMarked },
+  { name: 'Users', href: '/admin/users', icon: UserIcon },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

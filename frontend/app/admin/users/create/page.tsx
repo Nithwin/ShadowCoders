@@ -1,0 +1,232 @@
+"use client";
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { api } from '@/lib/api';
+import { ArrowLeft, Save } from 'lucide-react';
+import { useToastNotification } from '@/context/ToastContext';
+
+export default function CreateUserPage() {
+  const router = useRouter();
+  const toast = useToastNotification();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'STUDENT',
+    reg_no: '',
+    department: '',
+    year: '',
+    section: '',
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Basic validation
+      if (!formData.name || !formData.email || !formData.password) {
+        throw new Error('Please fill in all required fields.');
+      }
+
+      const payload: any = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+      };
+
+      if (formData.role === 'STUDENT') {
+        payload.reg_no = formData.reg_no;
+        payload.department = formData.department;
+        payload.year = formData.year ? parseInt(formData.year) : null;
+        payload.section = formData.section;
+      }
+
+      await api.post('/users', payload);
+      toast.success('User created successfully!');
+      router.push('/admin/users');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.response?.data?.message || err.message || 'Failed to create user.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="text-primary max-w-3xl mx-auto">
+      <div className="flex items-center gap-4 mb-6">
+        <Link
+          href="/admin/users"
+          className="p-2 rounded-full hover:bg-primary/10 transition-colors"
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </Link>
+        <h1 className="text-3xl font-bold font-alan-sans">Create New User</h1>
+      </div>
+
+      <div className="bg-secondary rounded-lg shadow-md p-6 md:p-8">
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-200">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="John Doe"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                Email Address *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="john@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                Password *
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="******"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                Role *
+              </label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="STUDENT">Student</option>
+                <option value="STAFF">Staff (Admin)</option>
+              </select>
+            </div>
+          </div>
+
+          {formData.role === 'STUDENT' && (
+            <>
+              <div className="border-t border-primary/10 pt-6 mt-6">
+                <h3 className="text-lg font-semibold mb-4 text-primary/80">Student Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-primary/70 mb-1">
+                      Registration Number
+                    </label>
+                    <input
+                      type="text"
+                      name="reg_no"
+                      value={formData.reg_no}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="e.g., 2021CSE001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-primary/70 mb-1">
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="e.g., CSE"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-primary/70 mb-1">
+                      Year
+                    </label>
+                    <input
+                      type="number"
+                      name="year"
+                      value={formData.year}
+                      onChange={handleChange}
+                      min="1"
+                      max="4"
+                      className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="e.g., 3"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-primary/70 mb-1">
+                      Section
+                    </label>
+                    <input
+                      type="text"
+                      name="section"
+                      value={formData.section}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="e.g., A"
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-6">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-6 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-5 h-5" />
+              {isSubmitting ? 'Creating...' : 'Create User'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
