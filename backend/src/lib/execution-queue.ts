@@ -35,7 +35,7 @@ class ExecutionQueue {
 
   constructor(maxConcurrent: number = 5) {
     this.maxConcurrent = maxConcurrent;
-    console.log(`[ExecutionQueue] Initialized with max concurrent: ${maxConcurrent}`);
+    // console.log(`[ExecutionQueue] Initialized with max concurrent: ${maxConcurrent}`);
   }
 
   /**
@@ -47,7 +47,7 @@ class ExecutionQueue {
       throw new Error('Max concurrent must be at least 1');
     }
     this.maxConcurrent = max;
-    console.log(`[ExecutionQueue] Max concurrent updated to: ${max}`);
+    // console.log(`[ExecutionQueue] Max concurrent updated to: ${max}`);
     // Process queue with new limit
     this.processQueue();
   }
@@ -97,7 +97,7 @@ class ExecutionQueue {
       }
 
       this.stats.queued = this.queue.length;
-      console.log(`[ExecutionQueue] Job ${jobId} enqueued. Queue size: ${this.queue.length}, Running: ${this.running.size}`);
+      // console.log(`[ExecutionQueue] Job ${jobId} enqueued. Queue size: ${this.queue.length}, Running: ${this.running.size}`);
 
       // Try to process immediately
       this.processQueue();
@@ -129,7 +129,7 @@ class ExecutionQueue {
     this.stats.queued = this.queue.length;
     this.stats.running = this.running.size;
 
-    console.log(`[ExecutionQueue] Starting job ${job.id}. Running: ${this.running.size}/${this.maxConcurrent}, Queued: ${this.queue.length}`);
+    // console.log(`[ExecutionQueue] Starting job ${job.id}. Running: ${this.running.size}/${this.maxConcurrent}, Queued: ${this.queue.length}`);
 
     // Execute job asynchronously
     this.executeJob(job).finally(() => {
@@ -151,7 +151,7 @@ class ExecutionQueue {
       const result = await job.execute();
       const duration = Date.now() - startTime;
       this.stats.completed++;
-      console.log(`[ExecutionQueue] Job ${job.id} completed in ${duration}ms`);
+      // console.log(`[ExecutionQueue] Job ${job.id} completed in ${duration}ms`);
       job.resolve(result);
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -211,7 +211,7 @@ const getMaxConcurrent = (): number => {
   // Default based on system resources
   // For production, recommend 5-10 for moderate systems, 10-20 for powerful systems
   const defaultConcurrent = 5;
-  console.log(`[ExecutionQueue] Using default max concurrent: ${defaultConcurrent} (set MAX_CONCURRENT_EXECUTIONS env var to customize)`);
+  // console.log(`[ExecutionQueue] Using default max concurrent: ${defaultConcurrent} (set MAX_CONCURRENT_EXECUTIONS env var to customize)`);
   return defaultConcurrent;
 };
 
