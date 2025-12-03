@@ -22,6 +22,7 @@ exports.createExamSchema = zod_1.z.object({
         randomizeQuestions: zod_1.z.boolean().optional(),
         negativeMarkPerWrong: zod_1.z.number().optional(),
         maxAttempts: zod_1.z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
+        maxTabSwitches: zod_1.z.number().int().min(0).nullable().optional(), // null means unlimited
         allowedLanguages: zod_1.z.array(zod_1.z.string()).optional(), // Array of allowed programming languages
     }),
 });
@@ -113,18 +114,19 @@ exports.updateExamSchema = zod_1.z.object({
             .positive("Duration must be a positive integer")
             .optional(),
         timingMode: zod_1.z
-            .enum(client_1.TimingMode, {
+            .nativeEnum(client_1.TimingMode, {
             message: "Invalid timing mode",
         })
             .optional(),
         sectionLockPolicy: zod_1.z
-            .enum(client_1.SectionLockPolicy, {
+            .nativeEnum(client_1.SectionLockPolicy, {
             message: "Invalid section lock policy",
         })
             .optional(),
         randomizeQuestions: zod_1.z.boolean().optional(),
         negativeMarkPerWrong: zod_1.z.number().optional(),
         maxAttempts: zod_1.z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
+        maxTabSwitches: zod_1.z.number().int().min(0).nullable().optional(), // null means unlimited
         allowedLanguages: zod_1.z.array(zod_1.z.string()).optional(), // Array of allowed programming languages
     })
         // Add a refinement to ensure if both dates are sent, start is before end

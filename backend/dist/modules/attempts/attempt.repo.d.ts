@@ -34,6 +34,48 @@ export declare const upsertResponse: (data: {
     feedback: string | null;
     judgeRunId: string | null;
 }>;
+export declare const getAttemptDetails: (attemptId: string) => Prisma.Prisma__AttemptClient<{
+    id: string;
+    examId: string;
+    studentId: string;
+    startedAt: Date;
+    submittedAt: Date | null;
+    status: import(".prisma/client").$Enums.AttemptStatus;
+    score: Prisma.Decimal | null;
+    maxScore: Prisma.Decimal | null;
+    exam: {
+        id: string;
+        sections: {
+            id: string;
+            order: number;
+            title: string;
+            sectionQuestions: {
+                question: {
+                    id: string;
+                    order: number;
+                };
+                questionId: string;
+            }[];
+        }[];
+        title: string;
+        durationMins: number;
+        maxAttempts: number | null;
+        maxTabSwitches: number | null;
+        allowedLanguages: Prisma.JsonValue;
+        questions: {
+            id: string;
+            order: number;
+        }[];
+    };
+    responses: {
+        type: import(".prisma/client").$Enums.QType;
+        questionId: string;
+        answer: Prisma.JsonValue;
+        verdict: string | null;
+        earnedPoints: Prisma.Decimal | null;
+        feedback: string | null;
+    }[];
+} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const getAttemptForSubmission: (attemptId: string) => Prisma.Prisma__AttemptClient<{
     id: string;
     examId: string;
@@ -55,51 +97,6 @@ export declare const getAttemptForSubmission: (attemptId: string) => Prisma.Pris
     }[];
 } | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const updateAttemptOnSubmit: (attemptId: string, score: number, maxScore: number) => Prisma.Prisma__AttemptClient<{
-    id: string;
-    submittedAt: Date | null;
-    status: import(".prisma/client").$Enums.AttemptStatus;
-    score: Prisma.Decimal | null;
-}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
-export declare const getAttemptDetails: (attemptId: string) => Prisma.Prisma__AttemptClient<{
-    id: string;
-    studentId: string;
-    startedAt: Date;
-    status: import(".prisma/client").$Enums.AttemptStatus;
-    orderMap: Prisma.JsonValue;
-    exam: {
-        id: string;
-        sections: {
-            id: string;
-            order: number;
-            title: string;
-            durationMins: number | null;
-            sectionQuestions: {
-                order: number;
-                questionId: string;
-            }[];
-        }[];
-        title: string;
-        durationMins: number;
-        timingMode: import(".prisma/client").$Enums.TimingMode;
-        sectionLockPolicy: import(".prisma/client").$Enums.SectionLockPolicy;
-        allowedLanguages: Prisma.JsonValue;
-        questions: {
-            id: string;
-            order: number;
-        }[];
-    };
-    sections: {
-        startedAt: Date | null;
-        status: import(".prisma/client").$Enums.SectionAttemptStatus;
-        timeSpentSec: number;
-        sectionId: string;
-    }[];
-    responses: {
-        questionId: string;
-        answer: Prisma.JsonValue;
-    }[];
-} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
-export declare const getAttemptResults: (attemptId: string) => Prisma.Prisma__AttemptClient<{
     id: string;
     studentId: string;
     startedAt: Date;
@@ -131,7 +128,7 @@ export declare const getAttemptResults: (attemptId: string) => Prisma.Prisma__At
             isFinal: boolean;
         }[];
     }[];
-} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const listAttemptsForExam: (params: {
     examId: string;
     page: number;
@@ -218,6 +215,48 @@ export declare const getFullAttemptForAdmin: (attemptId: string) => Prisma.Prism
                 id: string;
                 role: import(".prisma/client").$Enums.Role;
             } | null;
+        }[];
+    }[];
+} | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
+export declare const getAttemptResults: (attemptId: string) => Prisma.Prisma__AttemptClient<{
+    id: string;
+    studentId: string;
+    startedAt: Date;
+    submittedAt: Date | null;
+    status: import(".prisma/client").$Enums.AttemptStatus;
+    score: Prisma.Decimal | null;
+    maxScore: Prisma.Decimal | null;
+    exam: {
+        id: string;
+        title: string;
+        maxAttempts: number | null;
+    };
+    responses: {
+        id: string;
+        question: {
+            id: string;
+            order: number;
+            type: import(".prisma/client").$Enums.QType;
+            points: Prisma.Decimal;
+            prompt: string | null;
+            options: Prisma.JsonValue;
+            correctOptionIds: Prisma.JsonValue;
+            starterCode: string | null;
+            testcases: Prisma.JsonValue;
+            blanks: Prisma.JsonValue;
+        };
+        questionId: string;
+        answer: Prisma.JsonValue;
+        verdict: string | null;
+        earnedPoints: Prisma.Decimal | null;
+        feedback: string | null;
+        evaluations: {
+            id: string;
+            score: Prisma.Decimal | null;
+            kind: import(".prisma/client").$Enums.EvaluationKind;
+            breakdown: Prisma.JsonValue;
+            comments: string | null;
+            isFinal: boolean;
         }[];
     }[];
 } | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;

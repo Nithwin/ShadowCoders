@@ -36,10 +36,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateUserProfile = exports.handleLogout = exports.handleRefreshToken = exports.findUserById = exports.handleEmailLogin = exports.handleGoogleLogin = void 0;
+exports.updateProfilePicture = exports.changePassword = exports.updateUserProfile = exports.handleLogout = exports.handleRefreshToken = exports.findUserById = exports.handleEmailLogin = exports.handleGoogleLogin = void 0;
 const authRepo = __importStar(require("./auth.repo"));
 const tokenService = __importStar(require("./token.service"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const env_1 = require("../../config/env"); // <-- This is your config file
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const handleGoogleLogin = async (profile) => {
     const user = await authRepo.findUserByEmailAndLinkGoogle(profile);
     if (!user) {
@@ -138,4 +141,42 @@ const updateUserProfile = async (userId, updateData) => {
     return authRepo.updateUser(userId, dataToUpdate);
 };
 exports.updateUserProfile = updateUserProfile;
+const changePassword = async (userId, { currentPassword, newPassword }) => {
+    const user = await authRepo.findUserById(userId);
+    if (!user || !user.password) {
+        throw { status: 404, message: 'User not found' };
+    }
+    const isPasswordValid = await bcrypt_1.default.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+        throw { status: 400, message: 'Invalid current password' };
+    }
+    const salt = await bcrypt_1.default.genSalt(10);
+    const hashedPassword = await bcrypt_1.default.hash(newPassword, salt);
+    return authRepo.updatePassword(userId, hashedPassword);
+};
+exports.changePassword = changePassword;
+const updateProfilePicture = async (userId, file) => {
+    const user = await authRepo.findUserById(userId);
+    if (!user) {
+        throw { status: 404, message: 'User not found' };
+    }
+    // Ensure uploads directory exists
+    const uploadsDir = path_1.default.join(env_1.env.UPLOADS_DIR, 'profiles');
+    if (!fs_1.default.existsSync(uploadsDir)) {
+        fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+    }
+    // Generate unique filename
+    const fileExt = path_1.default.extname(file.originalname);
+    const fileName = `${userId}-${Date.now()}${fileExt}`;
+    const filePath = path_1.default.join(uploadsDir, fileName);
+    // Write file to disk
+    fs_1.default.writeFileSync(filePath, file.buffer);
+    // Generate URL
+    // Assuming the uploads directory is served at /uploads
+    const pictureUrl = `/uploads/profiles/${fileName}`;
+    // Update user profile
+    await authRepo.updateUser(userId, { pictureUrl });
+    return pictureUrl;
+};
+exports.updateProfilePicture = updateProfilePicture;
 //# sourceMappingURL=auth.service.js.map

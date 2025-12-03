@@ -32,29 +32,26 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerAuthRoutes = void 0;
-const authController = __importStar(require("./auth.controller"));
-const auth_1 = require("../../middleware/auth");
-const multer_1 = __importDefault(require("multer"));
-const upload = (0, multer_1.default)({
-    storage: multer_1.default.memoryStorage(),
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-    },
-});
-const registerAuthRoutes = (app) => {
-    app.post('/api/auth/google/callback/', authController.googleOAuthHandler);
-    app.post('/api/auth/login', authController.emailLoginHandler);
-    app.get('/api/me', auth_1.verifyAccess, authController.getMeHandler);
-    app.patch('/api/me', auth_1.verifyAccess, authController.updateMeHandler);
-    app.post('/api/auth/change-password', auth_1.verifyAccess, authController.changePasswordHandler);
-    app.post('/api/me/picture', auth_1.verifyAccess, upload.single('picture'), authController.uploadProfilePictureHandler);
-    app.post('/api/auth/refresh', authController.refreshAccessTokenHandler);
-    app.post('/api/auth/logout', authController.logoutHandler);
+exports.updateSettings = exports.getSettings = void 0;
+const authRepo = __importStar(require("../auth/auth.repo"));
+const getSettings = async (userId) => {
+    const user = await authRepo.findUserById(userId);
+    if (!user) {
+        throw { status: 404, message: 'User not found' };
+    }
+    return user.settings || {};
 };
-exports.registerAuthRoutes = registerAuthRoutes;
-//# sourceMappingURL=auth.routes.js.map
+exports.getSettings = getSettings;
+const updateSettings = async (userId, settings) => {
+    // Merge existing settings with new settings
+    const user = await authRepo.findUserById(userId);
+    if (!user) {
+        throw { status: 404, message: 'User not found' };
+    }
+    const currentSettings = user.settings || {};
+    const newSettings = { ...currentSettings, ...settings };
+    return authRepo.updateUser(userId, { settings: newSettings });
+};
+exports.updateSettings = updateSettings;
+//# sourceMappingURL=settings.service.js.map

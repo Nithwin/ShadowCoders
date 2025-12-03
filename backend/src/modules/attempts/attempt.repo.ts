@@ -66,6 +66,75 @@ export const upsertResponse = async (data: {
   }
 };
 
+export const getAttemptDetails = (attemptId: string) => {
+  return prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: {
+      id: true,
+      studentId: true,
+      status: true,
+      examId: true,
+      startedAt: true,
+      submittedAt: true,
+      score: true,
+      maxScore: true,
+      responses: {
+        select: {
+          questionId: true,
+          answer: true,
+          type: true,
+          earnedPoints: true,
+          verdict: true,
+          feedback: true,
+        },
+      },
+      exam: {
+        select: {
+          id: true,
+          title: true,
+          durationMins: true,
+          allowedLanguages: true,
+          maxAttempts: true,
+          maxTabSwitches: true,
+          questions: {
+            select: {
+              id: true,
+              order: true,
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
+          sections: {
+            select: {
+              id: true,
+              title: true,
+              order: true,
+              sectionQuestions: {
+                select: {
+                  questionId: true,
+                  question: {
+                    select: {
+                      id: true,
+                      order: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  order: 'asc',
+                },
+              },
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
+        },
+      },
+    },
+  });
+};
+
 export const getAttemptForSubmission = (attemptId: string) => {
   return prisma.attempt.findUnique({
     where:{id: attemptId},
@@ -111,90 +180,6 @@ export const updateAttemptOnSubmit = (
       score: score,
       maxScore: maxScore,
     },
-    select: {
-      id: true,
-      status: true,
-      score: true,
-      submittedAt: true,
-    },
-  });
-}
-
-export const getAttemptDetails = (attemptId: string) => {
-  return prisma.attempt.findUnique({
-    where: { id: attemptId },
-    select: {
-      id: true,
-      studentId: true, // For verification
-      status: true,
-      startedAt: true, // Added: Required for timer calculation
-      orderMap: true, // For non-sectioned, randomized exams
-      exam: {
-        select: {
-          id: true,
-          title: true,
-          timingMode: true,
-          durationMins: true,
-          sectionLockPolicy: true,
-          allowedLanguages: true, // Include allowed languages for coding questions
-          // Get the list of all questions in the exam
-          questions: {
-            select: {
-              id: true,
-              order: true,
-            },
-            orderBy: {
-              order: 'asc',
-            },
-          },
-          // Get the section structure
-          sections: {
-            select: {
-              id: true,
-              title: true,
-              order: true,
-              durationMins: true,
-              // Get the questions within each section
-              sectionQuestions: {
-                select: {
-                  questionId: true,
-                  order: true,
-                },
-                orderBy: {
-                  order: 'asc',
-                },
-              },
-            },
-            orderBy: {
-              order: 'asc',
-            },
-          },
-        },
-      },
-      // Get all responses the student has already made for this attempt
-      responses: {
-        select: {
-          questionId: true,
-          answer: true,
-          // You could add 'verdict' or 'earnedPoints' if you want to show partial/live grading
-        },
-      },
-      // Get the student's progress in each section
-      sections: {
-        select: {
-          sectionId: true,
-          status: true,
-          startedAt: true,
-          timeSpentSec: true,
-        },
-      },
-    },
-  });
-};
-
-export const getAttemptResults = (attemptId: string) => {
-  return prisma.attempt.findUnique({
-    where: { id: attemptId },
     select: {
       id: true,
       studentId: true, // For verification
@@ -411,6 +396,65 @@ export const getFullAttemptForAdmin = (attemptId: string) => {
           // You could order responses by question order
           // This requires a more complex query or sorting in service
           createdAt: 'asc',
+        },
+      },
+    },
+  });
+};
+
+export const getAttemptResults = (attemptId: string) => {
+  return prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: {
+      id: true,
+      studentId: true,
+      status: true,
+      score: true,
+      maxScore: true,
+      startedAt: true,
+      submittedAt: true,
+      exam: {
+        select: {
+          id: true,
+          title: true,
+          maxAttempts: true,
+        },
+      },
+      responses: {
+        select: {
+          id: true,
+          questionId: true,
+          answer: true,
+          earnedPoints: true,
+          verdict: true,
+          feedback: true,
+          question: {
+            select: {
+              id: true,
+              type: true,
+              prompt: true,
+              points: true,
+              order: true,
+              options: true,
+              correctOptionIds: true,
+              testcases: true,
+              blanks: true,
+              starterCode: true,
+            },
+          },
+          evaluations: {
+            select: {
+              id: true,
+              kind: true,
+              score: true,
+              comments: true,
+              breakdown: true,
+              isFinal: true,
+            },
+            where: { isFinal: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
         },
       },
     },

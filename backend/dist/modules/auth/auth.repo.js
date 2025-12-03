@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteRefreshToken = exports.findRefreshToken = exports.saveRefreshToken = exports.updateUser = exports.findStudentWithCohortInfo = exports.findUserById = exports.findUserByEmail = exports.findUserByEmailAndLinkGoogle = void 0;
+exports.updatePassword = exports.deleteRefreshToken = exports.findRefreshToken = exports.saveRefreshToken = exports.updateUser = exports.findStudentWithCohortInfo = exports.findUserById = exports.findUserByEmail = exports.findUserByEmailAndLinkGoogle = void 0;
 const prisma_1 = require("../../lib/prisma");
 const db_health_1 = require("../../lib/db-health");
 const findUserByEmailAndLinkGoogle = async ({ email, name, pictureUrl, googleId }) => {
@@ -115,4 +115,11 @@ const deleteRefreshToken = (tokenHash) => {
     }), 'deleteRefreshToken');
 };
 exports.deleteRefreshToken = deleteRefreshToken;
+const updatePassword = (id, passwordHash) => {
+    return (0, db_health_1.withDatabaseErrorHandling)(() => prisma_1.prisma.user.update({
+        where: { id },
+        data: { password: passwordHash },
+    }), 'updatePassword');
+};
+exports.updatePassword = updatePassword;
 //# sourceMappingURL=auth.repo.js.map

@@ -41,7 +41,19 @@ const util_1 = require("util");
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
+const env_1 = require("../config/env");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
+/**
+ * Get Python command based on OS
+ * Linux/macOS use 'python3', Windows uses 'python'
+ */
+function getPythonCommand() {
+    const executionOS = env_1.env.EXECUTION_OS.toLowerCase();
+    if (executionOS === 'linux' || executionOS === 'darwin') {
+        return 'python3';
+    }
+    return 'python';
+}
 /**
  * Extract the public class name from Java code
  * Java files must be named according to their public class name
@@ -96,8 +108,8 @@ const LANGUAGE_CONFIGS = {
     },
     python: {
         extension: 'py',
-        command: 'python',
-        runCommand: (filePath) => `python "${filePath}"`,
+        command: getPythonCommand(),
+        runCommand: (filePath) => `${getPythonCommand()} "${filePath}"`,
         timeout: 5000,
     },
     java: {

@@ -3,7 +3,8 @@ import { Attempt } from '@/types/exam';
 
 export function useCheatingPrevention(
   attempt: Attempt | null,
-  onAutoSubmit: () => void
+  onAutoSubmit: () => void,
+  maxTabSwitches: number | null = 3
 ) {
   const [warningCount, setWarningCount] = useState(0);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
@@ -25,7 +26,9 @@ export function useCheatingPrevention(
     incrementWarningRef.current = () => {
       setWarningCount(prev => {
         const newCount = prev + 1;
-        if (newCount >= 3) {
+        const limit = maxTabSwitches ?? 3; // Default to 3 if null/undefined
+        
+        if (newCount >= limit) {
           if (handleSubmitExamRef.current) {
             handleSubmitExamRef.current();
           }

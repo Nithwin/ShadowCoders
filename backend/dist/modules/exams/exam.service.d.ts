@@ -17,6 +17,7 @@ export declare const createExam: (input: CreateExamInput) => Promise<{
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }>;
 type AssignExamInput = z.infer<typeof assignExamSchema>["body"];
@@ -44,6 +45,7 @@ export declare const pubishExam: (examId: string) => Promise<{
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }>;
 type ListExamQuery = z.infer<typeof listExamsSchema>["query"];
@@ -182,6 +184,7 @@ export declare const getExamById: (examId: string) => Promise<({
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }) | null>;
 /**

@@ -32,29 +32,35 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerAuthRoutes = void 0;
-const authController = __importStar(require("./auth.controller"));
-const auth_1 = require("../../middleware/auth");
-const multer_1 = __importDefault(require("multer"));
-const upload = (0, multer_1.default)({
-    storage: multer_1.default.memoryStorage(),
-    limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-    },
-});
-const registerAuthRoutes = (app) => {
-    app.post('/api/auth/google/callback/', authController.googleOAuthHandler);
-    app.post('/api/auth/login', authController.emailLoginHandler);
-    app.get('/api/me', auth_1.verifyAccess, authController.getMeHandler);
-    app.patch('/api/me', auth_1.verifyAccess, authController.updateMeHandler);
-    app.post('/api/auth/change-password', auth_1.verifyAccess, authController.changePasswordHandler);
-    app.post('/api/me/picture', auth_1.verifyAccess, upload.single('picture'), authController.uploadProfilePictureHandler);
-    app.post('/api/auth/refresh', authController.refreshAccessTokenHandler);
-    app.post('/api/auth/logout', authController.logoutHandler);
+exports.updateSettingsHandler = exports.getSettingsHandler = void 0;
+const settingsService = __importStar(require("./settings.service"));
+const getSettingsHandler = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) {
+            return next({ status: 401, message: 'Unauthorized' });
+        }
+        const settings = await settingsService.getSettings(userId);
+        res.json(settings);
+    }
+    catch (error) {
+        next(error);
+    }
 };
-exports.registerAuthRoutes = registerAuthRoutes;
-//# sourceMappingURL=auth.routes.js.map
+exports.getSettingsHandler = getSettingsHandler;
+const updateSettingsHandler = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) {
+            return next({ status: 401, message: 'Unauthorized' });
+        }
+        const updatedUser = await settingsService.updateSettings(userId, req.body);
+        res.json(updatedUser.settings);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.updateSettingsHandler = updateSettingsHandler;
+//# sourceMappingURL=settings.controller.js.map

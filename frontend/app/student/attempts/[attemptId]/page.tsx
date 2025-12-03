@@ -116,7 +116,11 @@ export default function ExamAttemptPage() {
     warningCount,
     fullscreenWarning: cheatingWarning,
     setFullscreenWarning: setCheatingWarning,
-  } = useCheatingPrevention(attempt, handleAutoSubmit);
+  } = useCheatingPrevention(
+    attempt, 
+    handleAutoSubmit,
+    attempt?.exam?.maxTabSwitches ?? null
+  );
 
   // Socket.IO activity tracking
   const { emitActivity } = useExamSocket({
@@ -348,7 +352,11 @@ export default function ExamAttemptPage() {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
-      <FullscreenWarning warningCount={warningCount} show={showFullscreenWarning} />
+      <FullscreenWarning 
+        warningCount={warningCount} 
+        show={showFullscreenWarning} 
+        maxTabSwitches={attempt?.exam?.maxTabSwitches}
+      />
       
       {/* Fullscreen Requirement Modal */}
       {showFullscreenRequirement && (

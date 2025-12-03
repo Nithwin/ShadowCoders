@@ -33,47 +33,77 @@ export declare const submitAnswer: (studentId: string, attemptId: string, input:
 }>;
 export declare const submitAttempt: (studentId: string, attemptId: string) => Promise<{
     id: string;
+    studentId: string;
+    startedAt: Date;
     submittedAt: Date | null;
     status: import(".prisma/client").$Enums.AttemptStatus;
     score: Prisma.Decimal | null;
+    maxScore: Prisma.Decimal | null;
+    exam: {
+        title: string;
+    };
+    responses: {
+        question: {
+            id: string;
+            order: number;
+            type: import(".prisma/client").$Enums.QType;
+            points: Prisma.Decimal;
+            prompt: string | null;
+        };
+        questionId: string;
+        answer: Prisma.JsonValue;
+        verdict: string | null;
+        earnedPoints: Prisma.Decimal | null;
+        feedback: string | null;
+        evaluations: {
+            score: Prisma.Decimal | null;
+            kind: import(".prisma/client").$Enums.EvaluationKind;
+            breakdown: Prisma.JsonValue;
+            comments: string | null;
+            isFinal: boolean;
+        }[];
+    }[];
 }>;
 export declare const getAttemptDetails: (studentId: string, attemptId: string) => Promise<{
     id: string;
+    examId: string;
     studentId: string;
     startedAt: Date;
+    submittedAt: Date | null;
     status: import(".prisma/client").$Enums.AttemptStatus;
-    orderMap: Prisma.JsonValue;
+    score: Prisma.Decimal | null;
+    maxScore: Prisma.Decimal | null;
     exam: {
         id: string;
         sections: {
             id: string;
             order: number;
             title: string;
-            durationMins: number | null;
             sectionQuestions: {
-                order: number;
+                question: {
+                    id: string;
+                    order: number;
+                };
                 questionId: string;
             }[];
         }[];
         title: string;
         durationMins: number;
-        timingMode: import(".prisma/client").$Enums.TimingMode;
-        sectionLockPolicy: import(".prisma/client").$Enums.SectionLockPolicy;
+        maxAttempts: number | null;
+        maxTabSwitches: number | null;
         allowedLanguages: Prisma.JsonValue;
         questions: {
             id: string;
             order: number;
         }[];
     };
-    sections: {
-        startedAt: Date | null;
-        status: import(".prisma/client").$Enums.SectionAttemptStatus;
-        timeSpentSec: number;
-        sectionId: string;
-    }[];
     responses: {
+        type: import(".prisma/client").$Enums.QType;
         questionId: string;
         answer: Prisma.JsonValue;
+        verdict: string | null;
+        earnedPoints: Prisma.Decimal | null;
+        feedback: string | null;
     }[];
 }>;
 export declare const getQuestionById: (questionId: string) => Prisma.Prisma__QuestionClient<{
@@ -111,15 +141,23 @@ export declare const getAttemptResults: (studentId: string, attemptId: string) =
     score: Prisma.Decimal | null;
     maxScore: Prisma.Decimal | null;
     exam: {
+        id: string;
         title: string;
+        maxAttempts: number | null;
     };
     responses: {
+        id: string;
         question: {
             id: string;
             order: number;
             type: import(".prisma/client").$Enums.QType;
             points: Prisma.Decimal;
             prompt: string | null;
+            options: Prisma.JsonValue;
+            correctOptionIds: Prisma.JsonValue;
+            starterCode: string | null;
+            testcases: Prisma.JsonValue;
+            blanks: Prisma.JsonValue;
         };
         questionId: string;
         answer: Prisma.JsonValue;
@@ -127,6 +165,7 @@ export declare const getAttemptResults: (studentId: string, attemptId: string) =
         earnedPoints: Prisma.Decimal | null;
         feedback: string | null;
         evaluations: {
+            id: string;
             score: Prisma.Decimal | null;
             kind: import(".prisma/client").$Enums.EvaluationKind;
             breakdown: Prisma.JsonValue;

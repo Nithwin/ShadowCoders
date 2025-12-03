@@ -24,6 +24,7 @@ export const createExamSchema = z.object({
     randomizeQuestions: z.boolean().optional(),
     negativeMarkPerWrong: z.number().optional(),
     maxAttempts: z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
+    maxTabSwitches: z.number().int().min(0).nullable().optional(), // null means unlimited
     allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
   }),
 });
@@ -129,18 +130,19 @@ export const updateExamSchema = z.object({
         .positive("Duration must be a positive integer")
         .optional(),
       timingMode: z
-        .enum(TimingMode, {
+        .nativeEnum(TimingMode, {
           message: "Invalid timing mode",
         })
         .optional(),
       sectionLockPolicy: z
-        .enum(SectionLockPolicy, {
+        .nativeEnum(SectionLockPolicy, {
           message: "Invalid section lock policy",
         })
         .optional(),
       randomizeQuestions: z.boolean().optional(),
       negativeMarkPerWrong: z.number().optional(),
       maxAttempts: z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
+      maxTabSwitches: z.number().int().min(0).nullable().optional(), // null means unlimited
       allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
     })
     // Add a refinement to ensure if both dates are sent, start is before end

@@ -14,6 +14,7 @@ export declare const createExam: (data: Prisma.ExamCreateInput) => Prisma.Prisma
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const createExamAssignment: (examId: string, assignmentData: Omit<Prisma.ExamAssignmentCreateManyInput, "examId">) => Prisma.Prisma__ExamAssignmentClient<{
@@ -40,6 +41,7 @@ export declare const updateExamStatus: (examId: string, status: ExamStatus) => P
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient<({
@@ -99,6 +101,7 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }) | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const listExams: (params: {
@@ -199,6 +202,7 @@ export declare const deleteExamAndChildren: (examId: string) => Promise<{
     randomizeQuestions: boolean;
     negativeMarkPerWrong: Prisma.Decimal | null;
     maxAttempts: number | null;
+    maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
 }>;
 //# sourceMappingURL=exam.repo.d.ts.map

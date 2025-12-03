@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMeHandler = exports.logoutHandler = exports.refreshAccessTokenHandler = exports.getMeHandler = exports.emailLoginHandler = exports.googleOAuthHandler = void 0;
+exports.uploadProfilePictureHandler = exports.changePasswordHandler = exports.updateMeHandler = exports.logoutHandler = exports.refreshAccessTokenHandler = exports.getMeHandler = exports.emailLoginHandler = exports.googleOAuthHandler = void 0;
 const authService = __importStar(require("./auth.service"));
 const cookie_utils_1 = require("../../lib/cookie-utils");
 const googleOAuthHandler = async (req, res, next) => {
@@ -162,4 +162,35 @@ const updateMeHandler = async (req, res, next) => {
     }
 };
 exports.updateMeHandler = updateMeHandler;
+const changePasswordHandler = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) {
+            return next({ status: 401, message: 'Unauthorized' });
+        }
+        await authService.changePassword(userId, req.body);
+        res.json({ message: 'Password updated successfully' });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.changePasswordHandler = changePasswordHandler;
+const uploadProfilePictureHandler = async (req, res, next) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) {
+            return next({ status: 401, message: 'Unauthorized' });
+        }
+        if (!req.file) {
+            return next({ status: 400, message: 'No file uploaded' });
+        }
+        const pictureUrl = await authService.updateProfilePicture(userId, req.file);
+        res.json({ pictureUrl });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.uploadProfilePictureHandler = uploadProfilePictureHandler;
 //# sourceMappingURL=auth.controller.js.map

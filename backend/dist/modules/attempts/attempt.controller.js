@@ -158,8 +158,10 @@ const getAttemptResultsHandler = async (req, res, next) => {
         res.status(200).json(attemptResults);
     }
     catch (error) {
+        console.error("DEBUG ERROR in getAttemptResultsHandler:", error);
         // Pass errors (404, 403) to the central handler
-        next(error);
+        // next(error);
+        res.status(500).json({ message: error.message, stack: error.stack, name: error.name });
     }
 };
 exports.getAttemptResultsHandler = getAttemptResultsHandler;

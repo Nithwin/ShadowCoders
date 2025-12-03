@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFullAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getAttemptResults = exports.getAttemptDetails = exports.updateAttemptOnSubmit = exports.getAttemptForSubmission = exports.upsertResponse = exports.createAttempt = void 0;
+exports.getAttemptResults = exports.getFullAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.updateAttemptOnSubmit = exports.getAttemptForSubmission = exports.getAttemptDetails = exports.upsertResponse = exports.createAttempt = void 0;
 const client_1 = require("@prisma/client");
 const prisma_1 = require("../../lib/prisma");
 const createAttempt = (data) => {
@@ -59,6 +59,75 @@ const upsertResponse = async (data) => {
     }
 };
 exports.upsertResponse = upsertResponse;
+const getAttemptDetails = (attemptId) => {
+    return prisma_1.prisma.attempt.findUnique({
+        where: { id: attemptId },
+        select: {
+            id: true,
+            studentId: true,
+            status: true,
+            examId: true,
+            startedAt: true,
+            submittedAt: true,
+            score: true,
+            maxScore: true,
+            responses: {
+                select: {
+                    questionId: true,
+                    answer: true,
+                    type: true,
+                    earnedPoints: true,
+                    verdict: true,
+                    feedback: true,
+                },
+            },
+            exam: {
+                select: {
+                    id: true,
+                    title: true,
+                    durationMins: true,
+                    allowedLanguages: true,
+                    maxAttempts: true,
+                    maxTabSwitches: true,
+                    questions: {
+                        select: {
+                            id: true,
+                            order: true,
+                        },
+                        orderBy: {
+                            order: 'asc',
+                        },
+                    },
+                    sections: {
+                        select: {
+                            id: true,
+                            title: true,
+                            order: true,
+                            sectionQuestions: {
+                                select: {
+                                    questionId: true,
+                                    question: {
+                                        select: {
+                                            id: true,
+                                            order: true,
+                                        },
+                                    },
+                                },
+                                orderBy: {
+                                    order: 'asc',
+                                },
+                            },
+                        },
+                        orderBy: {
+                            order: 'asc',
+                        },
+                    },
+                },
+            },
+        },
+    });
+};
+exports.getAttemptDetails = getAttemptDetails;
 const getAttemptForSubmission = (attemptId) => {
     return prisma_1.prisma.attempt.findUnique({
         where: { id: attemptId },
@@ -100,90 +169,6 @@ const updateAttemptOnSubmit = (attemptId, score, maxScore) => {
             score: score,
             maxScore: maxScore,
         },
-        select: {
-            id: true,
-            status: true,
-            score: true,
-            submittedAt: true,
-        },
-    });
-};
-exports.updateAttemptOnSubmit = updateAttemptOnSubmit;
-const getAttemptDetails = (attemptId) => {
-    return prisma_1.prisma.attempt.findUnique({
-        where: { id: attemptId },
-        select: {
-            id: true,
-            studentId: true, // For verification
-            status: true,
-            startedAt: true, // Added: Required for timer calculation
-            orderMap: true, // For non-sectioned, randomized exams
-            exam: {
-                select: {
-                    id: true,
-                    title: true,
-                    timingMode: true,
-                    durationMins: true,
-                    sectionLockPolicy: true,
-                    allowedLanguages: true, // Include allowed languages for coding questions
-                    // Get the list of all questions in the exam
-                    questions: {
-                        select: {
-                            id: true,
-                            order: true,
-                        },
-                        orderBy: {
-                            order: 'asc',
-                        },
-                    },
-                    // Get the section structure
-                    sections: {
-                        select: {
-                            id: true,
-                            title: true,
-                            order: true,
-                            durationMins: true,
-                            // Get the questions within each section
-                            sectionQuestions: {
-                                select: {
-                                    questionId: true,
-                                    order: true,
-                                },
-                                orderBy: {
-                                    order: 'asc',
-                                },
-                            },
-                        },
-                        orderBy: {
-                            order: 'asc',
-                        },
-                    },
-                },
-            },
-            // Get all responses the student has already made for this attempt
-            responses: {
-                select: {
-                    questionId: true,
-                    answer: true,
-                    // You could add 'verdict' or 'earnedPoints' if you want to show partial/live grading
-                },
-            },
-            // Get the student's progress in each section
-            sections: {
-                select: {
-                    sectionId: true,
-                    status: true,
-                    startedAt: true,
-                    timeSpentSec: true,
-                },
-            },
-        },
-    });
-};
-exports.getAttemptDetails = getAttemptDetails;
-const getAttemptResults = (attemptId) => {
-    return prisma_1.prisma.attempt.findUnique({
-        where: { id: attemptId },
         select: {
             id: true,
             studentId: true, // For verification
@@ -234,7 +219,7 @@ const getAttemptResults = (attemptId) => {
         },
     });
 };
-exports.getAttemptResults = getAttemptResults;
+exports.updateAttemptOnSubmit = updateAttemptOnSubmit;
 const listAttemptsForExam = async (params) => {
     const { examId, page, pageSize } = params;
     // Ensure pageSize and page are numbers
@@ -397,4 +382,63 @@ const getFullAttemptForAdmin = (attemptId) => {
     });
 };
 exports.getFullAttemptForAdmin = getFullAttemptForAdmin;
+const getAttemptResults = (attemptId) => {
+    return prisma_1.prisma.attempt.findUnique({
+        where: { id: attemptId },
+        select: {
+            id: true,
+            studentId: true,
+            status: true,
+            score: true,
+            maxScore: true,
+            startedAt: true,
+            submittedAt: true,
+            exam: {
+                select: {
+                    id: true,
+                    title: true,
+                    maxAttempts: true,
+                },
+            },
+            responses: {
+                select: {
+                    id: true,
+                    questionId: true,
+                    answer: true,
+                    earnedPoints: true,
+                    verdict: true,
+                    feedback: true,
+                    question: {
+                        select: {
+                            id: true,
+                            type: true,
+                            prompt: true,
+                            points: true,
+                            order: true,
+                            options: true,
+                            correctOptionIds: true,
+                            testcases: true,
+                            blanks: true,
+                            starterCode: true,
+                        },
+                    },
+                    evaluations: {
+                        select: {
+                            id: true,
+                            kind: true,
+                            score: true,
+                            comments: true,
+                            breakdown: true,
+                            isFinal: true,
+                        },
+                        where: { isFinal: true },
+                        orderBy: { createdAt: 'desc' },
+                        take: 1,
+                    },
+                },
+            },
+        },
+    });
+};
+exports.getAttemptResults = getAttemptResults;
 //# sourceMappingURL=attempt.repo.js.map

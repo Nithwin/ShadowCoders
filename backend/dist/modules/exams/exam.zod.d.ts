@@ -19,6 +19,7 @@ export declare const createExamSchema: z.ZodObject<{
         randomizeQuestions: z.ZodOptional<z.ZodBoolean>;
         negativeMarkPerWrong: z.ZodOptional<z.ZodNumber>;
         maxAttempts: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxTabSwitches: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         allowedLanguages: z.ZodOptional<z.ZodArray<z.ZodString>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
@@ -76,6 +77,7 @@ export declare const updateExamSchema: z.ZodObject<{
         randomizeQuestions: z.ZodOptional<z.ZodBoolean>;
         negativeMarkPerWrong: z.ZodOptional<z.ZodNumber>;
         maxAttempts: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        maxTabSwitches: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         allowedLanguages: z.ZodOptional<z.ZodArray<z.ZodString>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
