@@ -103,6 +103,8 @@ export default function CodingQuestion({
   } | null>(null);
   const [editorWidth, setEditorWidth] = useState(50); // Percentage width for editor (50% default)
   const [isSubmitMode, setIsSubmitMode] = useState(false); // Track if we're in submit mode (hide detailed results)
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customInput, setCustomInput] = useState('');
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
   const previousQuestionIdRef = useRef<string>(questionId);
@@ -295,6 +297,7 @@ export default function CodingQuestion({
         questionId,
         code,
         language,
+        customInput: showCustomInput ? customInput : undefined,
       });
 
       const result = response.data;
@@ -309,7 +312,7 @@ export default function CodingQuestion({
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, questionId, attemptId]);
+  }, [code, language, questionId, attemptId, showCustomInput, customInput]);
 
   // Submit code (runs ALL test cases including hidden ones, then saves) - memoized to prevent flicker
   const handleSubmitCode = useCallback(async () => {
@@ -693,9 +696,40 @@ export default function CodingQuestion({
 
         {/* Output/Results Panel - Dark Theme */}
         <div className="border-t border-gray-700 bg-[#1e1e1e] flex flex-col max-h-[40%] min-h-[250px]">
-          <div className="bg-[#252526] border-b border-gray-700 px-6 py-4 flex items-center gap-3 flex-shrink-0">
-            <Terminal className="w-5 h-5 text-gray-300" />
-            <span className="text-sm font-bold text-gray-200">Test Results</span>
+          <div className="bg-[#252526] border-b border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <Terminal className="w-5 h-5 text-gray-300" />
+              <span className="text-sm font-bold text-gray-200">Test Results</span>
+            </div>
+            
+            {/* Custom Input Toggle */}
+            <div className="flex items-center gap-2">
+               <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showCustomInput} 
+                  onChange={(e) => setShowCustomInput(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-[#2d2d2d] text-blue-600 focus:ring-blue-500 focus:ring-offset-[#252526]"
+                />
+                <span className="text-xs font-medium text-gray-300">Custom Input</span>
+              </label>
+            </div>
+          </div>
+          
+          {/* Custom Input Area */}
+          {showCustomInput && (
+            <div className="bg-[#1e1e1e] p-4 border-b border-gray-700">
+              <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Input</label>
+              <textarea
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                className="w-full h-24 bg-[#0d0d0d] text-gray-300 border border-gray-700 rounded p-3 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                placeholder="Enter your custom input here..."
+              />
+            </div>
+          )}
+
+          <div className="bg-[#252526] border-b border-gray-700 px-6 py-2 flex items-center gap-3 flex-shrink-0">
             {testResults && (
               <span className={`ml-auto text-xs font-bold px-4 py-1.5 rounded-full ${
                 testResults.passed === testResults.total

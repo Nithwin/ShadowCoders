@@ -2,7 +2,7 @@ import { Express } from 'express';
 import { requireRole, verifyAccess } from '../../middleware/auth';
 import * as attemptController from './attempt.controller';
 import { validate } from '../../middleware/validate';
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema } from './attempt.zod';
 
 export const registerAttemptRoutes = (app: Express) => {
   app.post(

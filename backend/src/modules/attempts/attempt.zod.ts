@@ -10,6 +10,16 @@ export const submitAnswerSchema = z.object({
     })
 })
 
+export const runCodeSchema = z.object({
+    body: z.object({
+        questionId: z.string().cuid({message: 'Invalid question ID format'}),
+        code: z.string(),
+        language: z.string(),
+        customInput: z.string().optional(),
+        runAllTests: z.boolean().optional(),
+    })
+});
+
 export const listAttemptsSchema = z.object({
   query: z.object({
     page: z.coerce

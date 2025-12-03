@@ -6,6 +6,7 @@ import z from "zod";
 import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from "./attempt.zod";
 import * as userRepo from "../auth/auth.repo";
 import { gradeMCQ, gradeCoding } from "../grading/grading.logic";
+import { executeCodeLocally, testCodeWithTestCasesLocally } from "../../lib/local-executor";
 
 export const startAttempt = async (studentId: string, examId: string) => {
   const exam = await prisma.exam.findUnique({
@@ -674,10 +675,78 @@ export const resetAttempts = async (input: ResetAttemptsInput) => {
   // 6. Delete attempts
   const result = await prisma.attempt.deleteMany({
     where: whereClause,
-  });
+    });
 
   return {
     deletedCount: result.count,
     message: `Successfully reset ${result.count} attempt(s)`,
   };
+};
+
+export const runCode = async (
+  studentId: string,
+  attemptId: string,
+  questionId: string,
+  code: string,
+  language: string,
+  customInput?: string,
+  runAllTests?: boolean
+) => {
+  // 1. Verify attempt
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: { studentId: true, examId: true, status: true },
+  });
+
+  if (!attempt) {
+    throw { status: 404, message: 'Attempt not found' };
+  }
+  if (attempt.studentId !== studentId) {
+    throw { status: 403, message: 'Forbidden' };
+  }
+
+  // 2. Get question
+  const question = await prisma.question.findUnique({
+    where: { id: questionId },
+    select: { id: true, type: true, testcases: true },
+  });
+
+  if (!question) {
+    throw { status: 404, message: 'Question not found' };
+  }
+  if (question.type !== QType.CODING) {
+    throw { status: 400, message: 'Not a coding question' };
+  }
+
+  // 3. Execute code
+  if (customInput) {
+    // Run with custom input
+    const result = await executeCodeLocally(code, language, customInput);
+    return {
+      passed: result.status.id === 3 ? 1 : 0,
+      total: 1,
+      testResults: [{
+        input: customInput,
+        expectedOutput: '(Custom Input)',
+        actualOutput: result.stdout,
+        passed: result.status.id === 3,
+        status: result.status.description,
+        error: result.stderr || result.error
+      }],
+      message: result.stderr ? 'Execution Error' : 'Execution Successful'
+    };
+  } else {
+    // Run with test cases
+    const testCases = (question.testcases as any[]) || [];
+    // If runAllTests is true (submit mode), run all. Otherwise only visible ones.
+    const testsToRun = runAllTests ? testCases : testCases.filter(tc => !tc.isHidden);
+    
+    const results = await testCodeWithTestCasesLocally(code, language, testsToRun);
+    return {
+      passed: results.passed,
+      total: results.total,
+      testResults: results.results,
+      message: results.passed === results.total ? 'All tests passed' : `${results.passed}/${results.total} tests passed`
+    };
+  }
 };
