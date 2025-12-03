@@ -20,16 +20,25 @@ export function useCheatingPrevention(
     handleSubmitExamRef.current = onAutoSubmit;
   }, [onAutoSubmit]);
 
+  const lastWarningTimeRef = useRef<number>(0);
+
   // Increment warning and auto-submit if needed (defined as ref callback to avoid dependency issues)
   const incrementWarningRef = useRef<((reason: string) => void) | undefined>(undefined);
   
   useEffect(() => {
     incrementWarningRef.current = (reason: string) => {
+      const now = Date.now();
+      // Debounce warnings (prevent double counting from multiple events like blur + visibilitychange)
+      if (now - lastWarningTimeRef.current < 500) {
+        return;
+      }
+      lastWarningTimeRef.current = now;
+
       setWarningCount(prev => {
         const newCount = prev + 1;
-        const limit = maxTabSwitches ?? 3; // Default to 3 if null/undefined
+        const limit = maxTabSwitches === 0 ? Infinity : (maxTabSwitches ?? 3); // 0 means unlimited
         
-        if (newCount >= limit) {
+        if (limit !== Infinity && newCount >= limit) {
           if (handleSubmitExamRef.current) {
             handleSubmitExamRef.current(`Auto-submitted due to: ${reason} (Warning limit reached)`);
           }
@@ -146,131 +155,72 @@ export function useCheatingPrevention(
     };
   }, [attempt]);
 
-  // 3. Block keyboard shortcuts (Ctrl+Shift+T, Ctrl+T, Ctrl+W, F12, etc.)
+  // 3. Block keyboard shortcuts (Stricter blocking for extensions)
   useEffect(() => {
     if (attempt?.status !== 'IN_PROGRESS') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Allow undo/redo
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')) {
-        return; // Allow
+      // 1. ALLOWED SHORTCUTS (Whitelist)
+      // Allow standard typing and navigation keys without modifiers
+      if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+        return; 
       }
 
-      // Block developer tools shortcuts
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'K')) ||
-        (e.ctrlKey && e.shiftKey && e.key === 'T') || // Reopen closed tab
-        (e.ctrlKey && e.key === 'U') || // View source
-        (e.ctrlKey && e.key === 'S') || // Save page
-        (e.ctrlKey && e.key === 'P') || // Print
-        (e.ctrlKey && e.key === 'W') || // Close tab
-        (e.ctrlKey && e.key === 'T') || // New tab
-        (e.ctrlKey && e.key === 'N') || // New window
-        (e.ctrlKey && e.shiftKey && e.key === 'N') || // New incognito window
-        (e.altKey && e.key === 'Tab') || // Alt+Tab
-        (e.key === 'PrintScreen') || // Print screen
-        (e.shiftKey && e.key === 'PrintScreen') // Shift+PrintScreen
-      ) {
+      // Allow Undo/Redo (Ctrl+Z, Ctrl+Y)
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+        if (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y') {
+          return;
+        }
+      }
+
+      // Allow Copy/Paste/Cut/SelectAll ONLY inside Editor/Input
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'c' || key === 'v' || key === 'x' || key === 'a') {
+           const target = e.target as HTMLElement;
+           const activeElement = document.activeElement as HTMLElement;
+           const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+           const isContentEditable = target.isContentEditable || activeElement?.isContentEditable;
+           
+           // Check if inside Monaco editor
+           const checkMonaco = (el: HTMLElement | null): boolean => {
+             if (!el) return false;
+             return el.closest('.monaco-editor') !== null ||
+                    el.closest('[class*="monaco"]') !== null ||
+                    el.closest('[data-uri]') !== null ||
+                    (el.isContentEditable && el.closest('.view-lines') !== null) ||
+                    (el.ownerDocument !== document && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA');
+           };
+           
+           const isMonacoEditor = checkMonaco(target) || checkMonaco(activeElement);
+           
+           if (isInput || isContentEditable || isMonacoEditor) {
+             return; // Allow inside editor
+           }
+        }
+      }
+
+      // 2. BLOCK EVERYTHING ELSE WITH MODIFIERS
+      // This catches Alt+S (Blackbox), Ctrl+Shift+I (DevTools), Ctrl+P (Print), etc.
+      if (e.ctrlKey || e.altKey || e.metaKey) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        incrementWarningRef.current?.(`Restricted shortcut used: ${e.key}`);
+        
+        // Specific messages for clarity
+        let reason = 'Restricted shortcut used';
+        if (e.altKey) reason = 'Browser extension shortcuts are disabled (Alt key)';
+        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) reason = 'Developer Tools are disabled';
+        
+        incrementWarningRef.current?.(`${reason}: ${e.ctrlKey ? 'Ctrl+' : ''}${e.altKey ? 'Alt+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.key.toUpperCase()}`);
         return false;
       }
 
-      // Block copy shortcuts (but allow within exam content and Monaco editor)
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
-        // Only block if not in input/textarea or Monaco editor (allow normal typing)
-        const target = e.target as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-        const isContentEditable = target.isContentEditable;
-        
-        // Check if inside Monaco editor
-        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
-                              target.closest('[class*="monaco"]') !== null ||
-                              target.closest('[data-uri]') !== null ||
-                              (isContentEditable && target.closest('.view-lines') !== null) ||
-                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
-        
-        if (!isInput && !isContentEditable && !isMonacoEditor) {
-          e.preventDefault();
-          e.stopPropagation();
-          incrementWarningRef.current?.('Copy shortcut attempted outside editor');
-          return false;
-        }
-      }
-
-      // Block paste shortcuts (but allow within exam content and Monaco editor)
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
-        // Only block if not in input/textarea or Monaco editor (allow normal typing)
-        const target = e.target as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-        const isContentEditable = target.isContentEditable;
-        
-        // Check if inside Monaco editor
-        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
-                              target.closest('[class*="monaco"]') !== null ||
-                              target.closest('[data-uri]') !== null ||
-                              (isContentEditable && target.closest('.view-lines') !== null) ||
-                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
-        
-        if (!isInput && !isContentEditable && !isMonacoEditor) {
-          e.preventDefault();
-          e.stopPropagation();
-          incrementWarningRef.current?.('Paste shortcut attempted outside editor');
-          return false;
-        }
-      }
-
-      // Block cut shortcuts (but allow in Monaco editor)
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'x' || e.key === 'X')) {
-        const target = e.target as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-        const isContentEditable = target.isContentEditable;
-        
-        // Check if inside Monaco editor
-        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
-                              target.closest('[class*="monaco"]') !== null ||
-                              target.closest('[data-uri]') !== null ||
-                              (isContentEditable && target.closest('.view-lines') !== null) ||
-                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
-        
-        if (!isInput && !isContentEditable && !isMonacoEditor) {
-          e.preventDefault();
-          e.stopPropagation();
-          incrementWarningRef.current?.('Cut shortcut attempted outside editor');
-          return false;
-        }
-      }
-
-      // Block select all (but allow in inputs and Monaco editor)
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
-        const target = e.target as HTMLElement;
-        const activeElement = document.activeElement as HTMLElement;
-        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-        const isContentEditable = target.isContentEditable || activeElement?.isContentEditable;
-        
-        // Check if inside Monaco editor - Monaco editor uses specific containers
-        // Check both target and active element for Monaco editor containers
-        const checkMonaco = (el: HTMLElement | null): boolean => {
-          if (!el) return false;
-          return el.closest('.monaco-editor') !== null ||
-                 el.closest('[class*="monaco"]') !== null ||
-                 el.closest('[data-uri]') !== null ||
-                 (el.isContentEditable && el.closest('.view-lines') !== null) ||
-                 // Check if in an iframe that might be Monaco (but not other inputs)
-                 (el.ownerDocument !== document && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA');
-        };
-        
-        const isMonacoEditor = checkMonaco(target) || checkMonaco(activeElement);
-        
-        if (!isInput && !isContentEditable && !isMonacoEditor) {
-          e.preventDefault();
-          e.stopPropagation();
-          incrementWarningRef.current?.('Select All shortcut attempted outside editor');
-          return false;
-        }
+      // Block F-keys
+      if (e.key.startsWith('F') && e.key.length > 1) {
+         e.preventDefault();
+         incrementWarningRef.current?.(`Restricted key: ${e.key}`);
+         return false;
       }
     };
 
@@ -359,8 +309,13 @@ export function useCheatingPrevention(
   useEffect(() => {
     if (attempt?.status !== 'IN_PROGRESS') return;
 
-    // Clear clipboard on mount
-    navigator.clipboard?.writeText('').catch(() => {});
+    // Clear clipboard on mount AND on focus
+    const clearClipboard = () => {
+       navigator.clipboard?.writeText('').catch(() => {});
+    };
+    
+    clearClipboard();
+    window.addEventListener('focus', clearClipboard);
 
     const handleCopy = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
@@ -369,28 +324,42 @@ export function useCheatingPrevention(
       
       // Allow copy ONLY from within inputs/editors
       if (!isInput && !isContentEditable) {
-        e.preventDefault();
-        e.clipboardData?.setData('text/plain', '');
-        incrementWarningRef.current?.('Copying from outside editor is restricted');
-        return false;
+        // Check if inside Monaco editor
+        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
+                              target.closest('[class*="monaco"]') !== null ||
+                              target.closest('[data-uri]') !== null ||
+                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+
+        if (!isMonacoEditor) {
+          e.preventDefault();
+          e.clipboardData?.setData('text/plain', '');
+          incrementWarningRef.current?.('Copying from outside editor is restricted');
+          return false;
+        }
       }
     };
 
     const handlePaste = (e: ClipboardEvent) => {
+      // We can't easily detect source of paste in web, 
+      // BUT since we clear clipboard on focus (window switch), 
+      // external content should be gone.
+      // We just need to ensure they are pasting INTO an editor.
+      
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
       
-      // Allow paste ONLY into inputs/editors
-      if (!isInput && !isContentEditable) {
-        e.preventDefault();
-        e.clipboardData?.setData('text/plain', '');
-        incrementWarningRef.current?.('Pasting outside editor is restricted');
-        return false;
+      // Check if inside Monaco editor
+      const isMonacoEditor = target.closest('.monaco-editor') !== null ||
+                            target.closest('[class*="monaco"]') !== null ||
+                            target.closest('[data-uri]') !== null ||
+                            (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+
+      if (!isInput && !isContentEditable && !isMonacoEditor) {
+          e.preventDefault();
+          incrementWarningRef.current?.('Pasting outside editor is restricted');
+          return false;
       }
-      
-      // Even if pasting into editor, we might want to check source (hard to do reliably in web)
-      // For now, we rely on the fact that they can't copy from outside (if we block it there)
     };
 
     const handleCut = (e: ClipboardEvent) => {
@@ -399,10 +368,18 @@ export function useCheatingPrevention(
       const isContentEditable = target.isContentEditable;
       
       if (!isInput && !isContentEditable) {
-        e.preventDefault();
-        e.clipboardData?.setData('text/plain', '');
-        incrementWarningRef.current?.('Cutting from outside editor is restricted');
-        return false;
+        // Check if inside Monaco editor
+        const isMonacoEditor = target.closest('.monaco-editor') !== null ||
+                              target.closest('[class*="monaco"]') !== null ||
+                              target.closest('[data-uri]') !== null ||
+                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+
+        if (!isMonacoEditor) {
+          e.preventDefault();
+          e.clipboardData?.setData('text/plain', '');
+          incrementWarningRef.current?.('Cutting from outside editor is restricted');
+          return false;
+        }
       }
     };
 
@@ -411,6 +388,7 @@ export function useCheatingPrevention(
     document.addEventListener('cut', handleCut, { capture: true });
 
     return () => {
+      window.removeEventListener('focus', clearClipboard);
       document.removeEventListener('copy', handleCopy, { capture: true });
       document.removeEventListener('paste', handlePaste, { capture: true });
       document.removeEventListener('cut', handleCut, { capture: true });

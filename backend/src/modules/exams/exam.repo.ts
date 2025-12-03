@@ -178,6 +178,7 @@ export const findExamByIdForStudent = async (params: {
       durationMins: true,
       status: true,
       allowedLanguages: true, // Include allowed languages for coding questions
+      maxAttempts: true, // Include maxAttempts
       // Include attempts to check if student has completed this exam
       attempts: {
         where: {
@@ -198,6 +199,16 @@ export const findExamByIdForStudent = async (params: {
         },
         distinct: ['type'],
       },
+      // Count attempts
+      _count: {
+        select: {
+          attempts: {
+            where: {
+              studentId: student.id,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -207,7 +218,7 @@ export const findExamByIdForStudent = async (params: {
 
   // Transform to include attempt status and question types
   const hasCompletedAttempt = exam.attempts && exam.attempts.length > 0;
-  const { attempts, questions, ...examData } = exam;
+  const { attempts, questions, _count, ...examData } = exam;
   
   // Extract unique question types
   const questionTypes = questions ? [...new Set(questions.map(q => q.type))] : [];
@@ -219,6 +230,7 @@ export const findExamByIdForStudent = async (params: {
     attemptId: hasCompletedAttempt ? exam.attempts[0]!.id : null,
     questionTypes,
     hasSpeakingQuestions,
+    attemptCount: _count.attempts,
   };
 };
 

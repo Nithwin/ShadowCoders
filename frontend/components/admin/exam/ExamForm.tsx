@@ -45,12 +45,12 @@ export const examFormSchema = z.object({
     .union([z.string(), z.number()])
     .optional()
     .transform((val) => (val === '' || val === undefined ? undefined : Number(val)))
-    .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 1, 'Must be a positive integer'),
+    .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer (0 for unlimited)'),
   maxTabSwitches: z
     .union([z.string(), z.number()])
     .optional()
     .transform((val) => (val === '' || val === undefined ? undefined : Number(val)))
-    .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer'),
+    .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer (0 for unlimited)'),
   allowedLanguages: z.array(z.string()).optional(),
 }).refine((data) => new Date(data.startAt) < new Date(data.endAt), {
   message: 'Start time must be before end time',
@@ -119,6 +119,8 @@ export default function ExamForm({
       startAt: localDateTimeValue(new Date()),
       endAt: localDateTimeValue(new Date(Date.now() + 2 * 60 * 60 * 1000)),
       randomizeQuestions: false,
+      maxAttempts: 0,
+      maxTabSwitches: 0,
       allowedLanguages: defaultValues?.allowedLanguages || [],
       ...defaultValues,
     },

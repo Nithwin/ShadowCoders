@@ -250,6 +250,8 @@ export default function EditExamPage() {
             sectionLockPolicy: examData.sectionLockPolicy,
             randomizeQuestions: examData.randomizeQuestions,
             negativeMarkPerWrong: examData.negativeMarkPerWrong?.toString(),
+            maxAttempts: examData.maxAttempts ?? undefined,
+            maxTabSwitches: examData.maxTabSwitches ?? undefined,
             allowedLanguages: Array.isArray(examData.allowedLanguages) ? examData.allowedLanguages : [],
           }}
           onSubmit={handleFormSubmit}

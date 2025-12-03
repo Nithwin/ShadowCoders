@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2, Award } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
@@ -21,6 +21,8 @@ type Exam = {
   attemptId?: string | null;
   hasSpeakingQuestions?: boolean;
   questionTypes?: string[];
+  maxAttempts?: number | null;
+  attemptCount?: number;
 };
 
 export default function ExamDetailPage() {
@@ -149,20 +151,36 @@ export default function ExamDetailPage() {
   const getExamStatus = () => {
     if (!exam) return { label: 'Unknown', color: 'bg-gray-100 text-gray-800', canStart: false };
     
-    // If student has already attempted, exam is locked
+    const now = new Date();
+    const start = new Date(exam.startAt);
+    const end = new Date(exam.endAt);
+    const isWithinTimeWindow = now >= start && now <= end;
+    
+    // Check retake eligibility
+    const maxAttempts = exam.maxAttempts;
+    const attemptCount = exam.attemptCount || 0;
+    const canRetake = maxAttempts === null || maxAttempts === undefined || attemptCount < maxAttempts;
+
+    // If student has already attempted
     if (exam.hasAttempt) {
+      if (canRetake && isWithinTimeWindow) {
+        return {
+          label: 'Completed - Can Retake',
+          color: 'bg-purple-100 text-purple-800',
+          canStart: true,
+          canRetake: true,
+          message: `You have completed ${attemptCount} attempt(s). You can retake this exam.`,
+        };
+      }
+      
       return {
         label: 'Completed',
         color: 'bg-gray-100 text-gray-800',
         canStart: false,
-        message: 'You have already completed this exam',
+        message: 'You have completed this exam',
       };
     }
     
-    const now = new Date();
-    const start = new Date(exam.startAt);
-    const end = new Date(exam.endAt);
-
     if (now < start) {
       return {
         label: 'Upcoming',
@@ -170,7 +188,7 @@ export default function ExamDetailPage() {
         canStart: false,
         message: `This exam will be available on ${formatDate(exam.startAt)}`,
       };
-    } else if (now >= start && now <= end) {
+    } else if (isWithinTimeWindow) {
       return {
         label: 'Live',
         color: 'bg-green-100 text-green-800',
@@ -242,7 +260,16 @@ export default function ExamDetailPage() {
           </span>
         </div>
         {exam.description && (
-          <p className="text-primary/70 text-lg mb-4">{exam.description}</p>
+          <div className="mb-4">
+            <ul className="list-disc list-inside space-y-1 text-primary/70 text-lg">
+              {exam.description.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .map((line, index) => (
+                  <li key={index}>{line}</li>
+                ))}
+            </ul>
+          </div>
         )}
       </div>
 
@@ -284,6 +311,17 @@ export default function ExamDetailPage() {
                 <p className="text-primary font-semibold">{exam.durationMins} minutes</p>
               </div>
             </div>
+            {exam.maxAttempts && (
+              <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
+                <Award className="w-5 h-5 text-primary/60 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-primary/70">Max Attempts</p>
+                  <p className="text-primary font-semibold">
+                    {exam.attemptCount || 0} / {exam.maxAttempts}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -361,8 +399,19 @@ export default function ExamDetailPage() {
         )}
 
         {/* Start Button */}
-        <div className="flex justify-end pt-4 border-t border-primary/10">
-          {status.canStart && !exam?.hasAttempt ? (
+        <div className="flex justify-end pt-4 border-t border-primary/10 gap-3">
+          {/* View Results Button (Always show if there's an attempt) */}
+          {exam?.hasAttempt && exam?.attemptId && (
+            <Link href={`/student/attempts/${exam.attemptId}/results`}>
+              <Button className="min-w-[200px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                View Results
+              </Button>
+            </Link>
+          )}
+
+          {/* Start/Retake Button */}
+          {status.canStart ? (
             <Button
               onClick={handleStartExam}
               disabled={isStarting}
@@ -376,18 +425,11 @@ export default function ExamDetailPage() {
               ) : (
                 <>
                   <Play className="w-4 h-4 mr-2" />
-                  Start Exam
+                  {status.canRetake ? 'Retake Exam' : 'Start Exam'}
                 </>
               )}
             </Button>
-          ) : exam?.hasAttempt && exam?.attemptId ? (
-            <Link href={`/student/attempts/${exam.attemptId}/results`}>
-              <Button className="min-w-[200px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                View Results
-              </Button>
-            </Link>
-          ) : (
+          ) : !exam?.hasAttempt && (
             <Button disabled className="bg-primary/10 text-primary/50 border-0">
               Exam Not Available
             </Button>

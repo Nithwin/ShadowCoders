@@ -61,11 +61,19 @@ function extractJavaPackageName(code: string): string | null {
  */
 async function isCommandAvailable(command: string): Promise<boolean> {
   try {
-    const checkCmd = process.platform === 'win32' ? `where ${command}` : `which ${command}`;
-    await execAsync(checkCmd, { timeout: 2000 });
+    // Try running the command with --version flag
+    // This is more robust than 'where'/'which' as it verifies the command actually runs
+    await execAsync(`${command} --version`, { timeout: 2000 });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    // Fallback to where/which if --version fails (some commands might not support it)
+    try {
+      const checkCmd = process.platform === 'win32' ? `where ${command}` : `which ${command}`;
+      await execAsync(checkCmd, { timeout: 2000 });
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
