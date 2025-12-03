@@ -70,7 +70,20 @@ export function useExamSubmission(
 
     } catch (err: unknown) {
       console.error('Failed to submit exam:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to submit exam. Please try again.';
+      
+      const error = err as { response?: { status?: number; data?: { message?: string } } };
+      let errorMessage = 'Failed to submit exam. Please try again.';
+
+      if (error.response?.status === 403) {
+        errorMessage = 'Submission failed: You are not authorized to submit this exam. It may have already been submitted or the time has expired.';
+        // Optional: Force redirect if already submitted
+        // router.replace(`/student/attempts/${attemptId}/results`);
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
       setError(errorMessage);
       setIsSubmitting(false);
     }
