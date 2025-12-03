@@ -37,6 +37,8 @@ type AttemptResults = {
   maxScore: number | null;
   startedAt: string;
   submittedAt: string | null;
+  submissionType?: string | null;
+  submissionReason?: string | null;
   exam: {
     id: string;
     title: string;
@@ -235,6 +237,25 @@ export default function ExamResultsPage() {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Exam Results</h1>
           <p className="text-lg text-gray-600">{results.exam.title}</p>
         </div>
+
+        {/* Auto-Submit Warning Banner */}
+        {results.submissionType === 'AUTO' && results.submissionReason && (
+          <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-6 mb-8 shadow-md">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-amber-900 mb-2">⚠️ Exam Auto-Submitted</h3>
+                <p className="text-amber-800 mb-2">
+                  This exam was automatically submitted due to a violation of exam rules.
+                </p>
+                <div className="bg-amber-100 border border-amber-300 rounded-md p-3 mt-3">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">Reason:</p>
+                  <p className="text-sm text-amber-800">{results.submissionReason}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Score Summary Card */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 mb-8">

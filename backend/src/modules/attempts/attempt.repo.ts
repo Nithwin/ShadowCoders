@@ -413,6 +413,8 @@ export const getAttemptResults = (attemptId: string) => {
       maxScore: true,
       startedAt: true,
       submittedAt: true,
+      submissionType: true,
+      submissionReason: true,
       exam: {
         select: {
           id: true,
