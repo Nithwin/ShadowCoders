@@ -141,3 +141,13 @@ export const deleteRefreshToken = (tokenHash: string) => {
     'deleteRefreshToken'
   );
 };
+
+export const updatePassword = (id: string, passwordHash: string) => {
+    return withDatabaseErrorHandling(
+        () => prisma.user.update({
+            where: { id },
+            data: { password: passwordHash },
+        }),
+        'updatePassword'
+    );
+}

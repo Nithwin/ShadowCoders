@@ -11,7 +11,8 @@ import {
   User as UserIcon,
   LogOut,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -20,6 +21,7 @@ const navLinks = [
   { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
   { name: 'My Exams', href: '/student/exams', icon: FileText },
   { name: 'Results', href: '/student/results', icon: ClipboardCheck },
+  { name: 'Settings', href: '/student/settings', icon: Settings },
 ];
 
 export default function StudentSidebar() {
@@ -62,12 +64,12 @@ export default function StudentSidebar() {
           <div className="flex items-center">
             <Image 
               src="/images/codepath.png" 
-              alt="CodePath Logo" 
+              alt="ShadowCoders Logo" 
               width={40} 
               height={40}
               priority
             />
-            <span className="ml-2 text-xl font-bold font-alan-sans">CodePath</span>
+            <span className="ml-2 text-xl font-bold font-alan-sans">ShadowCoders</span>
           </div>
           {/* Mobile-only close button */}
           <button 

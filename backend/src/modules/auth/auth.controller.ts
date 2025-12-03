@@ -138,3 +138,35 @@ export const updateMeHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const changePasswordHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user?.sub;
+    if (!userId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+
+    await authService.changePassword(userId, req.body);
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadProfilePictureHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user?.sub;
+    if (!userId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+
+    if (!req.file) {
+      return next({ status: 400, message: 'No file uploaded' });
+    }
+
+    const pictureUrl = await authService.updateProfilePicture(userId, req.file);
+    res.json({ pictureUrl });
+  } catch (error) {
+    next(error);
+  }
+};

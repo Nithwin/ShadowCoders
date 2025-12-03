@@ -89,6 +89,7 @@ model User {
   department String?
   section    String?
   googleId   String? @unique
+  settings   Json?
 
   attempts Attempt[]
 

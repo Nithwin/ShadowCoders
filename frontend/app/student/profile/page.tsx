@@ -17,11 +17,16 @@ import {
   Clock,
   UserCircle,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Lock,
+  Upload
 } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useToast } from '@/context/ToastContext';
 
 export default function StudentProfilePage() {
   const { user, updateUser } = useAuth();
+  const { showToast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +37,11 @@ export default function StudentProfilePage() {
     department: user?.department || '',
     section: user?.section || '',
     pictureUrl: user?.pictureUrl || '',
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -49,16 +59,54 @@ export default function StudentProfilePage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (name in passwordData) {
+      setPasswordData(prev => ({ ...prev, [name]: value }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // 1. Show preview immediately
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, pictureUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+
+      // 2. Upload to server
+      const formData = new FormData();
+      formData.append('picture', file);
+
+      try {
+        setIsLoading(true);
+        const { data } = await api.post('/me/picture', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        
+        // Update local state with returned URL
+        setFormData(prev => ({ ...prev, pictureUrl: data.pictureUrl }));
+        // Also update global auth user
+        await updateUser({ pictureUrl: data.pictureUrl });
+        showToast('Profile picture updated!', 'success');
+      } catch (err: any) {
+        console.error('Upload failed:', err);
+        showToast('Failed to upload picture', 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleSave = async () => {
     setIsLoading(true);
     setError(null);
     try {
+      // 1. Update basic profile info
       await updateUser({
         name: formData.name || null,
         reg_no: formData.reg_no || null,
@@ -67,9 +115,30 @@ export default function StudentProfilePage() {
         section: formData.section || null,
         pictureUrl: formData.pictureUrl || null,
       });
+
+      // 2. Update password if provided
+      if (passwordData.newPassword) {
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+          throw new Error("New passwords don't match");
+        }
+        if (!passwordData.currentPassword) {
+          throw new Error("Current password is required to set a new one");
+        }
+        
+        await api.post('/auth/change-password', {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        });
+      }
+
       setIsEditing(false);
+      showToast('Profile updated successfully', 'success');
+      // Clear password fields
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update profile');
+      const msg = err.response?.data?.message || err.message || 'Failed to update profile';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -171,6 +240,13 @@ export default function StudentProfilePage() {
                         title="Edit profile picture URL"
                       >
                         <Camera className="w-5 h-5" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          title="Upload new picture"
+                        />
                       </button>
                     </div>
                   ) : (
@@ -355,17 +431,74 @@ export default function StudentProfilePage() {
                     </div>
                     <div className="flex-1">
                       <label className="block text-sm font-semibold text-primary/70 mb-2">
-                        Profile Picture URL
+                        Profile Picture
                       </label>
-                      <input
-                        type="url"
-                        name="pictureUrl"
-                        value={formData.pictureUrl}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
-                        placeholder="https://example.com/image.jpg"
-                      />
-                      <p className="text-xs text-primary/50 mt-2">Enter a URL to your profile picture</p>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 px-4 py-2 bg-secondary border border-primary/20 rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
+                          <Upload className="w-4 h-4" />
+                          <span className="text-sm font-medium">Upload New</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="hidden"
+                          />
+                        </label>
+                        <p className="text-xs text-primary/50">Max 5MB. JPG, PNG, GIF.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Password Change Section */}
+                {isEditing && (
+                  <div className="pt-6 border-t border-primary/10">
+                    <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
+                      <Lock className="w-5 h-5 text-red-500" />
+                      Change Password
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-primary/70 mb-2">
+                          Current Password
+                        </label>
+                        <input
+                          type="password"
+                          name="currentPassword"
+                          value={passwordData.currentPassword}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm"
+                          placeholder="Enter current password"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-primary/70 mb-2">
+                            New Password
+                          </label>
+                          <input
+                            type="password"
+                            name="newPassword"
+                            value={passwordData.newPassword}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm"
+                            placeholder="Enter new password"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-primary/70 mb-2">
+                            Confirm New Password
+                          </label>
+                          <input
+                            type="password"
+                            name="confirmPassword"
+                            value={passwordData.confirmPassword}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm"
+                            placeholder="Confirm new password"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -1,4 +1,4 @@
-'use client'; // This must be a Client Component
+'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,7 +13,8 @@ import {
   User as UserIcon,
   Menu,
   X,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -25,7 +26,7 @@ const navLinks = [
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
   { name: 'Rubrics', href: '/admin/rubrics', icon: BookMarked },
-  // { name: 'Assets', href: '/admin/assets', icon: UploadCloud }, // Hidden for now
+  { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 export default function AdminSidebar() {
@@ -68,12 +69,12 @@ export default function AdminSidebar() {
           <div className="flex items-center">
             <Image 
               src="/images/codepath.png" 
-              alt="CodePath Logo" 
+              alt="ShadowCoders Logo" 
               width={40} 
               height={40}
               priority
             />
-            <span className="ml-2 text-xl font-bold font-alan-sans">CodePath</span>
+            <span className="ml-2 text-xl font-bold font-alan-sans">ShadowCoders</span>
           </div>
           {/* Mobile-only close button */}
           <button 

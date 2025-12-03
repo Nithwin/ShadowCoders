@@ -13,6 +13,7 @@ import { registerSectionRoutes } from './modules/sections/section.routes';
 import { registerAiRoutes } from './modules/ai/ai.routes';
 import { registerGradingRoutes } from './modules/grading/grading.routes';
 import { registerAnalyticsRoutes } from './modules/analytics/analytics.routes';
+import { registerSettingsRoutes } from './modules/settings/settings.routes';
 import { errorHandler } from './middleware/error';
 import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
 import { env } from './config/env';
@@ -197,6 +198,7 @@ export const createApp = () => {
     registerAiRoutes(app);
     registerGradingRoutes(app);
     registerAnalyticsRoutes(app);
+    registerSettingsRoutes(app);
     
     // In production, serve the built frontend (Next.js static export)
     if (env.NODE_ENV === 'production') {

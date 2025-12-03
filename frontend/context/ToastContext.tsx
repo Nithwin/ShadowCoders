@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useToastNotification() {
+export function useToast() {
   const context = useContext(ToastContext);
   if (!context) {
     throw new Error('useToastNotification must be used within ToastProvider');

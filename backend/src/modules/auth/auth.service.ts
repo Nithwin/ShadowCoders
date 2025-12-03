@@ -6,6 +6,9 @@ import bcrypt from 'bcrypt';
 import { prisma } from '../../lib/prisma';
 import jwt from 'jsonwebtoken'; // <-- This is the package with .verify()
 import { env } from '../../config/env'; // <-- This is your config file
+import fs from 'fs';
+import path from 'path';
+
 // --- (Your GoogleProfile interface) ---
 interface GoogleProfile {
   email: string;
@@ -142,4 +145,51 @@ export const updateUserProfile = async (userId: string, updateData: {
   }
 
   return authRepo.updateUser(userId, dataToUpdate);
+};
+
+export const changePassword = async (userId: string, { currentPassword, newPassword }: any) => {
+  const user = await authRepo.findUserById(userId);
+  if (!user || !user.password) {
+    throw { status: 404, message: 'User not found' };
+  }
+
+  const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+  if (!isPasswordValid) {
+    throw { status: 400, message: 'Invalid current password' };
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+  return authRepo.updatePassword(userId, hashedPassword);
+};
+
+export const updateProfilePicture = async (userId: string, file: Express.Multer.File) => {
+  const user = await authRepo.findUserById(userId);
+  if (!user) {
+    throw { status: 404, message: 'User not found' };
+  }
+
+  // Ensure uploads directory exists
+  const uploadsDir = path.join(env.UPLOADS_DIR, 'profiles');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  // Generate unique filename
+  const fileExt = path.extname(file.originalname);
+  const fileName = `${userId}-${Date.now()}${fileExt}`;
+  const filePath = path.join(uploadsDir, fileName);
+
+  // Write file to disk
+  fs.writeFileSync(filePath, file.buffer);
+
+  // Generate URL
+  // Assuming the uploads directory is served at /uploads
+  const pictureUrl = `/uploads/profiles/${fileName}`;
+
+  // Update user profile
+  await authRepo.updateUser(userId, { pictureUrl });
+
+  return pictureUrl;
 };

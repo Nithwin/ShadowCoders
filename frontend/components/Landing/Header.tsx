@@ -27,10 +27,10 @@ const Header = () => {
             width={100}
             className="size-12 opacity-75"
             src={"/images/codepath.png"}
-            alt="Logo"
+            alt="ShadowCoders Logo"
           />
           <p className="font-aerospace text-secondary/60 uppercase text-lg">
-            CodePath
+            ShadowCoders
           </p>
         </div>
         <Menu

@@ -177,10 +177,10 @@ export default function LoginPage() {
             src={"/images/codepath.png"}
             width={48}
             height={48}
-            alt="Logo"
+            alt="ShadowCoders Logo"
             className="drop-shadow-sm w-10 h-10 sm:w-12 sm:h-12"
           />
-          <h1>CodePath</h1>
+          <h1>ShadowCoders</h1>
           <p className="text-center text-gray-500 text-xs -mt-0.5">
             Welcome back
           </p>

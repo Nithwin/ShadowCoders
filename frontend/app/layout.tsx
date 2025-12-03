@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmationProvider } from "@/context/ConfirmationContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -36,7 +37,7 @@ const aerospace = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "CodePath",
+  title: "ShadowCoders",
   description: "A Platform which takes your skills to whole another level",
   icons:'/images/codepath.png'
 };
@@ -50,11 +51,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${poppins.variable} ${inter.variable} ${alanSans.variable} ${aerospace.variable}`}>
         <AuthProvider>
-          <ConfirmationProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
-          </ConfirmationProvider>
+          <ThemeProvider>
+            <ConfirmationProvider>
+              <ToastProvider>
+                {children}
+              </ToastProvider>
+            </ConfirmationProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>
