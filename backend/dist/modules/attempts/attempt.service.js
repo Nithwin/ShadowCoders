@@ -33,12 +33,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetAttempts = exports.getAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getAttemptResults = exports.getQuestionForStudent = exports.getQuestionById = exports.getAttemptDetails = exports.submitAttempt = exports.submitAnswer = exports.startAttempt = void 0;
+exports.runCode = exports.resetAttempts = exports.getAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getAttemptResults = exports.getQuestionForStudent = exports.getQuestionById = exports.getAttemptDetails = exports.submitAttempt = exports.submitAnswer = exports.startAttempt = void 0;
 const attemptRepo = __importStar(require("./attempt.repo"));
 const client_1 = require("@prisma/client");
 const utils_1 = require("../../lib/utils");
 const prisma_1 = require("../../lib/prisma");
 const userRepo = __importStar(require("../auth/auth.repo"));
+const grading_logic_1 = require("../grading/grading.logic");
+const local_executor_1 = require("../../lib/local-executor");
 const startAttempt = async (studentId, examId) => {
     const exam = await prisma_1.prisma.exam.findUnique({
         where: { id: examId },
@@ -265,14 +267,7 @@ const submitAnswer = async (studentId, attemptId, input) => {
     return savedResponse;
 };
 exports.submitAnswer = submitAnswer;
-const areArraysEqual = (arr1, arr2) => {
-    if (arr1.length !== arr2.length)
-        return false;
-    const sortedArr1 = [...arr1].sort();
-    const sortedArr2 = [...arr2].sort();
-    return sortedArr1.every((value, index) => value === sortedArr2[index]);
-};
-const submitAttempt = async (studentId, attemptId) => {
+const submitAttempt = async (studentId, attemptId, submissionReason) => {
     // 1. Fetch all data needed for grading
     const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
     // 2. --- Validation Checks ---
@@ -296,143 +291,71 @@ const submitAttempt = async (studentId, attemptId) => {
         const response = attempt.responses.find((r) => r.questionId === question.id);
         if (response && response.answer) {
             // Auto-grade based on question type
+            let gradingResult = {
+                earnedPoints: 0,
+                verdict: 'FAIL',
+                gradingMode: client_1.GradingMode.MANUAL, // Default to manual if not auto-graded
+            };
             switch (question.type) {
                 case client_1.QType.MCQ:
-                    try {
-                        // Safely parse the JSON answer and correct answer
-                        const answer = response.answer;
-                        const correct = question.correctOptionIds;
-                        if (answer.chosenOptionIds && correct) {
-                            const isCorrect = areArraysEqual(answer.chosenOptionIds, correct);
-                            if (isCorrect) {
-                                totalScore += questionPoints;
-                                // Update the response's earnedPoints in the database
-                                await prisma_1.prisma.response.updateMany({
-                                    where: {
-                                        attemptId: attemptId,
-                                        questionId: question.id,
-                                    },
-                                    data: {
-                                        earnedPoints: questionPoints,
-                                        verdict: 'PASS',
-                                        gradingMode: client_1.GradingMode.AUTO,
-                                    },
-                                });
-                            }
-                            else {
-                                // Update response to indicate incorrect answer
-                                await prisma_1.prisma.response.updateMany({
-                                    where: {
-                                        attemptId: attemptId,
-                                        questionId: question.id,
-                                    },
-                                    data: {
-                                        earnedPoints: 0,
-                                        verdict: 'FAIL',
-                                        gradingMode: client_1.GradingMode.AUTO,
-                                    },
-                                });
-                            }
-                            // You could add logic for negative marking here
-                        }
-                    }
-                    catch (e) {
-                        // Failed to auto-grade MCQ; skip and continue. Details: removed debug logging.
-                    }
+                    gradingResult = (0, grading_logic_1.gradeMCQ)(response.answer, question.correctOptionIds, questionPoints);
                     break;
                 case client_1.QType.CODING:
-                    // Auto-grade coding questions using test cases
-                    try {
-                        const answer = response.answer;
-                        const testcases = question.testcases;
-                        if (answer?.code && testcases && testcases.length > 0) {
-                            const code = answer.code.trim();
-                            const language = answer.language || 'javascript';
-                            if (code.length === 0) {
-                                // No code provided
-                                await prisma_1.prisma.response.updateMany({
-                                    where: {
-                                        attemptId: attemptId,
-                                        questionId: question.id,
-                                    },
-                                    data: {
-                                        earnedPoints: 0,
-                                        verdict: 'FAIL',
-                                        gradingMode: client_1.GradingMode.AUTO,
-                                    },
-                                });
-                                break;
-                            }
-                            // Execute code against ALL test cases (both visible and hidden)
-                            const { testCodeWithTestCasesLocally } = await Promise.resolve().then(() => __importStar(require('../../lib/local-executor')));
-                            const testResults = await testCodeWithTestCasesLocally(code, language, testcases.map((tc) => ({
-                                input: tc.input,
-                                expectedOutput: tc.expectedOutput,
-                                timeoutMs: tc.timeoutMs || 2000,
-                            })));
-                            // Calculate score based on test cases passed
-                            // Score = (passed / total) * questionPoints
-                            const passedRatio = testResults.total > 0 ? testResults.passed / testResults.total : 0;
-                            const earnedPoints = Math.round(questionPoints * passedRatio * 100) / 100; // Round to 2 decimal places
-                            totalScore += earnedPoints;
-                            // Update the response's earnedPoints in the database
-                            await prisma_1.prisma.response.updateMany({
-                                where: {
-                                    attemptId: attemptId,
-                                    questionId: question.id,
-                                },
-                                data: {
-                                    earnedPoints: earnedPoints,
-                                    verdict: testResults.passed === testResults.total ? 'PASS' : 'PARTIAL',
-                                    gradingMode: client_1.GradingMode.AUTO,
-                                },
-                            });
-                        }
-                        else if (!answer?.code || answer.code.trim().length === 0) {
-                            // No code provided
-                            await prisma_1.prisma.response.updateMany({
-                                where: {
-                                    attemptId: attemptId,
-                                    questionId: question.id,
-                                },
-                                data: {
-                                    earnedPoints: 0,
-                                    verdict: 'FAIL',
-                                    gradingMode: client_1.GradingMode.AUTO,
-                                },
-                            });
-                        }
-                    }
-                    catch (e) {
-                        // Failed to auto-grade coding; give 0 points
-                        console.error('Error auto-grading coding question:', e);
-                        await prisma_1.prisma.response.updateMany({
-                            where: {
-                                attemptId: attemptId,
-                                questionId: question.id,
-                            },
-                            data: {
-                                earnedPoints: 0,
-                                verdict: 'FAIL',
-                                gradingMode: client_1.GradingMode.AUTO,
-                            },
-                        });
-                    }
+                    gradingResult = await (0, grading_logic_1.gradeCoding)(response.answer, question.testcases, questionPoints);
                     break;
                 case client_1.QType.ESSAY:
                 case client_1.QType.SPEAKING:
-                    // These types require manual grading, so score 0 for now
-                    // The 'earnedPoints' on the Response can be updated later by a STAFF user
-                    totalScore += 0;
+                    // Manual grading required
+                    gradingResult = {
+                        earnedPoints: 0,
+                        verdict: 'PENDING', // Or FAIL/PASS based on policy, usually PENDING for manual
+                        gradingMode: client_1.GradingMode.MANUAL,
+                    };
                     break;
-                // Add other auto-gradable types (like FILL) here
                 default:
-                    totalScore += 0;
+                    gradingResult = {
+                        earnedPoints: 0,
+                        verdict: 'FAIL',
+                        gradingMode: client_1.GradingMode.MANUAL,
+                    };
+            }
+            // Update total score if auto-graded
+            if (gradingResult.gradingMode === client_1.GradingMode.AUTO) {
+                totalScore += gradingResult.earnedPoints;
+            }
+            // Update the response in the database
+            // Only update if we actually have a result (even 0 points)
+            if (gradingResult.gradingMode === client_1.GradingMode.AUTO) {
+                await prisma_1.prisma.response.updateMany({
+                    where: {
+                        attemptId: attemptId,
+                        questionId: question.id,
+                    },
+                    data: {
+                        earnedPoints: gradingResult.earnedPoints,
+                        verdict: gradingResult.verdict,
+                        gradingMode: gradingResult.gradingMode,
+                    },
+                });
             }
         }
     }
     // 4. --- Update the Attempt in the Database ---
-    const submittedAttempt = await attemptRepo.updateAttemptOnSubmit(attemptId, totalScore, maxScore);
+    // Determine submission type
+    const submissionType = submissionReason ? 'AUTO' : 'NORMAL';
+    const submittedAttempt = await prisma_1.prisma.attempt.update({
+        where: { id: attemptId },
+        data: {
+            status: client_1.AttemptStatus.SUBMITTED,
+            submittedAt: new Date(),
+            score: totalScore,
+            maxScore: maxScore,
+            submissionType: submissionType,
+            submissionReason: submissionReason || null,
+            // Calculate time spent
+            timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
+        },
+    });
     return submittedAttempt;
 };
 exports.submitAttempt = submitAttempt;
@@ -692,4 +615,60 @@ const resetAttempts = async (input) => {
     };
 };
 exports.resetAttempts = resetAttempts;
+const runCode = async (studentId, attemptId, questionId, code, language, customInput, runAllTests) => {
+    // 1. Verify attempt
+    const attempt = await prisma_1.prisma.attempt.findUnique({
+        where: { id: attemptId },
+        select: { studentId: true, examId: true, status: true },
+    });
+    if (!attempt) {
+        throw { status: 404, message: 'Attempt not found' };
+    }
+    if (attempt.studentId !== studentId) {
+        throw { status: 403, message: 'Forbidden' };
+    }
+    // 2. Get question
+    const question = await prisma_1.prisma.question.findUnique({
+        where: { id: questionId },
+        select: { id: true, type: true, testcases: true },
+    });
+    if (!question) {
+        throw { status: 404, message: 'Question not found' };
+    }
+    if (question.type !== client_1.QType.CODING) {
+        throw { status: 400, message: 'Not a coding question' };
+    }
+    // 3. Execute code
+    if (customInput) {
+        // Run with custom input
+        const result = await (0, local_executor_1.executeCodeLocally)(code, language, customInput);
+        return {
+            passed: result.status.id === 3 ? 1 : 0,
+            total: 1,
+            testResults: [{
+                    input: customInput,
+                    expectedOutput: '(Custom Input)',
+                    actualOutput: result.stdout,
+                    passed: result.status.id === 3,
+                    status: result.status.description,
+                    error: result.stderr || result.error
+                }],
+            message: result.stderr ? 'Execution Error' : 'Execution Successful'
+        };
+    }
+    else {
+        // Run with test cases
+        const testCases = question.testcases || [];
+        // If runAllTests is true (submit mode), run all. Otherwise only visible ones.
+        const testsToRun = runAllTests ? testCases : testCases.filter(tc => !tc.isHidden);
+        const results = await (0, local_executor_1.testCodeWithTestCasesLocally)(code, language, testsToRun);
+        return {
+            passed: results.passed,
+            total: results.total,
+            testResults: results.results,
+            message: results.passed === results.total ? 'All tests passed' : `${results.passed}/${results.total} tests passed`
+        };
+    }
+};
+exports.runCode = runCode;
 //# sourceMappingURL=attempt.service.js.map

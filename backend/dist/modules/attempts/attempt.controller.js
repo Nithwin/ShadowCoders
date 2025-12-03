@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetAttemptsHandler = exports.getAttemptForAdminHandler = exports.listAttemptsForExamHandler = exports.getStudentAttemptsHandler = exports.getAttemptResultsHandler = exports.getQuestionHandler = exports.getAttemptDetailsHandler = exports.submitAttemptHandler = exports.submitAnswerHandler = exports.startAttemptHandler = void 0;
+exports.resetAttemptsHandler = exports.getAttemptForAdminHandler = exports.listAttemptsForExamHandler = exports.getStudentAttemptsHandler = exports.getAttemptResultsHandler = exports.getQuestionHandler = exports.getAttemptDetailsHandler = exports.submitAttemptHandler = exports.runCodeHandler = exports.submitAnswerHandler = exports.startAttemptHandler = void 0;
 const attemptService = __importStar(require("./attempt.service"));
 const startAttemptHandler = async (req, res, next) => {
     try {
@@ -80,10 +80,30 @@ const submitAnswerHandler = async (req, res, next) => {
     }
 };
 exports.submitAnswerHandler = submitAnswerHandler;
+const runCodeHandler = async (req, res, next) => {
+    try {
+        const studentId = req.user?.sub;
+        const attemptId = req.params.attemptId;
+        const { questionId, code, language, customInput, runAllTests } = req.body;
+        if (!studentId) {
+            return next({ status: 401, message: 'Unauthorized' });
+        }
+        if (!attemptId) {
+            return next({ status: 400, message: 'Attempt ID parameter is required' });
+        }
+        const result = await attemptService.runCode(studentId, attemptId, questionId, code, language, customInput, runAllTests);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.runCodeHandler = runCodeHandler;
 const submitAttemptHandler = async (req, res, next) => {
     try {
         const studentId = req.user?.sub; // From verifyAccess middleware
         const attemptId = req.params.attemptId; // From URL parameter
+        const { submissionReason } = req.body;
         if (!studentId) {
             return next({ status: 401, message: 'Unauthorized' });
         }
@@ -91,7 +111,7 @@ const submitAttemptHandler = async (req, res, next) => {
             return next({ status: 400, message: 'Attempt ID parameter is required' });
         }
         // Call the service to validate, grade, and submit the attempt
-        const submittedAttempt = await attemptService.submitAttempt(studentId, attemptId);
+        const submittedAttempt = await attemptService.submitAttempt(studentId, attemptId, submissionReason);
         // Send back the details of the submitted attempt (score, status, etc.)
         res.status(200).json(submittedAttempt);
     }
@@ -158,10 +178,8 @@ const getAttemptResultsHandler = async (req, res, next) => {
         res.status(200).json(attemptResults);
     }
     catch (error) {
-        console.error("DEBUG ERROR in getAttemptResultsHandler:", error);
         // Pass errors (404, 403) to the central handler
-        // next(error);
-        res.status(500).json({ message: error.message, stack: error.stack, name: error.name });
+        next(error);
     }
 };
 exports.getAttemptResultsHandler = getAttemptResultsHandler;

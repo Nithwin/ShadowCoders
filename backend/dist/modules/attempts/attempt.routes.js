@@ -39,40 +39,15 @@ const attemptController = __importStar(require("./attempt.controller"));
 const validate_1 = require("../../middleware/validate");
 const attempt_zod_1 = require("./attempt.zod");
 const registerAttemptRoutes = (app) => {
-    app.post('/api/student/exams/:examId/start', auth_1.verifyAccess, attemptController.startAttemptHandler // Call the controller
-    );
-    app.post('/api/student/attempts/:attemptId/responses', auth_1.verifyAccess, // Ensure the user is logged in (provides studentId)
-    (0, validate_1.validate)(attempt_zod_1.submitAnswerSchema), attemptController.submitAnswerHandler // Call the controller
-    );
-    app.post('/api/student/attempts/:attemptId/submit', auth_1.verifyAccess, // 1. Ensure user is logged in
-    // No validation middleware needed (no body)
-    attemptController.submitAttemptHandler // 2. Run the controller
-    );
-    // IMPORTANT: This route must come BEFORE /api/student/attempts/:attemptId
-    // to avoid route conflicts (Express matches routes in order)
-    app.get('/api/student/attempts', auth_1.verifyAccess, // 1. Ensures user is logged in (provides studentId)
-    attemptController.getStudentAttemptsHandler // 2. Run the controller
-    );
-    app.get('/api/student/attempts/:attemptId', auth_1.verifyAccess, // 1. Ensure user is logged in (provides studentId)
-    // No validation middleware needed (ID is in URL)
-    attemptController.getAttemptDetailsHandler // 2. Run the controller
-    );
-    app.get('/api/student/attempts/:attemptId/question/:questionId', auth_1.verifyAccess, // 1. Ensure user is logged in (provides studentId)
-    // No validation middleware needed (IDs are in URL)
-    attemptController.getQuestionHandler // 2. Run the controller
-    );
-    app.get('/api/student/attempts/:attemptId/results', auth_1.verifyAccess, // 1. Ensures user is logged in (provides studentId)
-    // No validation middleware needed (ID is in URL)
-    attemptController.getAttemptResultsHandler // 2. Run the controller
-    );
-    app.get('/api/admin/attempts/exam/:examId', // The new admin route
-    auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), // 1. Must be logged in
-    (0, validate_1.validate)(attempt_zod_1.listAttemptsSchema), // 2. Must be staff
-    attemptController.listAttemptsForExamHandler // 3. Run the controller
-    );
-    app.get('/api/admin/attempts/:attemptId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), 
-    // No validation needed for this simple GET request
-    attemptController.getAttemptForAdminHandler);
+    app.post('/api/student/exams/:examId/start', auth_1.verifyAccess, attemptController.startAttemptHandler);
+    app.post('/api/student/attempts/:attemptId/responses', auth_1.verifyAccess, (0, validate_1.validate)(attempt_zod_1.submitAnswerSchema), attemptController.submitAnswerHandler);
+    app.post('/api/student/attempts/:attemptId/submit', auth_1.verifyAccess, (0, validate_1.validate)(attempt_zod_1.submitAttemptSchema), attemptController.submitAttemptHandler);
+    app.get('/api/student/attempts', auth_1.verifyAccess, attemptController.getStudentAttemptsHandler);
+    app.get('/api/student/attempts/:attemptId', auth_1.verifyAccess, attemptController.getAttemptDetailsHandler);
+    app.get('/api/student/attempts/:attemptId/question/:questionId', auth_1.verifyAccess, attemptController.getQuestionHandler);
+    app.get('/api/student/attempts/:attemptId/results', auth_1.verifyAccess, attemptController.getAttemptResultsHandler);
+    app.get('/api/admin/attempts/exam/:examId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(attempt_zod_1.listAttemptsSchema), attemptController.listAttemptsForExamHandler);
+    app.get('/api/admin/attempts/:attemptId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), attemptController.getAttemptForAdminHandler);
     app.post('/api/admin/attempts/reset', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(attempt_zod_1.resetAttemptsSchema), attemptController.resetAttemptsHandler);
 };
 exports.registerAttemptRoutes = registerAttemptRoutes;

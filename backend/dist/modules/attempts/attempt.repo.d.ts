@@ -45,6 +45,7 @@ export declare const getAttemptDetails: (attemptId: string) => Prisma.Prisma__At
     maxScore: Prisma.Decimal | null;
     exam: {
         id: string;
+        title: string;
         sections: {
             id: string;
             order: number;
@@ -57,10 +58,8 @@ export declare const getAttemptDetails: (attemptId: string) => Prisma.Prisma__At
                 questionId: string;
             }[];
         }[];
-        title: string;
         durationMins: number;
         maxAttempts: number | null;
-        maxTabSwitches: number | null;
         allowedLanguages: Prisma.JsonValue;
         questions: {
             id: string;
@@ -80,6 +79,7 @@ export declare const getAttemptForSubmission: (attemptId: string) => Prisma.Pris
     id: string;
     examId: string;
     studentId: string;
+    startedAt: Date;
     status: import(".prisma/client").$Enums.AttemptStatus;
     exam: {
         questions: {
@@ -224,6 +224,8 @@ export declare const getAttemptResults: (attemptId: string) => Prisma.Prisma__At
     startedAt: Date;
     submittedAt: Date | null;
     status: import(".prisma/client").$Enums.AttemptStatus;
+    submissionType: import(".prisma/client").$Enums.SubmissionType;
+    submissionReason: string | null;
     score: Prisma.Decimal | null;
     maxScore: Prisma.Decimal | null;
     exam: {

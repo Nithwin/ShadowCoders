@@ -88,7 +88,6 @@ const getAttemptDetails = (attemptId) => {
                     durationMins: true,
                     allowedLanguages: true,
                     maxAttempts: true,
-                    maxTabSwitches: true,
                     questions: {
                         select: {
                             id: true,
@@ -136,6 +135,7 @@ const getAttemptForSubmission = (attemptId) => {
             studentId: true,
             status: true,
             examId: true,
+            startedAt: true,
             responses: {
                 select: {
                     questionId: true,
@@ -393,6 +393,8 @@ const getAttemptResults = (attemptId) => {
             maxScore: true,
             startedAt: true,
             submittedAt: true,
+            submissionType: true,
+            submissionReason: true,
             exam: {
                 select: {
                     id: true,

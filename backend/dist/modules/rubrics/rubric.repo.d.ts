@@ -57,7 +57,7 @@ export declare const deleteRubric: (id: string) => Prisma.Prisma__RubricClient<{
     name: string;
     id: string;
     createdAt: Date;
-    criteria: Prisma.JsonValue;
     createdBy: string | null;
+    criteria: Prisma.JsonValue;
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 //# sourceMappingURL=rubric.repo.d.ts.map

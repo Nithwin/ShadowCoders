@@ -91,12 +91,21 @@ function extractJavaPackageName(code) {
  */
 async function isCommandAvailable(command) {
     try {
-        const checkCmd = process.platform === 'win32' ? `where ${command}` : `which ${command}`;
-        await execAsync(checkCmd, { timeout: 2000 });
+        // Try running the command with --version flag
+        // This is more robust than 'where'/'which' as it verifies the command actually runs
+        await execAsync(`${command} --version`, { timeout: 2000 });
         return true;
     }
-    catch {
-        return false;
+    catch (error) {
+        // Fallback to where/which if --version fails (some commands might not support it)
+        try {
+            const checkCmd = process.platform === 'win32' ? `where ${command}` : `which ${command}`;
+            await execAsync(checkCmd, { timeout: 2000 });
+            return true;
+        }
+        catch {
+            return false;
+        }
     }
 }
 const LANGUAGE_CONFIGS = {
@@ -234,9 +243,9 @@ async function executeCodeLocally(code, language, input, timeoutMs = 5000) {
         else {
             fileName = `${className}.${langConfig.extension}`;
         }
-        console.log(`[LocalExecutor] Extracted Java class name: ${className}`);
+        // console.log(`[LocalExecutor] Extracted Java class name: ${className}`);
         if (javaPackage) {
-            console.log(`[LocalExecutor] Extracted Java package: ${javaPackage}`);
+            // console.log(`[LocalExecutor] Extracted Java package: ${javaPackage}`);
         }
     }
     const filePath = path.join(tempDir, fileName);
@@ -581,13 +590,13 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
             else {
                 fileName = `${className}.${langConfig.extension}`;
             }
-            console.log(`[Java] Class: ${className}, File: ${fileName}`);
+            // console.log(`[Java] Class: ${className}, File: ${fileName}`);
             if (javaPackage) {
-                console.log(`[Java] Package: ${javaPackage}`);
+                // console.log(`[Java] Package: ${javaPackage}`);
             }
         }
         const filePath = path.join(tempDir, fileName);
-        console.log(`[Executor] Dir: ${tempDir}, File: ${filePath}`);
+        // console.log(`[Executor] Dir: ${tempDir}, File: ${filePath}`);
         if (language.toLowerCase() === 'java' && javaRelDir) {
             await fs.mkdir(path.dirname(filePath), { recursive: true });
         }
@@ -597,7 +606,7 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
             const compileCmd = language.toLowerCase() === 'java'
                 ? `javac -encoding UTF-8 -d "${tempDir}" "${filePath}"`
                 : langConfig.compileCommand(filePath);
-            console.log(`[Compiler] Cmd: ${compileCmd}`);
+            // console.log(`[Compiler] Cmd: ${compileCmd}`);
             try {
                 const compileResult = await execAsync(compileCmd, {
                     cwd: tempDir,
@@ -605,21 +614,21 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
                     maxBuffer: 1024 * 1024,
                     shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
                 });
-                console.log(`[Compiler] Success`);
+                // console.log(`[Compiler] Success`);
                 // Verify class file for Java
                 if (language.toLowerCase() === 'java') {
                     const classFile = fileName.replace('.java', '.class');
                     try {
                         await fs.access(path.join(tempDir, classFile));
-                        console.log(`[Java] ✓ ${classFile} created`);
+                        // console.log(`[Java] ✓ ${classFile} created`);
                     }
                     catch {
-                        console.log(`[Java] ✗ ${classFile} NOT FOUND!`);
+                        // console.log(`[Java] ✗ ${classFile} NOT FOUND!`);
                     }
                 }
                 // Check for actual compilation errors (not warnings/notes)
                 if (compileResult.stderr && !compileResult.stderr.includes('Note:') && !compileResult.stderr.includes('warning:')) {
-                    console.log(`[Compiler] Error: ${compileResult.stderr}`);
+                    // console.log(`[Compiler] Error: ${compileResult.stderr}`);
                     return {
                         passed: 0,
                         total: testCases.length,
@@ -659,9 +668,9 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
                     const fqcn = javaPackage ? `${javaPackage}.${className}` : className;
                     runCmd = `java -cp "${tempDir}" ${fqcn}`;
                 }
-                console.log(`[Test ${idx + 1}] Cmd: ${runCmd}`);
+                // console.log(`[Test ${idx+1}] Cmd: ${runCmd}`);
                 const result = await executeWithTimeout(runCmd, testCase.input || '', tempDir, testCase.timeoutMs || 5000);
-                console.log(`[Test ${idx + 1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
+                // console.log(`[Test ${idx+1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
                 const actualOutput = result.stdout?.trim() || null;
                 const expectedOutputTrimmed = testCase.expectedOutput.trim();
                 // Determine status and check if passed

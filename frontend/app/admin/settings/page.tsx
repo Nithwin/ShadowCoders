@@ -126,29 +126,7 @@ export default function SettingsPage() {
                   </h2>
                   
                   <div className="space-y-6">
-                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
-                      <label className="block text-sm font-semibold mb-4">Theme Preference</label>
-                      <div className="grid grid-cols-3 gap-4">
-                        {[
-                          { value: 'light', icon: Sun, label: 'Light' },
-                          { value: 'dark', icon: Moon, label: 'Dark' },
-                          { value: 'system', icon: Monitor, label: 'System' },
-                        ].map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => setSettings({...settings, theme: option.value})}
-                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                              settings.theme === option.value
-                                ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-transparent bg-secondary hover:bg-primary/5 text-primary/60'
-                            }`}
-                          >
-                            <option.icon className="w-6 h-6" />
-                            <span className="text-sm font-medium">{option.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+
 
                     <div className="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/10">
                       <div>

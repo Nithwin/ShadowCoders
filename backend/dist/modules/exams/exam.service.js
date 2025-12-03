@@ -75,6 +75,7 @@ const createExam = async (input) => {
         sectionLockPolicy: input.sectionLockPolicy,
         randomizeQuestions: input.randomizeQuestions ?? false,
         allowedLanguages: input.allowedLanguages ? input.allowedLanguages : client_1.Prisma.JsonNull,
+        maxTabSwitches: input.maxTabSwitches ?? null,
     };
     const newExam = await examRepo.createExam(dataToSave);
     // Create default sections automatically
@@ -261,6 +262,9 @@ const updateExam = async (examId, input) => {
     }
     if (input.allowedLanguages !== undefined) {
         dataToUpdate.allowedLanguages = input.allowedLanguages ? input.allowedLanguages : client_1.Prisma.JsonNull;
+    }
+    if (input.maxTabSwitches !== undefined) {
+        dataToUpdate.maxTabSwitches = input.maxTabSwitches ?? null;
     }
     // 3. --- Call Repository ---
     // Note: We allow editing even if the exam is published

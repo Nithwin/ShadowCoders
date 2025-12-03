@@ -115,13 +115,13 @@ export declare const listExams: (params: {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ExamStatus;
+        title: string;
+        description: string | null;
         _count: {
             sections: number;
             attempts: number;
             questions: number;
         };
-        title: string;
-        description: string | null;
         startAt: Date;
         endAt: Date;
         durationMins: number;
@@ -140,6 +140,7 @@ export declare const findExamByIdForStudent: (params: {
     attemptId: string | null;
     questionTypes: import(".prisma/client").$Enums.QType[];
     hasSpeakingQuestions: boolean;
+    attemptCount: number;
     id: string;
     status: import(".prisma/client").$Enums.ExamStatus;
     title: string;
@@ -147,6 +148,7 @@ export declare const findExamByIdForStudent: (params: {
     startAt: Date;
     endAt: Date;
     durationMins: number;
+    maxAttempts: number | null;
     allowedLanguages: Prisma.JsonValue;
 } | null>;
 export declare const listExamsForStudent: (params: {
@@ -159,6 +161,8 @@ export declare const listExamsForStudent: (params: {
     exams: {
         id: string;
         status: import(".prisma/client").$Enums.ExamStatus;
+        title: string;
+        description: string | null;
         attempts: {
             id: string;
             attemptNo: number;
@@ -167,8 +171,6 @@ export declare const listExamsForStudent: (params: {
             score: Prisma.Decimal | null;
             maxScore: Prisma.Decimal | null;
         }[];
-        title: string;
-        description: string | null;
         startAt: Date;
         endAt: Date;
         durationMins: number;

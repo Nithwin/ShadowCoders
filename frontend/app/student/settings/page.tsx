@@ -4,25 +4,18 @@ import { useEffect, useState } from 'react';
 import { 
   Settings, 
   Bell, 
-  Palette, 
   Save,
-  Moon,
-  Sun,
-  Monitor,
   Loader2
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 
 export default function StudentSettingsPage() {
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('notifications');
   const [isLoading, setIsLoading] = useState(false);
-  const { setTheme: setAppTheme } = useTheme();
   const { showToast } = useToast();
 
   const [settings, setSettings] = useState({
-    theme: 'system',
     emailNotifications: true,
     pushNotifications: true,
   });
@@ -33,32 +26,24 @@ export default function StudentSettingsPage() {
         const { data } = await api.get('/settings');
         if (data && Object.keys(data).length > 0) {
           // Filter out admin-only settings if any
-          const { theme, emailNotifications, pushNotifications } = data;
+          const { emailNotifications, pushNotifications } = data;
           setSettings(prev => ({ 
             ...prev, 
-            ...(theme && { theme }),
             ...(emailNotifications !== undefined && { emailNotifications }),
             ...(pushNotifications !== undefined && { pushNotifications })
           }));
-          
-          // Sync theme context with fetched settings
-          if (data.theme) {
-            setAppTheme(data.theme);
-          }
         }
       } catch (error) {
         console.error('Failed to fetch settings:', error);
       }
     };
     fetchSettings();
-  }, [setAppTheme]);
+  }, []);
 
   const handleSave = async () => {
     setIsLoading(true);
     try {
       await api.put('/settings', settings);
-      // Update theme immediately if changed
-      setAppTheme(settings.theme as any);
       showToast('Settings saved successfully!', 'success');
     } catch (error) {
       console.error('Failed to save settings:', error);
@@ -69,7 +54,6 @@ export default function StudentSettingsPage() {
   };
 
   const tabs = [
-    { id: 'general', label: 'General', icon: Palette },
     { id: 'notifications', label: 'Notifications', icon: Bell },
   ];
 
@@ -113,36 +97,7 @@ export default function StudentSettingsPage() {
         {/* Content Area */}
         <div className="lg:col-span-3 space-y-6">
           {/* General Settings */}
-          {activeTab === 'general' && (
-            <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-primary/10 shadow-sm space-y-8">
-              <div>
-                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Palette className="w-5 h-5 text-purple-600" />
-                  Appearance
-                </h2>
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { id: 'light', label: 'Light', icon: Sun },
-                    { id: 'dark', label: 'Dark', icon: Moon },
-                    { id: 'system', label: 'System', icon: Monitor },
-                  ].map((theme) => (
-                    <button
-                      key={theme.id}
-                      onClick={() => setSettings({ ...settings, theme: theme.id })}
-                      className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
-                        settings.theme === theme.id
-                          ? 'border-primary bg-primary/5 text-primary'
-                          : 'border-transparent hover:bg-primary/5 text-primary/60'
-                      }`}
-                    >
-                      <theme.icon className="w-6 h-6" />
-                      <span className="font-medium">{theme.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+
 
           {/* Notification Settings */}
           {activeTab === 'notifications' && (

@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Exam } from '@/types';
-import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import QuestionManager from '@/components/admin/QuestionManager';
 import ExamForm, { toDateTimeLocal, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
@@ -13,6 +13,8 @@ import AssignmentManager from '@/components/admin/exam/AssignmentManager';
 import { Button } from '@/components/ui/Button';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
+
+import Modal from '@/components/ui/Modal';
 
 export default function EditExamPage() {
   const params = useParams();
@@ -29,6 +31,13 @@ export default function EditExamPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // Template Modal State
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [isTemplatePublic, setIsTemplatePublic] = useState(false);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+
   const fetchExamData = async () => {
     setIsLoadingExam(true);
     setApiError(null);
@@ -36,6 +45,9 @@ export default function EditExamPage() {
       const response = await api.get(`/admin/exams/${examId}`);
       const exam = response.data as Exam;
       setExamData(exam);
+      // Pre-fill template data
+      setTemplateTitle(exam.title);
+      setTemplateDescription(exam.description || '');
       
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
@@ -141,6 +153,32 @@ export default function EditExamPage() {
     }
   };
 
+  const handleCreateTemplate = async () => {
+    if (!templateTitle.trim()) {
+      alert('Template title is required');
+      return;
+    }
+
+    setIsCreatingTemplate(true);
+    try {
+      await api.post(`/admin/exams/${examId}/template`, {
+        title: templateTitle,
+        description: templateDescription,
+        isPublic: isTemplatePublic
+      });
+      setIsTemplateModalOpen(false);
+      toast.success('Template created successfully!');
+      setSuccessMessage('Template created successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to create template');
+      alert('Failed to create template');
+    } finally {
+      setIsCreatingTemplate(false);
+    }
+  };
+
   if (isLoadingExam) {
     return (
       <div className="max-w-5xl mx-auto text-primary">
@@ -197,6 +235,16 @@ export default function EditExamPage() {
                 )}
               </div>
             )}
+          </div>
+          
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setIsTemplateModalOpen(true)}
+              className="border-accent/50 text-accent hover:bg-accent/10"
+            >
+              <ClipboardCopy className="w-4 h-4 mr-2" />
+              Save as Template
+            </Button>
           </div>
         </div>
       </div>
@@ -270,6 +318,92 @@ export default function EditExamPage() {
       {activeTab === 'assignments' && examData && (
         <AssignmentManager examId={examId} examStatus={examData.status} />
       )}
+
+      {/* Template Creation Modal */}
+      <Modal
+        open={isTemplateModalOpen}
+        onOpenChange={setIsTemplateModalOpen}
+        title="Save as Template"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-primary/70 mb-1">
+              Template Title
+            </label>
+            <input
+              type="text"
+              value={templateTitle}
+              onChange={(e) => setTemplateTitle(e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-accent/50 transition-colors"
+              placeholder="e.g. Midterm Exam Template"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-primary/70 mb-1">
+              Description (Optional)
+            </label>
+            <textarea
+              value={templateDescription}
+              onChange={(e) => setTemplateDescription(e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-accent/50 transition-colors min-h-[100px]"
+              placeholder="Describe what this template contains..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-primary/70 mb-2">
+              Visibility
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={!isTemplatePublic}
+                  onChange={() => setIsTemplatePublic(false)}
+                  className="w-4 h-4 text-accent focus:ring-accent/50 bg-white/5 border-white/10"
+                />
+                <span className="text-sm text-primary">Private (Only me)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  checked={isTemplatePublic}
+                  onChange={() => setIsTemplatePublic(true)}
+                  className="w-4 h-4 text-accent focus:ring-accent/50 bg-white/5 border-white/10"
+                />
+                <span className="text-sm text-primary">Public (All staff)</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              onClick={() => setIsTemplateModalOpen(false)}
+              className="!bg-white !text-black border border-gray-200 hover:!bg-gray-100"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTemplate}
+              disabled={isCreatingTemplate || !templateTitle.trim()}
+              className="bg-accent hover:bg-accent/90 text-white"
+            >
+              {isCreatingTemplate ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Template'
+              )}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

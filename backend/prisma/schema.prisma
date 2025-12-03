@@ -96,6 +96,7 @@ model User {
   // back-relations with explicit names
   invalidatedQuestions Question[]   @relation("QuestionInvalidator")
   assessments          Evaluation[] @relation("EvaluationAssessor")
+  createdTemplates     ExamTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -421,4 +422,24 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model ExamTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  
+  // JSON structure of the exam (sections, questions, settings)
+  structure   Json
+  
+  // Metadata
+  isPublic    Boolean  @default(false)
+  createdBy   String
+  creator     User     @relation(fields: [createdBy], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublic])
+  @@index([createdBy])
 }

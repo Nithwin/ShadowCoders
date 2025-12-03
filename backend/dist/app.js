@@ -53,6 +53,8 @@ const ai_routes_1 = require("./modules/ai/ai.routes");
 const grading_routes_1 = require("./modules/grading/grading.routes");
 const analytics_routes_1 = require("./modules/analytics/analytics.routes");
 const settings_routes_1 = require("./modules/settings/settings.routes");
+const users_routes_1 = require("./modules/users/users.routes");
+const exam_template_routes_1 = require("./modules/exams/templates/exam-template.routes");
 const error_1 = require("./middleware/error");
 const cors_1 = require("./config/cors");
 const env_1 = require("./config/env");
@@ -218,6 +220,8 @@ const createApp = () => {
     (0, grading_routes_1.registerGradingRoutes)(app);
     (0, analytics_routes_1.registerAnalyticsRoutes)(app);
     (0, settings_routes_1.registerSettingsRoutes)(app);
+    (0, users_routes_1.registerUserRoutes)(app);
+    (0, exam_template_routes_1.registerTemplateRoutes)(app);
     // In production, serve the built frontend (Next.js static export)
     if (env_1.env.NODE_ENV === 'production') {
         const frontendOutDir = path_1.default.resolve(__dirname, '../../frontend/out');

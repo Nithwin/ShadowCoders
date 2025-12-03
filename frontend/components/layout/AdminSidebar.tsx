@@ -22,6 +22,7 @@ import { useState } from 'react';
 const navLinks = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Exams', href: '/admin/exams', icon: FileText },
+  { name: 'Templates', href: '/admin/templates', icon: ClipboardCheck },
   // Let's create a placeholder for submissions
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 

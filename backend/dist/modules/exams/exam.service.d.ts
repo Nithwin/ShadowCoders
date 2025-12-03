@@ -56,13 +56,13 @@ export declare const listExams: (query: ListExamQuery) => Promise<{
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ExamStatus;
+        title: string;
+        description: string | null;
         _count: {
             sections: number;
             attempts: number;
             questions: number;
         };
-        title: string;
-        description: string | null;
         startAt: Date;
         endAt: Date;
         durationMins: number;
@@ -196,6 +196,7 @@ export declare const getExamByIdForStudent: (studentId: string, examId: string) 
     attemptId: string | null;
     questionTypes: import(".prisma/client").$Enums.QType[];
     hasSpeakingQuestions: boolean;
+    attemptCount: number;
     id: string;
     status: import(".prisma/client").$Enums.ExamStatus;
     title: string;
@@ -203,6 +204,7 @@ export declare const getExamByIdForStudent: (studentId: string, examId: string) 
     startAt: Date;
     endAt: Date;
     durationMins: number;
+    maxAttempts: number | null;
     allowedLanguages: Prisma.JsonValue;
 }>;
 export {};
