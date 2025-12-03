@@ -122,17 +122,7 @@ export default function AdminSidebar() {
 
         {/* User Profile & Logout Section */}
         <div className="border-t border-secondary/20 pt-4">
-          <div className="flex items-center p-2 rounded-lg">
-            <UserIcon className="w-8 h-8 p-1.5 rounded-full bg-secondary/20 mr-3" />
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium text-white truncate">
-                {user?.name || 'Staff Member'}
-              </p>
-              <p className="text-xs text-secondary/60 truncate">
-                {user?.email}
-              </p>
-            </div>
-          </div>
+
           <button
             onClick={logout}
             className="flex items-center w-full p-2 mt-2 rounded-lg transition-colors duration-200
