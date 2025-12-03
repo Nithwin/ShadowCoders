@@ -91,8 +91,8 @@ export default function ExamAttemptPage() {
   );
 
   // Fullscreen management
-  const handleAutoSubmit = () => {
-    handleSubmitExam(true);
+  const handleAutoSubmit = (reason: string) => {
+    handleSubmitExam(true, reason);
   };
 
   const {
@@ -112,6 +112,7 @@ export default function ExamAttemptPage() {
   const {
     warningCount,
     fullscreenWarning: cheatingWarning,
+    warningMessage,
   } = useCheatingPrevention(
     attempt, 
     handleAutoSubmit,

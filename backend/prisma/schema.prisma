@@ -256,6 +256,8 @@ model Attempt {
   startedAt    DateTime      @default(now())
   submittedAt  DateTime?
   status       AttemptStatus @default(IN_PROGRESS)
+  submissionType SubmissionType @default(NORMAL)
+  submissionReason String?
   score        Decimal?      @db.Decimal(8, 2)
   maxScore     Decimal?      @db.Decimal(8, 2)
   timeSpentSec Int           @default(0)
@@ -268,6 +270,11 @@ model Attempt {
   @@unique([examId, studentId, attemptNo])
   @@index([examId])
   @@index([studentId])
+}
+
+enum SubmissionType {
+  NORMAL
+  AUTO
 }
 
 model AttemptSection {

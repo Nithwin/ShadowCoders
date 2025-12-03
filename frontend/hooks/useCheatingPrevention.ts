@@ -3,12 +3,13 @@ import { Attempt } from '@/types/exam';
 
 export function useCheatingPrevention(
   attempt: Attempt | null,
-  onAutoSubmit: () => void,
+  onAutoSubmit: (reason: string) => void,
   maxTabSwitches: number | null = 3
 ) {
   const [warningCount, setWarningCount] = useState(0);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
-  const handleSubmitExamRef = useRef<(() => void) | null>(null);
+  const [warningMessage, setWarningMessage] = useState<string>('');
+  const handleSubmitExamRef = useRef<((reason: string) => void) | null>(null);
   const lastFocusTimeRef = useRef<number>(Date.now());
   const devToolsOpenRef = useRef<boolean>(false);
   const screenCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -20,26 +21,27 @@ export function useCheatingPrevention(
   }, [onAutoSubmit]);
 
   // Increment warning and auto-submit if needed (defined as ref callback to avoid dependency issues)
-  const incrementWarningRef = useRef<(() => void) | undefined>(undefined);
+  const incrementWarningRef = useRef<((reason: string) => void) | undefined>(undefined);
   
   useEffect(() => {
-    incrementWarningRef.current = () => {
+    incrementWarningRef.current = (reason: string) => {
       setWarningCount(prev => {
         const newCount = prev + 1;
         const limit = maxTabSwitches ?? 3; // Default to 3 if null/undefined
         
         if (newCount >= limit) {
           if (handleSubmitExamRef.current) {
-            handleSubmitExamRef.current();
+            handleSubmitExamRef.current(`Auto-submitted due to: ${reason} (Warning limit reached)`);
           }
         } else {
+          setWarningMessage(reason);
           setFullscreenWarning(true);
           setTimeout(() => setFullscreenWarning(false), 3000);
         }
         return newCount;
       });
     };
-  }, []);
+  }, [maxTabSwitches]);
 
 
   // 1. Detect page visibility changes (tab switching, window minimize)
@@ -76,7 +78,7 @@ export function useCheatingPrevention(
       if (isInitialLoad() || isPageReload()) return;
       
       if (document.hidden) {
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Tab switching or window minimized');
       }
     };
 
@@ -86,7 +88,7 @@ export function useCheatingPrevention(
       if (isInitialLoad()) return;
       
       // Window lost focus (switched to another app/window or tab)
-      incrementWarningRef.current?.();
+      incrementWarningRef.current?.('Window lost focus');
     };
 
     const handleFocus = () => {
@@ -100,7 +102,7 @@ export function useCheatingPrevention(
       // This detects when user switches tabs and comes back
       const timeDiff = Date.now() - lastFocusTimeRef.current;
       if (timeDiff > 2000) {
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Focus lost for too long');
       }
       lastFocusTimeRef.current = Date.now();
     };
@@ -123,7 +125,7 @@ export function useCheatingPrevention(
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      incrementWarningRef.current?.();
+      incrementWarningRef.current?.('Right-click context menu attempted');
       return false;
     };
 
@@ -131,7 +133,7 @@ export function useCheatingPrevention(
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 1) {
         e.preventDefault();
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Multi-touch gesture attempted');
       }
     };
 
@@ -149,6 +151,11 @@ export function useCheatingPrevention(
     if (attempt?.status !== 'IN_PROGRESS') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Allow undo/redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')) {
+        return; // Allow
+      }
+
       // Block developer tools shortcuts
       if (
         e.key === 'F12' ||
@@ -168,7 +175,7 @@ export function useCheatingPrevention(
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.(`Restricted shortcut used: ${e.key}`);
         return false;
       }
 
@@ -189,7 +196,7 @@ export function useCheatingPrevention(
         if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
-          incrementWarningRef.current?.();
+          incrementWarningRef.current?.('Copy shortcut attempted outside editor');
           return false;
         }
       }
@@ -211,7 +218,7 @@ export function useCheatingPrevention(
         if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
-          incrementWarningRef.current?.();
+          incrementWarningRef.current?.('Paste shortcut attempted outside editor');
           return false;
         }
       }
@@ -232,7 +239,7 @@ export function useCheatingPrevention(
         if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
-          incrementWarningRef.current?.();
+          incrementWarningRef.current?.('Cut shortcut attempted outside editor');
           return false;
         }
       }
@@ -261,7 +268,7 @@ export function useCheatingPrevention(
         if (!isInput && !isContentEditable && !isMonacoEditor) {
           e.preventDefault();
           e.stopPropagation();
-          incrementWarningRef.current?.();
+          incrementWarningRef.current?.('Select All shortcut attempted outside editor');
           return false;
         }
       }
@@ -348,19 +355,23 @@ export function useCheatingPrevention(
     };
   }, [attempt]);
 
-  // 5. Block clipboard API
+  // 5. Block clipboard API (Strict Mode)
   useEffect(() => {
     if (attempt?.status !== 'IN_PROGRESS') return;
+
+    // Clear clipboard on mount
+    navigator.clipboard?.writeText('').catch(() => {});
 
     const handleCopy = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
       
+      // Allow copy ONLY from within inputs/editors
       if (!isInput && !isContentEditable) {
         e.preventDefault();
         e.clipboardData?.setData('text/plain', '');
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Copying from outside editor is restricted');
         return false;
       }
     };
@@ -370,12 +381,16 @@ export function useCheatingPrevention(
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
       
+      // Allow paste ONLY into inputs/editors
       if (!isInput && !isContentEditable) {
         e.preventDefault();
         e.clipboardData?.setData('text/plain', '');
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Pasting outside editor is restricted');
         return false;
       }
+      
+      // Even if pasting into editor, we might want to check source (hard to do reliably in web)
+      // For now, we rely on the fact that they can't copy from outside (if we block it there)
     };
 
     const handleCut = (e: ClipboardEvent) => {
@@ -386,7 +401,7 @@ export function useCheatingPrevention(
       if (!isInput && !isContentEditable) {
         e.preventDefault();
         e.clipboardData?.setData('text/plain', '');
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Cutting from outside editor is restricted');
         return false;
       }
     };
@@ -415,7 +430,7 @@ export function useCheatingPrevention(
       if (widthThreshold || heightThreshold) {
         if (!devToolsOpenRef.current) {
           devToolsOpenRef.current = true;
-          incrementWarningRef.current?.();
+          incrementWarningRef.current?.('Developer Tools detected');
         }
       } else {
         devToolsOpenRef.current = false;
@@ -463,7 +478,7 @@ export function useCheatingPrevention(
         currentScreenWidth !== lastScreenWidth ||
         currentScreenHeight !== lastScreenHeight
       ) {
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Screen configuration changed (External monitor?)');
       }
 
       lastScreenX = currentScreenX;
@@ -489,7 +504,7 @@ export function useCheatingPrevention(
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key === 'PrintScreen' || (e.shiftKey && e.key === 'PrintScreen')) {
         e.preventDefault();
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Screenshot attempt detected');
         // Clear clipboard
         navigator.clipboard?.writeText('').catch(() => {});
       }
@@ -519,7 +534,7 @@ export function useCheatingPrevention(
       const target = e.target as HTMLElement;
       if (target.tagName === 'A' && (e.ctrlKey || e.metaKey || e.shiftKey)) {
         e.preventDefault();
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Opening links in new tab is restricted');
         return false;
       }
     };
@@ -541,7 +556,7 @@ export function useCheatingPrevention(
       const iframes = document.querySelectorAll('iframe');
       if (iframes.length > 0) {
         // Iframes detected - potential cheating
-        incrementWarningRef.current?.();
+        incrementWarningRef.current?.('Unauthorized iframe detected');
         iframes.forEach(iframe => {
           iframe.remove();
         });
@@ -566,6 +581,7 @@ export function useCheatingPrevention(
   return {
     warningCount,
     fullscreenWarning,
+    warningMessage,
     setFullscreenWarning,
   };
 }

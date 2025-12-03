@@ -45,3 +45,9 @@ export const resetAttemptsSchema = z.object({
     resetAll: z.boolean().optional().default(false),
   }),
 });
+
+export const submitAttemptSchema = z.object({
+  body: z.object({
+    submissionReason: z.string().optional(),
+  }),
+});

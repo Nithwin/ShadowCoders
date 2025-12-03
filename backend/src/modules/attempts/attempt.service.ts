@@ -263,7 +263,7 @@ export const submitAnswer = async (
   return savedResponse;
 };
 
-export const submitAttempt = async (studentId: string, attemptId: string) => {
+export const submitAttempt = async (studentId: string, attemptId: string, submissionReason?: string) => {
   // 1. Fetch all data needed for grading
   const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
 
@@ -362,11 +362,22 @@ export const submitAttempt = async (studentId: string, attemptId: string) => {
   }
 
   // 4. --- Update the Attempt in the Database ---
-  const submittedAttempt = await attemptRepo.updateAttemptOnSubmit(
-    attemptId,
-    totalScore,
-    maxScore
-  );
+  // Determine submission type
+  const submissionType = submissionReason ? 'AUTO' : 'NORMAL';
+
+  const submittedAttempt = await prisma.attempt.update({
+    where: { id: attemptId },
+    data: {
+      status: AttemptStatus.SUBMITTED,
+      submittedAt: new Date(),
+      score: totalScore,
+      maxScore: maxScore,
+      submissionType: submissionType,
+      submissionReason: submissionReason || null,
+      // Calculate time spent
+      timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
+    },
+  });
 
   return submittedAttempt;
 };

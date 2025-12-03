@@ -5,12 +5,12 @@ import { Attempt } from '@/types/exam';
 export function useFullscreenManagement(
   containerRef: React.RefObject<HTMLDivElement | null>,
   attempt: Attempt | null,
-  onAutoSubmit: () => void
+  onAutoSubmit: (reason: string) => void
 ) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const handleSubmitExamRef = useRef<(() => void) | null>(null);
+  const handleSubmitExamRef = useRef<((reason: string) => void) | null>(null);
 
   // Store submit function in ref for access in other effects
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useFullscreenManagement(
         } else if (wasFullscreen && !isCurrentlyFullscreen && hasStarted) {
           // If they exit fullscreen after starting, auto-submit
           if (handleSubmitExamRef.current) {
-            handleSubmitExamRef.current();
+            handleSubmitExamRef.current('Exited fullscreen mode');
           }
         }
       }

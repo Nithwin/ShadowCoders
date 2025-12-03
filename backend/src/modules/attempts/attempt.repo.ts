@@ -142,6 +142,7 @@ export const getAttemptForSubmission = (attemptId: string) => {
       studentId:true,
       status:true,
       examId:true,
+      startedAt:true,
       responses : {
         select: {
           questionId:true,
