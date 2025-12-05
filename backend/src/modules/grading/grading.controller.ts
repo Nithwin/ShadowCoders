@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import * as gradingService from './grading.service';
 import { z } from 'zod';
-import { runCodeSchema } from './grading.zod';
+import { runCodeSchema, autoGradeEssaySchema } from './grading.zod';
 import { executionQueue } from '../../lib/execution-queue';
 
 export const runCodeHandler: RequestHandler = async (req, res, next) => {
@@ -22,6 +22,17 @@ export const runCodeHandler: RequestHandler = async (req, res, next) => {
 
     // Send back the result from the code judge
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const gradeEssayHandler: RequestHandler = async (req, res, next) => {
+  try {
+    // req.body should be validated by autoGradeEssaySchema
+    const { responseId } = req.body;
+    const result = await gradingService.gradeEssay(responseId);
+    res.json(result);
   } catch (error) {
     next(error);
   }

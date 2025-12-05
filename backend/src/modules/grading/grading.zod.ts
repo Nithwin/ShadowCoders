@@ -11,3 +11,9 @@ export const runCodeSchema = z.object({
     // If customInput is provided, run with custom input; otherwise run against visible test cases (or all if runAllTests is true)
   }),
 });
+
+export const autoGradeEssaySchema = z.object({
+  body: z.object({
+    responseId: z.string().cuid(),
+  }),
+});

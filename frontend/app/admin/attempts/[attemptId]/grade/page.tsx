@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock, Play, Pause, Volume2 } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock, Play, Pause, Volume2, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -206,6 +206,7 @@ export default function AdminGradingPage() {
   const [gradingData, setGradingData] = useState<Record<string, { score: number; feedback: string }>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [savedResponses, setSavedResponses] = useState<Set<string>>(new Set());
+  const [isAutoGrading, setIsAutoGrading] = useState<Record<string, boolean>>({}); // Track AI grading status per response
 
   const fetchAttempt = async () => {
     setIsLoading(true);
@@ -382,6 +383,74 @@ export default function AdminGradingPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleAutoGrade = async (responseId: string) => {
+    setIsAutoGrading(prev => ({ ...prev, [responseId]: true }));
+    try {
+      toast.info('AI is grading the essay... This may take a moment.');
+      const res = await api.post('/grading/essay', { responseId });
+      
+      const { status, score, feedback } = res.data;
+
+      if (status === 'QUEUED') {
+        // Poll for result
+        pollForGrade(responseId, res.data.jobId);
+      } else if (status === 'SUCCEEDED') {
+        applyAiGrade(responseId, score, feedback);
+      } else {
+        toast.error('AI grading failed to start.');
+        setIsAutoGrading(prev => ({ ...prev, [responseId]: false }));
+      }
+    } catch (err: unknown) {
+      console.error('Error starting auto-grade:', err);
+      toast.error('Failed to start AI grading.');
+      setIsAutoGrading(prev => ({ ...prev, [responseId]: false }));
+    }
+  };
+
+  const pollForGrade = async (responseId: string, jobId: string, attempts = 0) => {
+    if (attempts > 30) { // Timeout after 60s
+      setIsAutoGrading(prev => ({ ...prev, [responseId]: false }));
+      toast.error('AI grading timed out. Please try again later.');
+      return;
+    }
+
+    try {
+      setTimeout(async () => {
+        const res = await api.get(`/admin/attempts/${attemptId}`); // Reload data
+        const updatedResponse = res.data.responses.find((r: any) => r.id === responseId);
+        const aiEvals = updatedResponse?.evaluations.filter((e: any) => e.kind === 'AI') || [];
+        
+        if (aiEvals.length > 0) {
+             const latest = aiEvals[aiEvals.length - 1];
+             applyAiGrade(responseId, latest.score, latest.comments);
+        } else {
+            pollForGrade(responseId, jobId, attempts + 1);
+        }
+      }, 2000);
+
+    } catch (e) {
+      console.error(e);
+      setIsAutoGrading(prev => ({ ...prev, [responseId]: false }));
+    }
+  };
+
+  const applyAiGrade = (responseId: string, score: number, feedback: string) => {
+    setGradingData(prev => ({
+        ...prev,
+        [responseId]: {
+            score: typeof score === 'string' ? parseFloat(score) : score,
+            feedback: feedback || ''
+        }
+    }));
+    setIsAutoGrading(prev => ({ ...prev, [responseId]: false }));
+    setSavedResponses(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(responseId); // Mark as unsaved so user has to click "Save Grade"
+        return newSet;
+    });
+    toast.success('AI Grade applied! Please review and save.');
   };
 
   const formatDate = (dateString: string) => {
@@ -599,6 +668,25 @@ export default function AdminGradingPage() {
                     {question.prompt || 'Question'}
                   </p>
                 </div>
+                {question.type === QType.ESSAY && (
+                  <Button
+                    onClick={() => handleAutoGrade(response.id)}
+                    disabled={isAutoGrading[response.id]}
+                    className="ml-4 bg-purple-600 hover:bg-purple-700 text-white border-0 shadow-md text-sm py-1.5 px-3"
+                  >
+                    {isAutoGrading[response.id] ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Validating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Auto Validate (AI)
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
 
               {/* Student Answer Display */}
@@ -779,4 +867,3 @@ export default function AdminGradingPage() {
     </div>
   );
 }
-
