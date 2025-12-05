@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FileText, AlertCircle, ArrowLeft, ArrowRight, Send, Loader2, X } from 'lucide-react';
+import { FileText, AlertCircle, ArrowLeft, ArrowRight, Send, Loader2, X, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 
 type EssayQuestionProps = {
@@ -108,7 +108,10 @@ export default function EssayQuestion({
   const isOverLimit = wordLimit && wordCount > wordLimit;
 
   // Handle submit - saves answer to server
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+
     if (!text.trim()) {
       setSubmitError('Please write an answer before submitting.');
       return;
@@ -297,17 +300,17 @@ export default function EssayQuestion({
                 onClick={handleSubmit}
                 disabled={isSubmitting || !text.trim()}
                 type="button"
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-green-600"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-blue-600"
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Submitting
+                    Saving
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
-                    Submit
+                    <Save className="w-4 h-4" />
+                    Save Answer
                   </>
                 )}
               </button>
@@ -319,8 +322,8 @@ export default function EssayQuestion({
         {submitSuccess && (
           <div className="bg-green-50 border-t border-green-300 px-6 py-3 text-green-800 shadow-sm flex-shrink-0">
             <div className="flex items-center gap-2">
-              <Send className="w-4 h-4" />
-              <span className="text-sm font-semibold">✅ Answer submitted successfully!</span>
+              <Save className="w-4 h-4" />
+              <span className="text-sm font-semibold">✅ Answer saved successfully!</span>
             </div>
           </div>
         )}

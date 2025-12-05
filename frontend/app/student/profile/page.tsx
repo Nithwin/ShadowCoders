@@ -17,11 +17,17 @@ import {
   Clock,
   UserCircle,
   Loader2,
-  CheckCircle2,
   Lock,
   Upload,
   Code,
-  ExternalLink
+  ExternalLink,
+  GraduationCap,
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  ChevronRight,
+  Briefcase,
+  MapPin
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
@@ -67,20 +73,15 @@ export default function StudentProfilePage() {
       setPasswordData(prev => ({ ...prev, [name]: value }));
     } else {
       let newValue = value;
-      // Auto-extract username if URL is pasted
       if (name === 'leetcodeId' && value.includes('leetcode.com')) {
         try {
-          // Remove trailing slash
           const cleanUrl = value.replace(/\/$/, '');
-          // Split by slash and get last segment
           const parts = cleanUrl.split('/');
           const lastPart = parts[parts.length - 1];
           if (lastPart && lastPart !== 'u' && lastPart !== 'leetcode.com') {
             newValue = lastPart;
           }
-        } catch (e) {
-          // If parsing fails, just keep original value
-        }
+        } catch (e) {}
       }
       setFormData(prev => ({ ...prev, [name]: newValue }));
     }
@@ -89,28 +90,21 @@ export default function StudentProfilePage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 1. Show preview immediately
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, pictureUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
 
-      // 2. Upload to server
       const formData = new FormData();
       formData.append('picture', file);
 
       try {
         setIsLoading(true);
         const { data } = await api.post('/me/picture', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
-        
-        // Update local state with returned URL
         setFormData(prev => ({ ...prev, pictureUrl: data.pictureUrl }));
-        // Also update global auth user
         await updateUser({ pictureUrl: data.pictureUrl });
         showToast('Profile picture updated!', 'success');
       } catch (err: any) {
@@ -126,7 +120,6 @@ export default function StudentProfilePage() {
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Update basic profile info
       await updateUser({
         name: formData.name || null,
         reg_no: formData.reg_no || null,
@@ -137,7 +130,6 @@ export default function StudentProfilePage() {
         leetcodeId: formData.leetcodeId || null,
       });
 
-      // 2. Update password if provided
       if (passwordData.newPassword) {
         if (passwordData.newPassword !== passwordData.confirmPassword) {
           throw new Error("New passwords don't match");
@@ -145,7 +137,6 @@ export default function StudentProfilePage() {
         if (!passwordData.currentPassword) {
           throw new Error("Current password is required to set a new one");
         }
-        
         await api.post('/auth/change-password', {
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword
@@ -154,7 +145,6 @@ export default function StudentProfilePage() {
 
       setIsEditing(false);
       showToast('Profile updated successfully', 'success');
-      // Clear password fields
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Failed to update profile';
@@ -182,446 +172,339 @@ export default function StudentProfilePage() {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
     });
   };
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-lg font-medium text-primary/70">Loading user data...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-900" />
       </div>
     );
   }
 
   return (
-    <div className="text-primary min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="max-w-5xl mx-auto p-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              My Profile
-            </h1>
-            <p className="text-lg text-primary/70 font-medium">Manage your account settings and information</p>
-          </div>
-          {!isEditing && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-secondary border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl font-semibold"
-            >
-              <Edit2 className="w-5 h-5" />
-              Edit Profile
-            </button>
-          )}
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-12">
+        {/* Bold Header Background */}
+        <div className="h-56 relative overflow-hidden bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900">
+             <div className="absolute inset-0 bg-[url('/patterns/grid.svg')] opacity-20"></div>
+             {/* Abstract Accents */}
+             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white opacity-[0.03] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+             <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-400 opacity-[0.1] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+        </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-10">
+        
+        {/* Profile Header Card */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 mb-8">
+            <div className="flex flex-col md:flex-row items-center md:items-end gap-8">
+                <div className="relative group">
+                    <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-full border-[6px] border-white shadow-xl bg-gray-100 overflow-hidden relative">
+                        {formData.pictureUrl ? (
+                            <img
+                            src={formData.pictureUrl}
+                            alt={user.name || 'Profile'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                                const target = e.currentTarget;
+                                target.style.display = 'none';
+                                target.nextElementSibling?.classList.remove('hidden');
+                            }}
+                            />
+                        ) : null}
+                         <div className={`w-full h-full flex items-center justify-center bg-gray-100 ${formData.pictureUrl ? 'hidden' : 'flex'}`}>
+                            <UserCircle className="w-24 h-24 text-gray-300" />
+                        </div>
+                        
+                         {isEditing && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
+                                <Camera className="w-8 h-8 text-white" />
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileChange}
+                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex-1 text-center md:text-left pb-4 space-y-3">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight flex items-center justify-center md:justify-start gap-3">
+                            {user.name}
+                            {user.role === 'STUDENT' && <CheckCircle2 className="w-6 h-6 text-blue-600 fill-blue-50" />}
+                        </h1>
+                        <p className="text-lg text-gray-500 font-medium">{user.reg_no || 'Student'}</p>
+                    </div>
+                    
+                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 font-medium text-gray-700">
+                            <Shield className="w-3.5 h-3.5 text-gray-500" />
+                            {user.role}
+                        </span>
+                        <div className="h-4 w-px bg-gray-300 hidden md:block"></div>
+                        <span className="flex items-center gap-1.5">
+                            <Briefcase className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">{user.department || 'Department N/A'}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span>{user.section ? `Section ${user.section}` : 'Section N/A'}</span>
+                        </span>
+                     </div>
+                </div>
+
+                <div className="pb-4">
+                     {!isEditing ? (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                            Edit Profile
+                        </button>
+                    ) : (
+                        <div className="flex gap-3">
+                             <button
+                                onClick={handleSave}
+                                disabled={isLoading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50"
+                            >
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                Save
+                            </button>
+                            <button
+                                onClick={handleCancel}
+                                disabled={isLoading}
+                                className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-sm font-semibold rounded-lg shadow-sm transition-all"
+                            >
+                                <X className="w-4 h-4" />
+                                Cancel
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-800 shadow-lg">
-            <div className="flex items-center gap-2">
-              <X className="w-5 h-5" />
-              <p className="font-semibold">{error}</p>
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 text-sm font-medium">
+                <X className="w-4 h-4" />
+                {error}
             </div>
-          </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile Picture & Basic Info Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
-              <div className="flex flex-col items-center">
-                {/* Profile Picture */}
-                <div className="relative mb-6">
-                  {isEditing ? (
-                    <div className="relative">
-                      {formData.pictureUrl ? (
-                        <img
-                          src={formData.pictureUrl}
-                          alt="Profile"
-                          className="w-[140px] h-[140px] rounded-full object-cover border-4 border-primary/30 shadow-lg"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.style.display = 'none';
-                            const placeholder = target.nextElementSibling as HTMLElement;
-                            if (placeholder) placeholder.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div 
-                        className={`w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/30 shadow-lg ${formData.pictureUrl ? 'hidden' : ''}`}
-                      >
-                        <UserCircle className="w-20 h-20 text-primary/50" />
-                      </div>
-                      <button
-                        type="button"
-                        className="absolute bottom-0 right-0 bg-gradient-to-r from-primary to-primary/90 text-white p-3 rounded-full cursor-pointer hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-secondary"
-                        title="Edit profile picture URL"
-                      >
-                        <Camera className="w-5 h-5" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                          title="Upload new picture"
-                        />
-                      </button>
-                    </div>
-                  ) : (
-                    user.pictureUrl ? (
-                      <>
-                        <img
-                          src={user.pictureUrl}
-                          alt="Profile"
-                          className="w-[140px] h-[140px] rounded-full object-cover border-4 border-primary/30 shadow-lg"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.style.display = 'none';
-                            const placeholder = target.nextElementSibling as HTMLElement;
-                            if (placeholder) placeholder.style.display = 'flex';
-                          }}
-                        />
-                        <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 hidden items-center justify-center border-4 border-primary/30 shadow-lg">
-                          <UserCircle className="w-20 h-20 text-primary/50" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/30 shadow-lg">
-                        <UserCircle className="w-20 h-20 text-primary/50" />
-                      </div>
-                    )
-                  )}
-                </div>
-
-                <h2 className="text-2xl font-bold text-primary mb-2 text-center">
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="text-center bg-transparent border-b-2 border-primary/30 focus:border-primary focus:outline-none px-2 py-1 w-full max-w-[200px]"
-                      placeholder="Your Name"
-                    />
-                  ) : (
-                    user.name || 'No Name'
-                  )}
-                </h2>
-                <p className="text-primary/60 text-sm mb-4 text-center">{user.email}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* Left Sidebar */}
+            <div className="space-y-6">
                 
-                {/* Role Badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full border border-primary/20 shadow-sm">
-                  <Shield className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold capitalize text-primary">{user.role.toLowerCase()}</span>
+                {/* Academic Status Widget */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                         <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                             <GraduationCap className="w-4 h-4 text-gray-500" />
+                             Academic Info
+                         </h3>
+                    </div>
+                    
+                    <div className="p-5 space-y-4">
+                        <div className="group">
+                            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Registration Number</label>
+                            {isEditing ? (
+                                <input name="reg_no" value={formData.reg_no} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                            ) : (
+                                <p className="text-gray-900 font-mono font-medium">{user.reg_no || 'Not set'}</p>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="group">
+                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Year</label>
+                                {isEditing ? (
+                                    <input type="number" name="year" value={formData.year} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg font-bold text-gray-900">{user.year || '-'}</span>
+                                        <span className="text-xs text-gray-500 font-medium bg-gray-100 px-1.5 py-0.5 rounded">YEAR</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="group">
+                                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Section</label>
+                                {isEditing ? (
+                                    <input name="section" value={formData.section} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg font-bold text-gray-900">{user.section || '-'}</span>
+                                        <span className="text-xs text-gray-500 font-medium bg-gray-100 px-1.5 py-0.5 rounded">SEC</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                         <div className="group">
+                            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Department</label>
+                            {isEditing ? (
+                                <input name="department" value={formData.department} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                            ) : (
+                                <p className="text-gray-900 font-medium">{user.department || 'Not set'}</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              </div>
+
+                {/* Activity Widget */}
+                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                     <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+                         <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                             <Clock className="w-4 h-4 text-gray-500" />
+                             Timeline
+                         </h3>
+                    </div>
+                     <div className="p-5">
+                         <div className="relative border-l-2 border-gray-100 ml-2 space-y-6">
+                             <div className="relative pl-6">
+                                 <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white"></div>
+                                 <p className="text-xs text-gray-400 uppercase font-semibold mb-0.5">Last Active</p>
+                                 <p className="text-sm font-medium text-gray-900">{formatDate(user.updatedAt)}</p>
+                             </div>
+                             <div className="relative pl-6">
+                                 <div className="absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full bg-gray-300 ring-4 ring-white"></div>
+                                 <p className="text-xs text-gray-400 uppercase font-semibold mb-0.5">Joined</p>
+                                 <p className="text-sm font-medium text-gray-900">{formatDate(user.createdAt)}</p>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+
             </div>
-          </div>
 
-          {/* Main Information Card */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
-              <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-primary/10">
-                <div className="p-2.5 bg-blue-500/20 rounded-lg">
-                  <User className="w-6 h-6 text-blue-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-primary">Personal Information</h2>
-              </div>
+             {/* Right Main Content */}
+             <div className="lg:col-span-2 space-y-6">
+                 
+                 {/* Main Details Form */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-6 sm:p-8">
+                     <div className="flex items-center gap-3 mb-6">
+                         <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                             <User className="w-5 h-5" />
+                         </div>
+                         <div>
+                            <h2 className="text-lg font-bold text-gray-900">Personal Data</h2>
+                            <p className="text-sm text-gray-500">Manage your personal information</p>
+                         </div>
+                     </div>
 
-              <div className="space-y-6">
-                {/* Registration Number */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
-                  <div className="p-2.5 bg-blue-500/20 rounded-lg">
-                    <Hash className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Registration Number
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="reg_no"
-                        value={formData.reg_no}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
-                        placeholder="Enter registration number"
-                      />
-                    ) : (
-                      <p className="text-lg font-semibold text-primary">{user.reg_no || 'Not set'}</p>
-                    )}
-                  </div>
-                </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="space-y-1.5">
+                             <label className="text-sm font-medium text-gray-700">Full Legal Name</label>
+                             {isEditing ? (
+                                <input name="name" value={formData.name} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400" />
+                             ) : (
+                                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                    <p className="text-gray-900">{user.name}</p>
+                                </div>
+                             )}
+                         </div>
 
-                {/* Department */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
-                  <div className="p-2.5 bg-green-500/20 rounded-lg">
-                    <Building2 className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Department
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="department"
-                        value={formData.department}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
-                        placeholder="Enter department"
-                      />
-                    ) : (
-                      <p className="text-lg font-semibold text-primary">{user.department || 'Not set'}</p>
-                    )}
-                  </div>
-                </div>
+                         <div className="space-y-1.5">
+                             <label className="text-sm font-medium text-gray-700">Email Address</label>
+                             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+                                <p className="text-gray-900">{user.email}</p>
+                                <Lock className="w-4 h-4 text-gray-400" />
+                             </div>
+                         </div>
 
-                {/* Year */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
-                  <div className="p-2.5 bg-purple-500/20 rounded-lg">
-                    <Calendar className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Year
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        name="year"
-                        value={formData.year}
-                        onChange={handleInputChange}
-                        min="1"
-                        max="10"
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
-                        placeholder="Enter year"
-                      />
-                    ) : (
-                      <p className="text-lg font-semibold text-primary">{user.year || 'Not set'}</p>
-                    )}
-                  </div>
+                         <div className="md:col-span-2 pt-2">
+                             <div className="flex items-center justify-between mb-2">
+                                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                    <Code className="w-4 h-4 text-gray-500" />
+                                    LeetCode Integration
+                                </label>
+                                <span className="text-xs text-gray-400 font-normal">Sync your coding stats</span>
+                             </div>
+
+                             {isEditing ? (
+                                <input 
+                                    name="leetcodeId" 
+                                    value={formData.leetcodeId} 
+                                    onChange={handleInputChange} 
+                                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400" 
+                                    placeholder="e.g. https://leetcode.com/u/username"
+                                />
+                             ) : (
+                                <div className="p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors bg-white group hover:shadow-sm">
+                                    {user.leetcodeId ? (
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center">
+                                                    <Code className="w-5 h-5 text-yellow-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900">{user.leetcodeId}</p>
+                                                    <a href={`https://leetcode.com/${user.leetcodeId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+                                                        View Profile <ExternalLink className="w-3 h-3" />
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <div className="px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold border border-green-200 flex items-center gap-1">
+                                                <CheckCircle2 className="w-3 h-3" />
+                                                Connected
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between text-gray-500">
+                                            <span className="text-sm">No LeetCode account linked</span>
+                                            <button onClick={() => setIsEditing(true)} className="text-xs font-medium text-blue-600 hover:underline">Connect Now</button>
+                                        </div>
+                                    )}
+                                </div>
+                             )}
+                         </div>
+                     </div>
                 </div>
 
-                {/* Section */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
-                  <div className="p-2.5 bg-orange-500/20 rounded-lg">
-                    <Users className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Section
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="section"
-                        value={formData.section}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
-                        placeholder="Enter section"
-                      />
-                    ) : (
-                      <p className="text-lg font-semibold text-primary">{user.section || 'Not set'}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* LeetCode ID */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
-                  <div className="p-2.5 bg-yellow-500/20 rounded-lg">
-                    <Code className="w-5 h-5 text-yellow-600" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      LeetCode ID
-                    </label>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        name="leetcodeId"
-                        value={formData.leetcodeId}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
-                        placeholder="Enter LeetCode username or profile URL"
-                      />
-                    ) : (
-                      <p className="text-lg font-semibold text-primary">{user.leetcodeId ? (
-                        <a 
-                          href={`https://leetcode.com/${user.leetcodeId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline flex items-center gap-1"
-                        >
-                          {user.leetcodeId}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      ) : 'Not set'}</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Email - Read Only */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <div className="p-2.5 bg-yellow-500/20 rounded-lg">
-                    <Mail className="w-5 h-5 text-yellow-600" />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Email Address
-                    </label>
-                    <p className="text-lg font-semibold text-primary">{user.email}</p>
-                    <p className="text-xs text-primary/50 mt-1">Email cannot be changed</p>
-                  </div>
-                </div>
-
-                {/* Profile Picture URL - Editable */}
+                {/* Security Form */}
                 {isEditing && (
-                  <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
-                    <div className="p-2.5 bg-pink-500/20 rounded-lg">
-                      <Camera className="w-5 h-5 text-pink-600" />
+                    <div className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden p-6 sm:p-8">
+                         <div className="flex items-center gap-3 mb-6">
+                             <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                                 <Shield className="w-5 h-5" />
+                             </div>
+                             <div>
+                                <h2 className="text-lg font-bold text-gray-900">Security</h2>
+                                <p className="text-sm text-gray-500">Update your password</p>
+                             </div>
+                         </div>
+                        
+                        <div className="space-y-6">
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-gray-700">Current Password</label>
+                                <input type="password" name="currentPassword" value={passwordData.currentPassword} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-gray-400" placeholder="Required to authorize changes" />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-gray-700">New Password</label>
+                                    <input type="password" name="newPassword" value={passwordData.newPassword} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-gray-400" placeholder="Min. 8 characters" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-gray-700">Confirm Password</label>
+                                    <input type="password" name="confirmPassword" value={passwordData.confirmPassword} onChange={handleInputChange} className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-900 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all placeholder:text-gray-400" placeholder="Re-enter to confirm" />
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex-1">
-                      <label className="block text-sm font-semibold text-primary/70 mb-2">
-                        Profile Picture
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 px-4 py-2 bg-secondary border border-primary/20 rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
-                          <Upload className="w-4 h-4" />
-                          <span className="text-sm font-medium">Upload New</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="hidden"
-                          />
-                        </label>
-                        <p className="text-xs text-primary/50">Max 5MB. JPG, PNG, GIF.</p>
-                      </div>
-                    </div>
-                  </div>
                 )}
 
-                {/* Password Change Section */}
-                {isEditing && (
-                  <div className="pt-6 border-t border-primary/10">
-                    <h3 className="text-lg font-bold text-primary mb-4 flex items-center gap-2">
-                      <Lock className="w-5 h-5 text-red-500" />
-                      Change Password
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-primary/70 mb-2">
-                          Current Password
-                        </label>
-                        <input
-                          type="password"
-                          name="currentPassword"
-                          value={passwordData.currentPassword}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm"
-                          placeholder="Enter current password"
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-primary/70 mb-2">
-                            New Password
-                          </label>
-                          <input
-                            type="password"
-                            name="newPassword"
-                            value={passwordData.newPassword}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm"
-                            placeholder="Enter new password"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-primary/70 mb-2">
-                            Confirm New Password
-                          </label>
-                          <input
-                            type="password"
-                            name="confirmPassword"
-                            value={passwordData.confirmPassword}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm"
-                            placeholder="Confirm new password"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Account Information Card */}
-            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
-                <div className="p-2.5 bg-indigo-500/20 rounded-lg">
-                  <Clock className="w-6 h-6 text-indigo-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-primary">Account Information</h2>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <span className="text-sm font-semibold text-primary/70 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    Member Since
-                  </span>
-                  <span className="text-primary font-semibold">{formatDate(user.createdAt)}</span>
-                </div>
-                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <span className="text-sm font-semibold text-primary/70 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    Last Updated
-                  </span>
-                  <span className="text-primary font-semibold">{formatDate(user.updatedAt)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            {isEditing && (
-              <div className="flex gap-4">
-                <button
-                  onClick={handleSave}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-5 h-5" />
-                      Save Changes
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-8 py-3 bg-secondary border-2 border-primary/20 text-primary rounded-xl hover:bg-primary/5 hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
-                >
-                  <X className="w-5 h-5" />
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
+             </div>
         </div>
+
       </div>
     </div>
   );
 }
-

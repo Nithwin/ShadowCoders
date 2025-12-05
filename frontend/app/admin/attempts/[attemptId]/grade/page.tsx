@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock, Play, Pause, Volume2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, AlertCircle, Loader2, User, Clock, Play, Pause, Volume2, Sparkles, GraduationCap, FileText, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,7 +11,7 @@ import { QType } from '@/types';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
 
-type Question = {
+type ExamQuestion = {
   id: string;
   type: QType;
   prompt: string | null;
@@ -24,7 +24,7 @@ type Question = {
   wordLimit?: number | null;
 };
 
-type Response = {
+type ExamResponse = {
   id: string;
   answer: {
     chosenOptionIds?: string[];
@@ -42,7 +42,7 @@ type Response = {
     url: string;
     kind: string;
   } | null;
-  question: Question;
+  question: ExamQuestion;
   evaluations: Array<{
     id: string;
     kind: string;
@@ -75,7 +75,7 @@ type Attempt = {
     id: string;
     title: string;
   };
-  responses: Response[];
+  responses: ExamResponse[];
 };
 
 // Audio Player Component for Speaking Responses
@@ -158,34 +158,41 @@ function AudioPlayer({ audioUrl, responseId }: { audioUrl: string; responseId: s
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/20">
+      <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
         <button
           onClick={togglePlay}
           disabled={isLoading || !!error}
-          className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-secondary hover:bg-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center justify-center w-12 h-12 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
         >
           {isLoading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : isPlaying ? (
-            <Pause className="w-5 h-5" />
+            <Pause className="w-5 h-5 fill-current" />
           ) : (
-            <Play className="w-5 h-5 ml-0.5" />
+            <Play className="w-5 h-5 ml-1 fill-current" />
           )}
         </button>
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <Volume2 className="w-4 h-4 text-primary/60" />
-            <span className="text-sm font-medium text-primary">Student Recording</span>
+          <div className="flex items-center gap-2 mb-1.5">
+            <Volume2 className="w-4 h-4 text-indigo-500" />
+            <span className="text-sm font-bold text-slate-700">Voice Response</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-primary/60">
+          
+          <div className="relative w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+             <div 
+                className="absolute top-0 left-0 h-full bg-indigo-500 transition-all duration-100"
+                style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+             ></div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-1.5 text-xs font-medium text-slate-500">
             <span>{formatTime(currentTime)}</span>
-            <span>/</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
       </div>
       {error && (
-        <p className="text-sm text-red-600 flex items-center gap-1">
+        <p className="text-sm text-red-600 flex items-center gap-1 pl-1">
           <AlertCircle className="w-4 h-4" />
           {error}
         </p>
@@ -307,6 +314,7 @@ export default function AdminGradingPage() {
       
       // Refresh attempt to get updated scores
       await fetchAttempt();
+        toast.success('Grade saved successfully!');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error('Error saving grade:', err);
@@ -455,7 +463,7 @@ export default function AdminGradingPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
@@ -471,38 +479,33 @@ export default function AdminGradingPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto text-primary">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
-          <span className="ml-3 text-primary/70">Loading attempt details...</span>
-        </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+         <div className="text-center">
+            <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto" />
+            <p className="mt-4 text-slate-500 font-medium">Loading submission...</p>
+         </div>
       </div>
     );
   }
 
   if (error && !attempt) {
     return (
-      <div className="max-w-7xl mx-auto text-primary">
-        <Link
-          href="/admin/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-primary/70 hover:text-primary mb-6 transition-colors"
-        >
+      <div className="max-w-7xl mx-auto p-8">
+        <Link href="/admin/dashboard" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-indigo-600 mb-6 font-medium">
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
-        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            <p>{error}</p>
+        <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-800 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6" />
+            <p className="font-semibold">{error}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!attempt) {
-    return null;
-  }
+  if (!attempt) return null;
 
   const totalScore = typeof attempt.score === 'string' ? parseFloat(attempt.score) : (attempt.score ?? 0);
   const maxScore = typeof attempt.maxScore === 'string' ? parseFloat(attempt.maxScore) : (attempt.maxScore ?? 0);
@@ -514,355 +517,229 @@ export default function AdminGradingPage() {
   const unsavedCount = manualGradingResponses.filter((r) => !savedResponses.has(r.id)).length;
 
   return (
-    <div className="max-w-7xl mx-auto text-primary">
-      <Link
-        href={`/admin/exams/${attempt.exam.id}/submissions`}
-        className="inline-flex items-center gap-2 text-sm text-primary/70 hover:text-primary mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Submissions
-      </Link>
+    <div className="min-h-screen bg-slate-50/80 pb-20">
+      
+      {/* Top Navigation Bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                  <Link href={`/admin/exams/${attempt.exam.id}/submissions`} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
+                      <ArrowLeft className="w-5 h-5" />
+                  </Link>
+                  <div>
+                      <h1 className="text-lg font-bold text-slate-900 truncate max-w-md">{attempt.exam.title}</h1>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <User className="w-3 h-3" />
+                          <span>{attempt.student.name}</span>
+                          <span className="text-slate-300">|</span>
+                          <Clock className="w-3 h-3" />
+                          <span>Submitted {formatDate(attempt.submittedAt || attempt.startedAt)}</span>
+                      </div>
+                  </div>
+              </div>
 
-      {/* Header */}
-      <div className="bg-secondary rounded-lg shadow-md p-6 mb-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold font-alan-sans mb-2">{attempt.exam.title}</h1>
-            <div className="flex items-center gap-4 text-sm text-primary/60">
-              <div className="flex items-center gap-1">
-                <User className="w-4 h-4" />
-                <span>{attempt.student.name}</span>
-                <span className="text-primary/40">({attempt.student.email})</span>
-              </div>
-              {attempt.student.reg_no && (
-                <div className="text-primary/40">Reg: {attempt.student.reg_no}</div>
-              )}
-            </div>
+               <div className="flex items-center gap-6">
+                   <div className="text-right">
+                       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Score</p>
+                       <p className="text-xl font-black text-indigo-600 font-mono">
+                           {formatScore(attempt.score)} <span className="text-sm text-slate-400 font-bold text-gray-400">/ {formatScore(attempt.maxScore)}</span>
+                       </p>
+                   </div>
+                   
+                   {unsavedCount > 0 && (
+                        <Button
+                            onClick={handleSaveAllGrades}
+                            disabled={isSaving}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20"
+                        >
+                            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                            Save All ({unsavedCount})
+                        </Button>
+                   )}
+               </div>
           </div>
-          <div className="text-right">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="text-2xl font-bold text-primary">
-                {formatScore(attempt.score)} / {formatScore(attempt.maxScore)}
-              </div>
-              <div className="text-lg text-primary/60">
-                ({percentage}%)
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-primary/60">
-              <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                <span>Started: {formatDate(attempt.startedAt)}</span>
-              </div>
-              {attempt.submittedAt && (
-                <div className="flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span>Submitted: {formatDate(attempt.submittedAt)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-primary/10 rounded-full h-3 mb-4">
-          <div
-            className={`h-3 rounded-full transition-all ${
-              percentage >= 80 ? 'bg-green-500' :
-              percentage >= 60 ? 'bg-yellow-500' :
-              percentage >= 40 ? 'bg-orange-500' :
-              'bg-red-500'
-            }`}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-
-        {/* Save All Button */}
-        {unsavedCount > 0 && (
-          <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-            <p className="text-sm text-primary/70">
-              {unsavedCount} response{unsavedCount !== 1 ? 's' : ''} with unsaved changes
-            </p>
-            <Button
-              onClick={handleSaveAllGrades}
-              disabled={isSaving}
-              className="bg-green-600 hover:bg-green-700 text-white border-0"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save All Grades
-                </>
-              )}
-            </Button>
-          </div>
-        )}
       </div>
 
-      {/* Info about auto-graded questions */}
-      {attempt.responses.filter((r) => r.question.type !== QType.ESSAY && r.question.type !== QType.SPEAKING).length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-blue-800 mb-1">Auto-Graded Questions</p>
-              <p className="text-sm text-blue-700">
-                MCQ and Coding questions are automatically graded. Essay and Speaking questions require manual grading.
-                {manualGradingResponses.length === 0 && (
-                  <span className="block mt-1 font-medium">All questions have been auto-graded. No manual grading required.</span>
-                )}
-              </p>
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+
+        {/* Info Cards Row */}
+        {manualGradingResponses.length === 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6 text-center shadow-sm">
+                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-emerald-900">Auto-Grading Complete</h3>
+                <p className="text-emerald-700">All questions in this exam are automatically graded.</p>
             </div>
-          </div>
-        </div>
-      )}
+        )}
 
-      {manualGradingResponses.length === 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-          <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
-          <p className="text-lg font-semibold text-green-800 mb-2">All Questions Auto-Graded</p>
-          <p className="text-sm text-green-700">
-            This exam contains only MCQ and Coding questions, which are automatically graded. No manual grading is required.
-          </p>
-        </div>
-      )}
+        {/* Questions List */}
+        <div className="space-y-6">
+            {attempt.responses
+            .filter((response) => response.question.type === QType.ESSAY || response.question.type === QType.SPEAKING)
+            .map((response, index) => {
+                const question = response.question;
+                const grade = gradingData[response.id] || { score: 0, feedback: '' };
+                const isSaved = savedResponses.has(response.id);
+                const questionPoints = typeof question.points === 'string' 
+                ? parseFloat(question.points) 
+                : (typeof question.points === 'number' ? question.points : 0);
 
-      {/* Questions and Answers - Show Essay and Speaking questions for manual grading */}
-      <div className="space-y-6">
-        {attempt.responses
-          .filter((response) => response.question.type === QType.ESSAY || response.question.type === QType.SPEAKING)
-          .map((response, index) => {
-            const question = response.question;
-            const grade = gradingData[response.id] || { score: 0, feedback: '' };
-            const isSaved = savedResponses.has(response.id);
-            const questionPoints = typeof question.points === 'string' 
-              ? parseFloat(question.points) 
-              : (typeof question.points === 'number' ? question.points : 0);
-
-          return (
-            <div key={response.id} className="bg-secondary rounded-lg shadow-md p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg font-semibold text-primary">
-                      Question {question.order || index + 1}
-                    </span>
-                    <span className="px-2 py-1 bg-primary/20 text-primary rounded-full text-xs font-semibold">
-                      {question.type}
-                    </span>
-                    <span className="text-sm text-primary/60">
-                      {questionPoints.toFixed(2)} points
-                    </span>
-                    {isSaved && (
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Saved
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-primary font-medium mb-4">
-                    {question.prompt || 'Question'}
-                  </p>
-                </div>
-                {question.type === QType.ESSAY && (
-                  <Button
-                    onClick={() => handleAutoGrade(response.id)}
-                    disabled={isAutoGrading[response.id]}
-                    className="ml-4 bg-purple-600 hover:bg-purple-700 text-white border-0 shadow-md text-sm py-1.5 px-3"
-                  >
-                    {isAutoGrading[response.id] ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Validating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Auto Validate (AI)
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-
-              {/* Student Answer Display */}
-              <div className="mb-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
-                <p className="text-sm font-semibold text-primary/70 mb-2">Student Answer:</p>
-                
-                {question.type === QType.MCQ && response.answer?.chosenOptionIds && (
-                  <div className="space-y-2">
-                    {question.options?.map((option) => {
-                      const isSelected = response.answer.chosenOptionIds?.includes(option.id) || false;
-                      const isCorrect = question.correctOptionIds?.includes(option.id);
-                      return (
-                        <div
-                          key={option.id}
-                          className={`p-2 rounded-lg border-2 ${
-                            isSelected && isCorrect
-                              ? 'border-green-500 bg-green-50'
-                              : isSelected && !isCorrect
-                              ? 'border-red-500 bg-red-50'
-                              : isCorrect
-                              ? 'border-green-300 bg-green-50/50'
-                              : 'border-primary/20 bg-primary/5'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {isSelected && (
-                              <span className="text-xs font-semibold text-primary">Selected</span>
-                            )}
-                            {isCorrect && (
-                              <span className="text-xs font-semibold text-green-700">Correct</span>
-                            )}
-                            <span className="text-primary">{option.text}</span>
-                          </div>
+                return (
+                    <div key={response.id} className="bg-white rounded-2xl shadow-lg shadow-indigo-100 border border-indigo-50 overflow-hidden transition-all hover:shadow-xl hover:shadow-indigo-100/50">
+                        
+                        {/* Question Header */}
+                        <div className="px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-white to-slate-50">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="space-y-3 flex-1">
+                                    <div className="flex items-center gap-3">
+                                        <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full border border-indigo-100 uppercase tracking-wide">
+                                            {question.type}
+                                        </span>
+                                        <span className="text-sm font-semibold text-slate-400">Question {question.order || index + 1}</span>
+                                        {isSaved && (
+                                            <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                <CheckCircle2 className="w-3 h-3" /> Saved
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="text-lg font-medium text-slate-800 leading-relaxed font-serif">
+                                        {question.prompt || 'No prompt provided.'}
+                                    </h3>
+                                </div>
+                                <div className="text-right flex flex-col items-end gap-2">
+                                     <span className="inline-block px-3 py-1 rounded-lg bg-slate-100 text-slate-600 font-mono font-bold text-sm">
+                                         {questionPoints} Pts
+                                     </span>
+                                     
+                                     {question.type === QType.ESSAY && (
+                                        <Button
+                                            onClick={() => handleAutoGrade(response.id)}
+                                            disabled={isAutoGrading[response.id]}
+                                            className="h-8 px-3 text-xs bg-transparent text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-0 shadow-none font-semibold"
+                                        >
+                                            {isAutoGrading[response.id] ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                                            AI Grade
+                                        </Button>
+                                     )}
+                                </div>
+                            </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
 
-                {question.type === QType.CODING && (
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs font-semibold text-primary/70 mb-1">Language:</p>
-                      <p className="text-sm text-primary">{response.answer?.language || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-primary/70 mb-1">Code:</p>
-                      <pre className="p-3 bg-primary/10 rounded-lg border border-primary/20 text-sm font-mono overflow-x-auto">
-                        {response.answer?.code || 'No code submitted'}
-                      </pre>
-                    </div>
-                    {question.starterCode && (
-                      <div>
-                        <p className="text-xs font-semibold text-primary/70 mb-1">Starter Code:</p>
-                        <pre className="p-3 bg-primary/5 rounded-lg border border-primary/20 text-xs font-mono overflow-x-auto">
-                          {question.starterCode}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                )}
+                        <div className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            
+                            {/* Left: Student Answer */}
+                            <div className="lg:col-span-7 space-y-2">
+                                <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                    <User className="w-3 h-3" /> Student Response
+                                </label>
+                                
+                                <div className="min-h-[200px] p-6 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 leading-relaxed relative group hover:border-indigo-200 transition-colors">
+                                    {question.type === QType.ESSAY ? (
+                                        <>
+                                            <p className="whitespace-pre-wrap">{response.answer?.textAnswer || response.answer?.text || <span className="text-slate-400 italic">No answer submitted.</span>}</p>
+                                            {question.wordLimit && (
+                                                <div className="absolute bottom-3 right-3 text-xs font-medium text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-100 shadow-sm">
+                                                    {(response.answer?.textAnswer || response.answer?.text || '').split(/\s+/).filter((w: string) => w.length > 0).length} words
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : question.type === QType.SPEAKING ? (
+                                        <div className="flex items-center justify-center h-full min-h-[160px]">
+                                             {response.audioAsset ? (
+                                                 <div className="w-full max-w-sm">
+                                                    <AudioPlayer audioUrl={response.audioAsset.url} responseId={response.id} />
+                                                 </div>
+                                             ) : (
+                                                 <div className="text-center text-slate-400">
+                                                     <Volume2 className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                     <p>No audio recording available</p>
+                                                 </div>
+                                             )}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
 
-                {question.type === QType.ESSAY && (
-                  <div>
-                    <p className="text-sm text-primary whitespace-pre-wrap">
-                      {response.answer?.textAnswer || response.answer?.text || 'No answer submitted'}
-                    </p>
-                    {question.wordLimit && (
-                      <p className="text-xs text-primary/60 mt-2">
-                        Word count: {(response.answer?.textAnswer || response.answer?.text || '').split(/\s+/).filter((w: string) => w.length > 0).length} / {question.wordLimit}
-                      </p>
-                    )}
-                  </div>
-                )}
+                            {/* Right: Grading Controls */}
+                            <div className="lg:col-span-5 flex flex-col gap-6">
+                                <div>
+                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                        <GraduationCap className="w-3 h-3" /> Score
+                                    </label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="relative flex-1">
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max={questionPoints}
+                                                step="0.5"
+                                                value={grade.score}
+                                                onChange={(e) => handleGradeChange(response.id, 'score', parseFloat(e.target.value) || 0)}
+                                                className="h-12 text-lg font-bold text-slate-900 border-slate-200 focus:border-indigo-500 focus:ring-indigo-100 pl-4"
+                                            />
+                                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">/ {questionPoints}</span>
+                                        </div>
+                                    </div>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max={questionPoints} 
+                                        step="0.5" 
+                                        value={grade.score} 
+                                        onChange={(e) => handleGradeChange(response.id, 'score', parseFloat(e.target.value))}
+                                        className="w-full mt-3 accent-indigo-600 cursor-pointer" 
+                                    />
+                                </div>
 
-                {question.type === QType.SPEAKING && (
-                  <div>
-                    {response.audioAsset ? (
-                      <AudioPlayer 
-                        audioUrl={response.audioAsset.url}
-                        responseId={response.id}
-                      />
-                    ) : (
-                      <p className="text-sm text-primary/60 italic">No audio recording submitted</p>
-                    )}
-                  </div>
-                )}
-              </div>
+                                <div className="flex-1">
+                                    <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                        <MessageSquare className="w-3 h-3" /> Feedback
+                                    </label>
+                                    <textarea
+                                        value={grade.feedback}
+                                        onChange={(e) => handleGradeChange(response.id, 'feedback', e.target.value)}
+                                        placeholder="Enter constructive feedback for the student..."
+                                        className="w-full h-32 p-3 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none resize-none transition-all placeholder:text-slate-300"
+                                    />
+                                </div>
 
-              {/* Grading Section */}
-              <div className="pt-4 border-t border-primary/10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Score (0 - {questionPoints.toFixed(2)})
-                    </label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max={questionPoints}
-                      step="0.01"
-                      value={grade.score}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 0;
-                        handleGradeChange(response.id, 'score', Math.max(0, Math.min(value, questionPoints)));
-                      }}
-                      className="w-full"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
-                      Feedback
-                    </label>
-                    <textarea
-                      value={grade.feedback}
-                      onChange={(e) => handleGradeChange(response.id, 'feedback', e.target.value)}
-                      rows={3}
-                      className="w-full p-2 bg-secondary rounded-lg border border-primary/20 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                      placeholder="Add feedback for the student..."
-                    />
-                  </div>
-                </div>
-
-                {/* Current Evaluation Info */}
-                {response.evaluations.length > 0 && (
-                  <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
-                    <p className="text-xs font-semibold text-primary/70 mb-2">Previous Evaluations:</p>
-                    <div className="space-y-2">
-                      {response.evaluations.map((evaluation) => (
-                        <div key={evaluation.id} className="text-xs text-primary/80">
-                          <span className="font-medium">{evaluation.assessor.name}</span>
-                          {' - '}
-                          <span>Score: {formatScore(evaluation.score)}</span>
-                          {evaluation.comments && (
-                            <>
-                              {' - '}
-                              <span>{evaluation.comments}</span>
-                            </>
-                          )}
-                          {evaluation.isFinal && (
-                            <span className="ml-2 px-1 py-0.5 bg-green-100 text-green-800 rounded text-xs">
-                              Final
-                            </span>
-                          )}
+                                <Button 
+                                    onClick={() => handleSaveGrade(response.id)}
+                                    disabled={isSaving || isSaved}
+                                    className={`w-full ${isSaved ? 'border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:text-green-800' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200'}`}
+                                >
+                                    {isSaved ? (
+                                        <>
+                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                            Grade Saved
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-4 h-4 mr-2" />
+                                            Save Grade
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
-                <Button
-                  onClick={() => handleSaveGrade(response.id)}
-                  disabled={isSaving || isSaved}
-                  className="bg-primary text-secondary hover:bg-primary/80 border-0"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : isSaved ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Saved
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Grade
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          );
-        })}
+                        {/* Evaluator Metadata Footer */}
+                        {response.evaluations.length > 0 && (
+                             <div className="bg-slate-50/50 px-8 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                                 <div className="flex items-center gap-2">
+                                     <span className="font-semibold">Last evaluated by:</span>
+                                     <span className="bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm text-slate-600">
+                                         {response.evaluations[response.evaluations.length - 1].assessor?.name || 'Unknown'}
+                                     </span>
+                                 </div>
+                                 <div className="font-mono">
+                                     Ref: {response.id.slice(-6)}
+                                 </div>
+                             </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
       </div>
     </div>
   );

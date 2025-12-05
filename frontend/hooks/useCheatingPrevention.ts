@@ -166,9 +166,12 @@ export function useCheatingPrevention(
         return; 
       }
 
-      // Allow Undo/Redo (Ctrl+Z, Ctrl+Y)
+      // Allow Undo/Redo (Ctrl+Z, Ctrl+Y) AND Save (Ctrl+S)
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
-        if (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y') {
+        if (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 's') {
+          if (e.key.toLowerCase() === 's') {
+             e.preventDefault(); // Prevent browser save dialog
+          }
           return;
         }
       }
