@@ -121,6 +121,7 @@ export const updateUserProfile = async (userId: string, updateData: {
   department?: string | null;
   section?: string | null;
   pictureUrl?: string | null;
+  leetcodeId?: string | null;
 }) => {
   // Only allow updating specific fields
   const dataToUpdate: any = {};
@@ -142,6 +143,9 @@ export const updateUserProfile = async (userId: string, updateData: {
   }
   if (updateData.pictureUrl !== undefined) {
     dataToUpdate.pictureUrl = updateData.pictureUrl;
+  }
+  if (updateData.leetcodeId !== undefined) {
+    dataToUpdate.leetcodeId = updateData.leetcodeId;
   }
 
   return authRepo.updateUser(userId, dataToUpdate);

@@ -24,22 +24,46 @@ export enum QType {
  */
 // LeetCode Stats Interface
 export interface LeetCodeStats {
-  totalSolved: number;
-  easySolved: number;
-  mediumSolved: number;
-  hardSolved: number;
-  ranking: number;
-  contributionPoints: number;
-  reputation: number;
+  total: number;
+  easy: number;
+  medium: number;
+  hard: number;
   contest?: {
-    attendedContestsCount: number;
+    attended: number;
     rating: number;
     globalRanking: number;
     topPercentage: number;
-    weeklyAttended: number;
-    biweeklyAttended: number;
-    totalAttended: number;
-  };
+    weeklyAttended?: number;
+    biweeklyAttended?: number;
+    weeklyContests?: Array<{
+      title: string;
+      date: string;
+      rating: number;
+      ranking: number;
+      problemsSolved: number;
+      totalProblems: number;
+      finishTimeInSeconds: number;
+      q1: number;
+      q2: number;
+      q3: number;
+      q4: number;
+    }>;
+    biweeklyContests?: Array<{
+      title: string;
+      date: string;
+      rating: number;
+      ranking: number;
+      problemsSolved: number;
+      totalProblems: number;
+      finishTimeInSeconds: number;
+      q1: number;
+      q2: number;
+      q3: number;
+      q4: number;
+    }>;
+    latestWeekly?: any;
+    latestBiweekly?: any;
+  } | null;
   lastUpdated: string;
 }
 

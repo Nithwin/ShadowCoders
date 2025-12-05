@@ -30,8 +30,11 @@ interface ExportOptions {
   basicInfo: boolean;
   problemStats: boolean;
   contestStats: boolean;
-  granularContest: boolean; // Weekly vs Bi-weekly
+  granularContest: boolean;
+  contestDetails: boolean; // Q1-Q4 solved status
 }
+
+type ExportType = 'all' | 'weekly' | 'biweekly' | 'latest';
 
 export default function LeetCodeDashboard() {
   const [students, setStudents] = useState<User[]>([]);
@@ -44,18 +47,40 @@ export default function LeetCodeDashboard() {
   const [deptFilter, setDeptFilter] = useState<string>('all');
   const [yearFilter, setYearFilter] = useState<string>('all');
 
-  // Export Modal
+  // Export Modal State
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportMode, setExportMode] = useState<'overview' | 'contest'>('overview');
+  const [selectedContestTitle, setSelectedContestTitle] = useState<string>('');
+  
+  // Filters
+  const [exportDeptFilter, setExportDeptFilter] = useState<string>('all');
+  const [exportYearFilter, setExportYearFilter] = useState<string>('all');
+  
+  // Options for Overview Mode
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     basicInfo: true,
     problemStats: true,
     contestStats: true,
-    granularContest: true
+    granularContest: true,
+    contestDetails: false
   });
-  
+
+  // Derived state for available contests
+  const availableContests = React.useMemo(() => {
+    const contests = new Set<string>();
+    students.forEach(student => {
+      const weekly = student.leetcodeStats?.contest?.weeklyContests || [];
+      const biweekly = student.leetcodeStats?.contest?.biweeklyContests || [];
+      [...weekly, ...biweekly].forEach(c => {
+        if (c.title) contests.add(c.title);
+      });
+    });
+    return Array.from(contests).sort(); // You might want a better sort based on contest ID/Date
+  }, [students]);
+
   const { showToast } = useToast();
 
-  // Pagination
+  // ... (keep pagination state) ...
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -66,7 +91,6 @@ export default function LeetCodeDashboard() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      // Fetch all users. We filter for role='STUDENT' client-side for now.
       const { data } = await api.get('/users'); 
       const studentData = data.filter((u: User) => u.role === 'STUDENT');
       setStudents(studentData);
@@ -83,7 +107,7 @@ export default function LeetCodeDashboard() {
       setIsSyncing(true);
       await api.post('/leetcode/sync');
       showToast('LeetCode stats synced successfully', 'success');
-      fetchData(); // Refresh data
+      fetchData(); 
     } catch (error) {
       console.error('Error syncing data:', error);
       showToast('Failed to sync LeetCode stats', 'error');
@@ -98,56 +122,165 @@ export default function LeetCodeDashboard() {
 
   const executeExport = () => {
     try {
-      const dataToExport = filteredStudents.map(student => {
-        const stats = student.leetcodeStats;
-        const row: any = {};
+      // Apply filters first
+      let studentsToExport = filteredStudents;
+      if (exportDeptFilter !== 'all') {
+        studentsToExport = studentsToExport.filter(s => s.department === exportDeptFilter);
+      }
+      if (exportYearFilter !== 'all') {
+        studentsToExport = studentsToExport.filter(s => s.year?.toString() === exportYearFilter);
+      }
 
-        if (exportOptions.basicInfo) {
-          row['Name'] = student.name;
-          row['Reg No'] = student.reg_no;
-          row['Department'] = student.department;
-          row['Section'] = student.section;
-          row['Year'] = student.year;
-          row['LeetCode ID'] = student.leetcodeId || 'N/A';
+      let dataToExport: any[] = [];
+      let fileName = '';
+
+      if (exportMode === 'overview') {
+        // --- GENERAL OVERVIEW EXPORT ---
+        fileName = `leetcode_overview_${new Date().toISOString().split('T')[0]}.xlsx`;
+        dataToExport = studentsToExport.map(student => {
+          const stats = student.leetcodeStats;
+          const row: any = {};
+
+          if (exportOptions.basicInfo) {
+            row['Name'] = student.name;
+            row['Reg No'] = student.reg_no;
+            row['Department'] = student.department;
+            row['Year'] = student.year;
+            row['LeetCode ID'] = student.leetcodeId || 'N/A';
+          }
+          if (exportOptions.problemStats) {
+            row['Total Solved'] = stats?.total || 0;
+            row['Easy'] = stats?.easy || 0;
+            row['Medium'] = stats?.medium || 0;
+            row['Hard'] = stats?.hard || 0;
+          }
+          if (exportOptions.contestStats) {
+            row['Rating'] = stats?.contest?.rating ? Math.round(stats.contest.rating) : 'N/A';
+            row['Global Ranking'] = stats?.contest?.globalRanking || 'N/A';
+            row['Total Attended'] = stats?.contest?.attended || 0;
+          }
+          if (exportOptions.granularContest) {
+            row['Weekly Attended'] = stats?.contest?.weeklyAttended || 0;
+            row['Bi-Weekly Attended'] = stats?.contest?.biweeklyAttended || 0;
+          }
+           // Add Latest Contest Overview
+           const latest = stats?.contest?.latestWeekly || stats?.contest?.latestBiweekly;
+           if (latest) {
+             row['Latest Contest'] = latest.title;
+             row['Latest Rank'] = latest.ranking;
+           }
+          
+          row['Last Updated'] = stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString() : 'N/A';
+          return row;
+        });
+
+        // Add Summary Row for Overview
+        if (dataToExport.length > 0) {
+          const summaryRow: any = { 'Name': `SUMMARY (${dataToExport.length} Students)` };
+          
+          const sum = (field: string) => dataToExport.reduce((acc, curr) => acc + (curr[field] || 0), 0);
+          const avg = (field: string) => Math.round(sum(field) / dataToExport.length);
+
+          if (exportOptions.problemStats) {
+            summaryRow['Total Solved'] = `${sum('Total Solved')} (Avg: ${avg('Total Solved')})`;
+            summaryRow['Easy'] = `${sum('Easy')} (Avg: ${avg('Easy')})`;
+            summaryRow['Medium'] = `${sum('Medium')} (Avg: ${avg('Medium')})`;
+            summaryRow['Hard'] = `${sum('Hard')} (Avg: ${avg('Hard')})`;
+          }
+          if (exportOptions.contestStats) {
+             const ratedStudents = dataToExport.filter(r => r['Rating'] !== 'N/A');
+             const avgRating = ratedStudents.length ? ratedStudents.reduce((acc, curr) => acc + curr['Rating'], 0) / ratedStudents.length : 0;
+             summaryRow['Rating'] = `Avg: ${Math.round(avgRating)}`;
+             summaryRow['Total Attended'] = `${sum('Total Attended')} (Avg: ${avg('Total Attended')})`;
+          }
+          dataToExport.push({}); // Empty row
+          dataToExport.push(summaryRow);
         }
 
-        if (exportOptions.problemStats) {
-          row['Total Solved'] = stats?.totalSolved || 0;
-          row['Easy'] = stats?.easySolved || 0;
-          row['Medium'] = stats?.mediumSolved || 0;
-          row['Hard'] = stats?.hardSolved || 0;
+      } else {
+        // --- CONTEST ANALYSIS EXPORT ---
+        if (!selectedContestTitle) {
+          showToast('Please select a contest to export', 'error');
+          return;
         }
+        fileName = `leetcode_contest_${selectedContestTitle.replace(/\s+/g, '_')}.xlsx`;
 
-        if (exportOptions.contestStats) {
-          row['Rating'] = stats?.contest?.rating ? Math.round(stats.contest.rating) : 'N/A';
-          row['Global Ranking'] = stats?.contest?.globalRanking || 'N/A';
-          row['Top %'] = stats?.contest?.topPercentage || 'N/A';
-          row['Total Attended'] = stats?.contest?.attendedContestsCount || 0;
+        dataToExport = studentsToExport.map(student => {
+          const stats = student.leetcodeStats;
+          // Find the specific contest in the student's history
+          const allContests = [
+            ...(stats?.contest?.weeklyContests || []),
+            ...(stats?.contest?.biweeklyContests || [])
+          ];
+          const contestData = allContests.find(c => c.title === selectedContestTitle);
+
+          return {
+            'Name': student.name,
+            'Reg No': student.reg_no,
+            'Department': student.department,
+            'Contest': selectedContestTitle,
+            'Attended': contestData ? 'Yes' : 'No',
+            'Rank': contestData?.ranking || 'N/A',
+            'Problems Solved': contestData?.problemsSolved || 0,
+            'Q1': contestData ? (contestData.q1 ? 1 : 0) : 0,
+            'Q2': contestData ? (contestData.q2 ? 1 : 0) : 0,
+            'Q3': contestData ? (contestData.q3 ? 1 : 0) : 0,
+            'Q4': contestData ? (contestData.q4 ? 1 : 0) : 0,
+            'Finish Time (Sec)': contestData?.finishTimeInSeconds || 0,
+            'Rating After': contestData?.rating ? Math.round(contestData.rating) : 'N/A'
+          };
+        });
+
+        // Add Summary Row for Contest Analysis
+        if (dataToExport.length > 0) {
+          const attendedCount = dataToExport.filter(r => r['Attended'] === 'Yes').length;
+          const totalQ1 = dataToExport.reduce((acc, curr) => acc + curr['Q1'], 0);
+          const totalQ2 = dataToExport.reduce((acc, curr) => acc + curr['Q2'], 0);
+          const totalQ3 = dataToExport.reduce((acc, curr) => acc + curr['Q3'], 0);
+          const totalQ4 = dataToExport.reduce((acc, curr) => acc + curr['Q4'], 0);
+          const totalSolved = dataToExport.reduce((acc, curr) => acc + curr['Problems Solved'], 0);
+          const avgSolved = attendedCount ? totalSolved / attendedCount : 0;
+
+          // Convert 1/0 back to checkmarks for main data, but keep numbers for calculation above if needed
+          // Actually, let's remap the main data to checkmarks NOW, before export
+          dataToExport = dataToExport.map(row => ({
+            ...row,
+            'Q1': row['Q1'] === 1 ? '✅' : '❌',
+            'Q2': row['Q2'] === 1 ? '✅' : '❌',
+            'Q3': row['Q3'] === 1 ? '✅' : '❌',
+            'Q4': row['Q4'] === 1 ? '✅' : '❌',
+          }));
+
+          const summaryRow = {
+            'Name': `SUMMARY (${attendedCount} Attended)`,
+            'Attended': `${attendedCount}/${dataToExport.length} (${Math.round((attendedCount / dataToExport.length) * 100)}%)`,
+            'Problems Solved': `${totalSolved} (Avg: ${avgSolved.toFixed(1)})`,
+            'Q1': `${totalQ1} (${Math.round(totalQ1/attendedCount*100)}%)`,
+            'Q2': `${totalQ2} (${Math.round(totalQ2/attendedCount*100)}%)`,
+            'Q3': `${totalQ3} (${Math.round(totalQ3/attendedCount*100)}%)`,
+            'Q4': `${totalQ4} (${Math.round(totalQ4/attendedCount*100)}%)`,
+          };
+
+          dataToExport.push({}); // Empty row
+          dataToExport.push(summaryRow);
         }
-
-        if (exportOptions.granularContest) {
-          row['Weekly Attended'] = stats?.contest?.weeklyAttended || 0;
-          row['Bi-Weekly Attended'] = stats?.contest?.biweeklyAttended || 0;
-        }
-        
-        row['Last Updated'] = stats?.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString() : 'N/A';
-
-        return row;
-      });
+      }
 
       const ws = XLSX.utils.json_to_sheet(dataToExport);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "LeetCode Stats");
-      XLSX.writeFile(wb, `leetcode_stats_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, "Export Data");
+      XLSX.writeFile(wb, fileName);
       
-      showToast('Exported successfully', 'success');
+      showToast(`Exported ${dataToExport.length} records successfully`, 'success');
       setShowExportModal(false);
+
     } catch (error) {
       console.error('Export error:', error);
       showToast('Failed to export data', 'error');
     }
   };
 
+  // ... (keep search/filter logic same as before) ...
   const filteredStudents = students.filter(student => {
     const matchesSearch = 
       student.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -168,16 +301,17 @@ export default function LeetCodeDashboard() {
     return matchesSearch && matchesDept && matchesYear && matchesLink;
   });
 
-  // Pagination logic
+  // ... (keep pagination logic same as before) ...
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const paginatedStudents = filteredStudents.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
+
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Header, Stats Cards, Filters (Table) - Keep exactly as is from previous render */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-primary tracking-tight">
@@ -206,8 +340,8 @@ export default function LeetCodeDashboard() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+       {/* Stats Cards */}
+       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="p-6 bg-white rounded-2xl border border-primary/10 shadow-sm">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-500/10 rounded-xl">
@@ -240,7 +374,7 @@ export default function LeetCodeDashboard() {
             <div>
               <p className="text-sm font-medium text-primary/60">Total Solved</p>
               <h3 className="text-2xl font-bold text-primary">
-                {students.reduce((acc, s) => acc + (s.leetcodeStats?.totalSolved || 0), 0).toLocaleString()}
+                {students.reduce((acc, s) => acc + (s.leetcodeStats?.total || 0), 0).toLocaleString()}
               </h3>
             </div>
           </div>
@@ -395,11 +529,11 @@ export default function LeetCodeDashboard() {
                     <td className="px-6 py-4">
                       {student.leetcodeStats ? (
                         <div className="flex flex-col items-center gap-1">
-                          <span className="font-bold text-primary">{student.leetcodeStats.totalSolved}</span>
+                          <span className="font-bold text-primary">{student.leetcodeStats.total}</span>
                           <div className="flex gap-1 text-[10px]">
-                            <span className="text-green-600 bg-green-100 px-1.5 py-0.5 rounded">{student.leetcodeStats.easySolved}</span>
-                            <span className="text-yellow-600 bg-yellow-100 px-1.5 py-0.5 rounded">{student.leetcodeStats.mediumSolved}</span>
-                            <span className="text-red-600 bg-red-100 px-1.5 py-0.5 rounded">{student.leetcodeStats.hardSolved}</span>
+                            <span className="text-green-600 bg-green-100 px-1.5 py-0.5 rounded">{student.leetcodeStats.easy}</span>
+                            <span className="text-yellow-600 bg-yellow-100 px-1.5 py-0.5 rounded">{student.leetcodeStats.medium}</span>
+                            <span className="text-red-600 bg-red-100 px-1.5 py-0.5 rounded">{student.leetcodeStats.hard}</span>
                           </div>
                         </div>
                       ) : (
@@ -419,7 +553,7 @@ export default function LeetCodeDashboard() {
                       {student.leetcodeStats?.contest ? (
                       <div className="flex flex-col items-center">
                         <span className="font-medium text-primary">
-                          {student.leetcodeStats.contest.attendedContestsCount}
+                          {student.leetcodeStats.contest.attended}
                         </span>
                         <span className="text-[10px] text-primary/60">
                            W: {student.leetcodeStats.contest.weeklyAttended || 0} | B: {student.leetcodeStats.contest.biweeklyAttended || 0}
@@ -468,58 +602,108 @@ export default function LeetCodeDashboard() {
       </div>
 
 
-      {/* Export Modal */}
+      {/* NEW EXPORT MODAL DESIGN */}
       <Modal
         open={showExportModal}
         onOpenChange={setShowExportModal}
-        title="Export to Excel"
+        title="Export Data"
       >
-        <div className="space-y-4">
-          <p className="text-primary/70">Select the data columns you want to include in the export.</p>
-          
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
-              <input 
-                type="checkbox" 
-                checked={exportOptions.basicInfo}
-                onChange={(e) => setExportOptions(prev => ({ ...prev, basicInfo: e.target.checked }))}
-                className="w-4 h-4 text-primary rounded focus:ring-primary"
-              />
-              <span className="font-medium text-primary">Basic Info (Name, Reg No, Dept)</span>
-            </label>
-
-            <label className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
-              <input 
-                type="checkbox" 
-                checked={exportOptions.problemStats}
-                onChange={(e) => setExportOptions(prev => ({ ...prev, problemStats: e.target.checked }))}
-                className="w-4 h-4 text-primary rounded focus:ring-primary"
-              />
-              <span className="font-medium text-primary">Problem Stats (Easy, Medium, Hard)</span>
-            </label>
-
-            <label className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
-              <input 
-                type="checkbox" 
-                checked={exportOptions.contestStats}
-                onChange={(e) => setExportOptions(prev => ({ ...prev, contestStats: e.target.checked }))}
-                className="w-4 h-4 text-primary rounded focus:ring-primary"
-              />
-              <span className="font-medium text-primary">Contest Stats (Rating, Ranking, Total Attended)</span>
-            </label>
-
-            <label className="flex items-center gap-2 p-3 bg-secondary/30 rounded-lg cursor-pointer hover:bg-secondary/50 transition-colors">
-              <input 
-                type="checkbox" 
-                checked={exportOptions.granularContest}
-                onChange={(e) => setExportOptions(prev => ({ ...prev, granularContest: e.target.checked }))}
-                className="w-4 h-4 text-primary rounded focus:ring-primary"
-              />
-              <span className="font-medium text-primary">Granular Contest Data (Weekly, Bi-Weekly)</span>
-            </label>
+        <div className="space-y-6">
+          {/* Mode Switching Tabs */}
+          <div className="flex p-1 bg-secondary/30 rounded-xl">
+            <button
+              onClick={() => setExportMode('overview')}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                exportMode === 'overview' 
+                  ? 'bg-white text-primary shadow-sm' 
+                  : 'text-primary/60 hover:text-primary'
+              }`}
+            >
+              📊 General Overview
+            </button>
+            <button
+              onClick={() => setExportMode('contest')}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                exportMode === 'contest' 
+                  ? 'bg-white text-primary shadow-sm' 
+                  : 'text-primary/60 hover:text-primary'
+              }`}
+            >
+              🏆 Contest Analysis
+            </button>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          {/* Common Filters */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">Department</label>
+              <select
+                value={exportDeptFilter}
+                onChange={(e) => setExportDeptFilter(e.target.value)}
+                className="w-full px-4 py-2 bg-secondary/50 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">All Departments</option>
+                {DEPARTMENTS.map(dept => <option key={dept} value={dept}>{dept}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">Year</label>
+              <select
+                value={exportYearFilter}
+                onChange={(e) => setExportYearFilter(e.target.value)}
+                className="w-full px-4 py-2 bg-secondary/50 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="all">All Years</option>
+                {YEARS.map(year => <option key={year} value={year}>Year {year}</option>)}
+              </select>
+            </div>
+          </div>
+          
+          {/* Mode Specific Options */}
+          {exportMode === 'overview' ? (
+            <div className="space-y-3 p-4 bg-secondary/10 rounded-xl border border-primary/5">
+              <h4 className="text-sm font-semibold text-primary mb-2">Include Columns:</h4>
+              <div className="grid grid-cols-2 gap-3">
+                 <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={exportOptions.basicInfo} onChange={e => setExportOptions({...exportOptions, basicInfo: e.target.checked})} className="rounded text-primary" />
+                  Basic Info
+                 </label>
+                 <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={exportOptions.problemStats} onChange={e => setExportOptions({...exportOptions, problemStats: e.target.checked})} className="rounded text-primary" />
+                  Problem Stats
+                 </label>
+                 <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={exportOptions.contestStats} onChange={e => setExportOptions({...exportOptions, contestStats: e.target.checked})} className="rounded text-primary" />
+                  Contest Stats
+                 </label>
+                 <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={exportOptions.granularContest} onChange={e => setExportOptions({...exportOptions, granularContest: e.target.checked})} className="rounded text-primary" />
+                  Granular Contests
+                 </label>
+              </div>
+            </div>
+          ) : (
+             <div className="space-y-4">
+               <div>
+                  <label className="block text-sm font-medium text-primary mb-2">Select Contest</label>
+                  <select
+                    value={selectedContestTitle}
+                    onChange={(e) => setSelectedContestTitle(e.target.value)}
+                    className="w-full px-4 py-2 bg-white border border-primary/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="">-- Select a contest --</option>
+                    {availableContests.map(title => (
+                      <option key={title} value={title}>{title}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-primary/60 mt-2">
+                    Select a specific contest to analyze student performance, including rank and Q1-Q4 solve status.
+                  </p>
+               </div>
+             </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-primary/10">
              <button
               onClick={() => setShowExportModal(false)}
               className="px-4 py-2 text-primary/70 hover:text-primary transition-colors"
@@ -528,10 +712,11 @@ export default function LeetCodeDashboard() {
             </button>
             <button
               onClick={executeExport}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              disabled={exportMode === 'contest' && !selectedContestTitle}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
-              Download Excel
+              Download Report
             </button>
           </div>
         </div>

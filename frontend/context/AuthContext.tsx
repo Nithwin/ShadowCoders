@@ -164,7 +164,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Update User Function
   const updateUser = useCallback(async (updateData: any) => {
     try {
-      const { data } = await api.put('/me', updateData);
+      const { data } = await api.patch('/me', updateData);
       setUser(data);
     } catch (error) {
        console.error('Update user error', error);

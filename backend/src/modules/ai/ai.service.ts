@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { generateQuestionsSchema } from './ai.zod';
 import { generateJsonFromAi } from '../../lib/gemini';
+import { env } from '../../config/env';
 // We import the QUESTION schema to validate the AI's output
 import { addQuestionsSchema } from '../questions/question.zod';
 
@@ -206,8 +207,21 @@ export const generateQuestions = async (input: GenerateInput) => {
     // 1. Build the prompt for the AI
     const prompt = buildSystemPrompt(input);
 
-    // 2. Call the AI service
-    const aiResponseString = await generateJsonFromAi(prompt);
+    // 2. Call the AI service based on provider
+    let aiResponseString: string;
+    
+    if (env.AI_PROVIDER === 'ollama') {
+      try {
+        const { generateJsonFromOllama } = await import('../../lib/ollama');
+        aiResponseString = await generateJsonFromOllama(prompt);
+      } catch (error: any) {
+        console.error('Ollama generation failed:', error);
+        throw error;
+      }
+    } else {
+      // Default to Gemini
+      aiResponseString = await generateJsonFromAi(prompt);
+    }
 
     // 3. Clean and parse the AI's string response
     let cleanedResponse = aiResponseString.trim();
