@@ -8,7 +8,7 @@ import {
   LayoutDashboard, 
   FileText, 
   ClipboardCheck, 
-  BookMarked, 
+  Code2, 
   LogOut, 
   User as UserIcon,
   Menu,
@@ -26,7 +26,7 @@ const navLinks = [
   // Let's create a placeholder for submissions
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
-  { name: 'Rubrics', href: '/admin/rubrics', icon: BookMarked },
+  { name: 'LeetCode Stats', href: '/admin/leetcode', icon: Code2 },
   { name: 'Users', href: '/admin/users', icon: UserIcon },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];

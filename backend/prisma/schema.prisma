@@ -89,6 +89,8 @@ model User {
   department String?
   section    String?
   googleId   String? @unique
+  leetcodeId String?
+  leetcodeStats Json?
   settings   Json?
 
   attempts Attempt[]

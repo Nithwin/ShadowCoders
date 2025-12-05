@@ -17,6 +17,8 @@ export declare const findUserByEmailAndLinkGoogle: ({ email, name, pictureUrl, g
     department: string | null;
     section: string | null;
     googleId: string | null;
+    leetcodeId: string | null;
+    leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
     createdAt: Date;
     updatedAt: Date;
@@ -34,6 +36,8 @@ export declare const findUserById: (id: string) => Promise<{
     department: string | null;
     section: string | null;
     googleId: string | null;
+    leetcodeId: string | null;
+    leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
     createdAt: Date;
     updatedAt: Date;
@@ -56,6 +60,8 @@ export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => P
     department: string | null;
     section: string | null;
     googleId: string | null;
+    leetcodeId: string | null;
+    leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
     createdAt: Date;
     updatedAt: Date;
@@ -99,6 +105,8 @@ export declare const updatePassword: (id: string, passwordHash: string) => Promi
     department: string | null;
     section: string | null;
     googleId: string | null;
+    leetcodeId: string | null;
+    leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
     createdAt: Date;
     updatedAt: Date;

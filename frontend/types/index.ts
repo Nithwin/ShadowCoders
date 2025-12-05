@@ -22,24 +22,50 @@ export enum QType {
  * Note: We make 'password' optional and exclude it.
  * The backend should *never* send the password hash to the frontend.
  */
+// LeetCode Stats Interface
+export interface LeetCodeStats {
+  totalSolved: number;
+  easySolved: number;
+  mediumSolved: number;
+  hardSolved: number;
+  ranking: number;
+  contributionPoints: number;
+  reputation: number;
+  contest?: {
+    attendedContestsCount: number;
+    rating: number;
+    globalRanking: number;
+    topPercentage: number;
+    weeklyAttended: number;
+    biweeklyAttended: number;
+    totalAttended: number;
+  };
+  lastUpdated: string;
+}
+
+/**
+ * The user object returned from /api/me
+ * Note: We make 'password' optional and exclude it.
+ * The backend should *never* send the password hash to the frontend.
+ */
+// Data Interface
 export interface User {
   id: string;
   reg_no: string | null;
   email: string;
   name: string | null;
-  pictureUrl: string | null;
   role: Role;
   year: number | null;
   department: string | null;
   section: string | null;
-  googleId: string | null;
-  createdAt: string; // Dates are transmitted as strings in JSON
+  pictureUrl: string | null;
+  leetcodeId: string | null;
+  leetcodeStats: LeetCodeStats | null;
+  createdAt: string;
   updatedAt: string;
 }
 
-/**
- * This will be the shape of our AuthContext
- */
+// Context Interface
 export interface AuthContextType {
   user: User | null;
   accessToken: string | null;
@@ -47,7 +73,7 @@ export interface AuthContextType {
   login: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => Promise<void>;
   logout: () => void;
-  updateUser: (updateData: { name?: string | null; reg_no?: string | null; year?: number | null; department?: string | null; section?: string | null; pictureUrl?: string | null }) => Promise<void>;
+  updateUser: (updateData: Partial<User>) => Promise<void>;
 }
 
 // You can add other types here as you build pages

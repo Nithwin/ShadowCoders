@@ -11,6 +11,8 @@ export declare const updateSettings: (userId: string, settings: any) => Promise<
     department: string | null;
     section: string | null;
     googleId: string | null;
+    leetcodeId: string | null;
+    leetcodeStats: import("@prisma/client/runtime/library").JsonValue | null;
     settings: import("@prisma/client/runtime/library").JsonValue | null;
     createdAt: Date;
     updatedAt: Date;

@@ -41,6 +41,10 @@ const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+const env_1 = require("./config/env");
+const cors_1 = require("./config/cors");
+const error_1 = require("./middleware/error");
 const auth_routes_1 = require("./modules/auth/auth.routes");
 const exam_routes_1 = require("./modules/exams/exam.routes");
 const question_routes_1 = require("./modules/questions/question.routes");
@@ -55,10 +59,7 @@ const analytics_routes_1 = require("./modules/analytics/analytics.routes");
 const settings_routes_1 = require("./modules/settings/settings.routes");
 const users_routes_1 = require("./modules/users/users.routes");
 const exam_template_routes_1 = require("./modules/exams/templates/exam-template.routes");
-const error_1 = require("./middleware/error");
-const cors_1 = require("./config/cors");
-const env_1 = require("./config/env");
-const fs_1 = __importDefault(require("fs"));
+const leetcode_routes_1 = require("./modules/leetcode/leetcode.routes");
 const createApp = () => {
     const app = (0, express_1.default)();
     // Trust proxy to get correct client info
@@ -222,6 +223,7 @@ const createApp = () => {
     (0, settings_routes_1.registerSettingsRoutes)(app);
     (0, users_routes_1.registerUserRoutes)(app);
     (0, exam_template_routes_1.registerTemplateRoutes)(app);
+    (0, leetcode_routes_1.registerLeetCodeRoutes)(app);
     // In production, serve the built frontend (Next.js static export)
     if (env_1.env.NODE_ENV === 'production') {
         const frontendOutDir = path_1.default.resolve(__dirname, '../../frontend/out');

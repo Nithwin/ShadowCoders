@@ -2,6 +2,10 @@ import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
+import fs from 'fs';
+import { env } from './config/env';
+import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
+import { errorHandler } from './middleware/error';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
 import { registerQuestionRoutes } from './modules/questions/question.routes';
@@ -16,10 +20,7 @@ import { registerAnalyticsRoutes } from './modules/analytics/analytics.routes';
 import { registerSettingsRoutes } from './modules/settings/settings.routes';
 import { registerUserRoutes } from './modules/users/users.routes';
 import { registerTemplateRoutes } from './modules/exams/templates/exam-template.routes';
-import { errorHandler } from './middleware/error';
-import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
-import { env } from './config/env';
-import fs from 'fs';
+import { registerLeetCodeRoutes } from './modules/leetcode/leetcode.routes';
 
 export const createApp = () => {
     const app = express();
@@ -203,6 +204,7 @@ export const createApp = () => {
     registerSettingsRoutes(app);
     registerUserRoutes(app);
     registerTemplateRoutes(app);
+    registerLeetCodeRoutes(app);
     
     // In production, serve the built frontend (Next.js static export)
     if (env.NODE_ENV === 'production') {

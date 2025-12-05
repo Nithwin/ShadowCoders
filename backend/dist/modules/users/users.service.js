@@ -37,6 +37,8 @@ const getAllUsers = async (params = {}) => {
             department: true,
             year: true,
             section: true,
+            leetcodeId: true,
+            leetcodeStats: true,
         }
     }), 'getAllUsers');
 };

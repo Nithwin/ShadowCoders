@@ -33,24 +33,29 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerTemplateRoutes = void 0;
-const express_1 = require("express");
-const templateController = __importStar(require("./exam-template.controller"));
-const auth_1 = require("../../../middleware/auth");
-const client_1 = require("@prisma/client");
-const router = (0, express_1.Router)();
-// Create template from existing exam
-router.post("/exams/:examId/template", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.createTemplateFromExam);
-// Create exam from template
-router.post("/templates/:templateId/exam", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.createExamFromTemplate);
-// List templates
-router.get("/templates", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.listTemplates);
-// Delete template
-router.delete("/templates/:templateId", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.deleteTemplate);
-// Get single template
-router.get("/templates/:templateId", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.getTemplateById);
-const registerTemplateRoutes = (app) => {
-    app.use("/api/admin", router);
+exports.getLeaderboard = exports.syncStats = void 0;
+const leetcodeService = __importStar(require("./leetcode.service"));
+const syncStats = async (req, res) => {
+    try {
+        const { userId } = req.body; // Optional: sync specific user
+        const result = await leetcodeService.syncStudentStats(userId);
+        res.json(result);
+    }
+    catch (error) {
+        console.error('Error syncing LeetCode stats:', error);
+        res.status(500).json({ message: 'Failed to sync LeetCode stats' });
+    }
 };
-exports.registerTemplateRoutes = registerTemplateRoutes;
-//# sourceMappingURL=exam-template.routes.js.map
+exports.syncStats = syncStats;
+const getLeaderboard = async (req, res) => {
+    try {
+        const leaderboard = await leetcodeService.getLeetCodeLeaderboard();
+        res.json(leaderboard);
+    }
+    catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        res.status(500).json({ message: 'Failed to fetch leaderboard' });
+    }
+};
+exports.getLeaderboard = getLeaderboard;
+//# sourceMappingURL=leetcode.controller.js.map

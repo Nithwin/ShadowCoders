@@ -12,6 +12,7 @@ export declare const startAttempt: (studentId: string, examId: string) => Promis
 } | null>;
 type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
 export declare const submitAnswer: (studentId: string, attemptId: string, input: SubmitAnswerInput) => Promise<{
+    code: string | null;
     id: string;
     createdAt: Date;
     updatedAt: Date;
@@ -20,7 +21,6 @@ export declare const submitAnswer: (studentId: string, attemptId: string, input:
     attemptId: string;
     answer: Prisma.JsonValue | null;
     chosenOptionIds: Prisma.JsonValue | null;
-    code: string | null;
     language: string | null;
     textAnswer: string | null;
     audioAssetId: string | null;

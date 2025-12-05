@@ -33,24 +33,18 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerTemplateRoutes = void 0;
+exports.registerLeetCodeRoutes = void 0;
 const express_1 = require("express");
-const templateController = __importStar(require("./exam-template.controller"));
-const auth_1 = require("../../../middleware/auth");
-const client_1 = require("@prisma/client");
-const router = (0, express_1.Router)();
-// Create template from existing exam
-router.post("/exams/:examId/template", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.createTemplateFromExam);
-// Create exam from template
-router.post("/templates/:templateId/exam", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.createExamFromTemplate);
-// List templates
-router.get("/templates", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.listTemplates);
-// Delete template
-router.delete("/templates/:templateId", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.deleteTemplate);
-// Get single template
-router.get("/templates/:templateId", auth_1.verifyAccess, (0, auth_1.requireRole)(client_1.Role.STAFF), templateController.getTemplateById);
-const registerTemplateRoutes = (app) => {
-    app.use("/api/admin", router);
+const leetcodeController = __importStar(require("./leetcode.controller"));
+const auth_1 = require("../../middleware/auth");
+const registerLeetCodeRoutes = (app) => {
+    const router = (0, express_1.Router)();
+    // All routes require authentication and STAFF (Admin) role
+    router.use(auth_1.verifyAccess);
+    router.use((0, auth_1.requireRole)('STAFF'));
+    router.post('/sync', leetcodeController.syncStats);
+    router.get('/stats', leetcodeController.getLeaderboard);
+    app.use('/api/leetcode', router);
 };
-exports.registerTemplateRoutes = registerTemplateRoutes;
-//# sourceMappingURL=exam-template.routes.js.map
+exports.registerLeetCodeRoutes = registerLeetCodeRoutes;
+//# sourceMappingURL=leetcode.routes.js.map

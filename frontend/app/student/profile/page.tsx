@@ -19,7 +19,9 @@ import {
   Loader2,
   CheckCircle2,
   Lock,
-  Upload
+  Upload,
+  Code,
+  ExternalLink
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
@@ -37,6 +39,7 @@ export default function StudentProfilePage() {
     department: user?.department || '',
     section: user?.section || '',
     pictureUrl: user?.pictureUrl || '',
+    leetcodeId: user?.leetcodeId || '',
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -53,6 +56,7 @@ export default function StudentProfilePage() {
         department: user.department || '',
         section: user.section || '',
         pictureUrl: user.pictureUrl || '',
+        leetcodeId: user.leetcodeId || '',
       });
     }
   }, [user]);
@@ -62,7 +66,23 @@ export default function StudentProfilePage() {
     if (name in passwordData) {
       setPasswordData(prev => ({ ...prev, [name]: value }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      let newValue = value;
+      // Auto-extract username if URL is pasted
+      if (name === 'leetcodeId' && value.includes('leetcode.com')) {
+        try {
+          // Remove trailing slash
+          const cleanUrl = value.replace(/\/$/, '');
+          // Split by slash and get last segment
+          const parts = cleanUrl.split('/');
+          const lastPart = parts[parts.length - 1];
+          if (lastPart && lastPart !== 'u' && lastPart !== 'leetcode.com') {
+            newValue = lastPart;
+          }
+        } catch (e) {
+          // If parsing fails, just keep original value
+        }
+      }
+      setFormData(prev => ({ ...prev, [name]: newValue }));
     }
   };
 
@@ -114,6 +134,7 @@ export default function StudentProfilePage() {
         department: formData.department || null,
         section: formData.section || null,
         pictureUrl: formData.pictureUrl || null,
+        leetcodeId: formData.leetcodeId || null,
       });
 
       // 2. Update password if provided
@@ -152,6 +173,7 @@ export default function StudentProfilePage() {
       department: user?.department || '',
       section: user?.section || '',
       pictureUrl: user?.pictureUrl || '',
+      leetcodeId: user?.leetcodeId || '',
     });
     setIsEditing(false);
     setError(null);
@@ -405,6 +427,40 @@ export default function StudentProfilePage() {
                       />
                     ) : (
                       <p className="text-lg font-semibold text-primary">{user.section || 'Not set'}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* LeetCode ID */}
+                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                  <div className="p-2.5 bg-yellow-500/20 rounded-lg">
+                    <Code className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      LeetCode ID
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        name="leetcodeId"
+                        value={formData.leetcodeId}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        placeholder="Enter LeetCode username or profile URL"
+                      />
+                    ) : (
+                      <p className="text-lg font-semibold text-primary">{user.leetcodeId ? (
+                        <a 
+                          href={`https://leetcode.com/${user.leetcodeId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline flex items-center gap-1"
+                        >
+                          {user.leetcodeId}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : 'Not set'}</p>
                     )}
                   </div>
                 </div>

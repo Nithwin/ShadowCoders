@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTemplate = exports.listTemplates = exports.createExamFromTemplate = exports.createTemplateFromExam = void 0;
+exports.getTemplateById = exports.deleteTemplate = exports.listTemplates = exports.createExamFromTemplate = exports.createTemplateFromExam = void 0;
 const templateRepo = __importStar(require("./exam-template.repo"));
 const examRepo = __importStar(require("../exam.repo"));
 const sectionRepo = __importStar(require("../../sections/section.repo"));
@@ -45,7 +45,38 @@ const createTemplateFromExam = async (examId, userId, metadata) => {
         throw { status: 404, message: "Exam not found" };
     }
     // 2. Extract structure (sections, questions, settings)
-    const structure = {
+    // Helper to sanitize data for JSON storage (handle Decimals, Dates, etc)
+    const sanitize = (obj) => {
+        if (obj === null || obj === undefined)
+            return obj;
+        if (typeof obj === 'function')
+            return undefined;
+        if (typeof obj !== 'object')
+            return obj;
+        // Handle Date
+        if (obj instanceof Date)
+            return obj.toISOString();
+        // Handle Decimal (Prisma)
+        if (typeof obj.toNumber === 'function')
+            return obj.toNumber();
+        if (typeof obj.toString === 'function' && obj.constructor.name === 'Decimal')
+            return obj.toString();
+        // Handle Array
+        if (Array.isArray(obj))
+            return obj.map(sanitize);
+        // Handle Object
+        const result = {};
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                const value = sanitize(obj[key]);
+                if (value !== undefined) {
+                    result[key] = value;
+                }
+            }
+        }
+        return result;
+    };
+    const structure = sanitize({
         durationMins: exam.durationMins,
         timingMode: exam.timingMode,
         sectionLockPolicy: exam.sectionLockPolicy,
@@ -64,15 +95,22 @@ const createTemplateFromExam = async (examId, userId, metadata) => {
                 order: sq.order, // Use order from section link
             })),
         })),
-    };
-    // 3. Create template
-    return templateRepo.createTemplate({
-        title: metadata.title,
-        description: metadata.description || null,
-        isPublic: metadata.isPublic,
-        structure: structure,
-        creator: { connect: { id: userId } },
     });
+    console.log("Creating template with structure:", JSON.stringify(structure, null, 2));
+    // 3. Create template
+    try {
+        return await templateRepo.createTemplate({
+            title: metadata.title,
+            description: metadata.description || null,
+            isPublic: metadata.isPublic,
+            structure: structure,
+            creator: { connect: { id: userId } },
+        });
+    }
+    catch (error) {
+        console.error("Error in templateRepo.createTemplate:", error);
+        throw error;
+    }
 };
 exports.createTemplateFromExam = createTemplateFromExam;
 const createExamFromTemplate = async (templateId, userId, examData) => {
@@ -93,8 +131,8 @@ const createExamFromTemplate = async (templateId, userId, examData) => {
         sectionLockPolicy: structure.sectionLockPolicy,
         randomizeQuestions: structure.randomizeQuestions,
         negativeMarkPerWrong: structure.negativeMarkPerWrong,
-        maxAttempts: structure.maxAttempts,
-        maxTabSwitches: structure.maxTabSwitches,
+        maxAttempts: structure.maxAttempts ?? 1, // Default to 1 if not present
+        maxTabSwitches: structure.maxTabSwitches ?? 1, // Default to 1 if not present
         allowedLanguages: structure.allowedLanguages,
         status: "DRAFT",
     });
@@ -152,4 +190,12 @@ const deleteTemplate = async (templateId, userId) => {
     return templateRepo.deleteTemplate(templateId);
 };
 exports.deleteTemplate = deleteTemplate;
+const getTemplateById = async (templateId) => {
+    const template = await templateRepo.findTemplateById(templateId);
+    if (!template) {
+        throw { status: 404, message: "Template not found" };
+    }
+    return template;
+};
+exports.getTemplateById = getTemplateById;
 //# sourceMappingURL=exam-template.service.js.map

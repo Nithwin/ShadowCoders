@@ -15,6 +15,7 @@ export declare const upsertResponse: (data: {
     answer: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull;
     audioAssetId?: string;
 }) => Promise<{
+    code: string | null;
     id: string;
     createdAt: Date;
     updatedAt: Date;
@@ -23,7 +24,6 @@ export declare const upsertResponse: (data: {
     attemptId: string;
     answer: Prisma.JsonValue | null;
     chosenOptionIds: Prisma.JsonValue | null;
-    code: string | null;
     language: string | null;
     textAnswer: string | null;
     audioAssetId: string | null;

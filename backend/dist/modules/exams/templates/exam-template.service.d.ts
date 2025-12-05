@@ -63,4 +63,20 @@ export declare const deleteTemplate: (templateId: string, userId: string) => Pro
     isPublic: boolean;
     createdBy: string;
 }>;
+export declare const getTemplateById: (templateId: string) => Promise<{
+    creator: {
+        name: string | null;
+        id: string;
+        email: string;
+    };
+} & {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    title: string;
+    description: string | null;
+    structure: Prisma.JsonValue;
+    isPublic: boolean;
+    createdBy: string;
+}>;
 //# sourceMappingURL=exam-template.service.d.ts.map

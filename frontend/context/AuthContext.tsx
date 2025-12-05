@@ -1,6 +1,6 @@
 'use client'; // This must be a Client Component
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, AuthContextType } from '@/types'; // From /src/types/index.ts
 import { api, setAuthToken, setUnauthorizedHandler } from '@/lib/api';     // From /src/lib/api.ts
@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   // Handle unauthorized access (session expired)
-  const handleSessionExpired = () => {
+  const handleSessionExpired = useCallback(() => {
     setUser(null);
     setAccessToken(null);
     setAuthToken(null);
@@ -24,12 +24,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem('accessToken');
     }
     router.push('/login');
-  };
+  }, [router]);
 
   // Register the unauthorized handler
   useEffect(() => {
     setUnauthorizedHandler(handleSessionExpired);
-  }, []);
+  }, [handleSessionExpired]);
 
   // This runs once when the app loads to check if the user is already logged in
   useEffect(() => {
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   // Login function
-  const login = async (email: string, pass: string) => {
+  const login = useCallback(async (email: string, pass: string) => {
     try {
       // Step 1: Login and get access token
       const { data } = await api.post('/auth/login', { email, password: pass });
@@ -121,10 +121,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Re-throw error so the login page can handle it
       throw error;
     }
-  };
+  }, []);
 
   // Google Login function
-  const loginWithGoogle = async (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => {
+  const loginWithGoogle = useCallback(async (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => {
     const { data } = await api.post('/auth/google/callback', profile);
     
     setAccessToken(data.accessToken);
@@ -137,42 +137,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     const { data: userData } = await api.get('/me');
     setUser(userData);
-  };
+  }, []);
 
   // Logout function
-  const logout = async () => {
-    try {
-      await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-    // Clear all state regardless of API call success
-    setUser(null);
-    setAccessToken(null);
-    setAuthToken(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-    }
-    router.push('/login');
-  };
+  const logout = useCallback(() => {
+    const performLogout = async () => {
+      try {
+        await api.post('/auth/logout');
+      } catch (error) {
+        console.error('Error logging out:', error);
+      }
+      // Clear all state regardless of API call success
+      setUser(null);
+      setAccessToken(null);
+      setAuthToken(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+      }
+      router.push('/login');
+    };
+    performLogout();
+  }, [router]);
 
-  // Update user profile function
-  const updateUser = async (updateData: { 
-    name?: string | null; 
-    reg_no?: string | null; 
-    year?: number | null; 
-    department?: string | null; 
-    section?: string | null;
-    pictureUrl?: string | null;
-  }) => {
+
+
+  // Update User Function
+  const updateUser = useCallback(async (updateData: any) => {
     try {
-      const { data: updatedUser } = await api.patch('/me', updateData);
-      setUser(updatedUser);
-    } catch (error: any) {
-      console.error('Error updating user:', error);
-      throw error;
+      const { data } = await api.put('/me', updateData);
+      setUser(data);
+    } catch (error) {
+       console.error('Update user error', error);
+       throw error;
     }
-  };
+  }, []);
 
   const value = {
     user,
@@ -184,11 +182,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     updateUser,
   };
 
-  // Don't render the app until we've checked for a session.
-  // This prevents a "flash" of the login page if the user is already logged in.
+  // CRITICAL: Always render children to maintain consistent component tree
+  // Individual pages/layouts will handle loading states themselves
   return (
     <AuthContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

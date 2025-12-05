@@ -29,6 +29,7 @@ export default function StudentLayout({
     }
   }, [user, isLoading, router]);
 
+  // Show loading state
   if (isLoading || !user || user.role === 'STAFF') {
     return (
       <div className="flex-center h-screen bg-secondary">
