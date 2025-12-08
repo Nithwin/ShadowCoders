@@ -93,7 +93,7 @@ export function useAnswerManagement(attemptId: string | undefined, initialAnswer
       
       // Submit answer to backend
       if (attemptId) {
-        api.post(`/student/attempts/${attemptId}/answer`, {
+        api.post(`/student/attempts/${attemptId}/responses`, {
           questionId,
           answer
         }).catch((err) => {
