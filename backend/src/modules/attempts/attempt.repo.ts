@@ -285,6 +285,11 @@ export const listAttemptsForExam = async (params: {
           reg_no: true,
         },
       },
+      responses: {
+        select: {
+          earnedPoints: true,
+        },
+      },
     },
     orderBy: {
       submittedAt: 'desc',
@@ -293,10 +298,25 @@ export const listAttemptsForExam = async (params: {
     take: pageSizeNum,
   });
 
-  // 3. Total count is the number of unique students who attempted
+  // 3. Recalculate scores from responses to ensure accuracy
+  const attemptsWithCorrectScores = attempts.map(attempt => {
+    const calculatedScore = attempt.responses.reduce((sum, response) => {
+      return sum + (Number(response.earnedPoints) || 0);
+    }, 0);
+
+    // Return attempt without responses (to match original API contract)
+    const { responses, ...attemptWithoutResponses } = attempt;
+    
+    return {
+      ...attemptWithoutResponses,
+      score: calculatedScore, // Override with calculated score
+    };
+  });
+
+  // 4. Total count is the number of unique students who attempted
   const totalCount = latestAttempts.length;
 
-  return { attempts, totalCount };
+  return { attempts: attemptsWithCorrectScores, totalCount };
 };
 
 export const getStudentAttempts = async (studentId: string) => {
@@ -316,7 +336,7 @@ export const getStudentAttempts = async (studentId: string) => {
   });
 
   // 2. Now fetch the full attempt details for these latest attempts
-  return prisma.attempt.findMany({
+  const attempts = await prisma.attempt.findMany({
     where: {
       studentId: studentId,
       status: AttemptStatus.SUBMITTED,
@@ -338,11 +358,34 @@ export const getStudentAttempts = async (studentId: string) => {
           title: true,
         },
       },
+      responses: {
+        select: {
+          earnedPoints: true,
+        },
+      },
     },
     orderBy: {
       submittedAt: 'desc',
     },
   });
+
+  // 3. Recalculate scores from responses to ensure accuracy
+  // The stored score might be stale after admin grade overrides
+  const attemptsWithCorrectScores = attempts.map(attempt => {
+    const calculatedScore = attempt.responses.reduce((sum, response) => {
+      return sum + (Number(response.earnedPoints) || 0);
+    }, 0);
+
+    // Return attempt without responses (to match original API contract)
+    const { responses, ...attemptWithoutResponses } = attempt;
+    
+    return {
+      ...attemptWithoutResponses,
+      score: calculatedScore, // Override with calculated score
+    };
+  });
+
+  return attemptsWithCorrectScores;
 };
 
 export const getFullAttemptForAdmin = (attemptId: string) => {

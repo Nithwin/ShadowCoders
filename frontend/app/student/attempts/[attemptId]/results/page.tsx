@@ -74,6 +74,21 @@ export default function ExamResultsPage() {
       if (res.data?.exam?.questions) {
          res.data.exam.questions.sort((a: any, b: any) => a.order - b.order);
       }
+      
+      // IMPORTANT: Recalculate score from responses to ensure accuracy
+      // The stored attempt.score might be stale after admin grade overrides
+      if (res.data?.responses && Array.isArray(res.data.responses)) {
+        const calculatedScore = res.data.responses.reduce((sum: number, response: any) => {
+          const earnedPoints = typeof response.earnedPoints === 'string' 
+            ? parseFloat(response.earnedPoints) 
+            : (response.earnedPoints || 0);
+          return sum + earnedPoints;
+        }, 0);
+        
+        // Override the score with the calculated value
+        res.data.score = calculatedScore;
+      }
+      
       setResults(res.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }, message?: string } } };
