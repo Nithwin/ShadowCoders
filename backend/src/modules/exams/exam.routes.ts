@@ -82,6 +82,13 @@ export const registerExamRoutes = (app: Express) => {
         examController.updateExamHandler
     );
 
+    app.patch(
+        '/api/admin/exams/:examId/release-results',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.toggleResultLockHandler
+    );
+
     app.delete(
         '/api/admin/exams/:examId',
         verifyAccess,

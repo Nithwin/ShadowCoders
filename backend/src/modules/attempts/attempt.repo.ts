@@ -301,7 +301,7 @@ export const listAttemptsForExam = async (params: {
   // 3. Recalculate scores from responses to ensure accuracy
   const attemptsWithCorrectScores = attempts.map(attempt => {
     const calculatedScore = attempt.responses.reduce((sum, response) => {
-      return sum + (Number(response.earnedPoints) || 0);
+      return sum + (response.earnedPoints ? parseFloat(String(response.earnedPoints)) : 0);
     }, 0);
 
     // Return attempt without responses (to match original API contract)
@@ -373,7 +373,7 @@ export const getStudentAttempts = async (studentId: string) => {
   // The stored score might be stale after admin grade overrides
   const attemptsWithCorrectScores = attempts.map(attempt => {
     const calculatedScore = attempt.responses.reduce((sum, response) => {
-      return sum + (Number(response.earnedPoints) || 0);
+      return sum + (response.earnedPoints ? parseFloat(String(response.earnedPoints)) : 0);
     }, 0);
 
     // Return attempt without responses (to match original API contract)

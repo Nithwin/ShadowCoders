@@ -228,8 +228,8 @@ export const listExamsForStudent = async (studentId: string, query: StudentListE
       attemptStatus: latestAttempt?.status || null,
       attemptCount: exam.attempts?.length || 0,
       submittedAttemptCount: submittedAttempts.length,
-      latestScore: latestAttempt?.score ? Number(latestAttempt.score) : null,
-      latestMaxScore: latestAttempt?.maxScore ? Number(latestAttempt.maxScore) : null,
+      latestScore: latestAttempt?.score ? parseFloat(String(latestAttempt.score)) : null,
+      latestMaxScore: latestAttempt?.maxScore ? parseFloat(String(latestAttempt.maxScore)) : null,
     };
   });
 

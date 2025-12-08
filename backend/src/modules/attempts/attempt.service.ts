@@ -552,22 +552,37 @@ export const getAttemptResults = async (
   }
 
   // 4a. Check if results are released
-  // We need to cast exam to any because TS might not know about releaseResults yet due to EPERM error
-  const exam = attemptResults.exam as any; 
+  const exam = attemptResults.exam as any;
+  
   if (exam.releaseResults === false) {
-      // Results are locked
-      // Return a stripped down version
-      return {
-          id: attemptResults.id,
-          studentId: attemptResults.studentId,
-          status: attemptResults.status,
-          exam: {
-              id: exam.id,
-              title: exam.title,
-          },
-          message: "Results are currently locked by the administrator.",
-          isLocked: true
-      };
+    // Results are locked - hide ALL results
+    // Check if exam has manual grading questions
+    const hasManualGrading = exam.questions?.some((q: any) => {
+      const qType = q.type;
+      return qType === QType.ESSAY || qType === QType.SPEAKING;
+    });
+    
+    // Return locked state with no score or response data
+    return {
+      id: attemptResults.id,
+      studentId: attemptResults.studentId,
+      status: attemptResults.status,
+      startedAt: attemptResults.startedAt,
+      submittedAt: attemptResults.submittedAt,
+      submissionType: attemptResults.submissionType,
+      submissionReason: attemptResults.submissionReason,
+      exam: {
+        id: exam.id,
+        title: exam.title,
+        questions: exam.questions, // Include questions for display structure
+      },
+      responses: [], // No responses shown when locked
+      message: hasManualGrading 
+        ? "Results are pending manual grading by staff. Please check back later."
+        : "Results are currently locked by the administrator.",
+      isLocked: true,
+      hasManualGrading,
+    };
   }
 
   // 5. Sort responses by question order for consistent display

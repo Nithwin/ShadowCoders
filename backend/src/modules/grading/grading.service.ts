@@ -233,7 +233,7 @@ export const gradeEssay = async (responseId: string) => {
 
       // Prepare Prompt
       const questionPrompt = response.question.prompt || 'No prompt provided';
-      const maxPoints = Number(response.question.points);
+      const maxPoints = response.question.points ? parseFloat(String(response.question.points)) : 0;
       const rubricText = response.question.rubric 
         ? JSON.stringify(response.question.rubric.criteria) 
         : 'No specific rubric provided. Grade based on clarity, relevance, and completeness.';
@@ -338,7 +338,7 @@ export const overrideResponseGrade = async (
         where: { id: responseId },
         data: {
             earnedPoints: score,
-            verdict: score === 0 ? 'FAIL' : (score >= Number(response.question.points) ? 'PASS' : 'PARTIAL'),
+            verdict: score === 0 ? 'FAIL' : (score >= (response.question.points ? parseFloat(String(response.question.points)) : 0) ? 'PASS' : 'PARTIAL'),
             feedback: feedback || 'Manual grade override by administrator',
             gradingMode: 'MANUAL'
         }
@@ -351,7 +351,7 @@ export const overrideResponseGrade = async (
         select: { earnedPoints: true }
     });
 
-    const totalScore = allResponses.reduce((acc, curr) => acc + (Number(curr.earnedPoints) || 0), 0);
+    const totalScore = allResponses.reduce((acc, curr) => acc + (curr.earnedPoints ? parseFloat(String(curr.earnedPoints)) : 0), 0);
 
     await prisma.attempt.update({
         where: { id: response.attemptId },

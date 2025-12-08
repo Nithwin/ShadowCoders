@@ -405,6 +405,7 @@ export const updateExam = (
       timingMode: true,
       sectionLockPolicy: true,
       status: true,
+      releaseResults: true,
     },
   });
 };

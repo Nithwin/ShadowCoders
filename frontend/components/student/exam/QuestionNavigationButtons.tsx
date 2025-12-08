@@ -1,7 +1,6 @@
 'use client';
 
-import { ArrowLeft, ArrowRight, Send } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface QuestionNavigationButtonsProps {
   currentQuestionIndex: number;
@@ -9,7 +8,6 @@ interface QuestionNavigationButtonsProps {
   isSubmitting: boolean;
   onPrevious: () => void;
   onNext: () => void;
-  onSubmit: () => void;
 }
 
 export default function QuestionNavigationButtons({
@@ -18,7 +16,6 @@ export default function QuestionNavigationButtons({
   isSubmitting,
   onPrevious,
   onNext,
-  onSubmit,
 }: QuestionNavigationButtonsProps) {
   return (
     <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-300 shadow-2xl z-50 p-4 mt-6">
@@ -38,27 +35,15 @@ export default function QuestionNavigationButtons({
           Question {currentQuestionIndex + 1} of {totalQuestions}
         </div>
         
-        {currentQuestionIndex < totalQuestions - 1 ? (
-          <button
-            onClick={onNext}
-            disabled={isSubmitting}
-            type="button"
-            className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next Question
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </button>
-        ) : (
-          <button
-            onClick={onSubmit}
-            disabled={isSubmitting}
-            type="button"
-            className="bg-green-600 hover:bg-green-700 text-white border-0 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Submit Exam
-          </button>
-        )}
+        <button
+          onClick={onNext}
+          disabled={currentQuestionIndex >= totalQuestions - 1 || isSubmitting}
+          type="button"
+          className="bg-blue-600 hover:bg-blue-700 text-white border-0 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next Question
+          <ArrowRight className="w-4 h-4 ml-2" />
+        </button>
       </div>
     </div>
   );

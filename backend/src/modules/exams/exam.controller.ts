@@ -218,3 +218,30 @@ export const exportExamResultsHandler: RequestHandler = async (req, res, next) =
     next(error);
   }
 };
+
+export const toggleResultLockHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
+    
+    const { releaseResults } = req.body;
+    if (typeof releaseResults !== 'boolean') {
+      return next({ status: 400, message: 'releaseResults must be a boolean' });
+    }
+    
+    const updated = await examService.updateExam(examId, { releaseResults });
+    
+    if (!updated) {
+      return next({ status: 404, message: 'Exam not found' });
+    }
+    
+    res.status(200).json({ 
+      message: releaseResults ? 'Results released successfully' : 'Results locked successfully',
+      releaseResults: updated.releaseResults 
+    });
+  } catch (error) {
+    next(error);
+  }
+};

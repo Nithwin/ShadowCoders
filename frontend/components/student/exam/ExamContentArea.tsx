@@ -180,7 +180,6 @@ export default function ExamContentArea({
           isSubmitting={isSubmitting}
           onPrevious={() => onNavigateQuestion('prev')}
           onNext={() => onNavigateQuestion('next')}
-          onSubmit={onSubmitExam}
         />
       )}
     </div>

@@ -598,12 +598,12 @@ export default function ExamSubmissionsPage() {
 
                         {/* Student Answer */}
                         <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-xl p-5 border-2 border-primary/20 shadow-inner">
-                          <p className="text-sm font-bold text-primary mb-4 flex items-center gap-2 pb-2 border-b border-primary/10">
+                          <div className="text-sm font-bold text-primary mb-4 flex items-center gap-2 pb-2 border-b border-primary/10">
                             <div className="p-1.5 bg-primary/20 rounded-lg">
                               <FileText className="w-4 h-4 text-primary" />
                             </div>
                             Student Answer
-                          </p>
+                          </div>
                           
                           {/* MCQ Answer */}
                           {question?.type === QType.MCQ && (

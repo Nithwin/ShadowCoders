@@ -54,6 +54,7 @@ type AttemptResults = {
   };
   responses: QuestionResult[];
   isLocked?: boolean;
+  hasManualGrading?: boolean;
   message?: string;
 };
 

@@ -185,8 +185,8 @@ export const exportExamResultsToExcel = async (
   if (attempts.length > 0) {
     attempts.forEach((attempt) => {
       // Convert Decimal to number if needed
-      const score = attempt.score ? Number(attempt.score) : 0;
-      const maxScore = attempt.maxScore ? Number(attempt.maxScore) : 0;
+      const score = attempt.score ? parseFloat(String(attempt.score)) : 0;
+      const maxScore = attempt.maxScore ? parseFloat(String(attempt.maxScore)) : 0;
       const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
       const rowData: any = {};
@@ -220,10 +220,10 @@ export const exportExamResultsToExcel = async (
       if (fields.includes('questionScores') || fields.includes('questionAnswers') || fields.includes('questionVerdicts')) {
         exam.questions.forEach((question) => {
           const response = attempt.responses.find((r) => r.question.id === question.id);
-          const questionPoints = question.points ? Number(question.points) : 0;
+          const questionPoints = question.points ? parseFloat(String(question.points)) : 0;
           
           if (response) {
-            const earnedPoints = response.earnedPoints ? Number(response.earnedPoints) : 0;
+            const earnedPoints = response.earnedPoints ? parseFloat(String(response.earnedPoints)) : 0;
             
             if (fields.includes('questionScores')) {
               rowData[`q${question.id}_score`] = `${earnedPoints.toFixed(2)} / ${questionPoints}`;
@@ -314,11 +314,11 @@ export const exportExamResultsToExcel = async (
   if (includeSummary && attempts.length > 0) {
     const totalStudents = attempts.length;
     const avgScore = attempts.reduce((sum, a) => {
-      const score = a.score ? Number(a.score) : 0;
+      const score = a.score ? parseFloat(String(a.score)) : 0;
       return sum + score;
     }, 0) / totalStudents;
     const avgMaxScore = attempts.reduce((sum, a) => {
-      const maxScore = a.maxScore ? Number(a.maxScore) : 0;
+      const maxScore = a.maxScore ? parseFloat(String(a.maxScore)) : 0;
       return sum + maxScore;
     }, 0) / totalStudents;
     const avgPercentage = avgMaxScore > 0 ? Math.round((avgScore / avgMaxScore) * 100) : 0;
