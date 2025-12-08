@@ -36,6 +36,7 @@ export default function ReportsDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+    const [processingReportId, setProcessingReportId] = useState<string | null>(null);
 
     const showNotification = (message: string, type: 'success' | 'error') => {
         setNotification({ message, type });
@@ -113,6 +114,7 @@ export default function ReportsDashboard() {
 
         if (!confirmed) return;
 
+        setProcessingReportId(questionId);
         try {
             await api.put(`/admin/questions/${questionId}`, {
                 config: { forceFullMarks: true }
@@ -122,6 +124,8 @@ export default function ReportsDashboard() {
         } catch (err) {
             console.error(err);
             showNotification('Failed to grant full marks', 'error');
+        } finally {
+            setProcessingReportId(null);
         }
     };
 
@@ -215,10 +219,22 @@ export default function ReportsDashboard() {
                             
                             <button 
                                 onClick={() => handleGrantFullMarks(report.questionId)}
-                                className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-bold"
+                                disabled={processingReportId === report.questionId}
+                                className={`flex items-center justify-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-bold ${
+                                    processingReportId === report.questionId ? 'opacity-70 cursor-not-allowed' : ''
+                                }`}
                             >
-                                <Zap size={16} />
-                                Grant Full Marks
+                                {processingReportId === report.questionId ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Granting...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Zap size={16} />
+                                        <span>Grant Full Marks</span>
+                                    </>
+                                )}
                             </button>
 
                             <div className="h-px bg-gray-200 my-1"></div>

@@ -67,12 +67,14 @@ export const gradeCoding = async (
       }))
     );
 
-    const passedRatio = testResults.total > 0 ? testResults.passed / testResults.total : 0;
-    const earnedPoints = Math.round(points * passedRatio * 100) / 100;
+    // All-or-nothing grading logic
+    const allPassed = testResults.total > 0 && testResults.passed === testResults.total;
+    const earnedPoints = allPassed ? points : 0;
+    const verdict = allPassed ? 'PASS' : 'FAIL';
 
     return {
       earnedPoints,
-      verdict: testResults.passed === testResults.total ? 'PASS' : 'PARTIAL',
+      verdict,
       gradingMode: GradingMode.AUTO,
     };
   } catch (e) {

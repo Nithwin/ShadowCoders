@@ -326,7 +326,7 @@ export default function ExamAttemptPage() {
   const showFullscreenWarning = fullscreenWarningState || cheatingWarning;
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+    <div ref={containerRef} className="h-screen overflow-hidden bg-gray-50 text-gray-900 flex flex-col">
       <FullscreenWarning 
         warningCount={warningCount} 
         show={showFullscreenWarning} 
