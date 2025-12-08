@@ -26,44 +26,39 @@ export const upsertResponse = async (data: {
 }) => {
   const { attemptId, questionId, type, answer, audioAssetId, ...otherData } = data;
 
-  // Check if response already exists
-  const existing = await prisma.response.findFirst({
-    where: {
-      attemptId: attemptId,
-      questionId: questionId,
-    },
-  });
-
+  // Use Prisma's native upsert to handle race conditions
   const updateData: Prisma.ResponseUpdateInput = {
     answer: answer,
     ...otherData,
   };
+  
   if (audioAssetId !== undefined) {
     updateData.audioAsset = audioAssetId ? { connect: { id: audioAssetId } } : { disconnect: true };
   }
 
-  if (existing) {
-    // Update existing response
-    return prisma.response.update({
-      where: { id: existing.id },
-      data: updateData,
-    });
-  } else {
-    // Create new response
-    const createData: Prisma.ResponseCreateInput = {
-      attempt: { connect: { id: attemptId } },
-      question: { connect: { id: questionId } },
-      type: type,
-      answer: answer,
-      ...otherData,
-    };
-    if (audioAssetId) {
-      createData.audioAsset = { connect: { id: audioAssetId } };
-    }
-    return prisma.response.create({
-      data: createData,
-    });
+  const createData: Prisma.ResponseCreateInput = {
+    attempt: { connect: { id: attemptId } },
+    question: { connect: { id: questionId } },
+    type: type,
+    answer: answer,
+    ...otherData,
+  };
+  
+  if (audioAssetId) {
+    createData.audioAsset = { connect: { id: audioAssetId } };
   }
+
+  // Use upsert with a composite unique constraint
+  return prisma.response.upsert({
+    where: {
+      attemptId_questionId: {
+        attemptId: attemptId,
+        questionId: questionId,
+      },
+    },
+    update: updateData,
+    create: createData,
+  });
 };
 
 export const getAttemptDetails = (attemptId: string) => {
