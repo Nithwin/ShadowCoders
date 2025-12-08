@@ -461,7 +461,7 @@ model ExamTemplate {
 model QuestionReport {
   id        String   @id @default(cuid())
   questionId String
-  question   Question @relation(fields: [questionId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   studentId String
   student   User     @relation(fields: [studentId], references: [id])
   examId    String

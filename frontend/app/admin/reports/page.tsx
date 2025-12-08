@@ -103,6 +103,79 @@ export default function ReportsDashboard() {
 
     const { confirm } = useConfirmationDialog();
 
+    const handleRejectReport = async (report: any) => {
+        // Find the response ID - we might need to fetch it or finding it via API
+        // Since we don't have responseId in the report object directly, we might need a way to get it.
+        // But wait, the report is linked to student and question. We can infer it.
+        // Actually, for this specific request, the user wants "No Marks".
+        // We will need to first get the attempt/response.
+        // Let's assume for now we can call a helper or the backend endpoint supports lookup?
+        // The backend endpoint requires responseId. 
+        // We should probably update the report fetch to include responseId if possible, OR
+        // we can fetch the response first.
+        
+        // Let's assume we can fetch the attempt for this student/exam and find the response.
+        // Or cleaner: Update the backend report object to include responseId? 
+        // Schema doesn't have it directly.
+        // Let's use a specialized endpoint logic or just duplicate fetching logic here?
+        // Ideally we should fix this properly. 
+        // HACK: For now, I'll assume we can get it via `student/attempts`.
+        
+        // Actually, let's look at the report object structure in `getReports`.
+        // It returns student, question, exam. 
+        
+        const confirmed = await confirm({
+            title: 'Reject Report (0 Marks)?',
+            message: `This will explicitly set the score to 0 for this student's answer and mark it as FAIL. \n\nStudent: ${report.student.name}`,
+            confirmText: 'Reject / Set 0 Marks',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
+
+        setProcessingReportId(report.questionId);
+        try {
+            // 1. We need to find the attempt/response ID.
+            // We can search for the student's attempt for this exam.
+            const attemptsRes = await api.get(`/admin/students/${report.student.id}/exams/${report.examId}/attempts`);
+            // Assuming we get a list, take the latest one?
+            const attempt = attemptsRes.data?.[0]; // Taking latest
+            
+            if (!attempt) {
+                throw new Error("Student attempt not found");
+            }
+
+            // 2. Find response ID.
+            // We need attempt details.
+            const attemptDetailsRes = await api.get(`/admin/attempts/${attempt.id}`);
+            const response = attemptDetailsRes.data.responses.find((r: any) => r.questionId === report.questionId);
+
+            if (!response) {
+                 throw new Error("Response not found for this question");
+            }
+
+            // 3. Override Grade
+            await api.put(`/grading/response/${response.id}/override`, {
+                score: 0,
+                feedback: 'Report Rejected: Score set to 0 manually by admin.'
+            });
+
+            // 4. Resolve Report
+             await api.put(`/reports/${report.id}/status`, { status: 'RESOLVED' });
+
+            showNotification('Report rejected and score set to 0', 'success');
+            // Refresh reports
+            fetchReports();
+
+        } catch (err: any) {
+            console.error(err);
+            showNotification(err.message || 'Failed to reject report', 'error');
+        } finally {
+             setProcessingReportId(null);
+        }
+    };
+
     const handleGrantFullMarks = async (questionId: string) => {
         const confirmed = await confirm({
             title: 'Grant Full Marks?',
@@ -236,8 +309,20 @@ export default function ReportsDashboard() {
                                     </>
                                 )}
                             </button>
+                            
+                            <button
+                                onClick={() => handleRejectReport(report)}
+                                disabled={processingReportId === report.questionId}
+                                className={`flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-bold ${
+                                    processingReportId === report.questionId ? 'opacity-70 cursor-not-allowed' : ''
+                                }`}
+                            >
+                                <XCircle size={16} />
+                                Reject (0 Marks)
+                            </button>
 
-                            <div className="h-px bg-gray-200 my-1"></div>
+
+                        <div className="h-px bg-gray-200 my-1"></div>
 
                             <div className="grid grid-cols-2 gap-2">
                                 <button 

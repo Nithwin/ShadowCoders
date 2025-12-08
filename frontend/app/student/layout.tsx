@@ -16,7 +16,8 @@ export default function StudentLayout({
   const pathname = usePathname();
 
   // Check if current route is an attempts route (no sidebar needed)
-  const isAttemptsRoute = pathname?.startsWith('/student/attempts');
+  // BUT exclude the results page, which should have the standard layout
+  const isAttemptsRoute = pathname?.startsWith('/student/attempts') && !pathname?.includes('/results');
 
   useEffect(() => {
     if (!isLoading && !user) {

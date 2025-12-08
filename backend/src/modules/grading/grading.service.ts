@@ -317,3 +317,48 @@ ${studentText}
 
   return { jobId: job.id, status: 'QUEUED', message: 'Essay grading has been queued.' };
 };
+
+export const overrideResponseGrade = async (
+    responseId: string,
+    score: number,
+    feedback?: string
+) => {
+    // 1. Check if response exists
+    const response = await prisma.response.findUnique({
+        where: { id: responseId },
+        include: { question: true }
+    });
+
+    if (!response) {
+        throw { status: 404, message: 'Response not found' };
+    }
+
+    // 2. Update the response
+    const updatedResponse = await prisma.response.update({
+        where: { id: responseId },
+        data: {
+            earnedPoints: score,
+            verdict: score === 0 ? 'FAIL' : (score >= Number(response.question.points) ? 'PASS' : 'PARTIAL'),
+            feedback: feedback || 'Manual grade override by administrator',
+            gradingMode: 'MANUAL'
+        }
+    });
+
+    // 3. Recalculate attempt score
+    // We need to re-sum all response/earnedPoints for the attempt
+    const allResponses = await prisma.response.findMany({
+        where: { attemptId: response.attemptId },
+        select: { earnedPoints: true }
+    });
+
+    const totalScore = allResponses.reduce((acc, curr) => acc + (Number(curr.earnedPoints) || 0), 0);
+
+    await prisma.attempt.update({
+        where: { id: response.attemptId },
+        data: {
+            score: totalScore
+        }
+    });
+
+    return updatedResponse;
+};

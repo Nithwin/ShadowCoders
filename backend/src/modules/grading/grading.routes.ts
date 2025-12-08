@@ -27,4 +27,11 @@ export const registerGradingRoutes = (app: Express) => {
     '/api/queue/status',
     gradingController.getQueueStatusHandler
   );
+
+  // Override grade (for admins)
+  app.put(
+    '/api/grading/response/:responseId/override',
+    requireRole('STAFF'),
+    gradingController.overrideResponseGradeHandler
+  );
 };

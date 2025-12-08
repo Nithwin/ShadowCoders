@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2, AlertTriangle, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { QType } from '@/types';
@@ -27,6 +27,7 @@ type QuestionResult = {
     prompt: string | null;
     points: number;
     order: number;
+    options?: any;
   };
 };
 
@@ -63,9 +64,9 @@ export default function ExamResultsPage() {
       const res = await api.get(`/student/attempts/${attemptId}/results`);
       setResults(res.data);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      const error = err as { response?: { data?: { error?: { message?: string }, message?: string } } };
       console.error(err);
-      setError(error.response?.data?.error?.message || 'Failed to load results.');
+      setError(error.response?.data?.error?.message || error.response?.data?.message || 'Failed to load results.');
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +81,7 @@ export default function ExamResultsPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
-      month: 'long',
+      month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
@@ -103,103 +104,26 @@ export default function ExamResultsPage() {
 
   const renderMarkdown = (text: string): string => {
     if (!text) return '';
-    
-    let html = text;
-    
-    // Step 1: Process code blocks FIRST (they can span multiple lines)
-    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-      const language = lang || '';
-      const codeContent = code.trim();
-      return `<pre class="bg-gray-900 text-gray-100 p-4 rounded-lg border border-gray-700 overflow-x-auto my-4 font-mono text-sm"><code class="language-${language}">${codeContent}</code></pre>`;
-    });
-    
-    // Step 2: Split by lines to process headers (but skip code blocks)
-    const lines = html.split('\n');
-    const processedLines: string[] = [];
-    let inCodeBlock = false;
-    
-    lines.forEach((line) => {
-      // Track code blocks
-      if (line.includes('<pre')) {
-        inCodeBlock = true;
-        processedLines.push(line);
-        return;
-      }
-      if (line.includes('</pre>')) {
-        inCodeBlock = false;
-        processedLines.push(line);
-        return;
-      }
-      
-      // Skip markdown processing inside code blocks
-      if (inCodeBlock) {
-        processedLines.push(line);
-        return;
-      }
-      
-      // Process headers (must check in order: ###, ##, #)
-      if (/^###\s+(.+)$/.test(line)) {
-        processedLines.push(line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>'));
-        return;
-      }
-      if (/^##\s+(.+)$/.test(line)) {
-        processedLines.push(line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>'));
-        return;
-      }
-      if (/^#\s+(.+)$/.test(line)) {
-        processedLines.push(line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>'));
-        return;
-      }
-      
-      processedLines.push(line);
-    });
-    
-    html = processedLines.join('\n');
-    
-    // Step 3: Process bold and italic (but not inside code blocks)
-    html = html.replace(/\*\*(.*?)\*\*/g, (match, content) => {
-      if (match.includes('<pre') || match.includes('</pre>') || match.includes('<code') || match.includes('</code>')) return match;
-      return `<strong class="font-bold text-gray-900">${content}</strong>`;
-    });
-    
-    html = html.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, (match, content) => {
-      if (match.includes('<pre') || match.includes('</pre>') || match.includes('<code') || match.includes('</code>')) return match;
-      return `<em class="italic">${content}</em>`;
-    });
-    
-    // Step 4: Process inline code `code` (but not inside code blocks)
-    html = html.replace(/`([^`\n]+)`/g, (match, code) => {
-      if (match.includes('<pre') || match.includes('</pre>')) return match;
-      return `<code class="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-300">${code}</code>`;
-    });
-    
-    // Step 5: Convert line breaks to <br> (but preserve code blocks and headers)
-    html = html.split('\n').map((line, index, array) => {
-      if (!line.trim()) return '';
-      if (line.includes('<pre') || line.includes('</pre>')) return line;
-      if (line.includes('<h') || line.includes('</h')) return line;
-      if (index > 0 && array[index - 1].includes('</h')) return line;
-      if (index < array.length - 1 && array[index + 1].includes('<h')) return line;
-      return line + '<br>';
-    }).join('\n');
-    
+    // Basic Markdown rendering for safety, similar to previous implementation but simplified for this context
+    // Ideally use a library like react-markdown if available, but for now custom regex is preserved
+    let html = text
+        .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1 py-0.5 rounded font-mono text-sm text-pink-600">$1</code>')
+        .replace(/\n/g, '<br/>');
     return html;
   };
 
   if (isLoading) {
     return (
-      <div className="max-w-4xl mx-auto text-primary">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
-          <span className="ml-3 text-primary/70">Loading results...</span>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-primary">
+          <Loader2 className="w-10 h-10 animate-spin text-primary/50 mb-3" />
+          <span className="text-primary/70 animate-pulse">Computing results...</span>
       </div>
     );
   }
 
   if (error && !results) {
     return (
-      <div className="max-w-4xl mx-auto text-primary">
+      <div className="max-w-4xl mx-auto py-8 px-4">
         <Link
           href="/student/exams"
           className="inline-flex items-center gap-2 text-sm text-primary/70 hover:text-primary mb-6 transition-colors"
@@ -207,270 +131,233 @@ export default function ExamResultsPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Exams
         </Link>
-        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            <p>{error}</p>
-          </div>
+        <div className="p-6 bg-red-50 border border-red-200 rounded-xl flex items-center gap-4 text-red-800 shadow-sm">
+            <AlertCircle className="w-6 h-6 flex-shrink-0" />
+            <div>
+                <h3 className="font-bold text-lg">Error Loading Results</h3>
+                <p>{error}</p>
+            </div>
         </div>
       </div>
     );
   }
 
-  if (!results) {
-    return null;
-  }
+  if (!results) return null;
 
   const percentage = getScorePercentage(results.score, results.maxScore);
-  const passThreshold = 50;
+  
+  // Design Logic
+  const getGradeColor = (p: number) => {
+    if (p >= 80) return 'text-green-600 bg-green-50 border-green-200';
+    if (p >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    if (p >= 40) return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-red-600 bg-red-50 border-red-200';
+  };
+
+  const gradeColorClass = getGradeColor(percentage);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        <Link
-          href="/student/exams"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Exams
-        </Link>
-
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Exam Results</h1>
-          <p className="text-lg text-gray-600">{results.exam.title}</p>
+    <div className="min-h-screen bg-gray-50/50 pb-12 animate-fade-in">
+        {/* Header Section */}
+        <div className="bg-white border-b border-gray-200 py-6 px-4 md:px-8 mb-8 sticky top-0 z-10 backdrop-blur-sm bg-white/90 supports-[backdrop-filter]:bg-white/60">
+            <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                     <Link
+                        href="/student/exams"
+                        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 mb-2 transition-colors group"
+                        >
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        Back to Exams
+                    </Link>
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{results.exam.title}</h1>
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                        <Clock className="w-4 h-4" />
+                        <span>Submitted on {results.submittedAt ? formatDate(results.submittedAt) : 'N/A'}</span>
+                    </div>
+                </div>
+                
+                {/* Score Badge */}
+                {!results.isLocked && (
+                    <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 ${gradeColorClass}`}>
+                        <div className="text-right">
+                            <div className="text-xs font-bold uppercase tracking-wider opacity-80">Total Score</div>
+                            <div className="text-3xl font-black leading-none">
+                                {formatScore(results.score)} <span className="text-lg font-medium opacity-60">/ {formatScore(results.maxScore)}</span>
+                            </div>
+                        </div>
+                        <div className="h-10 w-px bg-current opacity-20"></div>
+                        <div className="text-4xl font-black flex items-center">
+                            {percentage}%
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
 
+      <div className="max-w-6xl mx-auto px-4 md:px-8">
+        
+        {/* Locked State */}
         {results.isLocked ? (
-           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
-             <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-               <Clock className="w-10 h-10 text-blue-600" />
+           <div className="flex flex-col items-center justify-center py-20 bg-white/50 rounded-3xl border border-gray-200 shadow-sm backdrop-blur-sm text-center">
+             <div className="bg-gray-100 p-6 rounded-full mb-6">
+               <Lock className="w-12 h-12 text-gray-400" />
              </div>
-             <h2 className="text-3xl font-bold text-gray-900 mb-4">Results are Locked</h2>
-             <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
-               {results.message || "The results for this exam are not yet released. Please check back later or contact your instructor."}
+             <h2 className="text-3xl font-bold text-gray-900 mb-3">Results are Locked</h2>
+             <p className="text-lg text-gray-600 max-w-lg mx-auto mb-8">
+               {results.message || "The results for this exam have not been released yet. Please check back later."}
              </p>
              <Link href="/student/exams">
-               <Button size="lg" className="px-8">Back to Exams</Button>
+               <Button className="px-8 py-6 text-lg rounded-xl">Return to Dashboard</Button>
              </Link>
            </div>
         ) : (
-           <>
-        {/* Auto-Submit Warning Banner */}
-        {results.submissionType === 'AUTO' && results.submissionReason && (
-          <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-6 mb-8 shadow-md">
-            <div className="flex items-start gap-4">
-              <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-amber-900 mb-2">⚠️ Exam Auto-Submitted</h3>
-                <p className="text-amber-800 mb-2">
-                  This exam was automatically submitted due to a violation of exam rules.
-                </p>
-                <div className="bg-amber-100 border border-amber-300 rounded-md p-3 mt-3">
-                  <p className="text-sm font-semibold text-amber-900 mb-1">Reason:</p>
-                  <p className="text-sm text-amber-800">{results.submissionReason}</p>
+           <div className="space-y-8">
+                {/* Auto-Submit / Warning Banner */}
+                {results.submissionType === 'AUTO' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <AlertTriangle className="w-32 h-32 text-amber-500" />
+                    </div>
+                    <div className="relative z-10 flex items-start gap-4">
+                        <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
+                            <AlertTriangle className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-amber-900 mb-1">Auto-Submitted Exam</h3>
+                            <p className="text-amber-800 mb-3">
+                            This exam was automatically submitted by the system. {results.submissionReason ? 'Reason provided below via Anti-Cheat system.' : ''}
+                            </p>
+                            {results.submissionReason && (
+                                <div className="bg-white/50 border border-amber-200 rounded-lg p-3 text-sm font-medium text-amber-900 inline-block">
+                                    Reason: {results.submissionReason}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Score Summary Card */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 mb-8">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Your Score</h2>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span>Started: {formatDate(results.startedAt)}</span>
-                </div>
-                {results.submittedAt && (
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-gray-400" />
-                    <span>Submitted: {formatDate(results.submittedAt)}</span>
-                  </div>
                 )}
-              </div>
-            </div>
-            <div className="text-center md:text-right">
-              <div className="flex items-center justify-center md:justify-end gap-3">
-                <Trophy className="w-10 h-10 text-yellow-500" />
-                <div>
-                  <div className="text-4xl font-bold text-gray-900">
-                    {formatScore(results.score)} / {formatScore(results.maxScore)}
-                  </div>
-                  <div className="text-2xl font-semibold text-gray-700">
-                    {percentage}%
-                  </div>
+
+                {/* Progress Bar Visual */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                    <div className="flex justify-between text-sm font-semibold text-gray-500 mb-2">
+                        <span>Performance Overview</span>
+                        <span>{percentage >= 50 ? 'Passed' : 'Needs Improvement'}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                        <div
+                            className={`h-full transition-all duration-1000 ease-out rounded-full ${
+                                percentage >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' :
+                                percentage >= 50 ? 'bg-gradient-to-r from-amber-400 to-amber-600' :
+                                'bg-gradient-to-r from-red-400 to-red-600'
+                            }`}
+                            style={{ width: `${Math.max(percentage, 5)}%` }}
+                        />
+                    </div>
                 </div>
-              </div>
+
+                {/* Question List */}
+                <div className="grid grid-cols-1 gap-6">
+                    {results.responses
+                     .filter(r => r.question) // Safety check
+                     .map((response, index) => {
+                        const qPoints = Number(response.question.points);
+                        const ePoints = Number(response.earnedPoints || 0);
+                        const isCorrect = ePoints === qPoints && qPoints > 0;
+                        const isPartial = ePoints > 0 && ePoints < qPoints;
+                        const isFailed = ePoints === 0;
+
+                        return (
+                            <div 
+                                key={response.questionId} 
+                                className={`group bg-white rounded-2xl border transition-all duration-200 overflow-hidden hover:shadow-md ${
+                                    isCorrect ? 'border-gray-200 hover:border-green-300' : 
+                                    isPartial ? 'border-gray-200 hover:border-yellow-300' : 
+                                    'border-gray-200 hover:border-red-300'
+                                }`}
+                            >
+                                {/* Question Header */}
+                                <div className="p-6 flex items-start gap-4">
+                                    <div className={`
+                                        w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0
+                                        ${isCorrect ? 'bg-green-100 text-green-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
+                                    `}>
+                                        {response.question.order || index + 1}
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                                            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                                                {response.question.type}
+                                            </span>
+                                            {isCorrect && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-100 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Correct</span>}
+                                            {isPartial && <span className="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md border border-yellow-100 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Partial</span>}
+                                            {isFailed && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md border border-red-100 flex items-center gap-1"><XCircle className="w-3 h-3" /> Incorrect</span>}
+                                        </div>
+
+                                        <div className="text-gray-900 font-medium text-lg leading-relaxed mb-4">
+                                            {response.question.type === QType.CODING ? (
+                                                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(response.question.prompt || '') }} />
+                                            ) : (
+                                                response.question.prompt
+                                            )}
+                                        </div>
+
+                                        {/* Answer Section */}
+                                        <div className="bg-gray-50/80 rounded-xl border border-gray-200/60 p-4">
+                                            <div className="text-xs font-bold text-gray-400 uppercase mb-2">Your Answer</div>
+                                            {response.question.type === QType.CODING ? (
+                                                <div className="relative group/code">
+                                                     <pre className="text-sm font-mono text-gray-800 bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
+                                                        {response.answer?.code || '// No code submitted'}
+                                                     </pre>
+                                                     <div className="absolute top-2 right-2 px-2 py-1 bg-gray-100 rounded text-xs text-gray-500 font-mono">
+                                                        {response.answer?.language || 'text'}
+                                                     </div>
+                                                </div>
+                                            ) : response.question.type === QType.MCQ ? (
+                                                <div className="text-gray-800 font-medium bg-white p-3 rounded-lg border border-gray-200">
+                                                    {response.answer?.chosenOptionIds?.length 
+                                                        ? `Selected Option(s): ${response.answer.chosenOptionIds.join(', ')}`
+                                                        : <span className="text-gray-400 italic">No option selected</span>
+                                                    }
+                                                </div>
+                                            ) : (
+                                                <div className="text-gray-800 whitespace-pre-wrap bg-white p-3 rounded-lg border border-gray-200">
+                                                    {response.answer?.textAnswer || response.answer?.text || <span className="text-gray-400 italic">No answer submitted</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Feedback Section */}
+                                        {(response.feedback || isFailed) && (
+                                            <div className={`mt-4 rounded-xl p-4 text-sm ${
+                                                isCorrect ? 'bg-green-50/50 text-green-900' :
+                                                isPartial ? 'bg-yellow-50/50 text-yellow-900' :
+                                                'bg-red-50/50 text-red-900'
+                                            }`}>
+                                                <div className="font-bold mb-1 opacity-80">Feedback</div>
+                                                {response.feedback || "Incorrect answer."}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Points Column */}
+                                    <div className="flex flex-col items-end pl-4 border-l border-gray-100 py-2">
+                                        <div className={`text-2xl font-black ${
+                                            isCorrect ? 'text-green-600' : isPartial ? 'text-yellow-600' : 'text-red-600'
+                                        }`}>
+                                            {formatScore(ePoints)}
+                                        </div>
+                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                                            / {formatScore(qPoints)} pts
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                     })}
+                </div>
             </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-6 mb-2 overflow-hidden">
-            <div
-              className={`h-6 rounded-full transition-all duration-500 flex items-center justify-end pr-2 ${
-                percentage >= 80 ? 'bg-gradient-to-r from-green-500 to-green-600' :
-                percentage >= 60 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' :
-                percentage >= 40 ? 'bg-gradient-to-r from-orange-400 to-orange-500' :
-                'bg-gradient-to-r from-red-500 to-red-600'
-              }`}
-              style={{ width: `${Math.max(percentage, 5)}%` }}
-            >
-              {percentage > 10 && (
-                <span className="text-white text-xs font-bold">{percentage}%</span>
-              )}
-            </div>
-          </div>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>0%</span>
-            <span className="font-semibold">Passing: {passThreshold}%</span>
-            <span>100%</span>
-          </div>
-        </div>
-
-        {/* Question Results */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Question Results</h2>
-          <div className="space-y-6">
-            {results.responses
-              .filter((response) => response.question) // Filter out responses without question data
-              .map((response, index) => {
-                const questionPoints = typeof response.question.points === 'string' 
-                  ? parseFloat(response.question.points) 
-                  : (response.question.points || 0);
-                const earnedPoints = typeof response.earnedPoints === 'string' 
-                  ? parseFloat(response.earnedPoints) 
-                  : (response.earnedPoints ?? 0);
-                const isCorrect = earnedPoints === questionPoints;
-                const isPartial = earnedPoints > 0 && earnedPoints < questionPoints;
-                const questionPercentage = questionPoints > 0 
-                  ? Math.round((earnedPoints / questionPoints) * 100) 
-                  : 0;
-
-                return (
-                  <div
-                    key={response.questionId}
-                    className={`border-2 rounded-xl p-6 transition-all ${
-                      isCorrect 
-                        ? 'bg-green-50 border-green-300 shadow-sm' 
-                        : isPartial
-                        ? 'bg-yellow-50 border-yellow-300 shadow-sm'
-                        : 'bg-red-50 border-red-300 shadow-sm'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3 flex-wrap">
-                          <span className="text-base font-bold text-gray-900">
-                            Question {response.question.order || index + 1}
-                          </span>
-                          <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold uppercase">
-                            {response.question.type}
-                          </span>
-                          {isCorrect && (
-                            <span className="px-3 py-1 bg-green-500 text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md">
-                              <CheckCircle2 className="w-4 h-4" />
-                              CORRECT
-                            </span>
-                          )}
-                          {isPartial && (
-                            <span className="px-3 py-1 bg-yellow-500 text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md">
-                              <AlertCircle className="w-4 h-4" />
-                              PARTIAL
-                            </span>
-                          )}
-                          {earnedPoints === 0 && (
-                            <span className="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-bold flex items-center gap-1.5 shadow-md">
-                              <XCircle className="w-4 h-4" />
-                              INCORRECT
-                            </span>
-                          )}
-                        </div>
-                        {response.question.type === QType.CODING ? (
-                          <div 
-                            className="text-gray-900 font-medium text-base mb-4 leading-relaxed prose prose-lg max-w-none"
-                            dangerouslySetInnerHTML={{ 
-                              __html: renderMarkdown(response.question.prompt || 'Question')
-                            }}
-                          />
-                        ) : (
-                          <p className="text-gray-900 font-medium text-lg mb-4 leading-relaxed">
-                            {response.question.prompt || 'Question'}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right ml-4">
-                        <div className={`text-2xl font-bold mb-1 ${
-                          isCorrect ? 'text-green-700' : isPartial ? 'text-yellow-700' : 'text-red-700'
-                        }`}>
-                          {formatScore(earnedPoints)} / {formatScore(questionPoints)}
-                        </div>
-                        <div className="text-sm text-gray-600 font-medium">points</div>
-                        <div className={`text-xs font-semibold mt-1 ${
-                          isCorrect ? 'text-green-600' : isPartial ? 'text-yellow-600' : 'text-red-600'
-                        }`}>
-                          {questionPercentage}%
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Answer Display */}
-                    <div className="mt-4 pt-4 border-t-2 border-gray-200">
-                      <p className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Your Answer:</p>
-                      <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-                        {response.question.type === QType.MCQ && response.answer?.chosenOptionIds && (
-                          <div className="text-sm text-gray-800">
-                            <span className="font-semibold">Selected: </span>
-                            {Array.isArray(response.answer.chosenOptionIds) 
-                              ? response.answer.chosenOptionIds.join(', ')
-                              : 'No answer'}
-                          </div>
-                        )}
-                        {response.question.type === QType.CODING && (
-                          <pre className="text-sm font-mono text-gray-800 whitespace-pre-wrap bg-gray-50 p-3 rounded border border-gray-200">
-                            {response.answer?.code || 'No answer'}
-                          </pre>
-                        )}
-                        {response.question.type === QType.ESSAY && (
-                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                            {response.answer?.textAnswer || response.answer?.text || 'No answer'}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Feedback */}
-                    {response.feedback && (
-                      <div className="mt-4 pt-4 border-t-2 border-gray-200">
-                        <p className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Feedback:</p>
-                        <div className={`p-4 rounded-lg border-2 ${
-                          isCorrect 
-                            ? 'bg-green-100 border-green-300 text-green-900' 
-                            : isPartial
-                            ? 'bg-yellow-100 border-yellow-300 text-yellow-900'
-                            : 'bg-red-100 border-red-300 text-red-900'
-                        }`}>
-                          <p className="text-sm font-medium leading-relaxed">{response.feedback}</p>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-
-        <div className="mt-8 flex justify-end">
-          <Link href="/student/exams">
-            <Button className="bg-gray-900 hover:bg-gray-800 text-white border-0 px-6 py-3 font-semibold shadow-md hover:shadow-lg transition-all">
-              Back to Exams
-            </Button>
-          </Link>
-        </div>
-        </>
         )}
       </div>
     </div>

@@ -51,3 +51,24 @@ export const getQueueStatusHandler: RequestHandler = async (req, res, next) => {
     next(error);
   }
 };
+
+export const overrideResponseGradeHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const { responseId } = req.params;
+    const { score, feedback } = req.body;
+
+    if (!responseId) {
+        return next({ status: 400, message: 'Response ID is required' });
+    }
+    
+    // Simple validation
+    if (score === undefined || score === null || isNaN(Number(score))) {
+        return next({ status: 400, message: 'Valid score is required' });
+    }
+
+    const result = await gradingService.overrideResponseGrade(responseId, Number(score), feedback);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

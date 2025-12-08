@@ -36,7 +36,7 @@ export const env = {
     // Used to determine correct commands (e.g., python vs python3)
     EXECUTION_OS: process.env.EXECUTION_OS || 'windows',
     // AI Configuration
-    AI_PROVIDER: (process.env.AI_PROVIDER || 'gemini') as 'gemini' | 'ollama',
+    AI_PROVIDER: 'gemini', // Enforced Gemini usage
     OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
     OLLAMA_MODEL: process.env.OLLAMA_MODEL || 'llama3',
 }
