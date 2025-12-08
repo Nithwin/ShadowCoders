@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/api';
 
 const STORAGE_KEY_PREFIX = 'exam_attempt_';
 
@@ -90,12 +91,25 @@ export function useAnswerManagement(attemptId: string | undefined, initialAnswer
         return prev; // No change, return previous state
       }
       
+      // Submit answer to backend
+      if (attemptId) {
+        api.post(`/student/attempts/${attemptId}/answer`, {
+          questionId,
+          answer
+        }).catch((err) => {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error submitting answer to backend:', err);
+          }
+          // Don't block the UI if backend fails - answer is still saved in localStorage
+        });
+      }
+      
       return {
         ...prev,
         [questionId]: answer,
       };
     });
-  }, []);
+  }, [attemptId]);
 
   const updateAnswers = useCallback((newAnswers: Record<string, AnswerData>) => {
     setAnswers((prev) => {
