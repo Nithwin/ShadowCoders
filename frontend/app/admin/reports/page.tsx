@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { socketService } from '@/lib/socket';
@@ -39,10 +41,13 @@ export default function ReportsDashboard() {
         setTimeout(() => setNotification(null), 3000);
     };
 
+    const [filter, setFilter] = useState<'OPEN' | 'RESOLVED' | 'IGNORED' | 'ALL'>('OPEN');
+
     const fetchReports = async () => {
         setIsLoading(true);
         try {
-            const res = await api.get('/reports?status=OPEN');
+            const query = filter === 'ALL' ? '' : `?status=${filter}`;
+            const res = await api.get(`/reports${query}`);
             setReports(res.data.data || []);
             setError(null);
         } catch (err) {
@@ -55,7 +60,7 @@ export default function ReportsDashboard() {
 
     useEffect(() => {
         fetchReports();
-    }, []);
+    }, [filter]);
 
     // Socket Listener
     useEffect(() => {
@@ -117,8 +122,25 @@ export default function ReportsDashboard() {
                 </div>
             )}
             
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">Issue Reports</h1>
+            <div className="flex justify-between items-center bg-white p-2 rounded-lg border border-gray-200 mb-6">
+                <div className="flex gap-1">
+                    {(['OPEN', 'RESOLVED', 'IGNORED', 'ALL'] as const).map((s) => (
+                        <button
+                            key={s}
+                            onClick={() => {
+                                if (isLoading) return;
+                                setFilter(s);
+                            }}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 ${
+                                filter === s 
+                                    ? 'bg-blue-100 text-blue-700' 
+                                    : 'hover:bg-gray-100 text-gray-600'
+                            }`}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
                 <button 
                     onClick={fetchReports} 
                     className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
@@ -128,14 +150,11 @@ export default function ReportsDashboard() {
                 </button>
             </div>
 
-            {error && <div className="p-4 bg-red-100 text-red-700 rounded-lg">{error}</div>}
-
             <div className="grid gap-4">
                 {reports.length === 0 && !isLoading && (
                     <div className="text-center py-12 text-gray-500 bg-white rounded-lg border border-gray-200">
                         <CheckCircle size={48} className="mx-auto text-green-500 mb-3" />
-                        <h3 className="text-lg font-medium">No open reports</h3>
-                        <p>Everything looks good!</p>
+                        <h3 className="text-lg font-medium">No reports found</h3>
                     </div>
                 )}
 

@@ -86,6 +86,11 @@ export function useCheatingPrevention(
       // Only warn for actual tab switches, not page reloads
       if (isInitialLoad() || isPageReload()) return;
       
+      // WHITELIST: If a dialog/modal is open (like Report Issue), ignore
+      if (document.querySelector('[role="dialog"]') || document.querySelector('[data-state="open"]')) {
+        return;
+      }
+
       if (document.hidden) {
         incrementWarningRef.current?.('Tab switching or window minimized');
       }
@@ -95,6 +100,11 @@ export function useCheatingPrevention(
       // Don't trigger warnings during page reload or initial load
       // Only warn for actual tab/window switches, not page reloads
       if (isInitialLoad()) return;
+
+      // WHITELIST: If a dialog/modal is open (like Report Issue), ignore
+      if (document.querySelector('[role="dialog"]') || document.querySelector('[data-state="open"]')) {
+        return;
+      }
       
       // Window lost focus (switched to another app/window or tab)
       incrementWarningRef.current?.('Window lost focus');

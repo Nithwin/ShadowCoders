@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   RefreshCw,
-  Settings
+  Settings,
+  AlertTriangle
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,6 +24,7 @@ const navLinks = [
   { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { name: 'Exams', href: '/admin/exams', icon: FileText },
   { name: 'Templates', href: '/admin/templates', icon: ClipboardCheck },
+  { name: 'Issue Reports', href: '/admin/reports', icon: AlertTriangle },
   // Let's create a placeholder for submissions
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
@@ -89,12 +91,12 @@ export default function AdminSidebar() {
         </div>
 
       {/* Navigation */}
-      <nav className="flex-1 flex flex-col justify-between">
+      <nav className="flex-1 flex flex-col min-h-0">
         
-        {/* Main Navigation Links */}
-        <div>
-          <h3 className="text-xs uppercase text-secondary/50 mb-2">Manage</h3>
-          <ul className="space-y-2">
+        {/* Main Navigation Links - Scrollable */}
+        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+          <h3 className="text-xs uppercase text-secondary/50 mb-2 mt-1">Manage</h3>
+          <ul className="space-y-2 pb-4">
             {navLinks.map((link) => {
               // 4. Check if this link is the active page
               const isActive = pathname.startsWith(link.href);
@@ -112,7 +114,7 @@ export default function AdminSidebar() {
                       }
                     `}
                   >
-                    <link.icon className="w-5 h-5 mr-3" />
+                    <link.icon className="w-5 h-5 mr-3 flex-shrink-0" />
                     <span>{link.name}</span>
                   </Link>
                 </li>
@@ -121,8 +123,8 @@ export default function AdminSidebar() {
           </ul>
         </div>
 
-        {/* User Profile & Logout Section */}
-        <div className="border-t border-secondary/20 pt-4">
+        {/* User Profile & Logout Section - Fixed at bottom */}
+        <div className="border-t border-secondary/20 pt-4 mt-auto flex-shrink-0">
 
           <button
             onClick={logout}
