@@ -30,6 +30,7 @@ import {
   MapPin
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getAbsoluteImageUrl } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 
 export default function StudentProfilePage() {
@@ -211,7 +212,7 @@ export default function StudentProfilePage() {
                     <div className="w-32 h-32 sm:w-44 sm:h-44 rounded-full border-[6px] border-white shadow-xl bg-gray-100 overflow-hidden relative">
                         {formData.pictureUrl ? (
                             <img
-                            src={formData.pictureUrl}
+                            src={getAbsoluteImageUrl(formData.pictureUrl)}
                             alt={user.name || 'Profile'}
                             className="w-full h-full object-cover"
                             onError={(e) => {

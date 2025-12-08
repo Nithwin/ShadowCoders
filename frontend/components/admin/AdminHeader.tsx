@@ -5,6 +5,7 @@ import { User as UserIcon, ChevronDown } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useState } from 'react';
 import Link from 'next/link';
+import { getAbsoluteImageUrl } from '@/lib/utils';
 
 export default function AdminHeader() {
   const { user, logout } = useAuth();
@@ -17,7 +18,7 @@ export default function AdminHeader() {
           <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
             {user?.pictureUrl ? (
                 <img 
-                  src={user.pictureUrl} 
+                  src={getAbsoluteImageUrl(user.pictureUrl)} 
                   alt="Profile" 
                   className="w-8 h-8 rounded-full border border-gray-200 object-cover"
                   onError={(e) => {

@@ -22,6 +22,7 @@ import {
   Upload
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { getAbsoluteImageUrl } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
 
 export default function AdminProfilePage() {
@@ -205,7 +206,7 @@ export default function AdminProfilePage() {
                     <div className="relative">
                       {formData.pictureUrl ? (
                         <img
-                          src={formData.pictureUrl}
+                          src={getAbsoluteImageUrl(formData.pictureUrl)}
                           alt="Profile"
                           className="w-[140px] h-[140px] rounded-full object-cover border-4 border-primary/30 shadow-lg"
                           onError={(e) => {
@@ -240,7 +241,7 @@ export default function AdminProfilePage() {
                     user.pictureUrl ? (
                       <>
                         <img
-                          src={user.pictureUrl}
+                          src={getAbsoluteImageUrl(user.pictureUrl)}
                           alt="Profile"
                           className="w-[140px] h-[140px] rounded-full object-cover border-4 border-primary/30 shadow-lg"
                           onError={(e) => {

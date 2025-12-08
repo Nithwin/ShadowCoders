@@ -514,7 +514,7 @@ export const getQuestionForStudent = async (
     wordLimit: question.wordLimit,
     // Remove correctOptionIds and blanks
     // For coding questions, only show visible test cases
-    testcases: question.type === QType.CODING && question.testcases
+    testcases: question.type === QType.CODING && Array.isArray(question.testcases)
       ? (question.testcases as any[]).filter((tc: any) => !tc.isHidden)
       : undefined,
   };

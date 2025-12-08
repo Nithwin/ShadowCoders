@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Auto-detect API URL from current hostname (supports LAN IP access)
-function getApiBaseUrl(): string {
+export function getApiBaseUrl(): string {
   // Check environment variable first
   if (process.env.NEXT_PUBLIC_API_BASE_URL) {
     return process.env.NEXT_PUBLIC_API_BASE_URL;
