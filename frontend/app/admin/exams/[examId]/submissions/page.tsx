@@ -17,6 +17,7 @@ type Attempt = {
   maxScore: number | null;
   startedAt: string;
   submittedAt: string | null;
+  attemptNo: number;
   student: {
     id: string;
     name: string;
@@ -348,11 +349,18 @@ export default function ExamSubmissionsPage() {
                             <p className="text-sm text-primary/60 truncate">{attempt.student.email}</p>
                           </div>
                         </div>
-                        {attempt.student.reg_no && (
-                          <p className="text-xs text-primary/50 font-medium ml-11">
-                            Reg: {attempt.student.reg_no}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-2 ml-11">
+                          {attempt.student.reg_no && (
+                            <p className="text-xs text-primary/50 font-medium">
+                              Reg: {attempt.student.reg_no}
+                            </p>
+                          )}
+                          {attempt.attemptNo && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 border border-blue-300 rounded-md text-xs font-bold">
+                              Attempt #{attempt.attemptNo}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {getStatusBadge(attempt.status)}
                     </div>

@@ -246,11 +246,28 @@ export const listAttemptsForExam = async (params: {
   // Calculate skip for pagination
   const skip = (pageNum - 1) * pageSizeNum;
 
-  // 1. Fetch the paginated list of attempts
+  // Strategy: Get the latest attempt per student
+  // We'll use a subquery to find the max attemptNo for each student, then fetch those attempts
+  
+  // 1. First, get all unique students who have attempted this exam with their latest attemptNo
+  const latestAttempts = await prisma.attempt.groupBy({
+    by: ['studentId'],
+    where: {
+      examId: examId,
+    },
+    _max: {
+      attemptNo: true,
+    },
+  });
+
+  // 2. Now fetch the full attempt details for these latest attempts
   const attempts = await prisma.attempt.findMany({
     where: {
       examId: examId,
-      // You could add filters here later, e.g., status: AttemptStatus.SUBMITTED
+      OR: latestAttempts.map(la => ({
+        studentId: la.studentId,
+        attemptNo: la._max.attemptNo || 1,
+      })),
     },
     select: {
       id: true,
@@ -259,8 +276,8 @@ export const listAttemptsForExam = async (params: {
       maxScore: true,
       startedAt: true,
       submittedAt: true,
+      attemptNo: true,
       student: {
-        // Include relevant student info for the admin list
         select: {
           id: true,
           name: true,
@@ -270,27 +287,43 @@ export const listAttemptsForExam = async (params: {
       },
     },
     orderBy: {
-      submittedAt: 'desc', // Show most recently submitted first
+      submittedAt: 'desc',
     },
     skip: skip,
     take: pageSizeNum,
   });
 
-  // 2. Fetch the total count of attempts for that exam
-  const totalCount = await prisma.attempt.count({
-    where: {
-      examId: examId,
-    },
-  });
+  // 3. Total count is the number of unique students who attempted
+  const totalCount = latestAttempts.length;
 
   return { attempts, totalCount };
 };
 
 export const getStudentAttempts = async (studentId: string) => {
+  // Strategy: Get the latest attempt per exam for this student
+  // Similar to listAttemptsForExam, but grouped by examId instead of studentId
+  
+  // 1. First, get all unique exams this student has attempted with their latest attemptNo
+  const latestAttempts = await prisma.attempt.groupBy({
+    by: ['examId'],
+    where: {
+      studentId: studentId,
+      status: AttemptStatus.SUBMITTED,
+    },
+    _max: {
+      attemptNo: true,
+    },
+  });
+
+  // 2. Now fetch the full attempt details for these latest attempts
   return prisma.attempt.findMany({
     where: {
       studentId: studentId,
-      status: AttemptStatus.SUBMITTED, // Only get submitted attempts
+      status: AttemptStatus.SUBMITTED,
+      OR: latestAttempts.map(la => ({
+        examId: la.examId,
+        attemptNo: la._max.attemptNo || 1,
+      })),
     },
     select: {
       id: true,
@@ -307,7 +340,7 @@ export const getStudentAttempts = async (studentId: string) => {
       },
     },
     orderBy: {
-      submittedAt: 'desc', // Show most recently submitted first
+      submittedAt: 'desc',
     },
   });
 };
