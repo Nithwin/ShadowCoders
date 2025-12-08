@@ -422,6 +422,23 @@ export const getAttemptResults = (attemptId: string) => {
           title: true,
           maxAttempts: true,
           releaseResults: true,
+          questions: {
+            select: {
+              id: true,
+              type: true,
+              prompt: true,
+              points: true,
+              order: true,
+              options: true,
+              correctOptionIds: true,
+              testcases: true,
+              blanks: true,
+              starterCode: true,
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
         },
       },
       responses: {

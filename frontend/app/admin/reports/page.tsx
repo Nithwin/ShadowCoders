@@ -14,6 +14,7 @@ interface Report {
     description: string;
     status: 'OPEN' | 'RESOLVED' | 'IGNORED';
     student: {
+        id: string;
         name: string;
         email: string;
         reg_no: string;
@@ -103,30 +104,10 @@ export default function ReportsDashboard() {
 
     const { confirm } = useConfirmationDialog();
 
-    const handleRejectReport = async (report: any) => {
-        // Find the response ID - we might need to fetch it or finding it via API
-        // Since we don't have responseId in the report object directly, we might need a way to get it.
-        // But wait, the report is linked to student and question. We can infer it.
-        // Actually, for this specific request, the user wants "No Marks".
-        // We will need to first get the attempt/response.
-        // Let's assume for now we can call a helper or the backend endpoint supports lookup?
-        // The backend endpoint requires responseId. 
-        // We should probably update the report fetch to include responseId if possible, OR
-        // we can fetch the response first.
-        
-        // Let's assume we can fetch the attempt for this student/exam and find the response.
-        // Or cleaner: Update the backend report object to include responseId? 
-        // Schema doesn't have it directly.
-        // Let's use a specialized endpoint logic or just duplicate fetching logic here?
-        // Ideally we should fix this properly. 
-        // HACK: For now, I'll assume we can get it via `student/attempts`.
-        
-        // Actually, let's look at the report object structure in `getReports`.
-        // It returns student, question, exam. 
-        
+    const handleRejectReport = async (report: Report) => {
         const confirmed = await confirm({
             title: 'Reject Report (0 Marks)?',
-            message: `This will explicitly set the score to 0 for this student's answer and mark it as FAIL. \n\nStudent: ${report.student.name}`,
+            message: `This will explicitly set the score to 0 for this student's answer and mark it as FAIL. \n\nStudent: ${report.student?.name || 'Unknown'}`,
             confirmText: 'Reject / Set 0 Marks',
             cancelText: 'Cancel',
             variant: 'danger'
@@ -136,41 +117,40 @@ export default function ReportsDashboard() {
 
         setProcessingReportId(report.questionId);
         try {
-            // 1. We need to find the attempt/response ID.
-            // We can search for the student's attempt for this exam.
-            const attemptsRes = await api.get(`/admin/students/${report.student.id}/exams/${report.examId}/attempts`);
-            // Assuming we get a list, take the latest one?
-            const attempt = attemptsRes.data?.[0]; // Taking latest
+            // 1. Fetch all attempts for this exam
+            const attemptsRes = await api.get(`/admin/attempts/exam/${report.exam.id}`);
+            const allAttempts = attemptsRes.data?.data || [];
             
-            if (!attempt) {
-                throw new Error("Student attempt not found");
+            // 2. Find this student's attempt
+            const studentAttempt = allAttempts.find((a: any) => a.student?.id === report.student.id);
+            
+            if (!studentAttempt) {
+                throw new Error("Student attempt not found for this exam");
             }
 
-            // 2. Find response ID.
-            // We need attempt details.
-            const attemptDetailsRes = await api.get(`/admin/attempts/${attempt.id}`);
-            const response = attemptDetailsRes.data.responses.find((r: any) => r.questionId === report.questionId);
+            // 3. Get full attempt details to find the response
+            const attemptDetailsRes = await api.get(`/admin/attempts/${studentAttempt.id}`);
+            const response = attemptDetailsRes.data.responses?.find((r: any) => r.questionId === report.questionId);
 
-            if (!response) {
-                 throw new Error("Response not found for this question");
+            if (response) {
+                // 4. Override Grade
+                await api.put(`/grading/response/${response.id}/override`, {
+                    score: 0,
+                    feedback: 'Report Rejected: Score set to 0 manually by admin.'
+                });
+            } else {
+                console.warn("No response found, skipping grade override (student didn't answer).");
             }
 
-            // 3. Override Grade
-            await api.put(`/grading/response/${response.id}/override`, {
-                score: 0,
-                feedback: 'Report Rejected: Score set to 0 manually by admin.'
-            });
-
-            // 4. Resolve Report
-             await api.put(`/reports/${report.id}/status`, { status: 'RESOLVED' });
+            // 5. Resolve Report
+            await api.patch(`/reports/${report.id}/status`, { status: 'RESOLVED' });
 
             showNotification('Report rejected and score set to 0', 'success');
-            // Refresh reports
             fetchReports();
 
         } catch (err: any) {
             console.error(err);
-            showNotification(err.message || 'Failed to reject report', 'error');
+            showNotification(err.response?.data?.message || err.message || 'Failed to reject report', 'error');
         } finally {
              setProcessingReportId(null);
         }

@@ -43,6 +43,14 @@ type AttemptResults = {
   exam: {
     id: string;
     title: string;
+    questions?: {
+        id: string;
+        type: QType;
+        prompt: string | null;
+        points: number | string;
+        order: number;
+        options?: any;
+    }[];
   };
   responses: QuestionResult[];
   isLocked?: boolean;
@@ -62,6 +70,10 @@ export default function ExamResultsPage() {
     setError(null);
     try {
       const res = await api.get(`/student/attempts/${attemptId}/results`);
+      // Sort questions by order for consistent display
+      if (res.data?.exam?.questions) {
+         res.data.exam.questions.sort((a: any, b: any) => a.order - b.order);
+      }
       setResults(res.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }, message?: string } } };
@@ -176,21 +188,41 @@ export default function ExamResultsPage() {
                     </div>
                 </div>
                 
-                {/* Score Badge */}
-                {!results.isLocked && (
-                    <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 ${gradeColorClass}`}>
-                        <div className="text-right">
-                            <div className="text-xs font-bold uppercase tracking-wider opacity-80">Total Score</div>
-                            <div className="text-3xl font-black leading-none">
-                                {formatScore(results.score)} <span className="text-lg font-medium opacity-60">/ {formatScore(results.maxScore)}</span>
+                <div className="flex items-center gap-4">
+                    {/* Refresh Button */}
+                    <button
+                        onClick={fetchResults}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        title="Refresh results"
+                    >
+                        <svg 
+                            className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        {isLoading ? 'Refreshing...' : 'Refresh'}
+                    </button>
+
+                    {/* Score Badge */}
+                    {!results.isLocked && (
+                        <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 ${gradeColorClass}`}>
+                            <div className="text-right">
+                                <div className="text-xs font-bold uppercase tracking-wider opacity-80">Total Score</div>
+                                <div className="text-3xl font-black leading-none">
+                                    {formatScore(results.score)} <span className="text-lg font-medium opacity-60">/ {formatScore(results.maxScore)}</span>
+                                </div>
+                            </div>
+                            <div className="h-10 w-px bg-current opacity-20"></div>
+                            <div className="text-4xl font-black flex items-center">
+                                {percentage}%
                             </div>
                         </div>
-                        <div className="h-10 w-px bg-current opacity-20"></div>
-                        <div className="text-4xl font-black flex items-center">
-                            {percentage}%
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
 
@@ -257,21 +289,26 @@ export default function ExamResultsPage() {
 
                 {/* Question List */}
                 <div className="grid grid-cols-1 gap-6">
-                    {results.responses
-                     .filter(r => r.question) // Safety check
-                     .map((response, index) => {
-                        const qPoints = Number(response.question.points);
-                        const ePoints = Number(response.earnedPoints || 0);
-                        const isCorrect = ePoints === qPoints && qPoints > 0;
-                        const isPartial = ePoints > 0 && ePoints < qPoints;
-                        const isFailed = ePoints === 0;
+                    {/* Iterate over QUESTIONS, not responses, to show unanswered ones */}
+                    {(results.exam.questions || []).map((question, index) => {
+                        const response = results.responses.find(r => r.questionId === question.id);
+                        
+                        const qPoints = Number(question.points);
+                        const ePoints = response ? Number(response.earnedPoints || 0) : 0;
+                        const isCorrect = response && ePoints === qPoints && qPoints > 0;
+                        const isPartial = response && ePoints > 0 && ePoints < qPoints;
+                        
+                        // NOT ANSWERED vs FAILED
+                        const isNotAnswered = !response;
+                        const isFailed = response && ePoints === 0;
 
                         return (
                             <div 
-                                key={response.questionId} 
+                                key={question.id} 
                                 className={`group bg-white rounded-2xl border transition-all duration-200 overflow-hidden hover:shadow-md ${
                                     isCorrect ? 'border-gray-200 hover:border-green-300' : 
                                     isPartial ? 'border-gray-200 hover:border-yellow-300' : 
+                                    isNotAnswered ? 'border-gray-200 bg-gray-50/50' :
                                     'border-gray-200 hover:border-red-300'
                                 }`}
                             >
@@ -279,64 +316,75 @@ export default function ExamResultsPage() {
                                 <div className="p-6 flex items-start gap-4">
                                     <div className={`
                                         w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold flex-shrink-0
-                                        ${isCorrect ? 'bg-green-100 text-green-700' : isPartial ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}
+                                        ${isCorrect ? 'bg-green-100 text-green-700' : 
+                                          isPartial ? 'bg-yellow-100 text-yellow-700' : 
+                                          isNotAnswered ? 'bg-gray-200 text-gray-500' :
+                                          'bg-red-100 text-red-700'}
                                     `}>
-                                        {response.question.order || index + 1}
+                                        {question.order || index + 1}
                                     </div>
                                     
                                     <div className="flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2 mb-2">
                                             <span className="text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-                                                {response.question.type}
+                                                {question.type}
                                             </span>
                                             {isCorrect && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-100 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Correct</span>}
                                             {isPartial && <span className="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md border border-yellow-100 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Partial</span>}
                                             {isFailed && <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md border border-red-100 flex items-center gap-1"><XCircle className="w-3 h-3" /> Incorrect</span>}
+                                            {isNotAnswered && <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md border border-gray-200 flex items-center gap-1">Not Answered</span>}
                                         </div>
 
                                         <div className="text-gray-900 font-medium text-lg leading-relaxed mb-4">
-                                            {response.question.type === QType.CODING ? (
-                                                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(response.question.prompt || '') }} />
+                                            {question.type === QType.CODING ? (
+                                                <div dangerouslySetInnerHTML={{ __html: renderMarkdown(question.prompt || '') }} />
                                             ) : (
-                                                response.question.prompt
+                                                question.prompt
                                             )}
                                         </div>
 
                                         {/* Answer Section */}
                                         <div className="bg-gray-50/80 rounded-xl border border-gray-200/60 p-4">
                                             <div className="text-xs font-bold text-gray-400 uppercase mb-2">Your Answer</div>
-                                            {response.question.type === QType.CODING ? (
-                                                <div className="relative group/code">
-                                                     <pre className="text-sm font-mono text-gray-800 bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
-                                                        {response.answer?.code || '// No code submitted'}
-                                                     </pre>
-                                                     <div className="absolute top-2 right-2 px-2 py-1 bg-gray-100 rounded text-xs text-gray-500 font-mono">
-                                                        {response.answer?.language || 'text'}
-                                                     </div>
-                                                </div>
-                                            ) : response.question.type === QType.MCQ ? (
-                                                <div className="text-gray-800 font-medium bg-white p-3 rounded-lg border border-gray-200">
-                                                    {response.answer?.chosenOptionIds?.length 
-                                                        ? `Selected Option(s): ${response.answer.chosenOptionIds.join(', ')}`
-                                                        : <span className="text-gray-400 italic">No option selected</span>
-                                                    }
-                                                </div>
+                                            {!response ? (
+                                                <div className="text-gray-400 italic">No answer submitted</div>
                                             ) : (
-                                                <div className="text-gray-800 whitespace-pre-wrap bg-white p-3 rounded-lg border border-gray-200">
-                                                    {response.answer?.textAnswer || response.answer?.text || <span className="text-gray-400 italic">No answer submitted</span>}
-                                                </div>
+                                                <>
+                                                 {question.type === QType.CODING ? (
+                                                    <div className="relative group/code">
+                                                         <pre className="text-sm font-mono text-gray-800 bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
+                                                            {response.answer?.code || '// No code submitted'}
+                                                         </pre>
+                                                         <div className="absolute top-2 right-2 px-2 py-1 bg-gray-100 rounded text-xs text-gray-500 font-mono">
+                                                            {response.answer?.language || 'text'}
+                                                         </div>
+                                                    </div>
+                                                ) : question.type === QType.MCQ ? (
+                                                    <div className="text-gray-800 font-medium bg-white p-3 rounded-lg border border-gray-200">
+                                                        {response.answer?.chosenOptionIds?.length 
+                                                            ? `Selected Option(s): ${response.answer.chosenOptionIds.join(', ')}`
+                                                            : <span className="text-gray-400 italic">No option selected</span>
+                                                        }
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-gray-800 whitespace-pre-wrap bg-white p-3 rounded-lg border border-gray-200">
+                                                        {response.answer?.textAnswer || response.answer?.text || <span className="text-gray-400 italic">No answer submitted</span>}
+                                                    </div>
+                                                )}
+                                                </>
                                             )}
+                                            
                                         </div>
 
                                         {/* Feedback Section */}
-                                        {(response.feedback || isFailed) && (
+                                        {(response?.feedback || isFailed) && (
                                             <div className={`mt-4 rounded-xl p-4 text-sm ${
                                                 isCorrect ? 'bg-green-50/50 text-green-900' :
                                                 isPartial ? 'bg-yellow-50/50 text-yellow-900' :
                                                 'bg-red-50/50 text-red-900'
                                             }`}>
                                                 <div className="font-bold mb-1 opacity-80">Feedback</div>
-                                                {response.feedback || "Incorrect answer."}
+                                                {response?.feedback || "Incorrect answer."}
                                             </div>
                                         )}
                                     </div>
@@ -344,7 +392,10 @@ export default function ExamResultsPage() {
                                     {/* Points Column */}
                                     <div className="flex flex-col items-end pl-4 border-l border-gray-100 py-2">
                                         <div className={`text-2xl font-black ${
-                                            isCorrect ? 'text-green-600' : isPartial ? 'text-yellow-600' : 'text-red-600'
+                                            isCorrect ? 'text-green-600' : 
+                                            isPartial ? 'text-yellow-600' : 
+                                            isNotAnswered ? 'text-gray-400' :
+                                            'text-red-600'
                                         }`}>
                                             {formatScore(ePoints)}
                                         </div>
