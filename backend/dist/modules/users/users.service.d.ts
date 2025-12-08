@@ -26,6 +26,8 @@ export declare const getUserById: (id: string) => Promise<{
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -44,6 +46,8 @@ export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => P
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -62,6 +66,8 @@ export declare const deleteUser: (id: string) => Promise<{
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -80,6 +86,8 @@ export declare const createUser: (data: Prisma.UserCreateInput) => Promise<{
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -91,4 +99,8 @@ export declare const createUser: (data: Prisma.UserCreateInput) => Promise<{
     createdAt: Date;
     updatedAt: Date;
 }>;
+export declare const getUserPictureData: (id: string) => Promise<{
+    pictureData: Uint8Array<ArrayBufferLike> | null;
+    pictureMimeType: string | null;
+} | null>;
 //# sourceMappingURL=users.service.d.ts.map

@@ -116,7 +116,7 @@ export const handleLogout = async (rawRefreshToken: string) => {
 
 export const updateUserProfile = async (userId: string, updateData: {
   name?: string | null;
-  reg_no?: string | null;
+  reg_no?: string | null; // Kept in type for compatibility but ignored
   year?: number | null;
   department?: string | null;
   section?: string | null;
@@ -129,9 +129,7 @@ export const updateUserProfile = async (userId: string, updateData: {
   if (updateData.name !== undefined) {
     dataToUpdate.name = updateData.name;
   }
-  if (updateData.reg_no !== undefined) {
-    dataToUpdate.reg_no = updateData.reg_no;
-  }
+  // reg_no is INTENTIONALLY OMITTED to prevent updates
   if (updateData.year !== undefined) {
     dataToUpdate.year = updateData.year;
   }
@@ -174,26 +172,16 @@ export const updateProfilePicture = async (userId: string, file: Express.Multer.
     throw { status: 404, message: 'User not found' };
   }
 
-  // Ensure uploads directory exists
-  const uploadsDir = path.join(env.UPLOADS_DIR, 'profiles');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
+  // Store image directly in the database
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      pictureData: file.buffer,
+      pictureMimeType: file.mimetype,
+      // Update pictureUrl to point to the endpoint that serves the DB image
+      pictureUrl: `/api/users/${userId}/picture` 
+    }
+  });
 
-  // Generate unique filename
-  const fileExt = path.extname(file.originalname);
-  const fileName = `${userId}-${Date.now()}${fileExt}`;
-  const filePath = path.join(uploadsDir, fileName);
-
-  // Write file to disk
-  fs.writeFileSync(filePath, file.buffer);
-
-  // Generate URL
-  // Assuming the uploads directory is served at /uploads
-  const pictureUrl = `/uploads/profiles/${fileName}`;
-
-  // Update user profile
-  await authRepo.updateUser(userId, { pictureUrl });
-
-  return pictureUrl;
+  return `/api/users/${userId}/picture`;
 };

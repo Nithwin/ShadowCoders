@@ -94,3 +94,13 @@ export const createUser = async (data: Prisma.UserCreateInput) => {
         'createUser'
     );
 }
+
+export const getUserPictureData = async (id: string) => {
+  return withDatabaseErrorHandling(
+    () => prisma.user.findUnique({
+      where: { id },
+      select: { pictureData: true, pictureMimeType: true }
+    }),
+    'getUserPictureData'
+  );
+};

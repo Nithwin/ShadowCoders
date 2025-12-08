@@ -96,3 +96,30 @@ export const createUser = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Failed to create user' });
     }
 }
+
+export const getUserPicture = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+       return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    // Use prisma directly here or add a service method. 
+    // Since we need bytes, standard getUserById typically omits huge blobs or just returns basic info.
+    // Let's call a specific service method or use prisma here for brevity if allowed, 
+    // but better to stick to service pattern.
+    const pictureData = await userService.getUserPictureData(id);
+
+    if (!pictureData || !pictureData.pictureData) {
+        // Fallback to default or 404. If no picture, maybe redirect to a default placeholder?
+        // Or just 404.
+        return res.status(404).send('Not found');
+    }
+
+    res.setHeader('Content-Type', pictureData.pictureMimeType || 'image/jpeg');
+    res.send(pictureData.pictureData);
+  } catch(error) {
+      console.error('Error serving user picture:', error);
+      res.status(500).send('Error serving picture');
+  }
+}

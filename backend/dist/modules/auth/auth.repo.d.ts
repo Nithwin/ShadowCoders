@@ -12,6 +12,8 @@ export declare const findUserByEmailAndLinkGoogle: ({ email, name, pictureUrl, g
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -31,6 +33,8 @@ export declare const findUserById: (id: string) => Promise<{
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -55,6 +59,8 @@ export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => P
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
@@ -100,6 +106,8 @@ export declare const updatePassword: (id: string, passwordHash: string) => Promi
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;

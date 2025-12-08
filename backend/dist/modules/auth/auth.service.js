@@ -40,9 +40,7 @@ exports.updateProfilePicture = exports.changePassword = exports.updateUserProfil
 const authRepo = __importStar(require("./auth.repo"));
 const tokenService = __importStar(require("./token.service"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
-const env_1 = require("../../config/env"); // <-- This is your config file
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
+const prisma_1 = require("../../lib/prisma");
 const handleGoogleLogin = async (profile) => {
     const user = await authRepo.findUserByEmailAndLinkGoogle(profile);
     if (!user) {
@@ -123,9 +121,7 @@ const updateUserProfile = async (userId, updateData) => {
     if (updateData.name !== undefined) {
         dataToUpdate.name = updateData.name;
     }
-    if (updateData.reg_no !== undefined) {
-        dataToUpdate.reg_no = updateData.reg_no;
-    }
+    // reg_no is INTENTIONALLY OMITTED to prevent updates
     if (updateData.year !== undefined) {
         dataToUpdate.year = updateData.year;
     }
@@ -137,6 +133,9 @@ const updateUserProfile = async (userId, updateData) => {
     }
     if (updateData.pictureUrl !== undefined) {
         dataToUpdate.pictureUrl = updateData.pictureUrl;
+    }
+    if (updateData.leetcodeId !== undefined) {
+        dataToUpdate.leetcodeId = updateData.leetcodeId;
     }
     return authRepo.updateUser(userId, dataToUpdate);
 };
@@ -160,23 +159,17 @@ const updateProfilePicture = async (userId, file) => {
     if (!user) {
         throw { status: 404, message: 'User not found' };
     }
-    // Ensure uploads directory exists
-    const uploadsDir = path_1.default.join(env_1.env.UPLOADS_DIR, 'profiles');
-    if (!fs_1.default.existsSync(uploadsDir)) {
-        fs_1.default.mkdirSync(uploadsDir, { recursive: true });
-    }
-    // Generate unique filename
-    const fileExt = path_1.default.extname(file.originalname);
-    const fileName = `${userId}-${Date.now()}${fileExt}`;
-    const filePath = path_1.default.join(uploadsDir, fileName);
-    // Write file to disk
-    fs_1.default.writeFileSync(filePath, file.buffer);
-    // Generate URL
-    // Assuming the uploads directory is served at /uploads
-    const pictureUrl = `/uploads/profiles/${fileName}`;
-    // Update user profile
-    await authRepo.updateUser(userId, { pictureUrl });
-    return pictureUrl;
+    // Store image directly in the database
+    await prisma_1.prisma.user.update({
+        where: { id: userId },
+        data: {
+            pictureData: file.buffer,
+            pictureMimeType: file.mimetype,
+            // Update pictureUrl to point to the endpoint that serves the DB image
+            pictureUrl: `/api/users/${userId}/picture`
+        }
+    });
+    return `/api/users/${userId}/picture`;
 };
 exports.updateProfilePicture = updateProfilePicture;
 //# sourceMappingURL=auth.service.js.map

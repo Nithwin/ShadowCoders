@@ -37,13 +37,19 @@ exports.getLeaderboard = exports.syncStats = void 0;
 const leetcodeService = __importStar(require("./leetcode.service"));
 const syncStats = async (req, res) => {
     try {
-        const { userId } = req.body; // Optional: sync specific user
+        const userId = req.body?.userId; // Optional: sync specific user
+        console.log('[LeetCode Sync] Starting sync...', userId ? `for user ${userId}` : 'for all users');
         const result = await leetcodeService.syncStudentStats(userId);
+        console.log('[LeetCode Sync] Completed:', result);
         res.json(result);
     }
     catch (error) {
-        console.error('Error syncing LeetCode stats:', error);
-        res.status(500).json({ message: 'Failed to sync LeetCode stats' });
+        console.error('[LeetCode Sync] Error:', error);
+        console.error('[LeetCode Sync] Error stack:', error.stack);
+        res.status(500).json({
+            message: 'Failed to sync LeetCode stats',
+            error: error.message
+        });
     }
 };
 exports.syncStats = syncStats;

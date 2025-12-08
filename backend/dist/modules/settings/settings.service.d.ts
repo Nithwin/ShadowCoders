@@ -6,6 +6,8 @@ export declare const updateSettings: (userId: string, settings: any) => Promise<
     email: string;
     password: string | null;
     pictureUrl: string | null;
+    pictureData: Uint8Array | null;
+    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;

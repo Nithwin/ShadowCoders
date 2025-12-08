@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getQueueStatusHandler = exports.runCodeHandler = void 0;
+exports.getQueueStatusHandler = exports.gradeEssayHandler = exports.runCodeHandler = void 0;
 const gradingService = __importStar(require("./grading.service"));
 const execution_queue_1 = require("../../lib/execution-queue");
 const runCodeHandler = async (req, res, next) => {
@@ -57,6 +57,18 @@ const runCodeHandler = async (req, res, next) => {
     }
 };
 exports.runCodeHandler = runCodeHandler;
+const gradeEssayHandler = async (req, res, next) => {
+    try {
+        // req.body should be validated by autoGradeEssaySchema
+        const { responseId } = req.body;
+        const result = await gradingService.gradeEssay(responseId);
+        res.json(result);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.gradeEssayHandler = gradeEssayHandler;
 const getQueueStatusHandler = async (req, res, next) => {
     try {
         const stats = execution_queue_1.executionQueue.getStats();

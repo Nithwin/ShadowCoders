@@ -90,6 +90,11 @@ export default function StudentProfilePage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image size should be less than 5MB', 'error');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, pictureUrl: reader.result as string }));
@@ -104,8 +109,10 @@ export default function StudentProfilePage() {
         const { data } = await api.post('/me/picture', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        setFormData(prev => ({ ...prev, pictureUrl: data.pictureUrl }));
-        await updateUser({ pictureUrl: data.pictureUrl });
+        const timestamp = new Date().getTime();
+        const newPictureUrl = `${data.pictureUrl}?t=${timestamp}`;
+        setFormData(prev => ({ ...prev, pictureUrl: newPictureUrl }));
+        await updateUser({ pictureUrl: newPictureUrl });
         showToast('Profile picture updated!', 'success');
       } catch (err: any) {
         console.error('Upload failed:', err);
@@ -316,7 +323,15 @@ export default function StudentProfilePage() {
                         <div className="group">
                             <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Registration Number</label>
                             {isEditing ? (
-                                <input name="reg_no" value={formData.reg_no} onChange={handleInputChange} className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                <div className="relative">
+                                    <input 
+                                        name="reg_no" 
+                                        value={formData.reg_no} 
+                                        disabled
+                                        className="w-full bg-gray-100 border border-gray-200 rounded-md px-3 py-1.5 text-sm text-gray-500 cursor-not-allowed" 
+                                    />
+                                    <Lock className="w-3 h-3 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
+                                </div>
                             ) : (
                                 <p className="text-gray-900 font-mono font-medium">{user.reg_no || 'Not set'}</p>
                             )}

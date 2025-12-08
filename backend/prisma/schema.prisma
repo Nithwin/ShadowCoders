@@ -84,6 +84,8 @@ model User {
   name       String?
   password   String?
   pictureUrl String?
+  pictureData Bytes?
+  pictureMimeType String?
   role       Role    @default(STUDENT)
   year       Int?
   department String?

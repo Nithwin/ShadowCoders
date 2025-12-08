@@ -6,5 +6,10 @@ type RunCodeInput = z.infer<typeof runCodeSchema>['body'];
  * Handles the logic for running a student's code submission.
  */
 export declare const runCode: (studentId: string, attemptId: string, input: RunCodeInput) => Promise<Prisma.JsonValue>;
+export declare const gradeEssay: (responseId: string) => Promise<{
+    jobId: string;
+    status: string;
+    message: string;
+}>;
 export {};
 //# sourceMappingURL=grading.service.d.ts.map

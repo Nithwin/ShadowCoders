@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUser = exports.deleteUser = exports.updateUser = exports.getUserById = exports.getAllUsers = void 0;
+exports.getUserPictureData = exports.createUser = exports.deleteUser = exports.updateUser = exports.getUserById = exports.getAllUsers = void 0;
 const prisma_1 = require("../../lib/prisma");
 const db_health_1 = require("../../lib/db-health");
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -77,4 +77,11 @@ const createUser = async (data) => {
     }), 'createUser');
 };
 exports.createUser = createUser;
+const getUserPictureData = async (id) => {
+    return (0, db_health_1.withDatabaseErrorHandling)(() => prisma_1.prisma.user.findUnique({
+        where: { id },
+        select: { pictureData: true, pictureMimeType: true }
+    }), 'getUserPictureData');
+};
+exports.getUserPictureData = getUserPictureData;
 //# sourceMappingURL=users.service.js.map

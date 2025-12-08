@@ -39,14 +39,19 @@ const userController = __importStar(require("./users.controller"));
 const auth_1 = require("../../middleware/auth");
 const registerUserRoutes = (app) => {
     const router = (0, express_1.Router)();
-    // All routes require authentication and STAFF (Admin) role
+    // Routes requiring only authentication (Student + Staff)
     router.use(auth_1.verifyAccess);
-    router.use((0, auth_1.requireRole)('STAFF'));
-    router.get('/', userController.getAllUsers);
-    router.post('/', userController.createUser);
-    router.get('/:id', userController.getUserById);
-    router.put('/:id', userController.updateUser);
-    router.delete('/:id', userController.deleteUser);
+    router.get('/:id/picture', userController.getUserPicture);
+    // Routes requiring STAFF (Admin) role
+    const adminRouter = (0, express_1.Router)();
+    adminRouter.use((0, auth_1.requireRole)('STAFF'));
+    adminRouter.get('/', userController.getAllUsers);
+    adminRouter.post('/', userController.createUser);
+    adminRouter.get('/:id', userController.getUserById);
+    adminRouter.put('/:id', userController.updateUser);
+    adminRouter.delete('/:id', userController.deleteUser);
+    // Mount admin routes (effectively applying the middleware to them)
+    router.use('/', adminRouter);
     app.use('/api/users', router);
 };
 exports.registerUserRoutes = registerUserRoutes;

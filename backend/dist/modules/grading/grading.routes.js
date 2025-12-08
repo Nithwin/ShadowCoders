@@ -39,10 +39,12 @@ const validate_1 = require("../../middleware/validate");
 const grading_zod_1 = require("./grading.zod");
 const gradingController = __importStar(require("./grading.controller"));
 const registerGradingRoutes = (app) => {
-    app.post('/api/student/attempts/:attemptId/run-code', auth_1.verifyAccess, // 1. Must be logged in
-    (0, validate_1.validate)(grading_zod_1.runCodeSchema), // 2. Validate the request body
-    gradingController.runCodeHandler // 3. Run the controller
-    );
+    // Run code (for students)
+    app.post('/api/student/attempts/:attemptId/run-code', auth_1.verifyAccess, (0, validate_1.validate)(grading_zod_1.runCodeSchema), gradingController.runCodeHandler);
+    // Auto-grade essay (for admins/staff)
+    app.post('/api/grading/essay', 
+    // authorize([Role.STAFF]), // Ensure only staff can trigger this
+    (0, validate_1.validate)(grading_zod_1.autoGradeEssaySchema), gradingController.gradeEssayHandler);
     // Queue status endpoint (public for students to check wait times)
     app.get('/api/queue/status', gradingController.getQueueStatusHandler);
 };

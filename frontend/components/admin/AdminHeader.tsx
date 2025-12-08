@@ -15,7 +15,19 @@ export default function AdminHeader() {
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger asChild>
           <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
-            <UserIcon className="w-8 h-8 p-1.5 rounded-full bg-primary/20 text-primary" />
+            {user?.pictureUrl ? (
+                <img 
+                  src={user.pictureUrl} 
+                  alt="Profile" 
+                  className="w-8 h-8 rounded-full border border-gray-200 object-cover"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = 'none';
+                    target.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+            ) : null}
+            <UserIcon className={`w-8 h-8 p-1.5 rounded-full bg-primary/20 text-primary ${user?.pictureUrl ? 'hidden' : 'block'}`} />
             <div className="text-left hidden md:block">
               <p className="text-sm font-medium text-primary truncate">
                 {user?.name || 'Staff Member'}

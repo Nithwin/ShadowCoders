@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUser = exports.deleteUser = exports.updateUser = exports.getUserById = exports.getAllUsers = void 0;
+exports.getUserPicture = exports.createUser = exports.deleteUser = exports.updateUser = exports.getUserById = exports.getAllUsers = void 0;
 const userService = __importStar(require("./users.service"));
 const getAllUsers = async (req, res) => {
     try {
@@ -128,4 +128,29 @@ const createUser = async (req, res) => {
     }
 };
 exports.createUser = createUser;
+const getUserPicture = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
+        // Use prisma directly here or add a service method. 
+        // Since we need bytes, standard getUserById typically omits huge blobs or just returns basic info.
+        // Let's call a specific service method or use prisma here for brevity if allowed, 
+        // but better to stick to service pattern.
+        const pictureData = await userService.getUserPictureData(id);
+        if (!pictureData || !pictureData.pictureData) {
+            // Fallback to default or 404. If no picture, maybe redirect to a default placeholder?
+            // Or just 404.
+            return res.status(404).send('Not found');
+        }
+        res.setHeader('Content-Type', pictureData.pictureMimeType || 'image/jpeg');
+        res.send(pictureData.pictureData);
+    }
+    catch (error) {
+        console.error('Error serving user picture:', error);
+        res.status(500).send('Error serving picture');
+    }
+};
+exports.getUserPicture = getUserPicture;
 //# sourceMappingURL=users.controller.js.map

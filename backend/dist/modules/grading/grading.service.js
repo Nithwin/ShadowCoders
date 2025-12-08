@@ -33,11 +33,12 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runCode = void 0;
+exports.gradeEssay = exports.runCode = void 0;
 const gradingRepo = __importStar(require("./grading.repo"));
 const prisma_1 = require("../../lib/prisma");
 const client_1 = require("@prisma/client");
 const local_executor_1 = require("../../lib/local-executor");
+const env_1 = require("../../config/env");
 const execution_queue_1 = require("../../lib/execution-queue");
 /**
  * Handles the logic for running a student's code submission.
@@ -174,4 +175,128 @@ const runCode = async (studentId, attemptId, input) => {
     return finalJob.result;
 };
 exports.runCode = runCode;
+// --- ESSAY GRADING LOGIC ---
+// Create a dedicated queue with concurrency 1 for essay grading to save CPU
+// This ensures only ONE essay is graded at a time by the local LLM
+const execution_queue_2 = require("../../lib/execution-queue");
+const essayGradingQueue = new execution_queue_2.ExecutionQueue(1);
+const gradeEssay = async (responseId) => {
+    // 1. Validation
+    const response = await prisma_1.prisma.response.findUnique({
+        where: { id: responseId },
+        include: {
+            question: {
+                include: { rubric: true }
+            }
+        }
+    });
+    if (!response) {
+        throw { status: 404, message: 'Response not found' };
+    }
+    if (response.question.type !== client_1.QType.ESSAY) {
+        throw { status: 400, message: 'This is not an essay response' };
+    }
+    // 2. Extact text answer
+    // Handle both possible locations for essay text (answer JSON or textAnswer field)
+    let studentText = response.textAnswer;
+    if (!studentText && response.answer && typeof response.answer === 'object') {
+        studentText = response.answer.textAnswer || response.answer.text;
+    }
+    if (!studentText || studentText.trim().length === 0) {
+        throw { status: 400, message: 'Essay is empty, cannot grade.' };
+    }
+    // 3. Create GradingJob (Queued)
+    const jobData = {
+        provider: env_1.env.AI_PROVIDER || 'gemini',
+        status: 'QUEUED',
+        payload: { responseId },
+        response: { connect: { id: response.id } },
+    };
+    const job = await gradingRepo.createGradingJob(jobData);
+    // 4. Enqueue the grading task
+    essayGradingQueue.enqueue(async () => {
+        try {
+            console.log(`[EssayGrade] Starting job ${job.id} for response ${response.id}`);
+            // Update job to RUNNING
+            await gradingRepo.updateGradingJob(job.id, 'RUNNING', null);
+            // Prepare Prompt
+            const questionPrompt = response.question.prompt || 'No prompt provided';
+            const maxPoints = Number(response.question.points);
+            const rubricText = response.question.rubric
+                ? JSON.stringify(response.question.rubric.criteria)
+                : 'No specific rubric provided. Grade based on clarity, relevance, and completeness.';
+            const systemPrompt = `You are a strict academic grader. 
+Grade the following essay based on the provided Question and Rubric.
+
+**Question:**
+${questionPrompt}
+
+**Rubric/Criteria:**
+${rubricText}
+
+**Max Points:** ${maxPoints}
+
+**Student Answer:**
+${studentText}
+
+**INSTRUCTIONS:**
+1. Analyze the student's answer against the rubric.
+2. Assign a score between 0 and ${maxPoints}. Use decimal points if needed (e.g., 8.5).
+3. Provide constructive feedback explaining the score.
+4. Return ONLY a valid JSON object in this format:
+{
+  "score": <number>,
+  "feedback": "<string>"
+}
+`;
+            // Call AI Service
+            let aiResponseString = '';
+            if (env_1.env.AI_PROVIDER === 'ollama') {
+                const { generateJsonFromOllama } = await Promise.resolve().then(() => __importStar(require('../../lib/ollama')));
+                aiResponseString = await generateJsonFromOllama(systemPrompt);
+            }
+            else {
+                const { generateJsonFromAi } = await Promise.resolve().then(() => __importStar(require('../../lib/gemini')));
+                aiResponseString = await generateJsonFromAi(systemPrompt);
+            }
+            // Parse Result
+            // Clean up markdown code blocks if present
+            let cleaned = aiResponseString.trim();
+            if (cleaned.startsWith('```')) {
+                const lines = cleaned.split('\n');
+                lines.shift();
+                if (lines[lines.length - 1]?.trim() === '```')
+                    lines.pop();
+                cleaned = lines.join('\n');
+            }
+            const resultJson = JSON.parse(cleaned);
+            // Validate result structure
+            if (typeof resultJson.score !== 'number' || typeof resultJson.feedback !== 'string') {
+                throw new Error('AI returned invalid JSON structure');
+            }
+            // 5. Save Evaluation
+            await prisma_1.prisma.evaluation.create({
+                data: {
+                    responseId: response.id,
+                    kind: 'AI',
+                    score: resultJson.score,
+                    comments: resultJson.feedback,
+                    isFinal: false, // Teacher must approve
+                    createdAt: new Date(),
+                }
+            });
+            // 6. Complete Job
+            await gradingRepo.updateGradingJob(job.id, 'SUCCEEDED', resultJson);
+            console.log(`[EssayGrade] Job ${job.id} completed. Score: ${resultJson.score}`);
+            return resultJson;
+        }
+        catch (error) {
+            console.error(`[EssayGrade] Job ${job.id} failed:`, error);
+            await gradingRepo.updateGradingJob(job.id, 'FAILED', { error: error.message });
+            throw error;
+        }
+    });
+    return { jobId: job.id, status: 'QUEUED', message: 'Essay grading has been queued.' };
+};
+exports.gradeEssay = gradeEssay;
 //# sourceMappingURL=grading.service.js.map

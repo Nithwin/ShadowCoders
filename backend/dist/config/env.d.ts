@@ -14,5 +14,8 @@ export declare const env: {
     MAX_CONCURRENT_EXECUTIONS: string;
     UPLOADS_DIR: string;
     EXECUTION_OS: string;
+    AI_PROVIDER: "gemini" | "ollama";
+    OLLAMA_BASE_URL: string;
+    OLLAMA_MODEL: string;
 };
 //# sourceMappingURL=env.d.ts.map
