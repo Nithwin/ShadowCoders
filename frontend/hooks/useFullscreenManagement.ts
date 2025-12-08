@@ -19,8 +19,10 @@ export function useFullscreenManagement(
 
   // Enter fullscreen
   const enterFullscreen = useCallback(async () => {
-    await enterFullscreenUtil(containerRef.current);
-  }, [containerRef]);
+    // URL: Use document.documentElement instead of specific container
+    // This ensures that React Portals (Modals/Dialogs) attached to body are visible
+    await enterFullscreenUtil(document.documentElement);
+  }, []);
 
   // Exit fullscreen
   const exitFullscreen = useCallback(async () => {

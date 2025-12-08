@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { socketService } from '@/lib/socket';
 import { useRouter } from 'next/navigation';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Edit, ExternalLink, Zap } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -99,10 +100,21 @@ export default function ReportsDashboard() {
         }
     };
 
+    const { confirm } = useConfirmationDialog();
+
     const handleGrantFullMarks = async (questionId: string) => {
-        if (!confirm('Are you sure you want to grant FULL MARKS for this question? This will apply to all students.')) return;
+        const confirmed = await confirm({
+            title: 'Grant Full Marks?',
+            message: 'Are you sure you want to grant FULL MARKS for this question? This will apply to all students.',
+            confirmText: 'Grant Full Marks',
+            cancelText: 'Cancel',
+            variant: 'danger'
+        });
+
+        if (!confirmed) return;
+
         try {
-            await api.patch(`/questions/${questionId}`, {
+            await api.put(`/admin/questions/${questionId}`, {
                 config: { forceFullMarks: true }
             });
             showNotification('Question updated with Full Marks override', 'success');
@@ -164,7 +176,7 @@ export default function ReportsDashboard() {
                             <div className="flex items-start justify-between">
                                 <div>
                                     <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-                                        <span className="font-medium text-gray-900">{report.exam.title}</span>
+                                        <span className="font-medium text-gray-900">{report.exam?.title || 'Unknown Exam'}</span>
                                         <span>•</span>
                                         <span>{new Date(report.createdAt).toLocaleTimeString()}</span>
                                     </div>

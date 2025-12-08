@@ -60,7 +60,10 @@ export const reportService = {
         student: {
             select: { id: true, name: true, email: true, reg_no: true }
         },
-        question: true
+        question: true,
+        exam: {
+            select: { id: true, title: true }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
