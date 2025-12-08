@@ -105,7 +105,7 @@ export default function AssignmentManager({
   const { confirm } = useConfirmationDialog();
   const toast = useToastNotification();
 
-  const handleDelete = async () => {
+  const handleDelete = async (assignment: Assignment) => {
     const confirmed = await confirm({
       title: 'Remove Assignment',
       message: 'Are you sure you want to remove this assignment?',
@@ -116,9 +116,16 @@ export default function AssignmentManager({
     if (!confirmed) {
       return;
     }
-    // Note: There's no delete endpoint in the backend, so we might need to handle this differently
-    // For now, we'll just show an error
-    toast.warning('Assignment deletion is not yet implemented. Please contact support.');
+    try {
+      await api.delete(`/admin/exams/${examId}/assignments/${assignment.id}`);
+      setSuccessMessage('Assignment removed successfully');
+      fetchAssignments();
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      console.error(err);
+      toast.error(error.response?.data?.error?.message || 'Failed to remove assignment');
+    }
   };
 
   const formatAssignment = (assignment: Assignment): string => {
@@ -215,7 +222,7 @@ export default function AssignmentManager({
                 </div>
                 {examStatus !== 'PUBLISHED' && (
                   <button
-                    onClick={() => handleDelete()}
+                    onClick={() => handleDelete(assignment)}
                     className="p-2 hover:bg-primary/10 rounded-md hover:text-red-600 transition-colors"
                     title="Remove Assignment"
                   >
@@ -440,7 +447,7 @@ function CreateAssignmentModal({
               </div>
             </div>
             <p className="text-xs text-primary/60">
-              All three fields (Year, Department, Section) are required for cohort assignment
+              Leave fields empty to include all (e.g. Set Year=1 and leave Department empty for All Year 1 students)
             </p>
           </div>
         )}

@@ -21,6 +21,13 @@ export const registerExamRoutes = (app: Express) => {
         validate(assignExamSchema),
         examController.assignExamHandler
     );
+
+    app.delete(
+        '/api/admin/exams/:examId/assignments/:assignmentId',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.deleteAssignmentHandler
+    );
     
     app.post(
         '/api/admin/exams/:examId/publish',

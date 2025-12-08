@@ -139,6 +139,25 @@ export const assignExamHandler: RequestHandler = async (req, res, next) => {
   }
 };
 
+export const deleteAssignmentHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    const assignmentId = req.params.assignmentId;
+    
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
+    if (!assignmentId) {
+      return next({ status: 400, message: 'Missing assignmentId parameter' });
+    }
+
+    const result = await examService.deleteAssignment(examId, assignmentId);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const publishExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;

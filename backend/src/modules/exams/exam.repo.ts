@@ -21,6 +21,12 @@ export const createExamAssignment = (
   });
 };
 
+export const deleteExamAssignment = (assignmentId: string) => {
+  return prisma.examAssignment.delete({
+    where: { id: assignmentId },
+  });
+};
+
 export const updateExamStatus = (examId: string, status: ExamStatus) => {
   return prisma.exam.update({
     where: { id: examId },
@@ -145,15 +151,19 @@ export const findExamByIdForStudent = async (params: {
             assignToAll: true,
           },
           // Condition 2: Assigned via cohort match (only if student has cohort info)
-          ...(student.year && student.department && student.section
-            ? [
-                {
-                  cohortYear: student.year,
-                  cohortDepartment: student.department,
-                  cohortSection: student.section,
-                },
-              ]
-            : []),
+          // Condition 2: Assigned via cohort match (flexible)
+          {
+            AND: [
+              // If student has year, match assignment year OR assignment has no year (applies to all years)
+              student.year ? { OR: [{ cohortYear: null }, { cohortYear: student.year }] } : {},
+              // If student has department, match assignment dept OR assignment has no dept
+              student.department ? { OR: [{ cohortDepartment: null }, { cohortDepartment: student.department }] } : {},
+              // If student has section, match assignment section OR assignment has no section
+              student.section ? { OR: [{ cohortSection: null }, { cohortSection: student.section }] } : {},
+              // Ensure we are not matching purely empty assignments if assignToAll is false (though create validation prevents this)
+              { assignToAll: false }
+            ]
+          },
           // Condition 3: Assigned directly via student ID
           {
             studentIds: {
@@ -265,15 +275,15 @@ export const listExamsForStudent = async (params: {
             assignToAll: true,
           },
           // Condition 2: Assigned via cohort match (only if student has cohort info)
-          ...(student.year && student.department && student.section
-            ? [
-                {
-                  cohortYear: student.year,
-                  cohortDepartment: student.department,
-                  cohortSection: student.section,
-                },
-              ]
-            : []),
+          // Condition 2: Assigned via cohort match (flexible)
+          {
+            AND: [
+              student.year ? { OR: [{ cohortYear: null }, { cohortYear: student.year }] } : {},
+              student.department ? { OR: [{ cohortDepartment: null }, { cohortDepartment: student.department }] } : {},
+              student.section ? { OR: [{ cohortSection: null }, { cohortSection: student.section }] } : {},
+              { assignToAll: false }
+            ]
+          },
           // Condition 3: Assigned directly via student ID
           {
             studentIds: {

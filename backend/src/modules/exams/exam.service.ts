@@ -79,6 +79,23 @@ export const assignExam = async (examId: string, input: AssignExamInput) => {
   return assignment;
 };
 
+export const deleteAssignment = async (examId: string, assignmentId: string) => {
+  // Check if exam exists? (Optional, but good practice)
+  const exam = await examRepo.findExamById(examId);
+  if (!exam) {
+    throw { status: 404, message: "Exam not found" };
+  }
+  
+  // Delete the assignment
+  try {
+    await examRepo.deleteExamAssignment(assignmentId);
+    return { message: "Assignment deleted successfully" };
+  } catch (error) {
+    // Check if error is "Record to delete does not exist"
+    throw { status: 404, message: "Assignment not found" };
+  }
+};
+
 export const pubishExam = async (examId: string) => {
   const exam = await examRepo.findExamById(examId);
 
