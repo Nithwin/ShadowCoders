@@ -44,6 +44,8 @@ type AttemptResults = {
     title: string;
   };
   responses: QuestionResult[];
+  isLocked?: boolean;
+  message?: string;
 };
 
 export default function ExamResultsPage() {
@@ -238,6 +240,21 @@ export default function ExamResultsPage() {
           <p className="text-lg text-gray-600">{results.exam.title}</p>
         </div>
 
+        {results.isLocked ? (
+           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
+             <div className="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+               <Clock className="w-10 h-10 text-blue-600" />
+             </div>
+             <h2 className="text-3xl font-bold text-gray-900 mb-4">Results are Locked</h2>
+             <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
+               {results.message || "The results for this exam are not yet released. Please check back later or contact your instructor."}
+             </p>
+             <Link href="/student/exams">
+               <Button size="lg" className="px-8">Back to Exams</Button>
+             </Link>
+           </div>
+        ) : (
+           <>
         {/* Auto-Submit Warning Banner */}
         {results.submissionType === 'AUTO' && results.submissionReason && (
           <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-6 mb-8 shadow-md">
@@ -453,6 +470,8 @@ export default function ExamResultsPage() {
             </Button>
           </Link>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

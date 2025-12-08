@@ -532,7 +532,7 @@ export const getAttemptResults = async (
   attemptId: string
 ) => {
   // 1. Fetch all result data from the repository
-  const attemptResults = await attemptRepo.getAttemptResults(attemptId);
+  const attemptResults = await attemptRepo.getAttemptResults(attemptId) as any;
 
   // 2. --- Validation Checks ---
   if (!attemptResults) {
@@ -549,6 +549,25 @@ export const getAttemptResults = async (
   // Ensure the student can only see results for a submitted exam
   if (attemptResults.status !== AttemptStatus.SUBMITTED) {
     throw { status: 403, message: 'Forbidden: Results are not available for this attempt yet' };
+  }
+
+  // 4a. Check if results are released
+  // We need to cast exam to any because TS might not know about releaseResults yet due to EPERM error
+  const exam = attemptResults.exam as any; 
+  if (exam.releaseResults === false) {
+      // Results are locked
+      // Return a stripped down version
+      return {
+          id: attemptResults.id,
+          studentId: attemptResults.studentId,
+          status: attemptResults.status,
+          exam: {
+              id: exam.id,
+              title: exam.title,
+          },
+          message: "Results are currently locked by the administrator.",
+          isLocked: true
+      };
   }
 
   // 5. Sort responses by question order for consistent display

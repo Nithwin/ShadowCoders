@@ -421,6 +421,7 @@ export const getAttemptResults = (attemptId: string) => {
           id: true,
           title: true,
           maxAttempts: true,
+          releaseResults: true,
         },
       },
       responses: {

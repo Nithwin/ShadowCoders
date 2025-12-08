@@ -3,8 +3,8 @@ import { testCodeWithTestCasesLocally } from '../../lib/local-executor';
 
 export const areArraysEqual = (arr1: any[], arr2: any[]): boolean => {
   if (arr1.length !== arr2.length) return false;
-  const sortedArr1 = [...arr1].sort();
-  const sortedArr2 = [...arr2].sort();
+  const sortedArr1 = [...arr1].map(String).sort();
+  const sortedArr2 = [...arr2].map(String).sort();
   return sortedArr1.every((value, index) => value === sortedArr2[index]);
 };
 

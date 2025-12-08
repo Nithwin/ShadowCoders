@@ -74,11 +74,20 @@ export function useExamSubmission(
       const error = err as { response?: { status?: number; data?: { message?: string } } };
       let errorMessage = 'Failed to submit exam. Please try again.';
 
-      if (error.response?.status === 403) {
-        errorMessage = 'Submission failed: You are not authorized to submit this exam. It may have already been submitted or the time has expired.';
-        // Optional: Force redirect if already submitted
-        // router.replace(`/student/attempts/${attemptId}/results`);
-      } else if (error.response?.data?.message) {
+      // Check for specific error conditions
+      const isAlreadySubmitted = error.response?.status === 403 || 
+                                 error.response?.data?.message?.includes('already been submitted') ||
+                                 error.response?.data?.message?.includes('already submitted');
+
+      if (isAutoSubmit || isAlreadySubmitted) {
+        // If it was an auto-submit (e.g. time up/anti-cheat) OR if the backend says it's already done,
+        // we MUST let the user leave the exam page.
+        // Redirect to results immediately.
+        router.replace(`/student/attempts/${attemptId}/results`);
+        return;
+      }
+
+      if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (err instanceof Error) {
         errorMessage = err.message;

@@ -48,6 +48,22 @@ export function ExamSettings({
               </label>
             </div>
           )}
+          <div className="flex items-start gap-3">
+            <input
+              id="releaseResults"
+              type="checkbox"
+              {...register('releaseResults')}
+              className="mt-1 h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50"
+            />
+            <div className="flex flex-col">
+              <label htmlFor="releaseResults" className="text-sm font-medium text-primary/80 cursor-pointer">
+                Release Results Immediately
+              </label>
+              <span className="text-xs text-primary/60">
+                If disabled, results are locked and hidden from students until you enable this.
+              </span>
+            </div>
+          </div>
           {showNegativeMarking && (
             <div>
               <label htmlFor="negativeMarkPerWrong" className="block text-sm font-semibold text-primary mb-2">

@@ -130,6 +130,7 @@ model Exam {
   randomizeQuestions   Boolean    @default(false)
   negativeMarkPerWrong Decimal?   @db.Decimal(5, 2)
   status               ExamStatus @default(DRAFT)
+  releaseResults       Boolean    @default(true)
   maxAttempts          Int?       // null means unlimited attempts
   maxTabSwitches       Int?       // null means unlimited tab switches
   allowedLanguages     Json?      // Array of allowed programming languages for coding questions
