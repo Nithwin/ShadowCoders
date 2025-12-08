@@ -28,6 +28,7 @@ interface ExamContentAreaProps {
   onNavigateQuestion: (direction: 'next' | 'prev') => void;
   onSubmitExam: () => void;
   allowedLanguages?: string[] | null; // Allowed programming languages from exam
+  reportButton?: React.ReactNode;
 }
 
 export default function ExamContentArea({
@@ -41,6 +42,7 @@ export default function ExamContentArea({
   onNavigateQuestion,
   onSubmitExam,
   allowedLanguages,
+  reportButton,
 }: ExamContentAreaProps) {
   const isCodingQuestion = currentQuestion?.type === QType.CODING;
   const isEssayQuestion = currentQuestion?.type === QType.ESSAY;
@@ -66,6 +68,7 @@ export default function ExamContentArea({
               points={currentQuestion.points}
               answer={chosenOptionIds && Array.isArray(chosenOptionIds) ? { chosenOptionIds } : undefined}
               onChange={(answer) => onAnswerChange(currentQuestion.id, answer)}
+              reportButton={reportButton}
             />
           );
         })()}
@@ -140,6 +143,7 @@ export default function ExamContentArea({
             isLastQuestion={currentQuestionIndex === questions.length - 1}
             onSubmit={onSubmitExam}
             allowedLanguages={allowedLanguages}
+            reportButton={reportButton}
           />
         )}
 
@@ -162,6 +166,7 @@ export default function ExamContentArea({
               canGoPrev={currentQuestionIndex > 0}
               isLastQuestion={currentQuestionIndex === questions.length - 1}
               onSubmit={onSubmitExam}
+              reportButton={reportButton}
             />
           );
         })()}

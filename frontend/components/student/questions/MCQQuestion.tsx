@@ -15,6 +15,7 @@ type MCQQuestionProps = {
   points: number;
   answer?: { chosenOptionIds: string[] };
   onChange: (answer: { chosenOptionIds: string[] }) => void;
+  reportButton?: React.ReactNode;
 };
 
 export default function MCQQuestion({
@@ -24,6 +25,7 @@ export default function MCQQuestion({
   points,
   answer,
   onChange,
+  reportButton,
 }: MCQQuestionProps) {
   const [questionWidth, setQuestionWidth] = useState(50); // Percentage width for question (50% default)
   const chosenOptionIds = answer?.chosenOptionIds || [];
@@ -47,8 +49,11 @@ export default function MCQQuestion({
               <HelpCircle className="w-6 h-6 text-blue-600" />
               <h2 className="text-2xl font-bold text-gray-900">Multiple Choice Question</h2>
             </div>
-            <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
-              {points} {points === 1 ? 'point' : 'points'}
+            <div className="flex items-center gap-3">
+              {reportButton}
+              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
+                {points} {points === 1 ? 'point' : 'points'}
+              </div>
             </div>
           </div>
         </div>

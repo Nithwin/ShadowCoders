@@ -30,7 +30,8 @@ type CodingQuestionProps = {
   canGoPrev?: boolean;
   isLastQuestion?: boolean;
   onSubmit?: () => void;
-  allowedLanguages?: string[] | null; // Allowed programming languages from exam
+  allowedLanguages?: string[] | null;
+  reportButton?: React.ReactNode;
 };
 
 const LANGUAGES = [
@@ -70,6 +71,7 @@ export default function CodingQuestion({
   isLastQuestion = false,
   onSubmit,
   allowedLanguages,
+  reportButton,
 }: CodingQuestionProps) {
   // Filter available languages based on exam's allowedLanguages
   const availableLanguages = allowedLanguages && allowedLanguages.length > 0
@@ -401,8 +403,11 @@ export default function CodingQuestion({
               <Code className="w-6 h-6 text-blue-600" />
               <h2 className="text-2xl font-bold text-gray-900">Coding Question</h2>
             </div>
-            <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
-              {points} {points === 1 ? 'point' : 'points'}
+            <div className="flex items-center gap-3">
+              {reportButton}
+              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
+                {points} {points === 1 ? 'point' : 'points'}
+              </div>
             </div>
           </div>
         </div>

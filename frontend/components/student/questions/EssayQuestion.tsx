@@ -18,6 +18,7 @@ type EssayQuestionProps = {
   canGoPrev?: boolean;
   isLastQuestion?: boolean;
   onSubmit?: () => void;
+  reportButton?: React.ReactNode;
 };
 
 export default function EssayQuestion({
@@ -34,6 +35,7 @@ export default function EssayQuestion({
   canGoPrev = false,
   isLastQuestion = false,
   onSubmit,
+  reportButton,
 }: EssayQuestionProps) {
   const [text, setText] = useState(answer?.textAnswer || '');
   const [textareaWidth, setTextareaWidth] = useState(50); // Percentage width for textarea (50% default)
@@ -168,8 +170,11 @@ export default function EssayQuestion({
               <FileText className="w-6 h-6 text-blue-600" />
               <h2 className="text-2xl font-bold text-gray-900">Essay Question</h2>
             </div>
-            <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
-              {points} {points === 1 ? 'point' : 'points'}
+            <div className="flex items-center gap-3">
+              {reportButton}
+              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
+                {points} {points === 1 ? 'point' : 'points'}
+              </div>
             </div>
           </div>
           {wordLimit && (

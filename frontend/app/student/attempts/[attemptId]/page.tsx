@@ -406,17 +406,6 @@ export default function ExamAttemptPage() {
         <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
           {currentQuestion && (
             <div className="relative h-full flex flex-col">
-                {/* Report Button - Overlay or Header */}
-                <div className="absolute top-2 right-2 z-10">
-                    <ReportQuestionButton 
-                        questionId={currentQuestion.id}
-                        examId={attempt?.exam?.id || ''}
-                        isReported={reportedQuestions.has(currentQuestion.id)}
-                        onReported={() => {
-                            setReportedQuestions(prev => new Set(prev).add(currentQuestion.id));
-                        }}
-                    />
-                </div>
                 <ExamContentArea
                     currentQuestion={currentQuestion}
                     questions={questions}
@@ -428,6 +417,16 @@ export default function ExamAttemptPage() {
                     onNavigateQuestion={navigateQuestion}
                     onSubmitExam={handleSubmitExamClick}
                     allowedLanguages={attempt?.exam?.allowedLanguages}
+                    reportButton={
+                        <ReportQuestionButton 
+                            questionId={currentQuestion.id}
+                            examId={attempt?.exam?.id || ''}
+                            isReported={reportedQuestions.has(currentQuestion.id)}
+                            onReported={() => {
+                                setReportedQuestions(prev => new Set(prev).add(currentQuestion.id));
+                            }}
+                        />
+                    }
                 />
             </div>
           )}

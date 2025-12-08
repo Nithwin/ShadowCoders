@@ -477,49 +477,54 @@ export const getQuestionForStudent = async (
   questionId: string,
   studentId: string
 ) => {
-  // 1. Verify the attempt belongs to the student
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    select: { studentId: true, examId: true, status: true },
-  });
+  try {
+    // 1. Verify the attempt belongs to the student
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      select: { studentId: true, examId: true, status: true },
+    });
 
-  if (!attempt) {
-    throw { status: 404, message: 'Attempt not found' };
+    if (!attempt) {
+      throw { status: 404, message: 'Attempt not found' };
+    }
+
+    if (attempt.studentId !== studentId) {
+      throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
+    }
+
+    // 2. Get the question
+    const question = await getQuestionById(questionId);
+
+    if (!question) {
+      throw { status: 404, message: 'Question not found' };
+    }
+
+    if (question.examId !== attempt.examId) {
+      throw { status: 403, message: 'Question is not part of this exam' };
+    }
+
+    // 3. Scrub the question data for students
+    const scrubbedQuestion: any = {
+      id: question.id,
+      type: question.type,
+      prompt: question.prompt,
+      points: question.points,
+      order: question.order,
+      options: question.options,
+      starterCode: question.starterCode,
+      wordLimit: question.wordLimit,
+      // Remove correctOptionIds and blanks
+      // For coding questions, only show visible test cases
+      testcases: question.type === QType.CODING && Array.isArray(question.testcases)
+        ? (question.testcases as any[]).filter((tc: any) => !tc.isHidden)
+        : undefined,
+    };
+
+    return scrubbedQuestion;
+  } catch (error) {
+    console.error('Error in getQuestionForStudent:', error);
+    throw error;
   }
-
-  if (attempt.studentId !== studentId) {
-    throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
-  }
-
-  // 2. Get the question
-  const question = await getQuestionById(questionId);
-
-  if (!question) {
-    throw { status: 404, message: 'Question not found' };
-  }
-
-  if (question.examId !== attempt.examId) {
-    throw { status: 403, message: 'Question is not part of this exam' };
-  }
-
-  // 3. Scrub the question data for students
-  const scrubbedQuestion: any = {
-    id: question.id,
-    type: question.type,
-    prompt: question.prompt,
-    points: question.points,
-    order: question.order,
-    options: question.options,
-    starterCode: question.starterCode,
-    wordLimit: question.wordLimit,
-    // Remove correctOptionIds and blanks
-    // For coding questions, only show visible test cases
-    testcases: question.type === QType.CODING && Array.isArray(question.testcases)
-      ? (question.testcases as any[]).filter((tc: any) => !tc.isHidden)
-      : undefined,
-  };
-
-  return scrubbedQuestion;
 };
 
 export const getAttemptResults = async (
