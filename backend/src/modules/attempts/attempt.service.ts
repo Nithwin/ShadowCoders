@@ -291,6 +291,30 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
     // Find the student's response for this question
     const response = attempt.responses.find((r) => r.questionId === question.id);
 
+    // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
+    const config = (question as any).config;
+    if (config && config.forceFullMarks === true) {
+        // Award full points regardless of answer
+        totalScore += questionPoints;
+        
+        // If response exists, update it to reflect full marks
+        if (response) {
+             await prisma.response.updateMany({
+              where: {
+                attemptId: attemptId,
+                questionId: question.id,
+              },
+              data: {
+                earnedPoints: questionPoints,
+                verdict: 'PASS',
+                gradingMode: GradingMode.AUTO, 
+                feedback: 'Full marks awarded by staff override.',
+              },
+            });
+        }
+        continue; // Skip normal grading logic
+    }
+
     if (response && response.answer) {
       // Auto-grade based on question type
       let gradingResult: {

@@ -18,8 +18,24 @@ body{
 }
 
 @theme {
-    --color-primary:#000000;
-    --color-secondary:#ffffff;
+    --color-background: #ffffff;
+    --color-foreground: #000000;
+
+    --color-primary: #000000;
+    --color-primary-foreground: #ffffff;
+
+    --color-secondary: #ffffff;
+    --color-secondary-foreground: #000000;
+
+    --color-destructive: #ef4444;
+    --color-destructive-foreground: #ffffff;
+
+    --color-accent: #f3f4f6;
+    --color-accent-foreground: #000000;
+
+    --color-input: #e5e7eb;
+    --color-ring: #000000;
+
     --font-poppins: var(--font-poppins);
     --font-inter: var(--font-inter);
     --font-alan-sans: var(--font-alan-sans);

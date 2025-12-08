@@ -58,6 +58,12 @@ enum QuestionStatus {
   INVALIDATED
 }
 
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
 enum TimingMode {
   OVERALL_ONLY
   PER_SECTION_ONLY
@@ -99,6 +105,7 @@ model User {
 
   // back-relations with explicit names
   invalidatedQuestions Question[]   @relation("QuestionInvalidator")
+  reportedQuestions    QuestionReport[]
   assessments          Evaluation[] @relation("EvaluationAssessor")
   createdTemplates     ExamTemplate[]
 
@@ -131,6 +138,7 @@ model Exam {
   assignments ExamAssignment[]
   attempts    Attempt[]
   sections    ExamSection[]
+  reports     QuestionReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -240,6 +248,7 @@ model Question {
 
   responses    Response[]
   sectionLinks SectionQuestion[]
+  reports      QuestionReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -446,4 +455,24 @@ model ExamTemplate {
 
   @@index([isPublic])
   @@index([createdBy])
+}
+
+model QuestionReport {
+  id        String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id])
+  
+  description String?
+  status      ReportStatus @default(OPEN)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([questionId])
+  @@index([examId])
+  @@index([status])
 }

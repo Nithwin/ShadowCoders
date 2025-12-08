@@ -115,6 +115,15 @@ const question = await questionRepo.getQuestionById(questionId);
     // mediaAsset is already included in the question object
     delete scrubbedQuestion.correctOptionIds;
   }
+  
+  // Handle reports status
+  // Check if there are any open reports?
+  // User Requirement: "if one student reported that question other should can't report it"
+  // So we check if reports array is not empty (assuming repo returns active reports or all)
+  // We selected { id: true, status: true } in repo.
+  const hasActiveReport = question.reports && question.reports.some((r: any) => r.status === 'OPEN');
+  scrubbedQuestion.isReported = !!hasActiveReport;
+  delete scrubbedQuestion.reports;
 
   return scrubbedQuestion;
 };
@@ -208,6 +217,9 @@ export const updateQuestion = async (
   if (input.passageAssetId !== undefined && input.passageAssetId) {
     dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
   }
+  if (input.config !== undefined) {
+      dataToUpdate.config = input.config as Prisma.InputJsonValue;
+  }
 
   // Call Repository
   const updatedQuestion = await questionRepo.updateQuestion(
@@ -217,6 +229,12 @@ export const updateQuestion = async (
 
   // Verify the update was successful
   const verifiedQuestion = await questionRepo.getQuestionById(questionId);
+
+  // Notify students via socket
+  if (verifiedQuestion) {
+      const { examMonitoring } = await import('../../lib/socket');
+      examMonitoring.notifyQuestionUpdate(verifiedQuestion.examId, questionId, verifiedQuestion);
+  }
 
   return updatedQuestion;
 };

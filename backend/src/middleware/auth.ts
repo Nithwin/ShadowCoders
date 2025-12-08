@@ -1,7 +1,15 @@
-import { RequestHandler } from "express";
+import { RequestHandler, Request } from "express";
 import jwt from 'jsonwebtoken';
 import { env } from "../config/env";
 import { Role } from "@prisma/client";
+
+export interface AuthenticatedRequest extends Request {
+    user?: {
+        sub: string;
+        role: string;
+    }
+}
+
 
 export const verifyAccess: RequestHandler = (req, res, next) => {
     const authHeader = req.headers.authorization;

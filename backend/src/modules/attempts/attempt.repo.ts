@@ -159,6 +159,7 @@ export const getAttemptForSubmission = (attemptId: string) => {
               points: true,
               correctOptionIds: true,
               testcases: true,
+              config: true,
             },
           },
         },

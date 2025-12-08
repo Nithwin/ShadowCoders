@@ -85,6 +85,7 @@ export function useExamAttemptData(attemptId: string | undefined) {
     fetchAttempt,
     formatAnswersForStorage,
     storageKey,
+    setQuestions, // Expose setter for socket updates
   };
 }
 

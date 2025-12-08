@@ -72,6 +72,7 @@ export const useExamSocket = (options: UseExamSocketOptions) => {
     emitActivity,
     disconnect,
     isConnected: socketRef.current?.connected || false,
+    socket: socketRef.current,
   };
 };
 

@@ -69,7 +69,10 @@ export const getQuestionById = (questionId: string) => {
       // Or, we can select them and trust the service layer to remove them.
       // Let's select them for now.
       correctOptionIds: true,
-      blanks: true
+      blanks: true,
+      reports: { // Include reports to check status
+          select: { id: true, status: true }
+      } 
     },
   });
 };

@@ -24,6 +24,8 @@ import { useExamSocket } from '@/hooks/useExamSocket';
 import { useSectionNavigation } from '@/hooks/useSectionNavigation';
 import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
 
+import { ReportQuestionButton } from '@/components/student/ReportQuestionButton';
+
 export default function ExamAttemptPage() {
   const params = useParams();
   const attemptId = params?.attemptId as string;
@@ -31,6 +33,7 @@ export default function ExamAttemptPage() {
   const { confirm } = useConfirmationDialog();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [reportedQuestions, setReportedQuestions] = useState<Set<string>>(new Set());
 
   // Fetch attempt and questions data
   const {
@@ -40,7 +43,64 @@ export default function ExamAttemptPage() {
     error: fetchError,
     formatAnswersForStorage,
     storageKey,
+    setQuestions,
   } = useExamAttemptData(attemptId);
+
+  // ... (existing hooks)
+
+  // Socket.IO activity tracking
+  const { emitActivity, socket } = useExamSocket({
+    examId: attempt?.exam?.id || '',
+    attemptId: attemptId,
+  });
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!socket || !attempt) return;
+
+    // Listen for question updates
+    const handleQuestionUpdate = (payload: { questionId: string; data: any }) => {
+        // Update local questions state
+        setQuestions(prev => prev.map(q => {
+            if (q.id === payload.questionId) {
+                // Merge update. 
+                // Note: payload.data might be the full question or partial.
+                // It comes from question.service update notification which sends verifiedQuestion (full).
+                return { ...q, ...payload.data };
+            }
+            return q;
+        }));
+    };
+
+    // Listen for report creation (to lock button)
+    const handleReportCreated = (report: any) => {
+        setReportedQuestions(prev => new Set(prev).add(report.questionId));
+    };
+
+    socket.on('question-updated', handleQuestionUpdate);
+    socket.on('report-created', handleReportCreated);
+
+    return () => {
+        socket.off('question-updated', handleQuestionUpdate);
+        socket.off('report-created', handleReportCreated);
+    };
+  }, [socket, attempt, setQuestions]);
+
+  // Sync initial reported status from questions
+  useEffect(() => {
+      if (questions.length > 0) {
+          const initialReported = new Set<string>();
+          questions.forEach(q => {
+              if ((q as any).isReported) {
+                  initialReported.add(q.id);
+              }
+          });
+          setReportedQuestions(initialReported);
+      }
+  }, [questions]);
+
+  // ... (rest of logic)
+
 
   // Manage answers with localStorage
   const {
@@ -119,11 +179,6 @@ export default function ExamAttemptPage() {
     attempt?.exam?.maxTabSwitches ?? null
   );
 
-  // Socket.IO activity tracking
-  const { emitActivity } = useExamSocket({
-    examId: attempt?.exam?.id || '',
-    attemptId: attemptId,
-  });
 
   // Section Navigation Hook
   const {
@@ -350,18 +405,31 @@ export default function ExamAttemptPage() {
         {/* Question Content Area */}
         <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
           {currentQuestion && (
-            <ExamContentArea
-              currentQuestion={currentQuestion}
-              questions={questions}
-              currentQuestionIndex={currentQuestionIndex}
-              answers={answers}
-              attemptId={attemptId}
-              isSubmitting={isSubmitting}
-              onAnswerChange={handleAnswerChange}
-              onNavigateQuestion={navigateQuestion}
-              onSubmitExam={handleSubmitExamClick}
-              allowedLanguages={attempt?.exam?.allowedLanguages}
-            />
+            <div className="relative h-full flex flex-col">
+                {/* Report Button - Overlay or Header */}
+                <div className="absolute top-2 right-2 z-10">
+                    <ReportQuestionButton 
+                        questionId={currentQuestion.id}
+                        examId={attempt?.exam?.id || ''}
+                        isReported={reportedQuestions.has(currentQuestion.id)}
+                        onReported={() => {
+                            setReportedQuestions(prev => new Set(prev).add(currentQuestion.id));
+                        }}
+                    />
+                </div>
+                <ExamContentArea
+                    currentQuestion={currentQuestion}
+                    questions={questions}
+                    currentQuestionIndex={currentQuestionIndex}
+                    answers={answers}
+                    attemptId={attemptId}
+                    isSubmitting={isSubmitting}
+                    onAnswerChange={handleAnswerChange}
+                    onNavigateQuestion={navigateQuestion}
+                    onSubmitExam={handleSubmitExamClick}
+                    allowedLanguages={attempt?.exam?.allowedLanguages}
+                />
+            </div>
           )}
         </div>
       </div>

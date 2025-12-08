@@ -291,6 +291,17 @@ class ExamMonitoringService {
       activities: activities,
     };
   }
+
+  notifyQuestionUpdate(examId: string, questionId: string, data: any) {
+    this.io?.to(`exam:${examId}`).emit('question-updated', {
+      questionId,
+      data
+    });
+  }
+
+  notifyReport(examId: string, report: any) {
+    this.io?.to(`admin:exam:${examId}`).emit('report-created', report);
+  }
 }
 
 export const examMonitoring = new ExamMonitoringService();
