@@ -222,10 +222,30 @@ export function useCheatingPrevention(
         
         // Specific messages for clarity
         let reason = 'Restricted shortcut used';
-        if (e.altKey) reason = 'Browser extension shortcuts are disabled (Alt key)';
-        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) reason = 'Developer Tools are disabled';
         
-        incrementWarningRef.current?.(`${reason}: ${e.ctrlKey ? 'Ctrl+' : ''}${e.altKey ? 'Alt+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.key.toUpperCase()}`);
+        // Detailed logging for clearer feedback
+        if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 's') {
+          reason = 'Screenshot Shortcut (Win+Shift+S)';
+        } else if (e.key === 'Meta' || e.key === 'OS') {
+          reason = 'Windows/Command Key pressed';
+        } else if (e.altKey) {
+          reason = 'Browser extension shortcuts are disabled (Alt key)';
+        } else if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i')) {
+          reason = 'Developer Tools are disabled';
+        } else {
+          // Construct readable shortcut name
+          const parts = [];
+          if (e.ctrlKey) parts.push('Ctrl');
+          if (e.altKey) parts.push('Alt');
+          if (e.metaKey) parts.push('Win/Cmd');
+          if (e.shiftKey) parts.push('Shift');
+          if (e.key && !['Control', 'Alt', 'Meta', 'Shift'].includes(e.key)) {
+            parts.push(e.key.toUpperCase());
+          }
+          reason = `Restricted shortcut: ${parts.join('+')}`;
+        }
+        
+        incrementWarningRef.current?.(reason);
         return false;
       }
 

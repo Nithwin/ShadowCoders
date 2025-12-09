@@ -160,7 +160,7 @@ export default function ExamAttemptPage() {
     fullscreenWarning: fullscreenWarningState,
     enterFullscreen,
     exitFullscreen,
-  } = useFullscreenManagement(containerRef, attempt, handleAutoSubmit);
+  } = useFullscreenManagement(containerRef, attempt, handleAutoSubmit, isSubmitting);
 
   // Update refs for submission hook
   useEffect(() => {

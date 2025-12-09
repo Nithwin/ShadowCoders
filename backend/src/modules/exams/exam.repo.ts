@@ -372,7 +372,6 @@ export const listExamsForStudent = async (params: {
         orderBy: {
           attemptNo: 'desc', // Get the latest attempt first
         },
-        take: 1, // Only get the latest attempt
       },
     },
   });

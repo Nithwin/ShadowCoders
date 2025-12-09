@@ -169,7 +169,7 @@ export default function GenerateAiQuestionsModal({
           </div>
           <div>
              <label htmlFor="points" className="block text-sm font-semibold text-primary mb-2">
-               Points (Optional)
+               Points
              </label>
              <Input 
                 id="points" 

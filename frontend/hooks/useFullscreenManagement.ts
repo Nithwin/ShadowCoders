@@ -5,17 +5,24 @@ import { Attempt } from '@/types/exam';
 export function useFullscreenManagement(
   containerRef: React.RefObject<HTMLDivElement | null>,
   attempt: Attempt | null,
-  onAutoSubmit: (reason: string) => void
+  onAutoSubmit: (reason: string) => void,
+  isSubmitting: boolean = false
 ) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const handleSubmitExamRef = useRef<((reason: string) => void) | null>(null);
+  const isSubmittingRef = useRef(isSubmitting);
 
   // Store submit function in ref for access in other effects
   useEffect(() => {
     handleSubmitExamRef.current = onAutoSubmit;
   }, [onAutoSubmit]);
+
+  // Update ref when isSubmitting changes
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
 
   // Enter fullscreen
   const enterFullscreen = useCallback(async () => {
@@ -57,7 +64,7 @@ export function useFullscreenManagement(
       const wasFullscreen = isFullscreen;
       setIsFullscreen(isCurrentlyFullscreen);
 
-      if (attempt?.status === 'IN_PROGRESS') {
+      if (attempt?.status === 'IN_PROGRESS' && !isSubmittingRef.current) {
         if (isCurrentlyFullscreen && !hasStarted) {
           setHasStarted(true);
         } else if (wasFullscreen && !isCurrentlyFullscreen && hasStarted) {
