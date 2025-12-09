@@ -22,7 +22,7 @@ const buildSystemPrompt = (input: GenerateInput): string => {
     HARD: 30,
     ANY: 15,
   };
-  const points = pointsMap[difficulty] || 15;
+  const points = input.points || pointsMap[difficulty] || 15;
 
   return `You are an expert exam question generator for a platform called "ShadowCoders".
 Generate exam questions based on the following requirements:

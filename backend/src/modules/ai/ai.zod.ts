@@ -14,6 +14,7 @@ export const generateQuestionsSchema = z.object({
 
       // Define difficulty
       difficulty: z.enum(['EASY', 'MEDIUM', 'HARD', 'ANY']).optional().default('ANY'),
+      points: z.number().int().positive().optional(),
     })
     .refine(
       (data) => {

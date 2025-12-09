@@ -42,15 +42,7 @@ export const findExamById = (examId: string) => {
         include: {
           sectionQuestions: {
             include: {
-              question: {
-                select: {
-                  id: true,
-                  type: true,
-                  prompt: true,
-                  points: true,
-                  order: true,
-                },
-              },
+              question: true,
             },
             orderBy: {
               order: 'asc',

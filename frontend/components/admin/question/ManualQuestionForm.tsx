@@ -201,7 +201,7 @@ export default function ManualQuestionForm({
     reset({
       type: newType as QType.MCQ | QType.CODING | QType.ESSAY | QType.LISTENING | QType.SPEAKING,
       prompt: '',
-      points: 10,
+      points: newType === QType.ESSAY ? ('' as unknown as number) : 10,
       ...(newType === QType.MCQ && {
         options: [
           { id: 'opt1', text: '' },
