@@ -1,7 +1,7 @@
 'use client';
 
 import Image from "next/image";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -25,6 +25,47 @@ export default function LoginPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading]);
+
+  const handleGoogleResponse = useCallback(async (response: { credential: string }) => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const token = response.credential;
+      
+      const res = await fetch(
+        `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${token}`
+      );
+      
+      if (!res.ok) {
+        throw new Error('Failed to verify Google token');
+      }
+      
+      const profile = await res.json();
+      
+      const userProfile = {
+        email: profile.email,
+        name: profile.name,
+        pictureUrl: profile.picture,
+        googleId: profile.sub,
+      };
+      
+      await loginWithGoogle(userProfile);
+      // Redirect will be handled by the useEffect based on user role
+    } catch (err: unknown) {
+      const error = err as { 
+        response?: { data?: { error?: { message?: string }; message?: string } };
+        message?: string;
+      };
+      console.error('Google login error:', err);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message ||
+                          'Google login failed. Please ensure you are registered.';
+      setError(errorMessage);
+      setIsLoading(false);
+    }
+  }, [loginWithGoogle]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || googleLoaded) return;
@@ -94,48 +135,7 @@ export default function LoginPage() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [googleLoaded]);
-
-  const handleGoogleResponse = async (response: { credential: string }) => {
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const token = response.credential;
-      
-      const res = await fetch(
-        `https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${token}`
-      );
-      
-      if (!res.ok) {
-        throw new Error('Failed to verify Google token');
-      }
-      
-      const profile = await res.json();
-      
-      const userProfile = {
-        email: profile.email,
-        name: profile.name,
-        pictureUrl: profile.picture,
-        googleId: profile.sub,
-      };
-      
-      await loginWithGoogle(userProfile);
-      // Redirect will be handled by the useEffect based on user role
-    } catch (err: unknown) {
-      const error = err as { 
-        response?: { data?: { error?: { message?: string }; message?: string } };
-        message?: string;
-      };
-      console.error('Google login error:', err);
-      const errorMessage = error.response?.data?.error?.message || 
-                          error.response?.data?.message || 
-                          error.message ||
-                          'Google login failed. Please ensure you are registered.';
-      setError(errorMessage);
-      setIsLoading(false);
-    }
-  };
+  }, [googleLoaded, handleGoogleResponse]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

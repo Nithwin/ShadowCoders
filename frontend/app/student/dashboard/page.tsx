@@ -59,25 +59,25 @@ export default function StudentDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchAttempts = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await api.get<Attempt[]>('/student/attempts');
+        setAttempts(res.data);
+      } catch (err: unknown) {
+        const error = err as { response?: { data?: { error?: { message?: string } } } };
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching dashboard data:', err);
+        }
+        setError(error.response?.data?.error?.message || 'Failed to fetch performance data.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchAttempts();
   }, []);
-
-  const fetchAttempts = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await api.get<Attempt[]>('/student/attempts');
-      setAttempts(res.data);
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching dashboard data:', err);
-      }
-      setError(error.response?.data?.error?.message || 'Failed to fetch performance data.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const formatScore = (score: number | string | null): number => {
     if (score === null || score === undefined) return 0;
