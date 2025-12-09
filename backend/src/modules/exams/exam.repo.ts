@@ -197,7 +197,9 @@ export const findExamByIdForStudent = async (params: {
           status: true,
           submittedAt: true,
         },
-        take: 1,
+        orderBy: {
+          attemptNo: 'desc',
+        },
       },
       // Include question types to check if exam has speaking questions
       questions: {

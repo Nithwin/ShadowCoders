@@ -214,10 +214,13 @@ export const listExamsForStudent = async (studentId: string, query: StudentListE
   }
   
   const examsWithAttemptStatus = examsToReturn.map((exam) => {
+    // Ensure attempts are sorted by attemptNo descending (latest first)
+    const sortedAttempts = exam.attempts?.sort((a, b) => b.attemptNo - a.attemptNo) || [];
+    
     // Check if student has any submitted attempts
-    const submittedAttempts = exam.attempts?.filter(a => a.status === 'SUBMITTED') || [];
+    const submittedAttempts = sortedAttempts.filter(a => a.status === 'SUBMITTED');
     const hasCompletedAttempt = submittedAttempts.length > 0;
-    const latestAttempt = exam.attempts && exam.attempts.length > 0 ? exam.attempts[0] : null;
+    const latestAttempt = sortedAttempts.length > 0 ? sortedAttempts[0] : null;
     
     // Remove attempts from response (we only needed it for checking)
     const { attempts, ...examData } = exam;
@@ -226,7 +229,7 @@ export const listExamsForStudent = async (studentId: string, query: StudentListE
       hasAttempt: hasCompletedAttempt,
       attemptId: latestAttempt?.id || null,
       attemptStatus: latestAttempt?.status || null,
-      attemptCount: exam.attempts?.length || 0,
+      attemptCount: sortedAttempts.length,
       submittedAttemptCount: submittedAttempts.length,
       latestScore: latestAttempt?.score ? parseFloat(String(latestAttempt.score)) : null,
       latestMaxScore: latestAttempt?.maxScore ? parseFloat(String(latestAttempt.maxScore)) : null,
