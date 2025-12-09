@@ -257,7 +257,6 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
     }
   };
 
-  return (
   // State for selection and filtering
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterType, setFilterType] = useState<string>('ALL');
@@ -404,7 +403,11 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           </div>
 
           {/* Toolbar: Filter and Bulk Actions */}
-          <div className="flex flex-wrap items-center gap-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
+          <div className={`flex flex-wrap items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${
+            selectedIds.size > 0 
+              ? 'bg-accent/5 border-accent/20 shadow-sm' 
+              : 'bg-primary/5 border-primary/10'
+          }`}>
             {/* Filter */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-primary/70">Filter:</span>
@@ -414,7 +417,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
                   setFilterType(e.target.value);
                   setSelectedIds(new Set()); // Clear selection on filter change
                 }}
-                className="h-9 rounded-md border border-primary/20 bg-white text-sm px-3 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                className="h-9 rounded-md border border-primary/20 bg-secondary text-sm px-3 focus:outline-none focus:ring-2 focus:ring-accent/50 text-primary"
               >
                 <option value="ALL">All Types</option>
                 <option value={QType.MCQ}>Multiple Choice</option>
@@ -428,23 +431,24 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
             {/* Bulk Actions (Visible when selected) */}
             {selectedIds.size > 0 && (
               <>
-                <div className="h-6 w-px bg-primary/20 mx-2" />
+                <div className="h-8 w-px bg-primary/20 mx-2" />
                 
                 {/* Bulk Point Update */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <span className="text-sm font-medium text-primary/70 hidden sm:inline">Bulk Points:</span>
                   <input
                     type="number"
                     min="1"
                     placeholder="Pts"
                     value={bulkPoints}
                     onChange={(e) => setBulkPoints(e.target.value)}
-                    className="h-9 w-20 rounded-md border border-primary/20 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    className="h-9 w-24 rounded-md border border-primary/20 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 bg-white"
                   />
                   <Button
                     size="sm"
                     onClick={handleBulkUpdatePoints}
                     disabled={isBulkUpdating || !bulkPoints}
-                    className="h-9 bg-accent hover:bg-accent/90 text-white"
+                    className="h-9 bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
                   >
                     {isBulkUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Set Points'}
                   </Button>
@@ -458,7 +462,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
                   variant="destructive"
                   onClick={handleBulkDelete}
                   disabled={isSaving}
-                  className="h-9 bg-red-600 hover:bg-red-700 text-white border-0"
+                  className="h-9 bg-red-600 hover:bg-red-700 text-white border-0 shadow-sm animate-in fade-in slide-in-from-right-2 duration-300"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Selected ({selectedIds.size})

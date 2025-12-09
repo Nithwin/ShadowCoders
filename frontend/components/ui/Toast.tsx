@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -15,15 +15,23 @@ interface ToastProps {
 export function Toast({ message, type = 'info', duration = 5000, onClose }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true);
 
+  const onCloseRef = useRef(onClose);
+
+  // Update ref whenever onClose changes
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {
         setIsVisible(false);
-        setTimeout(() => onClose?.(), 300); // Wait for animation
+        // Use the ref to call the latest onClose function
+        setTimeout(() => onCloseRef.current?.(), 300); // Wait for animation
       }, duration);
       return () => clearTimeout(timer);
     }
-  }, [duration, onClose]);
+  }, [duration]); // Removed onClose from dependencies to prevent timer reset
 
   const handleClose = () => {
     setIsVisible(false);

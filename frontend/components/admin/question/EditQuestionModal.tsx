@@ -171,14 +171,6 @@ export default function EditQuestionModal({
   // Reset form when question changes
   useEffect(() => {
     if (open && question) {
-      console.log('Loading question into form:', {
-        id: question.id,
-        type: question.type,
-        testcases: question.testcases,
-        testcasesType: typeof question.testcases,
-        testcasesIsArray: Array.isArray(question.testcases),
-      });
-      
       // Parse testcases if they're stored as JSON string
       let testcases = question.testcases || [];
       if (typeof testcases === 'string') {
@@ -203,15 +195,28 @@ export default function EditQuestionModal({
         timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 2000,
       }));
       
-      console.log('Formatted testcases for form:', testcases);
+      // Safely handle options and correctOptionIds
+      const options = Array.isArray(question.options) ? question.options : [];
+      let correctOptionIds = Array.isArray(question.correctOptionIds) ? question.correctOptionIds : [];
       
+      // Debug log for MCQ data
+      if (question.type === QType.MCQ) {
+         console.log('Loading MCQ data:', {
+           options,
+           correctOptionIds,
+           rawOptions: question.options,
+           rawCorrectOptionIds: question.correctOptionIds
+         });
+      }
+
       reset({
         type: question.type as QType.MCQ | QType.CODING | QType.ESSAY,
         prompt: question.prompt || '',
         points: question.points,
+        // Always include these keys for MCQ to ensure form state is correct
         ...(question.type === QType.MCQ && {
-          options: Array.isArray(question.options) ? question.options : [],
-          correctOptionIds: Array.isArray(question.correctOptionIds) ? question.correctOptionIds : [],
+          options: options,
+          correctOptionIds: correctOptionIds,
         }),
         ...(question.type === QType.CODING && {
           starterCode: question.starterCode || '',

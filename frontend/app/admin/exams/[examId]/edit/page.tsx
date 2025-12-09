@@ -237,15 +237,15 @@ export default function EditExamPage() {
             )}
           </div>
           
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setIsTemplateModalOpen(true)}
-              className="border-accent/50 text-accent hover:bg-accent/10"
-            >
-              <ClipboardCopy className="w-4 h-4 mr-2" />
-              Save as Template
-            </Button>
-          </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setIsTemplateModalOpen(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white border-0"
+              >
+                <ClipboardCopy className="w-4 h-4 mr-2" />
+                Save as Template
+              </Button>
+            </div>
         </div>
       </div>
 
@@ -390,7 +390,7 @@ export default function EditExamPage() {
             <Button
               onClick={handleCreateTemplate}
               disabled={isCreatingTemplate || !templateTitle.trim()}
-              className="bg-accent hover:bg-accent/90 text-white"
+              className="bg-purple-600 hover:bg-purple-700 text-white"
             >
               {isCreatingTemplate ? (
                 <>
