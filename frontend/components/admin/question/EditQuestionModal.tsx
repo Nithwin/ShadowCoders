@@ -390,7 +390,12 @@ export default function EditQuestionModal({
                 </Button>
               </div>
               <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                {optionFields.map((field, index) => (
+                {optionFields.map((field, index) => {
+                  // RHF overwrites 'id' in field object, so we must grab the actual value from form state
+                  const currentOption = watch(`options.${index}`);
+                  const optionId = currentOption?.id || field.id;
+                  
+                  return (
                   <div key={field.id} className="flex gap-2 items-start p-3 border border-primary/20 rounded-lg bg-primary/5 hover:border-primary/30 transition-colors">
                     <div className="flex-1 min-w-0">
                       <Input
@@ -401,14 +406,14 @@ export default function EditQuestionModal({
                     </div>
                     <button
                       type="button"
-                      onClick={() => toggleCorrectOption(field.id)}
+                      onClick={() => toggleCorrectOption(optionId)}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                        correctOptionIds.includes(field.id)
+                        correctOptionIds.includes(optionId)
                           ? 'bg-green-600 text-white hover:bg-green-700'
                           : 'bg-primary/10 text-primary hover:bg-primary/20'
                       }`}
                     >
-                      {correctOptionIds.includes(field.id) ? '✓ Correct' : 'Mark Correct'}
+                      {correctOptionIds.includes(optionId) ? '✓ Correct' : 'Mark Correct'}
                     </button>
                     <button
                       type="button"
@@ -420,7 +425,8 @@ export default function EditQuestionModal({
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               {'options' in errors && errors.options && (
                 <p className="mt-2 text-sm text-red-500">{errors.options.message}</p>

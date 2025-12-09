@@ -375,11 +375,40 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
             <div>
               <h2 className="text-2xl font-bold font-alan-sans text-primary">Manage Questions</h2>
-              <div className="flex items-center gap-2 mt-1 text-sm text-primary/70">
-                <span>Total: {questions.length}</span>
-                {selectedIds.size > 0 && (
-                  <span className="text-accent font-medium">({selectedIds.size} selected)</span>
-                )}
+              
+              {/* Exam Statistics Summary */}
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2 text-sm text-primary/80 bg-primary/5 px-4 py-2 rounded-lg border border-primary/10">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-primary">Total:</span>
+                  <span className="bg-white px-2 py-0.5 rounded border border-primary/20 font-mono text-xs">
+                    {questions.length} Qs
+                  </span>
+                </div>
+                <div className="w-px h-4 bg-primary/20" />
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-primary">Points:</span>
+                  <span className="bg-white px-2 py-0.5 rounded border border-primary/20 font-mono text-xs text-green-700 font-bold">
+                    {questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0)} pts
+                  </span>
+                </div>
+                <div className="w-px h-4 bg-primary/20" />
+                <div className="flex items-center gap-3 text-xs">
+                  {/* MCQ Count */}
+                  <div className="flex items-center gap-1.5" title="Multiple Choice Questions">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <span>MCQ: <b>{questions.filter(q => q.type === QType.MCQ).length}</b></span>
+                  </div>
+                  {/* Coding Count */}
+                  <div className="flex items-center gap-1.5" title="Coding Questions">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span>Code: <b>{questions.filter(q => q.type === QType.CODING).length}</b></span>
+                  </div>
+                  {/* Essay Count */}
+                  <div className="flex items-center gap-1.5" title="Essay Questions">
+                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                    <span>Essay: <b>{questions.filter(q => q.type === QType.ESSAY).length}</b></span>
+                  </div>
+                </div>
               </div>
             </div>
             
