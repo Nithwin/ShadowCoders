@@ -53,6 +53,11 @@ export const findExamById = (examId: string) => {
           order: 'asc',
         },
       },
+      questions: {
+        orderBy: {
+          order: 'asc',
+        },
+      },
       assignments: true,
       _count: {
         select: {
