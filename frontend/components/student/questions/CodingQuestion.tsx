@@ -421,19 +421,22 @@ export default function CodingQuestion({
                 __html: (() => {
                   let html = prompt;
                   // Split by lines to process headers properly
-                  const lines = html.split('\n');
+                  // Split by lines to process headers properly
+                  const lines = html.split(/\r?\n/);
                   const processedLines = lines.map((line) => {
                     // Check for headers (must check in order: ###, ##, #)
-                    if (/^###\s+(.+)$/.test(line)) {
-                      return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
+                    // Trim line for regex check to be safe
+                    const trimmedLine = line.trim();
+                    if (/^###\s+(.+)$/.test(trimmedLine)) {
+                      return trimmedLine.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
                     }
-                    if (/^##\s+(.+)$/.test(line)) {
-                      return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
+                    if (/^##\s+(.+)$/.test(trimmedLine)) {
+                      return trimmedLine.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
                     }
-                    if (/^#\s+(.+)$/.test(line)) {
-                      return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
+                    if (/^#\s+(.+)$/.test(trimmedLine)) {
+                      return trimmedLine.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
                     }
-                    return line;
+                    return line; // Return original line content (preserves indentation/spaces if not header)
                   });
                   html = processedLines.join('\n');
                   

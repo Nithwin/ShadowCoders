@@ -187,7 +187,7 @@ export default function ExamResultsPage() {
   return (
     <div className="min-h-screen bg-gray-50/50 pb-12 animate-fade-in">
         {/* Header Section */}
-        <div className="bg-white border-b border-gray-200 py-6 px-4 md:px-8 mb-8 sticky top-0 z-10 backdrop-blur-sm bg-white/90 supports-[backdrop-filter]:bg-white/60">
+        <div className="bg-white border-b border-gray-200 py-6 px-4 md:px-8 mb-8 z-10">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                      <Link

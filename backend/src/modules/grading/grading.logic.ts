@@ -67,10 +67,26 @@ export const gradeCoding = async (
       }))
     );
 
-    // All-or-nothing grading logic
-    const allPassed = testResults.total > 0 && testResults.passed === testResults.total;
-    const earnedPoints = allPassed ? points : 0;
-    const verdict = allPassed ? 'PASS' : 'FAIL';
+    // Partial grading logic
+    // Calculate ratio of passed test cases
+    const totalTestCases = testResults.total;
+    const passedTestCases = testResults.passed;
+    
+    // Avoid division by zero
+    const passedRatio = totalTestCases > 0 ? (passedTestCases / totalTestCases) : 0;
+    
+    // Earned points proportional to passed test cases
+    // Use Math.max(0, ...) to be safe, though passedRatio should be >= 0
+    let earnedPoints = parseFloat((passedRatio * points).toFixed(2));
+    
+    // Determine verdict
+    let verdict = 'FAIL';
+    if (passedTestCases === totalTestCases && totalTestCases > 0) {
+      verdict = 'PASS';
+    } else if (passedTestCases > 0) {
+      verdict = 'PARTIAL';
+    }
+    // else verdict remains 'FAIL'
 
     return {
       earnedPoints,
