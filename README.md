@@ -43,6 +43,51 @@ A comprehensive online examination platform built with Next.js 16 and Express.js
    - Admin Dashboard: `http://localhost:3000/admin/dashboard`
    - Student Portal: `http://localhost:3000/student/dashboard`
 
+## 🐧 Production Setup (Linux)
+
+For deploying on a Linux server (Ubuntu/Debian), follow these additional steps:
+
+### 1. System Requirements & Redis
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Redis (Required for Queue)
+sudo apt install redis-server -y
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+# Verify Redis is running
+redis-cli ping # Should return PONG
+```
+
+### 2. Install Node.js (v20)
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+### 3. Process Management (PM2)
+```bash
+sudo npm install -g pm2
+
+# Start Backend
+cd backend
+npm run build
+pm2 start dist/index.js --name "shadowcoders-backend"
+
+# Start Frontend
+cd ../frontend
+npm run build
+pm2 start npm --name "shadowcoders-frontend" -- start
+```
+
+### 4. Nginx Reverse Proxy (Optional but Recommended)
+```bash
+sudo apt install nginx -y
+# Configure /etc/nginx/sites-available/default to proxy port 3000 (frontend) and 4000 (backend)
+```
+
 ## 📚 Documentation
 
 ### Architecture & Design

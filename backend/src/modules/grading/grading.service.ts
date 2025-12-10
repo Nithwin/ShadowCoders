@@ -159,8 +159,8 @@ export const runCode = async (
       message: testResults.passed === testResults.total
         ? 'All test cases passed!'
         : `${testResults.passed}/${testResults.total} test cases passed`,
-      customOutput: null,
-    };
+        customOutput: null,
+      };
   }
 
   // 6. --- Update Job with Result ---
