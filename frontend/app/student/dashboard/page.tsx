@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   Eye,
   XCircle,
-  Calendar
+  Calendar,
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -53,18 +53,18 @@ type Attempt = {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function StudentDashboard() {
-  useAuth();
+  const { user } = useAuth();
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchAttempts = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await api.get<Attempt[]>('/student/attempts');
-        setAttempts(res.data);
+        const attemptsRes = await api.get<Attempt[]>('/student/attempts');
+        setAttempts(attemptsRes.data);
       } catch (err: unknown) {
         const error = err as { response?: { data?: { error?: { message?: string } } } };
         if (process.env.NODE_ENV === 'development') {
@@ -76,7 +76,7 @@ export default function StudentDashboard() {
       }
     };
 
-    fetchAttempts();
+    fetchData();
   }, []);
 
   const formatScore = (score: number | string | null): number => {

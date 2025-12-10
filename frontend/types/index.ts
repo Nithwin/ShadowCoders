@@ -85,6 +85,7 @@ export interface User {
   pictureUrl: string | null;
   leetcodeId: string | null;
   leetcodeStats: LeetCodeStats | null;
+  points: number;
   createdAt: string;
   updatedAt: string;
 }

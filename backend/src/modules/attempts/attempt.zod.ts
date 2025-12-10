@@ -35,6 +35,7 @@ export const listAttemptsSchema = z.object({
       .max(100, 'Page size cannot exceed 100')
       .optional()
       .default(20), // Default to 20 per page
+    q: z.string().optional(), // Search query for student name or email
   }),
 });
 
@@ -49,5 +50,11 @@ export const resetAttemptsSchema = z.object({
 export const submitAttemptSchema = z.object({
   body: z.object({
     submissionReason: z.string().optional(),
+  }),
+});
+
+export const forceSubmitAttemptSchema = z.object({
+  body: z.object({
+    submissionReason: z.string().optional().default('Force submitted by admin'),
   }),
 });

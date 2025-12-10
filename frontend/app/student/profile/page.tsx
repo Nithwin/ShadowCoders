@@ -27,7 +27,8 @@ import {
   CheckCircle2,
   ChevronRight,
   Briefcase,
-  MapPin
+  MapPin,
+  Coins
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getAbsoluteImageUrl } from '@/lib/utils';
@@ -39,6 +40,7 @@ export default function StudentProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [points, setPoints] = useState<number>(0);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     reg_no: user?.reg_no || '',
@@ -67,6 +69,18 @@ export default function StudentProfilePage() {
       });
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchPoints = async () => {
+      try {
+        const res = await api.get<{ points: number }>('/student/points');
+        setPoints(res.data.points);
+      } catch (err) {
+        console.error('Error fetching points:', err);
+      }
+    };
+    fetchPoints();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -253,6 +267,11 @@ export default function StudentProfilePage() {
                         <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 border border-gray-200 font-medium text-gray-700">
                             <Shield className="w-3.5 h-3.5 text-gray-500" />
                             {user.role}
+                        </span>
+                        <div className="h-4 w-px bg-gray-300 hidden md:block"></div>
+                        <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-100 border border-yellow-200 font-medium text-yellow-700">
+                            <Coins className="w-3.5 h-3.5 text-yellow-600" />
+                            {points} Points
                         </span>
                         <div className="h-4 w-px bg-gray-300 hidden md:block"></div>
                         <span className="flex items-center gap-1.5">

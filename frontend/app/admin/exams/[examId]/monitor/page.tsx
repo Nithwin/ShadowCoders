@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useExamMonitoring, type ExamStats } from '@/hooks/useExamMonitoring';
-import { ArrowLeft, Users, Activity, Clock, CheckCircle2, AlertCircle, TrendingUp, Eye, Search, Loader2, XCircle, Award, RefreshCw, User } from 'lucide-react';
+import { ArrowLeft, Users, Activity, Clock, CheckCircle2, AlertCircle, TrendingUp, Eye, Search, Loader2, XCircle, Award, RefreshCw, User, Bell } from 'lucide-react';
 import Link from 'next/link';
+import { useConfirmationDialog } from '@/context/ConfirmationContext';
+import { socketService } from '@/lib/socket';
+import { useAuth } from '@/context/AuthContext';
 
 type Exam = {
   id: string;
@@ -17,6 +20,22 @@ type Exam = {
   status: string;
 };
 
+interface KeyboardViolation {
+  attemptId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  timestamp: Date;
+}
+
+interface AttemptDetails {
+  id: string;
+  status: string;
+  score: number | null;
+  maxScore: number | null;
+  submittedAt: string | null;
+}
+
 export default function ExamMonitorPage() {
   const params = useParams();
   const router = useRouter();
@@ -26,13 +45,71 @@ export default function ExamMonitorPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [keyboardViolations, setKeyboardViolations] = useState<Map<string, KeyboardViolation>>(new Map());
+  const [attemptDetails, setAttemptDetails] = useState<Map<string, AttemptDetails>>(new Map());
+  const { confirm } = useConfirmationDialog();
+  const { accessToken } = useAuth();
+
+  // Fetch attempt details from database to get correct status and score
+  const fetchAttemptDetails = useCallback(async (attemptId: string) => {
+    try {
+      const res = await api.get<AttemptDetails>(`/admin/attempts/${attemptId}`);
+      setAttemptDetails(prev => {
+        const newMap = new Map(prev);
+        newMap.set(attemptId, res.data);
+        return newMap;
+      });
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching attempt details:', err);
+      }
+    }
+  }, []);
 
   const { stats, isConnected } = useExamMonitoring({
     examId,
     onActivityUpdate: (updatedStats) => {
-      // Stats are automatically updated via the hook
+      // Fetch actual attempt details from database for each activity
+      updatedStats.activities.forEach(activity => {
+        fetchAttemptDetails(activity.attemptId);
+      });
     },
   });
+
+  // Listen for keyboard violations
+  useEffect(() => {
+    if (!accessToken || !examId) return;
+
+    const socket = socketService.connect(accessToken);
+    
+    const handleViolation = (data: KeyboardViolation) => {
+      setKeyboardViolations(prev => {
+        const newMap = new Map(prev);
+        newMap.set(data.attemptId, data);
+        return newMap;
+      });
+    };
+
+    const handleResolved = (data: { attemptId: string; action: string }) => {
+      setKeyboardViolations(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(data.attemptId);
+        return newMap;
+      });
+      // Refresh attempt details after resolution
+      if (data.attemptId) {
+        fetchAttemptDetails(data.attemptId);
+      }
+    };
+
+    socket.on('keyboard-violation', handleViolation);
+    socket.on('violation-resolved', handleResolved);
+
+    return () => {
+      socket.off('keyboard-violation', handleViolation);
+      socket.off('violation-resolved', handleResolved);
+    };
+  }, [accessToken, examId, fetchAttemptDetails]);
 
   // Filter activities based on search query
   const filteredActivities = stats?.activities.filter((activity) => {
@@ -124,6 +201,43 @@ export default function ExamMonitorPage() {
     return `${minutes}m ${secs}s`;
   };
 
+  const handleResolveViolation = async (violation: KeyboardViolation, action: 'force-submit' | 'continue') => {
+    const confirmed = await confirm({
+      title: action === 'force-submit' ? 'Force Submit Exam?' : 'Allow Student to Continue?',
+      message: action === 'force-submit' 
+        ? `Are you sure you want to force submit the exam for ${violation.studentName}? This action cannot be undone.`
+        : `Allow ${violation.studentName} to continue the exam?`,
+      confirmText: action === 'force-submit' ? 'Force Submit' : 'Continue',
+      cancelText: 'Cancel',
+      variant: action === 'force-submit' ? 'danger' : 'default',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      if (action === 'force-submit') {
+        await api.post(`/admin/attempts/${violation.attemptId}/force-submit`, {
+          submissionReason: 'Force submitted by admin due to keyboard violation',
+        });
+      }
+
+      // Emit resolution event
+      const socket = socketService.getSocket();
+      if (socket?.connected) {
+        socket.emit('resolve-keyboard-violation', {
+          attemptId: violation.attemptId,
+          action,
+        });
+      }
+
+      // Refresh attempt details
+      fetchAttemptDetails(violation.attemptId);
+    } catch (err: any) {
+      console.error('Error resolving violation:', err);
+      alert(err.response?.data?.error?.message || 'Failed to resolve violation');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -135,6 +249,15 @@ export default function ExamMonitorPage() {
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const getActualStatus = (activity: any): string => {
+    const details = attemptDetails.get(activity.attemptId);
+    if (details) {
+      return details.status;
+    }
+    // Fallback to socket status
+    return activity.status === 'submitted' ? 'SUBMITTED' : activity.status === 'active' ? 'IN_PROGRESS' : 'IN_PROGRESS';
   };
 
   const getProgressColor = (progress: number) => {
@@ -181,7 +304,46 @@ export default function ExamMonitorPage() {
           </div>
         </div>
 
-        {/* Statistics Cards */}
+            {/* Keyboard Violation Notifications */}
+            {keyboardViolations.size > 0 && (
+              <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <Bell className="w-5 h-5 text-red-600" />
+                  <h3 className="text-lg font-bold text-red-900">Keyboard Violations Detected</h3>
+                </div>
+                <div className="space-y-2">
+                  {Array.from(keyboardViolations.values()).map((violation) => (
+                    <div key={violation.attemptId} className="bg-white rounded-lg p-3 border border-red-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900">{violation.studentName}</p>
+                          <p className="text-sm text-gray-600">{violation.studentEmail}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Detected at {new Date(violation.timestamp).toLocaleTimeString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleResolveViolation(violation, 'continue')}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                          >
+                            Continue
+                          </button>
+                          <button
+                            onClick={() => handleResolveViolation(violation, 'force-submit')}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                          >
+                            Force Submit
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Statistics Cards */}
         {stats && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -348,26 +510,50 @@ export default function ExamMonitorPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border shadow-sm ${
-                                activity.status === 'active'
-                                  ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-700 border-green-500/30'
-                                  : activity.status === 'idle'
-                                  ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-700 border-yellow-500/30'
-                                  : activity.status === 'submitted'
-                                  ? 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-700 border-blue-500/30'
-                                  : 'bg-gradient-to-r from-gray-500/20 to-slate-500/20 text-gray-700 border-gray-500/30'
-                              }`}>
-                                {activity.status === 'active' && (
-                                  <div className="w-1.5 h-1.5 bg-green-600 rounded-full animate-pulse" />
-                                )}
-                                {activity.status === 'idle' && (
-                                  <Clock className="w-3 h-3" />
-                                )}
-                                {activity.status === 'submitted' && (
-                                  <CheckCircle2 className="w-3 h-3" />
-                                )}
-                                {activity.status}
-                              </span>
+                              {(() => {
+                                const actualStatus = getActualStatus(activity);
+                                const isSubmitted = actualStatus === 'SUBMITTED';
+                                const details = attemptDetails.get(activity.attemptId);
+                                const hasViolation = keyboardViolations.has(activity.attemptId);
+                                
+                                return (
+                                  <div className="space-y-1">
+                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border shadow-sm ${
+                                      isSubmitted
+                                        ? 'bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-700 border-blue-500/30'
+                                        : activity.status === 'active'
+                                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-700 border-green-500/30'
+                                        : activity.status === 'idle'
+                                        ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-700 border-yellow-500/30'
+                                        : 'bg-gradient-to-r from-gray-500/20 to-slate-500/20 text-gray-700 border-gray-500/30'
+                                    }`}>
+                                      {isSubmitted && (
+                                        <CheckCircle2 className="w-3 h-3" />
+                                      )}
+                                      {!isSubmitted && activity.status === 'active' && (
+                                        <div className="w-1.5 h-1.5 bg-green-600 rounded-full animate-pulse" />
+                                      )}
+                                      {!isSubmitted && activity.status === 'idle' && (
+                                        <Clock className="w-3 h-3" />
+                                      )}
+                                      {isSubmitted ? 'SUBMITTED' : activity.status.toUpperCase()}
+                                    </span>
+                                    {isSubmitted && details && (
+                                      <div className="text-xs text-gray-600 font-medium">
+                                        Score: {details.score !== null && details.maxScore !== null 
+                                          ? `${details.score} / ${details.maxScore} (${Math.round((Number(details.score) / Number(details.maxScore)) * 100)}%)`
+                                          : 'Not graded'}
+                                      </div>
+                                    )}
+                                    {hasViolation && (
+                                      <div className="text-xs text-red-600 font-semibold flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3" />
+                                        Violation
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2 mb-1">

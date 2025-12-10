@@ -27,11 +27,23 @@ interface ExamActivity {
   currentSection?: string;
 }
 
+interface KeyboardViolation {
+  attemptId: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  examId: string;
+  timestamp: Date;
+  resolved: boolean;
+  resolution?: 'force-submit' | 'continue';
+}
+
 class ExamMonitoringService {
   private io: SocketIOServer | null = null;
   private examRooms: Map<string, Set<string>> = new Map(); // examId -> Set of socketIds
   private studentActivities: Map<string, ExamActivity> = new Map(); // attemptId -> activity
   private socketToAttempt: Map<string, string> = new Map(); // socketId -> attemptId
+  private keyboardViolations: Map<string, KeyboardViolation> = new Map(); // attemptId -> violation
 
   initialize(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
@@ -218,6 +230,76 @@ class ExamMonitoringService {
           }
         }
         socket.emit('heartbeat-ack');
+      });
+
+      // Keyboard violation detected
+      socket.on('keyboard-violation', (data: { key?: string }) => {
+        if (!socket.attemptId || !socket.examId || socket.userRole !== Role.STUDENT) return;
+
+        const activity = this.studentActivities.get(socket.attemptId);
+        if (!activity || activity.status !== 'active') return;
+
+        // Check if there's already an unresolved violation
+        const existingViolation = this.keyboardViolations.get(socket.attemptId);
+        if (existingViolation && !existingViolation.resolved) {
+          // Already has an unresolved violation, don't create another
+          return;
+        }
+
+        // Create new violation
+        const violation: KeyboardViolation = {
+          attemptId: socket.attemptId,
+          studentId: activity.studentId,
+          studentName: activity.studentName,
+          studentEmail: activity.studentEmail,
+          examId: socket.examId,
+          timestamp: new Date(),
+          resolved: false,
+        };
+
+        this.keyboardViolations.set(socket.attemptId, violation);
+
+        // Notify admins
+        this.io?.to(`admin:exam:${socket.examId}`).emit('keyboard-violation', {
+          attemptId: socket.attemptId,
+          studentId: activity.studentId,
+          studentName: activity.studentName,
+          studentEmail: activity.studentEmail,
+          timestamp: violation.timestamp,
+        });
+
+        console.log(`[Socket] Keyboard violation detected for attempt ${socket.attemptId}`);
+      });
+
+      // Admin resolves keyboard violation
+      socket.on('resolve-keyboard-violation', (data: { attemptId: string; action: 'force-submit' | 'continue' }) => {
+        if (socket.userRole !== Role.STAFF) {
+          socket.emit('error', { message: 'Only staff can resolve violations' });
+          return;
+        }
+
+        const violation = this.keyboardViolations.get(data.attemptId);
+        if (!violation) {
+          socket.emit('error', { message: 'Violation not found' });
+          return;
+        }
+
+        violation.resolved = true;
+        violation.resolution = data.action;
+
+        // Notify the student
+        this.io?.to(`exam:${violation.examId}`).emit('violation-resolved', {
+          attemptId: data.attemptId,
+          action: data.action,
+        });
+
+        // Notify all admins monitoring this exam
+        this.io?.to(`admin:exam:${violation.examId}`).emit('violation-resolved', {
+          attemptId: data.attemptId,
+          action: data.action,
+        });
+
+        console.log(`[Socket] Keyboard violation resolved for attempt ${data.attemptId}: ${data.action}`);
       });
 
       // Disconnect handling

@@ -81,9 +81,18 @@ export const deleteUser = async (req: Request, res: Response) => {
 export const createUser = async (req: Request, res: Response) => {
     try {
         const userData = req.body;
-        // Basic validation
-        if (!userData.email || !userData.password || !userData.name) {
-             return res.status(400).json({ message: 'Missing required fields' });
+        // Basic validation - only email and password are required
+        // name and reg_no can be null
+        if (!userData.email || !userData.password) {
+             return res.status(400).json({ message: 'Email and password are required' });
+        }
+
+        // Convert empty strings or undefined to null for optional fields
+        if (userData.name === '' || userData.name === undefined) {
+            userData.name = null;
+        }
+        if (userData.reg_no === '' || userData.reg_no === undefined) {
+            userData.reg_no = null;
         }
 
         const newUser = await userService.createUser(userData);

@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import * as attemptService from './attempt.service';
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, forceSubmitAttemptSchema } from './attempt.zod';
 import z from 'zod';
 
 export const startAttemptHandler: RequestHandler = async (req, res, next) => {
@@ -214,11 +214,20 @@ export const listAttemptsForExamHandler: RequestHandler = async (req, res, next)
       pageSize: 20,
     };
     
-    // Ensure pageSize is a number
+    console.log('[Search Controller] Received query params:', {
+      rawQuery: req.query,
+      validatedQuery: queryParams,
+      q: queryParams.q
+    });
+    
+    // Pass the query object directly to the service (it expects { page, pageSize, q })
     const validatedParams = {
       page: Number(queryParams.page) || 1,
       pageSize: Number(queryParams.pageSize) || 20,
+      q: queryParams.q?.trim() || undefined,
     };
+    
+    console.log('[Search Controller] Passing to service:', validatedParams);
     
     // Call the ATTEMPT service to get the data
     const result = await attemptService.listAttemptsForExam(examId, validatedParams);
@@ -266,6 +275,26 @@ export const resetAttemptsHandler: RequestHandler = async (req, res, next) => {
     const result = await attemptService.resetAttempts(resetData);
 
     res.status(200).json(result);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forceSubmitAttemptHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const attemptId = req.params.attemptId;
+    const { submissionReason } = req.body;
+
+    if (!attemptId) {
+      return next({ status: 400, message: 'Attempt ID parameter is required' });
+    }
+
+    // Call the service to force submit the attempt
+    const submittedAttempt = await attemptService.forceSubmitAttempt(attemptId, submissionReason);
+
+    // Send back the details of the submitted attempt
+    res.status(200).json(submittedAttempt);
 
   } catch (error) {
     next(error);

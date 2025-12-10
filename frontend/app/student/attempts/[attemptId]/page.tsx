@@ -25,6 +25,7 @@ import { useSectionNavigation } from '@/hooks/useSectionNavigation';
 import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
 
 import { ReportQuestionButton } from '@/components/student/ReportQuestionButton';
+import KeyboardViolationPopup from '@/components/student/exam/KeyboardViolationPopup';
 
 export default function ExamAttemptPage() {
   const params = useParams();
@@ -34,6 +35,7 @@ export default function ExamAttemptPage() {
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [reportedQuestions, setReportedQuestions] = useState<Set<string>>(new Set());
+  const [showKeyboardViolation, setShowKeyboardViolation] = useState(false);
 
   // Fetch attempt and questions data
   const {
@@ -77,14 +79,28 @@ export default function ExamAttemptPage() {
         setReportedQuestions(prev => new Set(prev).add(report.questionId));
     };
 
+    // Listen for violation resolution
+    const handleViolationResolved = (data: { attemptId: string; action: 'force-submit' | 'continue' }) => {
+      if (data.attemptId === attemptId) {
+        setShowKeyboardViolation(false);
+        if (data.action === 'force-submit') {
+          // Force submit the exam
+          handleSubmitExam(true, 'Force submitted by admin due to keyboard violation');
+        }
+        // If continue, just close the popup
+      }
+    };
+
     socket.on('question-updated', handleQuestionUpdate);
     socket.on('report-created', handleReportCreated);
+    socket.on('violation-resolved', handleViolationResolved);
 
     return () => {
         socket.off('question-updated', handleQuestionUpdate);
         socket.off('report-created', handleReportCreated);
+        socket.off('violation-resolved', handleViolationResolved);
     };
-  }, [socket, attempt, setQuestions]);
+  }, [socket, attempt, setQuestions, attemptId, handleSubmitExam]);
 
   // Sync initial reported status from questions
   useEffect(() => {
@@ -167,6 +183,40 @@ export default function ExamAttemptPage() {
     exitFullscreenRef.current = exitFullscreen;
     isFullscreenRef.current = isFullscreen;
   }, [exitFullscreen, isFullscreen]);
+
+  // Keyboard violation detection
+  useEffect(() => {
+    if (!attempt || attempt.status !== 'IN_PROGRESS' || showKeyboardViolation || !socket?.connected) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger on input fields (allow normal typing)
+      const target = e.target as HTMLElement;
+      const isInputField = target.tagName === 'INPUT' || 
+                          target.tagName === 'TEXTAREA' || 
+                          target.isContentEditable ||
+                          target.closest('[contenteditable="true"]') ||
+                          target.closest('input') ||
+                          target.closest('textarea');
+      
+      // Allow normal typing in input fields
+      if (isInputField) return;
+
+      // Prevent default to avoid any unwanted behavior
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Emit keyboard violation event (only once per attempt)
+      if (socket?.connected && !showKeyboardViolation) {
+        socket.emit('keyboard-violation', { key: e.key });
+        setShowKeyboardViolation(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [attempt, socket, showKeyboardViolation]);
 
   // Cheating prevention
   const {
@@ -327,6 +377,10 @@ export default function ExamAttemptPage() {
 
   return (
     <div ref={containerRef} className="h-screen overflow-hidden bg-gray-50 text-gray-900 flex flex-col">
+      <KeyboardViolationPopup 
+        show={showKeyboardViolation} 
+        onResolved={() => setShowKeyboardViolation(false)}
+      />
       <FullscreenWarning 
         warningCount={warningCount} 
         show={showFullscreenWarning} 

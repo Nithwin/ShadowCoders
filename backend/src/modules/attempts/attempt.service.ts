@@ -423,6 +423,161 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
     },
   });
 
+  // Award points based on exam performance
+  try {
+    const { awardPointsForExam } = await import('../points/points.service');
+    await awardPointsForExam(
+      studentId,
+      attemptId,
+      Number(totalScore),
+      Number(maxScore)
+    );
+  } catch (error) {
+    // Log error but don't fail the submission
+    console.error('Error awarding points for exam:', error);
+  }
+
+  return submittedAttempt;
+};
+
+export const forceSubmitAttempt = async (attemptId: string, submissionReason?: string) => {
+  // 1. Fetch all data needed for grading
+  const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
+
+  // 2. --- Validation Checks ---
+  if (!attempt) {
+    throw { status: 404, message: 'Attempt not found' };
+  }
+  if (attempt.status !== AttemptStatus.IN_PROGRESS) {
+    throw { status: 403, message: `Attempt has already been ${attempt.status.toLowerCase()}` };
+  }
+
+  let totalScore = 0;
+  let maxScore = 0;
+
+  for (const question of attempt.exam.questions) {
+    // Add question's points to the max possible score
+    const questionPoints = Number(question.points);
+    maxScore += questionPoints;
+
+    // Find the student's response for this question
+    const response = attempt.responses.find((r) => r.questionId === question.id);
+
+    // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
+    const config = (question as any).config;
+    if (config && config.forceFullMarks === true) {
+        totalScore += questionPoints;
+        
+        if (response) {
+             await prisma.response.updateMany({
+              where: {
+                attemptId: attemptId,
+                questionId: question.id,
+              },
+              data: {
+                earnedPoints: questionPoints,
+                verdict: 'PASS',
+                gradingMode: GradingMode.AUTO, 
+                feedback: 'Full marks awarded by staff override.',
+              },
+            });
+        }
+        continue;
+    }
+
+    if (response && response.answer) {
+      let gradingResult: {
+        earnedPoints: number;
+        verdict: string;
+        gradingMode: GradingMode;
+      } = {
+        earnedPoints: 0,
+        verdict: 'FAIL',
+        gradingMode: GradingMode.MANUAL,
+      };
+
+      switch (question.type) {
+        case QType.MCQ:
+          gradingResult = gradeMCQ(
+            response.answer as { chosenOptionIds?: string[] },
+            question.correctOptionIds as string[],
+            questionPoints
+          );
+          break;
+
+        case QType.CODING:
+          gradingResult = await gradeCoding(
+            response.answer as { code?: string; language?: string },
+            question.testcases as any[],
+            questionPoints
+          );
+          break;
+          
+        case QType.ESSAY:
+        case QType.SPEAKING:
+          gradingResult = {
+            earnedPoints: 0,
+            verdict: 'PENDING',
+            gradingMode: GradingMode.MANUAL,
+          };
+          break;
+        
+        default:
+          gradingResult = {
+            earnedPoints: 0,
+            verdict: 'FAIL',
+            gradingMode: GradingMode.MANUAL,
+          };
+      }
+
+      if (gradingResult.gradingMode === GradingMode.AUTO) {
+        totalScore += gradingResult.earnedPoints;
+      }
+
+      if (gradingResult.gradingMode === GradingMode.AUTO) {
+         await prisma.response.updateMany({
+          where: {
+            attemptId: attemptId,
+            questionId: question.id,
+          },
+          data: {
+            earnedPoints: gradingResult.earnedPoints,
+            verdict: gradingResult.verdict,
+            gradingMode: gradingResult.gradingMode,
+          },
+        });
+      }
+    }
+  }
+
+  // Update the Attempt in the Database
+  const submittedAttempt = await prisma.attempt.update({
+    where: { id: attemptId },
+    data: {
+      status: AttemptStatus.SUBMITTED,
+      submittedAt: new Date(),
+      score: totalScore,
+      maxScore: maxScore,
+      submissionType: 'AUTO',
+      submissionReason: submissionReason || 'Force submitted by admin',
+      timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
+    },
+  });
+
+  // Award points based on exam performance
+  try {
+    const { awardPointsForExam } = await import('../points/points.service');
+    await awardPointsForExam(
+      attempt.studentId,
+      attemptId,
+      Number(totalScore),
+      Number(maxScore)
+    );
+  } catch (error) {
+    // Log error but don't fail the submission
+    console.error('Error awarding points for exam:', error);
+  }
+
   return submittedAttempt;
 };
 
@@ -627,12 +782,22 @@ export const listAttemptsForExam = async (
   // Ensure page and pageSize are numbers
   const page = typeof query.page === 'string' ? parseInt(query.page, 10) : (query.page ?? 1);
   const pageSize = typeof query.pageSize === 'string' ? parseInt(query.pageSize, 10) : (query.pageSize ?? 20);
+  const searchQuery = query.q?.trim() || undefined;
+
+  console.log('[Search Service] Processing request:', {
+    examId,
+    page,
+    pageSize,
+    searchQuery: searchQuery || '(none)',
+    rawQuery: query
+  });
 
   // 1. Call the repository to get attempts and the total count
   const { attempts, totalCount } = await attemptRepo.listAttemptsForExam({
     examId,
     page,
     pageSize,
+    searchQuery,
   });
 
   // 2. Calculate pagination metadata

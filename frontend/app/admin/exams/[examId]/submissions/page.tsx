@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Search, Loader2, Eye, Download, X, Code, FileText, CheckCircle2, XCircle, Volume2, Play, Pause, User, Clock, Award, TrendingUp, Users, Calendar, ChevronLeft, ChevronRight, Filter, BarChart3 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { useToastNotification } from '@/context/ToastContext';
 import Modal from '@/components/ui/Modal';
 import { QType } from '@/types';
+import { useDebouncedCallback } from 'use-debounce';
 
 type Attempt = {
   id: string;
@@ -46,14 +47,24 @@ export default function ExamSubmissionsPage() {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [examTitle, setExamTitle] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
   const [attemptDetails, setAttemptDetails] = useState<any>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const isInitialLoad = useRef(true);
+
+  // Debounce the search query
+  const debouncedSetSearch = useDebouncedCallback((query: string) => {
+    console.log('[Search] Debounced search triggered with query:', query);
+    setSearchQuery(query);
+    setCurrentPage(1); // Reset to page 1 on new search
+  }, 500);
 
   const fetchExamTitle = async () => {
     try {
@@ -67,27 +78,48 @@ export default function ExamSubmissionsPage() {
   };
 
   const fetchAttempts = async () => {
-    setIsLoading(true);
+    // Only show full loading on initial load, use subtle loading for searches
+    if (isInitialLoad.current) {
+      setIsLoading(true);
+    } else {
+      setIsSearching(true);
+    }
     setError(null);
     const params = new URLSearchParams();
     params.append('page', String(currentPage));
     params.append('pageSize', '20');
-    if (searchQuery) {
-      // Note: Backend might not support search yet, but we can add it later
+    if (searchQuery.trim()) {
+      params.append('q', searchQuery.trim());
     }
+
+    console.log('[Search] Fetching attempts with params:', {
+      examId,
+      page: currentPage,
+      searchQuery: searchQuery.trim() || '(empty)',
+      url: `/admin/attempts/exam/${examId}?${params.toString()}`
+    });
 
     try {
       const res = await api.get<ApiResponse>(`/admin/attempts/exam/${examId}?${params.toString()}`);
+      console.log('[Search] Received response:', {
+        attemptsCount: res.data.data.length,
+        totalCount: res.data.meta.totalCount,
+        page: res.data.meta.page,
+        totalPages: res.data.meta.totalPages
+      });
       setAttempts(res.data.data);
       setMeta(res.data.meta);
+      isInitialLoad.current = false;
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       if (process.env.NODE_ENV === 'development') {
         console.error('Error fetching submissions:', err);
       }
       setError(error.response?.data?.error?.message || 'Failed to fetch submissions.');
+      isInitialLoad.current = false;
     } finally {
       setIsLoading(false);
+      setIsSearching(false);
     }
   };
 
@@ -286,11 +318,24 @@ export default function ExamSubmissionsPage() {
             <input
               type="text"
               placeholder="Search by student name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                console.log('[Search] Input changed:', value);
+                setSearchInput(value);
+                debouncedSetSearch(value);
+              }}
+              onKeyDown={(e) => {
+                // Prevent form submission on Enter key
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              autoComplete="off"
               className="w-full pl-11 pr-4 py-3 rounded-xl bg-secondary border-2 border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md"
             />
-            <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
           <Link href={`/admin/export?examId=${examId}`}>
             <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl">
@@ -309,6 +354,12 @@ export default function ExamSubmissionsPage() {
             <p className="text-lg font-medium">Loading submissions...</p>
           </div>
         )}
+        {isSearching && !isLoading && (
+          <div className="mb-4 flex items-center justify-center gap-2 text-primary/70">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <p className="text-sm font-medium">Searching...</p>
+          </div>
+        )}
         {error && (
           <div className="p-6 bg-red-50 border-2 border-red-200 rounded-xl text-red-800 shadow-lg">
             <div className="flex items-center gap-2">
@@ -321,7 +372,9 @@ export default function ExamSubmissionsPage() {
           <div className="p-16 text-center bg-secondary rounded-xl border-2 border-dashed border-primary/20">
             <FileText className="w-20 h-20 mx-auto mb-4 text-primary/30" />
             <p className="text-xl font-semibold text-primary mb-2">No submissions found</p>
-            <p className="text-sm text-primary/60">No students have attempted this exam yet.</p>
+            <p className="text-sm text-primary/60">
+              {searchQuery ? 'No submissions match your search criteria.' : 'No students have attempted this exam yet.'}
+            </p>
           </div>
         )}
 

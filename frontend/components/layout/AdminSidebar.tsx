@@ -15,7 +15,8 @@ import {
   X,
   RefreshCw,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -28,6 +29,7 @@ const navLinks = [
   // Let's create a placeholder for submissions
   { name: 'Submissions', href: '/admin/submissions', icon: ClipboardCheck }, 
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
+  { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { name: 'LeetCode Stats', href: '/admin/leetcode', icon: Code2 },
   { name: 'Users', href: '/admin/users', icon: UserIcon },
   { name: 'Settings', href: '/admin/settings', icon: Settings },

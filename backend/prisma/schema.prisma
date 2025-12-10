@@ -64,6 +64,13 @@ enum ReportStatus {
   IGNORED
 }
 
+enum RedeemOrderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
 enum TimingMode {
   OVERALL_ONLY
   PER_SECTION_ONLY
@@ -100,8 +107,11 @@ model User {
   leetcodeId String?
   leetcodeStats Json?
   settings   Json?
+  points     Int      @default(0)
 
   attempts Attempt[]
+  pointsHistory PointsHistory[]
+  redeemOrders RedeemOrder[]
 
   // back-relations with explicit names
   invalidatedQuestions Question[]   @relation("QuestionInvalidator")
@@ -476,4 +486,65 @@ model QuestionReport {
   @@index([questionId])
   @@index([examId])
   @@index([status])
+}
+
+model RedeemItem {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  pointsCost  Int
+  isActive    Boolean  @default(true)
+  itemType    String   // e.g., "LEAVE_1_DAY", "LEAVE_1_WEEK"
+  metadata    Json?    // Additional data like leave duration, etc.
+  
+  orders      RedeemOrder[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([isActive])
+  @@index([itemType])
+}
+
+model RedeemOrder {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  itemId      String
+  item        RedeemItem @relation(fields: [itemId], references: [id])
+  pointsCost  Int
+  status      RedeemOrderStatus @default(PENDING)
+  leaveDate   DateTime?  // Date when the student wants to take leave
+  message     String?     // Optional reason/message from student
+  adminNotes  String?
+  rejectionReason String?
+  reportUrl   String?  // URL to generated report/document
+  
+  processedById String?  // Admin who processed the order
+  processedAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([itemId])
+}
+
+model PointsHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  points      Int      // Positive for earned, negative for spent
+  balance     Int      // User's balance after this transaction
+  type        String   // "EARNED", "SPENT", "REFUND", "ADJUSTMENT"
+  description String?
+  relatedId   String?  // ID of related entity (e.g., attemptId, orderId)
+  relatedType String?  // Type of related entity (e.g., "ATTEMPT", "ORDER")
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
 }

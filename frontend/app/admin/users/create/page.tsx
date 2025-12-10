@@ -35,23 +35,27 @@ export default function CreateUserPage() {
     setError(null);
 
     try {
-      // Basic validation
-      if (!formData.name || !formData.email || !formData.password) {
-        throw new Error('Please fill in all required fields.');
+      // Basic validation - only email and password are required
+      // name and reg_no can be null
+      if (!formData.email || !formData.password) {
+        throw new Error('Email and password are required.');
       }
 
       const payload: any = {
-        name: formData.name,
         email: formData.email,
         password: formData.password,
         role: formData.role,
       };
 
+      // Only include name if provided, otherwise null
+      payload.name = formData.name?.trim() || null;
+
       if (formData.role === 'STUDENT') {
-        payload.reg_no = formData.reg_no;
-        payload.department = formData.department;
+        // Only include reg_no if provided, otherwise null
+        payload.reg_no = formData.reg_no?.trim() || null;
+        payload.department = formData.department?.trim() || null;
         payload.year = formData.year ? parseInt(formData.year) : null;
-        payload.section = formData.section;
+        payload.section = formData.section?.trim() || null;
       }
 
       await api.post('/users', payload);
@@ -88,16 +92,15 @@ export default function CreateUserPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-primary/70 mb-1">
-                Full Name *
+                Full Name
               </label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
                 className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="John Doe"
+                placeholder="John Doe (optional)"
               />
             </div>
 

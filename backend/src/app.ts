@@ -22,6 +22,8 @@ import { registerUserRoutes } from './modules/users/users.routes';
 import { registerTemplateRoutes } from './modules/exams/templates/exam-template.routes';
 import { registerLeetCodeRoutes } from './modules/leetcode/leetcode.routes';
 import { reportRoutes } from './modules/reports/report.routes';
+import { registerPointsRoutes } from './modules/points/points.routes';
+import { registerRedeemRoutes } from './modules/redeem/redeem.routes';
 
 export const createApp = () => {
     const app = express();
@@ -207,6 +209,8 @@ export const createApp = () => {
     registerTemplateRoutes(app);
     registerLeetCodeRoutes(app);
     app.use('/api/reports', reportRoutes);
+    registerPointsRoutes(app);
+    registerRedeemRoutes(app);
     
     // In production, serve the built frontend (Next.js static export)
     if (env.NODE_ENV === 'production') {

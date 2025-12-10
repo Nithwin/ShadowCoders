@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  Settings
+  Settings,
+  Gift
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -21,6 +22,7 @@ const navLinks = [
   { name: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
   { name: 'My Exams', href: '/student/exams', icon: FileText },
   { name: 'Results', href: '/student/results', icon: ClipboardCheck },
+  { name: 'Redeem', href: '/student/redeem', icon: Gift },
   { name: 'Settings', href: '/student/settings', icon: Settings },
 ];
 

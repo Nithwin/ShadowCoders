@@ -2,7 +2,7 @@ import { Express } from 'express';
 import { requireRole, verifyAccess } from '../../middleware/auth';
 import * as attemptController from './attempt.controller';
 import { validate } from '../../middleware/validate';
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, submitAttemptSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, submitAttemptSchema, forceSubmitAttemptSchema } from './attempt.zod';
 
 export const registerAttemptRoutes = (app: Express) => {
   app.post(
@@ -70,5 +70,13 @@ export const registerAttemptRoutes = (app: Express) => {
     requireRole('STAFF'),
     validate(resetAttemptsSchema),
     attemptController.resetAttemptsHandler
+  );
+
+  app.post(
+    '/api/admin/attempts/:attemptId/force-submit',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(forceSubmitAttemptSchema),
+    attemptController.forceSubmitAttemptHandler
   );
 };

@@ -241,8 +241,9 @@ export const listAttemptsForExam = async (params: {
   examId: string;
   page: number;
   pageSize: number;
+  searchQuery?: string;
 }) => {
-  const { examId, page, pageSize } = params;
+  const { examId, page, pageSize, searchQuery } = params;
 
   // Ensure pageSize and page are numbers
   const pageSizeNum = typeof pageSize === 'string' ? parseInt(pageSize, 10) : Number(pageSize);
@@ -254,18 +255,75 @@ export const listAttemptsForExam = async (params: {
   // Strategy: Get the latest attempt per student
   // We'll use a subquery to find the max attemptNo for each student, then fetch those attempts
   
-  // 1. First, get all unique students who have attempted this exam with their latest attemptNo
+  // 1. If search is provided, first find matching students by name, email, or reg_no
+  let studentIds: string[] | undefined = undefined;
+  if (searchQuery && searchQuery.trim()) {
+    const searchTerm = searchQuery.trim();
+    console.log('[Search] Searching for students with term:', searchTerm);
+    
+    // Build OR conditions for search - handle null values properly
+    const searchConditions: Prisma.UserWhereInput[] = [
+      // Search name only if it's not null
+      {
+        AND: [
+          { name: { not: null } },
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      },
+      // Email is required, so no null check needed
+      { email: { contains: searchTerm, mode: 'insensitive' } },
+      // Search reg_no only if it's not null
+      {
+        AND: [
+          { reg_no: { not: null } },
+          { reg_no: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      },
+    ];
+    
+    console.log('[Search] Search conditions:', JSON.stringify(searchConditions, null, 2));
+    
+    const matchingStudents = await prisma.user.findMany({
+      where: {
+        role: 'STUDENT',
+        OR: searchConditions,
+      },
+      select: { id: true, name: true, email: true, reg_no: true },
+    });
+    
+    console.log('[Search] Found matching students:', {
+      count: matchingStudents.length,
+      students: matchingStudents.map(s => ({ id: s.id, name: s.name, email: s.email, reg_no: s.reg_no }))
+    });
+    
+    studentIds = matchingStudents.map(s => s.id);
+    
+    // If no students match the search, return empty results early
+    if (studentIds.length === 0) {
+      console.log('[Search] No matching students found, returning empty results');
+      return { attempts: [], totalCount: 0 };
+    }
+  }
+
+  // 2. Get all unique students who have attempted this exam with their latest attemptNo
+  // If search is provided, only get attempts for matching students
   const latestAttempts = await prisma.attempt.groupBy({
     by: ['studentId'],
     where: {
       examId: examId,
+      ...(studentIds ? { studentId: { in: studentIds } } : {}),
     },
     _max: {
       attemptNo: true,
     },
   });
 
-  // 2. Now fetch the full attempt details for these latest attempts
+  // If no attempts found (after search filter), return empty results
+  if (latestAttempts.length === 0) {
+    return { attempts: [], totalCount: 0 };
+  }
+
+  // 3. Now fetch the full attempt details for these latest attempts
   const attempts = await prisma.attempt.findMany({
     where: {
       examId: examId,
@@ -318,8 +376,17 @@ export const listAttemptsForExam = async (params: {
     };
   });
 
-  // 4. Total count is the number of unique students who attempted
+  // 4. Total count is the number of unique students who attempted (after search filter)
+  // latestAttempts already contains only the matching students if search was applied
   const totalCount = latestAttempts.length;
+
+  console.log('[Search] Returning results:', {
+    attemptsCount: attemptsWithCorrectScores.length,
+    totalCount,
+    searchQuery: searchQuery || '(none)',
+    page: pageNum,
+    pageSize: pageSizeNum
+  });
 
   return { attempts: attemptsWithCorrectScores, totalCount };
 };
