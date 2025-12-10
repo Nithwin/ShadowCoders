@@ -8,6 +8,7 @@ import { Download, Loader2, CheckSquare, Square, FileSpreadsheet } from 'lucide-
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 type Exam = {
   id: string;
@@ -24,9 +25,9 @@ type ExportField =
   | 'score'
   | 'maxScore'
   | 'percentage'
-  | 'questionScores'
-  | 'questionAnswers'
-  | 'questionVerdicts';
+  | 'stats'
+  | 'categoryScores'
+  | 'subjectiveResponses';
 
 const FIELD_LABELS: Record<ExportField, string> = {
   studentName: 'Student Name',
@@ -34,12 +35,12 @@ const FIELD_LABELS: Record<ExportField, string> = {
   regNo: 'Registration Number',
   startedAt: 'Started At',
   submittedAt: 'Submitted At',
-  score: 'Score',
+  score: 'Total Score',
   maxScore: 'Max Score',
   percentage: 'Percentage',
-  questionScores: 'Question Scores',
-  questionAnswers: 'Question Answers',
-  questionVerdicts: 'Question Verdicts',
+  stats: 'Attempt Statistics (Answered/Correct)',
+  categoryScores: 'Category Score Breakdown (MCQ Total, etc.)',
+  subjectiveResponses: 'Subjective Responses & Scores',
 };
 
 const FIELD_DESCRIPTIONS: Record<ExportField, string> = {
@@ -51,9 +52,9 @@ const FIELD_DESCRIPTIONS: Record<ExportField, string> = {
   score: 'Points earned by student',
   maxScore: 'Maximum possible points',
   percentage: 'Score as percentage',
-  questionScores: 'Individual question scores (earned/max)',
-  questionAnswers: 'Student answers for each question',
-  questionVerdicts: 'Grading verdict for each question',
+  stats: 'Total questions answered and total correct answers',
+  categoryScores: 'Aggregated scores for MCQs and other categories',
+  subjectiveResponses: 'Detailed answers and scores for Coding, Essay, Speaking questions',
 };
 
 const DEFAULT_FIELDS: ExportField[] = [
@@ -65,14 +66,18 @@ const DEFAULT_FIELDS: ExportField[] = [
   'score',
   'maxScore',
   'percentage',
-  'questionScores',
+  'stats',
+  'categoryScores',
+  'subjectiveResponses',
 ];
 
 export default function CustomExportPage() {
   useAuth();
   const toast = useToastNotification();
+  const searchParams = useSearchParams();
   const [exams, setExams] = useState<Exam[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
+  const [isPreselected, setIsPreselected] = useState(false);
   const [selectedFields, setSelectedFields] = useState<ExportField[]>(DEFAULT_FIELDS);
   const [includeSummary, setIncludeSummary] = useState(true);
   const [includeExamInfo, setIncludeExamInfo] = useState(true);
@@ -80,27 +85,31 @@ export default function CustomExportPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    fetchExams();
-  }, []);
-
-  // Get examId from URL query parameter
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const examIdFromUrl = params.get('examId');
-      if (examIdFromUrl) {
-        setSelectedExamId(examIdFromUrl);
-      }
+    const examIdFromUrl = searchParams?.get('examId');
+    
+    if (examIdFromUrl) {
+      setSelectedExamId(examIdFromUrl);
+      setIsPreselected(true);
     }
-  }, []);
+    
+    fetchExams(examIdFromUrl);
+  }, [searchParams]);
 
-  const fetchExams = async () => {
+  const fetchExams = async (preselectedId?: string | null) => {
     setIsLoading(true);
     try {
       const res = await api.get<{ data: Exam[] }>('/admin/exams?pageSize=100');
-      setExams(res.data.data.filter(e => e.status === 'PUBLISHED' || e.status === 'CLOSED'));
-      if (res.data.data.length > 0) {
-        setSelectedExamId(res.data.data[0].id);
+      // Include the preselected exam even if it doesn't match the filter strictly, or just trust the list
+      // Relaxing filter slightly in case 'CLOSED' status was the issue, but sticking to logic
+      const validExams = res.data.data.filter(e => e.status === 'PUBLISHED' || e.status === 'CLOSED');
+      setExams(validExams);
+      
+      // Only set default if no preselection and we have exams
+      if (!preselectedId && validExams.length > 0) {
+        setSelectedExamId(validExams[0].id);
+      } else if (preselectedId && !validExams.find(e => e.id === preselectedId)) {
+        // If preselected ID is NOT in the list (e.g. might be archived?), we warn or try to fetch it?
+        // For now, let's assume it's valid if they came from submissions page.
       }
     } catch (err) {
       console.error('Error fetching exams:', err);
@@ -194,6 +203,8 @@ export default function CustomExportPage() {
     );
   }
 
+  const selectedExam = exams.find(e => e.id === selectedExamId);
+
   return (
     <div className="text-primary">
       <div className="mb-6">
@@ -213,19 +224,42 @@ export default function CustomExportPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Exam Selection */}
           <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-            <h2 className="text-xl font-semibold text-primary mb-4">Select Exam</h2>
-            <select
-              value={selectedExamId}
-              onChange={(e) => setSelectedExamId(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="">-- Select an exam --</option>
-              {exams.map((exam) => (
-                <option key={exam.id} value={exam.id}>
-                  {exam.title} ({exam.status})
-                </option>
-              ))}
-            </select>
+            <h2 className="text-xl font-semibold text-primary mb-4">
+              {isPreselected ? 'Selected Exam' : 'Select Exam'}
+            </h2>
+            
+            {isPreselected && selectedExam ? (
+              <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <div>
+                  <p className="font-bold text-lg text-primary">{selectedExam.title}</p>
+                  <p className="text-sm text-primary/60 font-mono">{selectedExam.status}</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsPreselected(false)}
+                  className="text-primary border-primary/20 hover:bg-primary/10"
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <select
+                value={selectedExamId}
+                onChange={(e) => {
+                   setSelectedExamId(e.target.value);
+                   setIsPreselected(false);
+                }}
+                className="w-full px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">-- Select an exam --</option>
+                {exams.map((exam) => (
+                  <option key={exam.id} value={exam.id}>
+                    {exam.title} ({exam.status})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Field Selection */}
