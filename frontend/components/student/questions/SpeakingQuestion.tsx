@@ -227,13 +227,15 @@ export default function SpeakingQuestion({
   return (
     <div className="flex h-full flex-col bg-gray-50">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50 flex-shrink-0">
-        <div className="flex items-center justify-between mb-4">
+      <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-pink-50 flex-shrink-0">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Mic className="w-6 h-6 text-purple-600" />
-            <h2 className="text-2xl font-bold text-gray-900">Speaking Question</h2>
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Mic className="w-5 h-5 text-purple-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Speaking Question</h2>
           </div>
-          <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
+          <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">
             {points} {points === 1 ? 'point' : 'points'}
           </div>
         </div>
@@ -242,7 +244,7 @@ export default function SpeakingQuestion({
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Prompt */}
         <div className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg w-[45%]">
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
+          <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
             <div className="prose prose-lg max-w-none">
               <div
                 className="text-gray-900 whitespace-pre-wrap leading-relaxed text-base font-medium"
@@ -252,13 +254,13 @@ export default function SpeakingQuestion({
                     const lines = html.split('\n');
                     const processedLines = lines.map((line) => {
                       if (/^###\s+(.+)$/.test(line)) {
-                        return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
+                        return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">$1</h3>');
                       }
                       if (/^##\s+(.+)$/.test(line)) {
-                        return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
+                        return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-7 mb-4">$1</h2>');
                       }
                       if (/^#\s+(.+)$/.test(line)) {
-                        return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
+                        return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-8 mb-5">$1</h1>');
                       }
                       return line;
                     });

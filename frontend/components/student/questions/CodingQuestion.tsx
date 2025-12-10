@@ -236,7 +236,7 @@ export default function CodingQuestion({
     };
 
     fetchQueueStatus();
-    const interval = setInterval(fetchQueueStatus, 2000); // Poll every 2 seconds
+    const interval = setInterval(fetchQueueStatus, 5000); // Poll every 5 seconds
 
     return () => clearInterval(interval);
   }, [isRunning]);
@@ -434,8 +434,8 @@ export default function CodingQuestion({
       }
     } finally {
       setIsSubmitting(false);
-      // Start 1-minute cooldown after submission
-      setSubmitCooldown(60);
+      // Start 30-second cooldown after submission
+      setSubmitCooldown(30);
     }
   }, [code, language, questionId, attemptId, onChange, submitCooldown]);
 
@@ -447,15 +447,17 @@ export default function CodingQuestion({
         style={{ width: `${100 - editorWidth}%` }}
       >
         {/* Question Header */}
-        <div className="p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-          <div className="flex items-center justify-between mb-4">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Code className="w-6 h-6 text-blue-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Coding Question</h2>
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Code className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Coding Question</h2>
             </div>
             <div className="flex items-center gap-3">
               {reportButton}
-              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
+              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">
                 {points} {points === 1 ? 'point' : 'points'}
               </div>
             </div>
@@ -463,10 +465,10 @@ export default function CodingQuestion({
         </div>
 
         {/* Question Prompt - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
+        <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
           <div className="prose prose-lg max-w-none">
             <div
-              className="text-gray-900 whitespace-pre-wrap leading-relaxed mb-6 text-base font-medium"
+              className="text-gray-900 whitespace-pre-wrap leading-relaxed text-base font-medium"
               dangerouslySetInnerHTML={{ 
                 __html: (() => {
                   let html = prompt;
@@ -478,13 +480,13 @@ export default function CodingQuestion({
                     // Trim line for regex check to be safe
                     const trimmedLine = line.trim();
                     if (/^###\s+(.+)$/.test(trimmedLine)) {
-                      return trimmedLine.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
+                      return trimmedLine.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">$1</h3>');
                     }
                     if (/^##\s+(.+)$/.test(trimmedLine)) {
-                      return trimmedLine.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
+                      return trimmedLine.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-7 mb-4">$1</h2>');
                     }
                     if (/^#\s+(.+)$/.test(trimmedLine)) {
-                      return trimmedLine.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
+                      return trimmedLine.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-8 mb-5">$1</h1>');
                     }
                     return line; // Return original line content (preserves indentation/spaces if not header)
                   });
@@ -513,25 +515,27 @@ export default function CodingQuestion({
           {/* Sample Test Cases */}
           {visibleTestCases.length > 0 && (
             <div className="mt-8 space-y-4">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-4">
-                <FileText className="w-6 h-6 text-blue-600" />
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5 mb-5">
+                <div className="p-1.5 bg-blue-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                </div>
                 Sample Test Cases
               </h3>
               <div className="space-y-4">
                 {visibleTestCases.map((testCase, index) => (
-                  <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-5 shadow-sm hover:shadow transition-shadow">
-                    <div className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">Example {index + 1}</span>
+                  <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                      <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-xs">Example {index + 1}</span>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div>
-                        <div className="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Input:</div>
+                        <div className="text-xs font-bold text-gray-600 mb-2.5 uppercase tracking-wide">Input:</div>
                         <pre className="text-sm text-gray-800 font-mono bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
                           {testCase.input || '(empty)'}
                         </pre>
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Expected Output:</div>
+                        <div className="text-xs font-bold text-gray-600 mb-2.5 uppercase tracking-wide">Expected Output:</div>
                         <pre className="text-sm text-gray-800 font-mono bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
                           {testCase.expectedOutput}
                         </pre>
@@ -544,9 +548,11 @@ export default function CodingQuestion({
           )}
 
           {/* Info Box */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-5 shadow-sm">
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-start gap-3">
-              <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0 mt-0.5">
+                <Info className="w-5 h-5 text-blue-600" />
+              </div>
               <div className="text-sm text-blue-900">
                 <p className="font-bold mb-3 text-base">💡 Important Notes:</p>
                 <ul className="list-disc list-inside space-y-2 text-sm">
@@ -583,9 +589,9 @@ export default function CodingQuestion({
         style={{ width: `${editorWidth}%` }}
       >
         {/* LeetCode-style Editor Header - Compact with Language, Theme, and Actions */}
-        <div className="bg-[#1e1e1e] border-b border-gray-700 flex items-center justify-between px-4 py-2.5 flex-shrink-0">
+        <div className="bg-[#1e1e1e] border-b border-gray-700 flex items-center justify-between px-5 py-3 flex-shrink-0">
           {/* Left: Editor Label */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <Code className="w-4 h-4 text-gray-400" />
             <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Code Editor</span>
           </div>
@@ -945,12 +951,12 @@ export default function CodingQuestion({
 
         {/* Navigation Buttons for Coding Questions */}
         {(onNext || onPrev || onSubmit) && (
-          <div className="border-t border-gray-300 bg-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div className="border-t border-gray-300 bg-white px-6 py-5 flex items-center justify-between flex-shrink-0 shadow-lg">
             <button
               onClick={onPrev}
               disabled={!canGoPrev || isRunning || isSubmitting}
               type="button"
-              className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all min-w-[140px] flex items-center justify-center"
+              className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all min-w-[140px] flex items-center justify-center"
               style={{ color: '#1f2937', backgroundColor: '#ffffff', borderColor: '#9ca3af' }}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -962,7 +968,7 @@ export default function CodingQuestion({
                 onClick={onSubmit}
                 disabled={isRunning || isSubmitting}
                 type="button"
-                className="bg-green-600 hover:bg-green-700 text-white border-0 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-green-600 hover:bg-green-700 text-white border-0 px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Submit Exam
               </button>
@@ -971,7 +977,7 @@ export default function CodingQuestion({
                 onClick={onNext}
                 disabled={!canGoNext || isRunning || isSubmitting}
                 type="button"
-                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
               >
                 Next Question
                 <ArrowRight className="w-4 h-4 ml-2" />

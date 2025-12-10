@@ -97,31 +97,6 @@ export default function ExamDetailPage() {
   const handleStartExam = async () => {
     if (!examId) return;
     
-    // Check for browser extensions first
-    const { detectBrowserExtensions } = await import('@/utils/extensionDetection');
-    const extensionResult = detectBrowserExtensions();
-    
-    if (extensionResult.hasExtensions) {
-      const proceed = await confirm({
-        title: 'Browser Extensions Detected',
-        message: `${extensionResult.message}\n\nPlease disable or remove all browser extensions before starting the exam.`,
-        confirmText: 'I have removed extensions',
-        cancelText: 'Cancel',
-        variant: 'warning',
-      });
-      
-      if (!proceed) {
-        return;
-      }
-      
-      // Re-check extensions
-      const recheckResult = detectBrowserExtensions();
-      if (recheckResult.hasExtensions) {
-        toast.error('Extensions are still detected. Please remove all browser extensions and try again.');
-        return;
-      }
-    }
-    
     // Check if exam has speaking questions and request microphone access first
     if (exam?.hasSpeakingQuestions) {
       const hasAccess = await requestMicrophoneAccess();

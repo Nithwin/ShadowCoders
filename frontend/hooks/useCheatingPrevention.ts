@@ -176,46 +176,125 @@ export function useCheatingPrevention(
         return; 
       }
 
-      // Allow Undo/Redo (Ctrl+Z, Ctrl+Y) AND Save (Ctrl+S)
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
-        if (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 's') {
-          if (e.key.toLowerCase() === 's') {
-             e.preventDefault(); // Prevent browser save dialog
-          }
-          return;
-        }
-      }
-
-      // Allow Copy/Paste/Cut/SelectAll ONLY inside Editor/Input
+      // Allow Copy/Paste/Cut/SelectAll/Undo/Redo ONLY inside Editor/Input
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
         const key = e.key.toLowerCase();
-        if (key === 'c' || key === 'v' || key === 'x' || key === 'a') {
+        if (key === 'c' || key === 'v' || key === 'x' || key === 'a' || key === 'z' || key === 'y') {
            const target = e.target as HTMLElement;
            const activeElement = document.activeElement as HTMLElement;
-           const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
-           const isContentEditable = target.isContentEditable || activeElement?.isContentEditable;
            
-           // Check if inside Monaco editor
-           const checkMonaco = (el: HTMLElement | null): boolean => {
+           // Helper function to check if element is editable
+           const isEditableElement = (el: HTMLElement | null): boolean => {
              if (!el) return false;
-             return el.closest('.monaco-editor') !== null ||
-                    el.closest('[class*="monaco"]') !== null ||
-                    el.closest('[data-uri]') !== null ||
-                    (el.isContentEditable && el.closest('.view-lines') !== null) ||
-                    (el.ownerDocument !== document && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA');
+             
+             // Standard input/textarea
+             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+               return true;
+             }
+             
+             // Contenteditable elements
+             if (el.isContentEditable) {
+               return true;
+             }
+             
+             // Check for Monaco editor (comprehensive detection)
+             const monacoSelectors = [
+               '.monaco-editor',
+               '[class*="monaco"]',
+               '[data-uri]',
+               '.view-lines',
+               '.view-line',
+               '.monaco-mouse-cursor-text',
+               '.monaco-editor-background',
+               '.monaco-scrollable-element'
+             ];
+             
+             for (const selector of monacoSelectors) {
+               if (el.closest(selector)) {
+                 return true;
+               }
+             }
+             
+             // Check parent chain for Monaco editor
+             let parent = el.parentElement;
+             let depth = 0;
+             while (parent && depth < 15) {
+               const className = parent.className?.toString() || '';
+               const id = parent.id || '';
+               if (className.includes('monaco') || 
+                   id.includes('monaco') ||
+                   parent.classList.contains('monaco-editor') ||
+                   parent.hasAttribute('data-uri')) {
+                 return true;
+               }
+               parent = parent.parentElement;
+               depth++;
+             }
+             
+             // Check for editor containers
+             const editorSelectors = [
+               '[role="textbox"]',
+               '.editor',
+               '[class*="editor"]',
+               '[class*="code-editor"]',
+               '[class*="essay-editor"]',
+               '[class*="CodeEditor"]',
+               '[class*="EssayEditor"]'
+             ];
+             
+             for (const selector of editorSelectors) {
+               if (el.closest(selector)) {
+                 return true;
+               }
+             }
+             
+             return false;
            };
            
-           const isMonacoEditor = checkMonaco(target) || checkMonaco(activeElement);
+           // Check both target and activeElement
+           const isEditable = isEditableElement(target) || isEditableElement(activeElement);
            
-           if (isInput || isContentEditable || isMonacoEditor) {
-             return; // Allow inside editor
+           // Also check if we're in a focused editor by checking if activeElement is editable
+           if (activeElement) {
+             const ae = activeElement as HTMLElement;
+             if (ae.isContentEditable || 
+                 ae.tagName === 'INPUT' || 
+                 ae.tagName === 'TEXTAREA' ||
+                 isEditableElement(ae)) {
+               return; // Allow - we're in an editor
+             }
            }
+           
+           if (isEditable) {
+             return; // Allow inside editor - don't block
+           }
+        }
+        
+        // Block Ctrl+S (Save page) even in editors
+        if (key === 's') {
+          e.preventDefault(); // Prevent browser save dialog
+          return; // Don't show warning, just prevent
         }
       }
 
       // 2. BLOCK EVERYTHING ELSE WITH MODIFIERS
       // This catches Alt+S (Blackbox), Ctrl+Shift+I (DevTools), Ctrl+P (Print), etc.
+      // BUT: Don't block if only modifier keys are pressed (Ctrl alone, Shift alone, Ctrl+Shift alone, etc.)
+      const modifierKeys = ['Control', 'Alt', 'Meta', 'Shift', 'OS'];
+      const isModifierKeyOnly = modifierKeys.includes(e.key);
+      
+      // If the key being pressed IS a modifier key itself, allow it
+      // This covers: Ctrl alone, Shift alone, Alt alone, Ctrl+Shift, Ctrl+Alt, etc.
+      if (isModifierKeyOnly) {
+        return; // Allow modifier keys to be pressed alone or in combination
+      }
+      
+      // Only block if modifier is pressed WITH another non-modifier key
+      // Examples: Ctrl+T, Ctrl+Shift+I, Alt+Tab, Ctrl+Space, etc.
       if (e.ctrlKey || e.altKey || e.metaKey) {
+        // Handle Space key explicitly (can be ' ' or 'Space')
+        const keyName = e.key === ' ' || e.key === 'Space' ? 'Space' : e.key;
+        
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -226,8 +305,8 @@ export function useCheatingPrevention(
         // Detailed logging for clearer feedback
         if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 's') {
           reason = 'Screenshot Shortcut (Win+Shift+S)';
-        } else if (e.key === 'Meta' || e.key === 'OS') {
-          reason = 'Windows/Command Key pressed';
+        } else if (e.ctrlKey && (e.key === ' ' || e.key === 'Space')) {
+          reason = 'Restricted shortcut: Ctrl+Space';
         } else if (e.altKey) {
           reason = 'Browser extension shortcuts are disabled (Alt key)';
         } else if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i')) {
@@ -239,8 +318,8 @@ export function useCheatingPrevention(
           if (e.altKey) parts.push('Alt');
           if (e.metaKey) parts.push('Win/Cmd');
           if (e.shiftKey) parts.push('Shift');
-          if (e.key && !['Control', 'Alt', 'Meta', 'Shift'].includes(e.key)) {
-            parts.push(e.key.toUpperCase());
+          if (keyName && !modifierKeys.includes(keyName)) {
+            parts.push(keyName === 'Space' ? 'Space' : keyName.toUpperCase());
           }
           reason = `Restricted shortcut: ${parts.join('+')}`;
         }

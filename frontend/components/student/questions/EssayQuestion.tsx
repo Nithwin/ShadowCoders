@@ -164,31 +164,33 @@ export default function EssayQuestion({
         style={{ width: `${100 - textareaWidth}%` }}
       >
         {/* Question Header */}
-        <div className="p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <FileText className="w-6 h-6 text-blue-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Essay Question</h2>
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FileText className="w-5 h-5 text-blue-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Essay Question</h2>
             </div>
             <div className="flex items-center gap-3">
               {reportButton}
-              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300">
+              <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">
                 {points} {points === 1 ? 'point' : 'points'}
               </div>
             </div>
           </div>
           {wordLimit && (
-            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold border border-blue-300 inline-block">
+            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-semibold border border-blue-300 inline-block shadow-sm">
               <strong>Word Limit:</strong> {wordLimit}
             </div>
           )}
         </div>
 
         {/* Question Prompt - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
+        <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
           <div className="prose prose-lg max-w-none">
             <div
-              className="text-gray-900 whitespace-pre-wrap leading-relaxed mb-6 text-base font-medium"
+              className="text-gray-900 whitespace-pre-wrap leading-relaxed text-base font-medium"
               dangerouslySetInnerHTML={{ 
                 __html: (() => {
                   let html = prompt;
@@ -197,13 +199,13 @@ export default function EssayQuestion({
                   const processedLines = lines.map((line) => {
                     // Check for headers (must check in order: ###, ##, #)
                     if (/^###\s+(.+)$/.test(line)) {
-                      return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
+                      return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">$1</h3>');
                     }
                     if (/^##\s+(.+)$/.test(line)) {
-                      return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-5 mb-3">$1</h2>');
+                      return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-7 mb-4">$1</h2>');
                     }
                     if (/^#\s+(.+)$/.test(line)) {
-                      return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-6 mb-4">$1</h1>');
+                      return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-8 mb-5">$1</h1>');
                     }
                     return line;
                   });
@@ -251,9 +253,11 @@ export default function EssayQuestion({
         style={{ width: `${textareaWidth}%` }}
       >
         {/* Textarea Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
+        <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <FileText className="w-4 h-4 text-blue-600" />
+            </div>
             <span className="text-sm font-bold text-gray-900">Your Answer</span>
           </div>
           <div className="flex items-center gap-3">
@@ -351,7 +355,7 @@ export default function EssayQuestion({
               if (submitSuccess) setSubmitSuccess(false);
               if (submitError) setSubmitError('');
             }}
-            className="flex-1 w-full p-6 bg-white text-gray-900 focus:outline-none resize-none leading-relaxed text-base border-0 custom-scrollbar"
+            className="flex-1 w-full px-6 py-6 bg-white text-gray-900 focus:outline-none resize-none leading-relaxed text-base border-0 custom-scrollbar"
             placeholder="Write your answer here... Be clear, concise, and address all aspects of the question."
           />
         </div>
@@ -371,12 +375,12 @@ export default function EssayQuestion({
 
         {/* Navigation Buttons for Essay Questions */}
         {(onNext || onPrev || onSubmit) && (
-          <div className="border-t border-gray-300 bg-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div className="border-t border-gray-300 bg-white px-6 py-5 flex items-center justify-between flex-shrink-0 shadow-lg">
             <button
               onClick={onPrev}
               disabled={!canGoPrev}
               type="button"
-              className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all min-w-[140px] flex items-center justify-center"
+              className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all min-w-[140px] flex items-center justify-center"
               style={{ color: '#1f2937', backgroundColor: '#ffffff', borderColor: '#9ca3af' }}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -388,7 +392,7 @@ export default function EssayQuestion({
                 onClick={onSubmit}
                 disabled={false}
                 type="button"
-                className="bg-green-600 hover:bg-green-700 text-white border-0 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-green-600 hover:bg-green-700 text-white border-0 px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4 mr-2" />
                 Submit Exam
@@ -398,7 +402,7 @@ export default function EssayQuestion({
                 onClick={onNext}
                 disabled={!canGoNext}
                 type="button"
-                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
+                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
               >
                 Next Question
                 <ArrowRight className="w-4 h-4 ml-2" />
