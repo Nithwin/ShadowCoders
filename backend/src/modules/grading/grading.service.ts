@@ -203,7 +203,7 @@ export const gradeEssay = async (responseId: string) => {
     throw { status: 400, message: 'This is not an essay response' };
   }
   
-  // 2. Extact text answer
+  // 2. Extract text answer
   // Handle both possible locations for essay text (answer JSON or textAnswer field)
   let studentText = response.textAnswer;
   if (!studentText && response.answer && typeof response.answer === 'object') {
@@ -274,7 +274,6 @@ ${studentText}
       }
 
       // Parse Result
-      // Clean up markdown code blocks if present
       let cleaned = aiResponseString.trim();
       if (cleaned.startsWith('```')) {
         const lines = cleaned.split('\n');
@@ -290,19 +289,19 @@ ${studentText}
         throw new Error('AI returned invalid JSON structure');
       }
 
-      // 5. Save Evaluation
+      // Save Evaluation
       await prisma.evaluation.create({
         data: {
           responseId: response.id,
           kind: 'AI',
           score: resultJson.score,
           comments: resultJson.feedback,
-          isFinal: false, // Teacher must approve
+          isFinal: false,
           createdAt: new Date(),
         }
       });
 
-      // 6. Complete Job
+      // Complete Job
       await gradingRepo.updateGradingJob(job.id, 'SUCCEEDED', resultJson);
       console.log(`[EssayGrade] Job ${job.id} completed. Score: ${resultJson.score}`);
       

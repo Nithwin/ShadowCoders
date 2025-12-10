@@ -47,18 +47,11 @@ A comprehensive online examination platform built with Next.js 16 and Express.js
 
 For deploying on a Linux server (Ubuntu/Debian), follow these additional steps:
 
-### 1. System Requirements & Redis
+### 1. System Requirements
+
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
-
-# Install Redis (Required for Queue)
-sudo apt install redis-server -y
-sudo systemctl enable redis-server
-sudo systemctl start redis-server
-
-# Verify Redis is running
-redis-cli ping # Should return PONG
 ```
 
 ### 2. Install Node.js (v20)
