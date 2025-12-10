@@ -208,29 +208,8 @@ export const submitAnswer = async (
   input: SubmitAnswerInput
 ) => {
   const { questionId, answer } = input;
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    select: {
-      studentId: true,
-      status: true,
-      examId: true,
-    },
-  });
-
-  if (!attempt) {
-    throw { status: 404, message: "Attempt not found" };
-  }
-
-  if (attempt.studentId !== studentId) {
-    throw {
-      status: 403,
-      message: "You are not authorized to modify this attempt",
-    };
-  }
-
-  // Allow students to edit answers even after submission
-  // We allow editing for both IN_PROGRESS and SUBMITTED status
-
+  
+  // First, fetch question to determine if we need queue (coding questions have more frequent auto-saves)
   const question = await prisma.question.findUnique({
     where: { id: questionId },
     select: { examId: true, type: true },
@@ -239,28 +218,69 @@ export const submitAnswer = async (
   if (!question) {
     throw { status: 404, message: "Question not found" };
   }
-  if (question.examId !== attempt.examId) {
-    throw {
-      status: 403,
-      message: "Forbidden: Question does not belong to this exam",
-    };
-  }
-  // For SPEAKING questions, extract audioAssetId from answer if present
-  let audioAssetId: string | undefined;
-  if (question.type === QType.SPEAKING && answer && typeof answer === 'object' && 'audioAssetId' in answer) {
-    audioAssetId = answer.audioAssetId as string;
-  }
 
-  const responseData: Parameters<typeof attemptRepo.upsertResponse>[0] = {
-    attemptId: attemptId,
-    questionId: questionId,
-    answer: answer ? (answer as Prisma.InputJsonValue) : Prisma.JsonNull,
-    type: question.type,
-    ...(audioAssetId && { audioAssetId }),
-  };
-  const savedResponse = await attemptRepo.upsertResponse(responseData);
+  // Use queue system for all question types to prevent race conditions
+  // The queue ensures requests for the same (attemptId, questionId) are processed sequentially
+  // This is especially important for coding questions with auto-save, but applies to all types
+  const { answerQueue } = await import("../../lib/queues/answer-queue");
+  
+  // Higher priority for non-coding questions (they're usually manual submissions)
+  // Coding questions get lower priority since they're auto-saved frequently
+  const priority = question.type === QType.CODING ? 0 : 1;
+  
+  return answerQueue.enqueue(
+    attemptId,
+    questionId,
+    async () => {
+      const attempt = await prisma.attempt.findUnique({
+        where: { id: attemptId },
+        select: {
+          studentId: true,
+          status: true,
+          examId: true,
+        },
+      });
 
-  return savedResponse;
+      if (!attempt) {
+        throw { status: 404, message: "Attempt not found" };
+      }
+
+      if (attempt.studentId !== studentId) {
+        throw {
+          status: 403,
+          message: "You are not authorized to modify this attempt",
+        };
+      }
+
+      // Allow students to edit answers even after submission
+      // We allow editing for both IN_PROGRESS and SUBMITTED status
+
+      if (question.examId !== attempt.examId) {
+        throw {
+          status: 403,
+          message: "Forbidden: Question does not belong to this exam",
+        };
+      }
+      
+      // For SPEAKING questions, extract audioAssetId from answer if present
+      let audioAssetId: string | undefined;
+      if (question.type === QType.SPEAKING && answer && typeof answer === 'object' && 'audioAssetId' in answer) {
+        audioAssetId = answer.audioAssetId as string;
+      }
+
+      const responseData: Parameters<typeof attemptRepo.upsertResponse>[0] = {
+        attemptId: attemptId,
+        questionId: questionId,
+        answer: answer ? (answer as Prisma.InputJsonValue) : Prisma.JsonNull,
+        type: question.type,
+        ...(audioAssetId && { audioAssetId }),
+      };
+      const savedResponse = await attemptRepo.upsertResponse(responseData);
+
+      return savedResponse;
+    },
+    priority
+  );
 };
 
 export const submitAttempt = async (studentId: string, attemptId: string, submissionReason?: string) => {

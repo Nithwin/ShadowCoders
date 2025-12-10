@@ -1,5 +1,6 @@
 import { AttemptStatus, Prisma, QType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { retryWithBackoff } from "../../lib/utils/retry";
 
 
 export const createAttempt = (data: Prisma.AttemptCreateInput) => {
@@ -48,17 +49,26 @@ export const upsertResponse = async (data: {
     createData.audioAsset = { connect: { id: audioAssetId } };
   }
 
-  // Use upsert with a composite unique constraint
-  return prisma.response.upsert({
-    where: {
-      attemptId_questionId: {
-        attemptId: attemptId,
-        questionId: questionId,
+  // Use retry with exponential backoff to handle race conditions
+  // When multiple requests come in simultaneously, retry will handle the unique constraint error
+  return retryWithBackoff(
+    () => prisma.response.upsert({
+      where: {
+        attemptId_questionId: {
+          attemptId: attemptId,
+          questionId: questionId,
+        },
       },
-    },
-    update: updateData,
-    create: createData,
-  });
+      update: updateData,
+      create: createData,
+    }),
+    {
+      maxRetries: 5,
+      initialDelay: 50,
+      maxDelay: 500,
+      retryableErrors: ['P2002'], // Unique constraint violation
+    }
+  );
 };
 
 export const getAttemptDetails = (attemptId: string) => {
