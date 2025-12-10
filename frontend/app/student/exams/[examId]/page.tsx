@@ -97,6 +97,31 @@ export default function ExamDetailPage() {
   const handleStartExam = async () => {
     if (!examId) return;
     
+    // Check for browser extensions first
+    const { detectBrowserExtensions } = await import('@/utils/extensionDetection');
+    const extensionResult = detectBrowserExtensions();
+    
+    if (extensionResult.hasExtensions) {
+      const proceed = await confirm({
+        title: 'Browser Extensions Detected',
+        message: `${extensionResult.message}\n\nPlease disable or remove all browser extensions before starting the exam.`,
+        confirmText: 'I have removed extensions',
+        cancelText: 'Cancel',
+        variant: 'warning',
+      });
+      
+      if (!proceed) {
+        return;
+      }
+      
+      // Re-check extensions
+      const recheckResult = detectBrowserExtensions();
+      if (recheckResult.hasExtensions) {
+        toast.error('Extensions are still detected. Please remove all browser extensions and try again.');
+        return;
+      }
+    }
+    
     // Check if exam has speaking questions and request microphone access first
     if (exam?.hasSpeakingQuestions) {
       const hasAccess = await requestMicrophoneAccess();
@@ -351,7 +376,7 @@ export default function ExamDetailPage() {
                   <div>
                     <p className="font-semibold mb-1">📋 Copy/Paste Restrictions:</p>
                     <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                      <li><strong>Blocked:</strong> Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X) are <strong>disabled</strong> and will not work during the exam</li>
+                      <li><strong>Allowed:</strong> Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z, Ctrl+Y) work <strong>inside code and essay editors only</strong></li>
                       <li><strong>Blocked:</strong> Copy/paste from outside the exam window will be prevented</li>
                       <li><strong>Blocked:</strong> Copying text from question prompts or other exam content is restricted</li>
                     </ul>
@@ -375,9 +400,9 @@ export default function ExamDetailPage() {
                       <li>You must stay in fullscreen mode during the exam</li>
                     </ul>
                   </div>
-                  <div className="bg-red-50 border border-red-300 rounded p-3 mt-3">
-                    <p className="text-sm font-semibold text-red-900">⚠️ Important:</p>
-                    <p className="text-sm text-red-800 mt-1">Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z) are <strong>blocked</strong> and will not work during the exam. You must type your code manually without using these keyboard shortcuts.</p>
+                  <div className="bg-blue-50 border border-blue-300 rounded p-3 mt-3">
+                    <p className="text-sm font-semibold text-blue-900">ℹ️ Note:</p>
+                    <p className="text-sm text-blue-800 mt-1">Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z, Ctrl+Y) are <strong>allowed inside code and essay editors</strong> to help you write and edit your answers. However, copying from outside the exam window is blocked.</p>
                   </div>
                 </div>
               </div>

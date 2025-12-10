@@ -107,9 +107,11 @@ export default function CodingQuestion({
   const [isSubmitMode, setIsSubmitMode] = useState(false); // Track if we're in submit mode (hide detailed results)
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInput, setCustomInput] = useState('');
+  const [submitCooldown, setSubmitCooldown] = useState(0); // Cooldown in seconds
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
   const previousQuestionIdRef = useRef<string>(questionId);
+  const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get Monaco language for current language
   const monacoLanguage = availableLanguages.find(lang => lang.value === language)?.monacoLang || availableLanguages[0]?.monacoLang || 'javascript';
@@ -140,6 +142,13 @@ export default function CodingQuestion({
         setLanguage(answer.language);
       } else {
         setLanguage(defaultLanguage);
+      }
+      
+      // Reset cooldown when question changes
+      setSubmitCooldown(0);
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+        cooldownIntervalRef.current = null;
       }
       
       // Reset initial mount flag for new question
@@ -174,8 +183,41 @@ export default function CodingQuestion({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+      }
     };
   }, []);
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (submitCooldown > 0) {
+      cooldownIntervalRef.current = setInterval(() => {
+        setSubmitCooldown((prev) => {
+          if (prev <= 1) {
+            if (cooldownIntervalRef.current) {
+              clearInterval(cooldownIntervalRef.current);
+              cooldownIntervalRef.current = null;
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+        cooldownIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (cooldownIntervalRef.current) {
+        clearInterval(cooldownIntervalRef.current);
+        cooldownIntervalRef.current = null;
+      }
+    };
+  }, [submitCooldown]);
 
   // Fetch queue status periodically when running
   useEffect(() => {
@@ -323,6 +365,12 @@ export default function CodingQuestion({
       return;
     }
 
+    // Check if cooldown is active
+    if (submitCooldown > 0) {
+      setError(`Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again.`);
+      return;
+    }
+
     setIsSubmitting(true);
     setIsSubmitMode(true); // Enable submit mode to hide detailed results
     setError('');
@@ -386,8 +434,10 @@ export default function CodingQuestion({
       }
     } finally {
       setIsSubmitting(false);
+      // Start 1-minute cooldown after submission
+      setSubmitCooldown(60);
     }
-  }, [code, language, questionId, attemptId, onChange]);
+  }, [code, language, questionId, attemptId, onChange, submitCooldown]);
 
   return (
     <div className="flex h-full overflow-hidden bg-gray-50">
@@ -610,14 +660,20 @@ export default function CodingQuestion({
             
             <button
               onClick={handleSubmitCode}
-              disabled={isRunning || isSubmitting || !code.trim()}
+              disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0}
               type="button"
               className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-green-600"
+              title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : 'Submit your code'}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   Submitting
+                </>
+              ) : submitCooldown > 0 ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Wait {submitCooldown}s
                 </>
               ) : (
                 <>
