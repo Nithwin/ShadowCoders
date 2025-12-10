@@ -35,12 +35,12 @@ export const exportExamResultsToExcel = async (
       'score',
       'maxScore',
       'percentage',
-      'questionAnswers',
+      'questionScores',
     ],
     includeSummary = true,
     includeExamInfo = true,
   } = options;
-// 1. Fetch exam details
+  // 1. Fetch exam details
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
     select: {
@@ -55,7 +55,6 @@ export const exportExamResultsToExcel = async (
           type: true,
           prompt: true,
           points: true,
-          options: true, // Include options for MCQ mapping
         },
         orderBy: {
           order: 'asc',
@@ -95,7 +94,6 @@ export const exportExamResultsToExcel = async (
           answer: true,
           earnedPoints: true,
           verdict: true,
-          audioAsset: true,
           question: {
             select: {
               id: true,
@@ -120,64 +118,52 @@ export const exportExamResultsToExcel = async (
   const columns: any[] = [];
   
   if (fields.includes('studentName')) {
-    columns.push({ header: 'Student Name', key: 'studentName', width: 25 });
+    columns.push({ header: 'Student Name', key: 'studentName', width: 20 });
   }
   if (fields.includes('email')) {
     columns.push({ header: 'Email', key: 'email', width: 30 });
   }
   if (fields.includes('regNo')) {
-    columns.push({ header: 'Registration No', key: 'regNo', width: 20 });
+    columns.push({ header: 'Registration No', key: 'regNo', width: 15 });
   }
   if (fields.includes('startedAt')) {
-    columns.push({ header: 'Started At', key: 'startedAt', width: 22 });
+    columns.push({ header: 'Started At', key: 'startedAt', width: 20 });
   }
   if (fields.includes('submittedAt')) {
-    columns.push({ header: 'Submitted At', key: 'submittedAt', width: 22 });
+    columns.push({ header: 'Submitted At', key: 'submittedAt', width: 20 });
   }
   if (fields.includes('score')) {
-    columns.push({ header: 'Score', key: 'score', width: 12 });
+    columns.push({ header: 'Score', key: 'score', width: 10 });
   }
   if (fields.includes('maxScore')) {
-    columns.push({ header: 'Max Score', key: 'maxScore', width: 12 });
+    columns.push({ header: 'Max Score', key: 'maxScore', width: 10 });
   }
   if (fields.includes('percentage')) {
-    columns.push({ header: 'Percentage', key: 'percentage', width: 15 });
+    columns.push({ header: 'Percentage', key: 'percentage', width: 12 });
   }
-
-  // Helper to get truncated prompt
-  const getHeaderLabel = (q: typeof exam.questions[0]) => {
-    const plainPrompt = (q.prompt || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-    const truncated = plainPrompt.length > 30 ? plainPrompt.substring(0, 30) + '...' : plainPrompt;
-    return `Q${q.order}: ${truncated}`;
-  };
 
   // Add question columns based on selected fields
   if (fields.includes('questionScores') || fields.includes('questionAnswers') || fields.includes('questionVerdicts')) {
     exam.questions.forEach((question) => {
-      // Skip MCQ questions entirely only show score for them via total score
-      if (question.type === 'MCQ') return;
-
-      const headerLabel = getHeaderLabel(question);
-      
       if (fields.includes('questionScores')) {
         columns.push({
-          header: `${headerLabel} (Score)`,
+          header: `Q${question.order} Score`,
           key: `q${question.id}_score`,
           width: 15,
         });
       }
       if (fields.includes('questionAnswers')) {
         columns.push({
-          header: `${headerLabel} (Answer)`,
+          header: `Q${question.order} Answer`,
           key: `q${question.id}_answer`,
-          width: 40, // Wider for answers
+          width: 30,
         });
       }
       if (fields.includes('questionVerdicts')) {
         columns.push({
-          header: `${headerLabel} (Verdict)`,
+          header: `Q${question.order} Verdict`,
           key: `q${question.id}_verdict`,
-          width: 15,
+          width: 12,
         });
       }
     });
@@ -187,14 +173,13 @@ export const exportExamResultsToExcel = async (
 
   // 5. Style header row
   const headerRow = worksheet.getRow(1);
-  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   headerRow.fill = {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: 'FF4472C4' },
   };
-  headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-  headerRow.height = 30; // Taller header
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
   // 6. Add data rows (only if there are attempts)
   if (attempts.length > 0) {
@@ -234,9 +219,6 @@ export const exportExamResultsToExcel = async (
       // Add question data based on selected fields
       if (fields.includes('questionScores') || fields.includes('questionAnswers') || fields.includes('questionVerdicts')) {
         exam.questions.forEach((question) => {
-          // Skip MCQ questions
-          if (question.type === 'MCQ') return;
-
           const response = attempt.responses.find((r) => r.question.id === question.id);
           const questionPoints = question.points ? parseFloat(String(question.points)) : 0;
           
@@ -247,41 +229,17 @@ export const exportExamResultsToExcel = async (
               rowData[`q${question.id}_score`] = `${earnedPoints.toFixed(2)} / ${questionPoints}`;
             }
             if (fields.includes('questionAnswers')) {
-              // Format answer based on type
-              let formattedAnswer = 'N/A';
-              const rawAnswer: any = response.answer;
-
-              if (rawAnswer) {
-                // MCQ logic removed as we skip MCQs
-                if (question.type === QType.CODING) {
-                  formattedAnswer = `[${rawAnswer.language || '?'}] \n${rawAnswer.code || ''}`;
-                } else if (question.type === QType.ESSAY) {
-                  formattedAnswer = rawAnswer.textAnswer || rawAnswer.text || '';
-                } else if (question.type === QType.SPEAKING) {
-                  if (response.audioAsset) {
-                     // Construct full URL if relative
-                     const url = (response.audioAsset as any).url;
-                     formattedAnswer = `[Audio] ${url}`;
-                  } else {
-                    formattedAnswer = '[Audio Not Found]';
-                  }
-                } else {
-                   // Fallback for other types
-                   formattedAnswer = JSON.stringify(rawAnswer);
-                }
-              }
-              
-              rowData[`q${question.id}_answer`] = formattedAnswer;
+              rowData[`q${question.id}_answer`] = response.answer || 'N/A';
             }
             if (fields.includes('questionVerdicts')) {
               rowData[`q${question.id}_verdict`] = response.verdict || 'N/A';
             }
           } else {
             if (fields.includes('questionScores')) {
-              rowData[`q${question.id}_score`] = `0.00 / ${questionPoints}`;
+              rowData[`q${question.id}_score`] = `0 / ${questionPoints}`;
             }
             if (fields.includes('questionAnswers')) {
-              rowData[`q${question.id}_answer`] = 'Not Answered';
+              rowData[`q${question.id}_answer`] = 'N/A';
             }
             if (fields.includes('questionVerdicts')) {
               rowData[`q${question.id}_verdict`] = 'N/A';
@@ -297,14 +255,12 @@ export const exportExamResultsToExcel = async (
         const scoreCell = row.getCell('score');
         if (scoreCell) {
           scoreCell.numFmt = '0.00';
-          scoreCell.alignment = { horizontal: 'center' };
         }
       }
       if (fields.includes('maxScore')) {
         const maxScoreCell = row.getCell('maxScore');
         if (maxScoreCell) {
           maxScoreCell.numFmt = '0.00';
-          maxScoreCell.alignment = { horizontal: 'center' };
         }
       }
       
@@ -312,7 +268,6 @@ export const exportExamResultsToExcel = async (
       if (fields.includes('percentage')) {
         const percentageCell = row.getCell('percentage');
         if (percentageCell) {
-          percentageCell.alignment = { horizontal: 'center' };
           if (percentage >= 80) {
             percentageCell.fill = {
               type: 'pattern',
@@ -340,43 +295,22 @@ export const exportExamResultsToExcel = async (
           }
         }
       }
-
-      // Wrap text for answer columns
-      if (fields.includes('questionAnswers')) {
-         exam.questions.forEach((q) => {
-            const cell = row.getCell(`q${q.id}_answer`);
-            if (cell) {
-               cell.alignment = { vertical: 'top', wrapText: true };
-               // Set a max height for coding questions roughly
-               if (q.type === QType.CODING) {
-                 row.height = 100; // Allow more height for code
-               }
-            }
-         });
-      }
     });
-
-    // Auto-filter for better usability
-    worksheet.autoFilter = {
-      from: {
-        row: 1,
-        column: 1,
-      },
-      to: {
-        row: 1,
-        column: columns.length,
-      },
-    };
-
   } else {
     // Add a row indicating no submissions
     const emptyRowData: any = {};
     if (fields.includes('studentName')) emptyRowData.studentName = 'No submissions yet';
-    // ... rest handled below
+    if (fields.includes('email')) emptyRowData.email = '-';
+    if (fields.includes('regNo')) emptyRowData.regNo = '-';
+    if (fields.includes('startedAt')) emptyRowData.startedAt = '-';
+    if (fields.includes('submittedAt')) emptyRowData.submittedAt = '-';
+    if (fields.includes('score')) emptyRowData.score = '-';
+    if (fields.includes('maxScore')) emptyRowData.maxScore = '-';
+    if (fields.includes('percentage')) emptyRowData.percentage = '-';
     worksheet.addRow(emptyRowData);
   }
 
-  // 7. Add summary row (same as previous but adjusted for new columns)
+  // 7. Add summary row
   if (includeSummary && attempts.length > 0) {
     const totalStudents = attempts.length;
     const avgScore = attempts.reduce((sum, a) => {
@@ -390,15 +324,14 @@ export const exportExamResultsToExcel = async (
     const avgPercentage = avgMaxScore > 0 ? Math.round((avgScore / avgMaxScore) * 100) : 0;
 
     worksheet.addRow({}); // Empty row
-    
-    const summaryRowData: any = {};
-    if (fields.includes('studentName')) summaryRowData.studentName = 'SUMMARY / AVERAGE';
-    if (fields.includes('email')) summaryRowData.email = `Total Students: ${totalStudents}`;
-    if (fields.includes('score')) summaryRowData.score = avgScore.toFixed(2);
-    if (fields.includes('maxScore')) summaryRowData.maxScore = avgMaxScore.toFixed(2);
-    if (fields.includes('percentage')) summaryRowData.percentage = `${avgPercentage}%`;
+    const summaryRow = worksheet.addRow({
+      studentName: 'SUMMARY',
+      email: `Total Students: ${totalStudents}`,
+      score: avgScore.toFixed(2),
+      maxScore: avgMaxScore.toFixed(2),
+      percentage: `${avgPercentage}%`,
+    });
 
-    const summaryRow = worksheet.addRow(summaryRowData);
     summaryRow.font = { bold: true };
     summaryRow.fill = {
       type: 'pattern',
@@ -411,12 +344,12 @@ export const exportExamResultsToExcel = async (
   if (includeExamInfo) {
     const infoSheet = workbook.addWorksheet('Exam Info');
     infoSheet.columns = [
-      { header: 'Property', key: 'property', width: 25 },
-      { header: 'Value', key: 'value', width: 60 },
+      { header: 'Property', key: 'property', width: 20 },
+      { header: 'Value', key: 'value', width: 50 },
     ];
 
     const infoHeaderRow = infoSheet.getRow(1);
-    infoHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+    infoHeaderRow.font = { bold: true };
     infoHeaderRow.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -427,7 +360,7 @@ export const exportExamResultsToExcel = async (
     infoSheet.addRow({ property: 'Start Date', value: exam.startAt.toLocaleString() });
     infoSheet.addRow({ property: 'End Date', value: exam.endAt.toLocaleString() });
     infoSheet.addRow({ property: 'Total Questions', value: exam.questions.length.toString() });
-    infoSheet.addRow({ property: 'Total Submissions', value: attempts.length.toString() });
+    infoSheet.addRow({ property: 'Total Students', value: attempts.length.toString() });
   }
 
   return workbook;
