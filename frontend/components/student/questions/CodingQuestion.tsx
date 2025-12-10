@@ -345,6 +345,22 @@ export default function CodingQuestion({
       });
 
       const result = response.data;
+      
+      // Debug: Log the result structure
+      console.log('🔍 Run code result:', result);
+      console.log('🔍 Test results array:', result.testResults);
+      console.log('🔍 Test results length:', result.testResults?.length);
+      if (result.testResults && result.testResults.length > 0) {
+        console.log('🔍 First test result:', result.testResults[0]);
+        console.log('🔍 Is custom input?', result.testResults[0].expectedOutput === '(Custom Input)');
+      }
+      
+      // Ensure testResults is always an array
+      if (result && !Array.isArray(result.testResults)) {
+        console.warn('⚠️ testResults is not an array, fixing...', result.testResults);
+        result.testResults = [];
+      }
+      
       setTestResults(result);
       setOutput(result.message || '');
     } catch (err: unknown) {
@@ -390,7 +406,7 @@ export default function CodingQuestion({
       const runResult = runResponse.data;
       setTestResults(runResult);
       
-      // In submit mode, only show summary message, not detailed output
+      // In submit mode, show summary message but test cases will be displayed below
       const passed = runResult.passed;
       const total = runResult.total;
       const failed = total - passed;
@@ -825,111 +841,253 @@ export default function CodingQuestion({
             {testResults && (
               <div className="space-y-5">
                 {/* Summary Card - Dark Theme */}
-                <div className={`p-6 rounded-xl border-2 ${
-                  testResults.passed === testResults.total
-                    ? 'bg-emerald-900/20 border-emerald-600/50'
-                    : 'bg-amber-900/20 border-amber-600/50'
-                }`}>
-                  <div className={`flex items-center gap-4 text-xl font-bold ${
-                    testResults.passed === testResults.total ? 'text-emerald-400' : 'text-amber-400'
-                  }`}>
-                    {testResults.passed === testResults.total ? (
-                      <>
-                        <div className="p-2 bg-emerald-600 rounded-full">
-                          <CheckCircle2 className="w-6 h-6 text-white" />
-                        </div>
-                        <span>
-                          All {testResults.total} test case{testResults.total !== 1 ? 's' : ''} passed! 🎉
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="p-2 bg-amber-600 rounded-full">
-                          <XCircle className="w-6 h-6 text-white" />
-                        </div>
-                        <span>
-                          {testResults.passed} passed, {testResults.total - testResults.passed} failed out of {testResults.total} test case{testResults.total !== 1 ? 's' : ''}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  {!isSubmitMode && (
-                    <p className="text-sm mt-4 text-gray-300 font-medium bg-[#2d2d2d] rounded-lg p-3 border border-gray-700">
-                      {testResults.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Detailed Results - Only show if NOT in submit mode */}
-                {!isSubmitMode && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                      <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
-                      Detailed Results
-                    </h4>
-                    {testResults.testResults.map((result, index) => (
-                      <div
-                        key={index}
-                        className={`p-5 rounded-xl border-2 ${
-                          result.passed
-                            ? 'bg-emerald-900/10 border-emerald-600/30'
-                            : 'bg-red-900/10 border-red-600/30'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 mb-4">
-                          {result.passed ? (
-                            <div className="p-2 bg-emerald-600 rounded-lg">
-                              <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />
+                {(() => {
+                  // Check if this is a custom input result
+                  const isCustomInputResult = testResults.testResults && testResults.testResults.length > 0 && 
+                    testResults.testResults.some((r: any) => r.expectedOutput === '(Custom Input)');
+                  
+                  return (
+                    <div className={`p-6 rounded-xl border-2 ${
+                      testResults.passed === testResults.total
+                        ? 'bg-emerald-900/20 border-emerald-600/50'
+                        : 'bg-amber-900/20 border-amber-600/50'
+                    }`}>
+                      <div className={`flex items-center gap-4 text-xl font-bold ${
+                        testResults.passed === testResults.total ? 'text-emerald-400' : 'text-amber-400'
+                      }`}>
+                        {testResults.passed === testResults.total ? (
+                          <>
+                            <div className="p-2 bg-emerald-600 rounded-full">
+                              <CheckCircle2 className="w-6 h-6 text-white" />
                             </div>
-                          ) : (
-                            <div className="p-2 bg-red-600 rounded-lg">
-                              <XCircle className="w-5 h-5 text-white flex-shrink-0" />
-                            </div>
-                          )}
-                          <span className="font-bold text-base text-gray-200">
-                            Test Case {index + 1}: {result.passed ? '✅ Passed' : '❌ Failed'}
-                          </span>
-                          <span className="ml-auto text-xs font-bold text-gray-300 bg-[#2d2d2d] px-3 py-1.5 rounded-full border border-gray-600">{result.status}</span>
-                        </div>
-                        {result.actualOutput !== null && (
-                          <div className="space-y-3">
-                            <div>
-                              <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                Your Output:
-                              </span>
-                              <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
-                                {result.actualOutput || '(empty)'}
-                              </pre>
-                            </div>
-                            {!result.passed && (
-                              <div>
-                                <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                                  Expected Output:
-                                </span>
-                                <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
-                                  {result.expectedOutput}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {result.error && (
-                          <div className="mt-3 p-4 bg-red-900/20 rounded-xl border-2 border-red-600/30">
-                            <span className="font-bold text-red-400 text-sm block mb-2 flex items-center gap-2">
-                              <AlertCircle className="w-4 h-4" />
-                              Error:
+                            <span>
+                              {isCustomInputResult 
+                                ? 'Custom Input Execution Successful! ✅'
+                                : `All ${testResults.total} test case${testResults.total !== 1 ? 's' : ''} passed! 🎉`}
                             </span>
-                            <pre className="mt-2 text-red-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap bg-[#0d0d0d] p-3 rounded border border-red-800/50">
-                              {result.error}
-                            </pre>
-                          </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-2 bg-amber-600 rounded-full">
+                              <XCircle className="w-6 h-6 text-white" />
+                            </div>
+                            <span>
+                              {isCustomInputResult
+                                ? 'Custom Input Execution Failed'
+                                : `${testResults.passed} passed, ${testResults.total - testResults.passed} failed out of ${testResults.total} test case${testResults.total !== 1 ? 's' : ''}`}
+                            </span>
+                          </>
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {!isSubmitMode && (
+                        <p className="text-sm mt-4 text-gray-300 font-medium bg-[#2d2d2d] rounded-lg p-3 border border-gray-700">
+                          {testResults.message}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Detailed Results - Show all test cases, including hidden ones */}
+                {(() => {
+                  // Check if this is a custom input result by checking the message or testResults
+                  const isCustomInputResult = testResults.testResults && testResults.testResults.length > 0 && 
+                    testResults.testResults.some((r: any) => r.expectedOutput === '(Custom Input)');
+                  
+                  // Always show detailed results if testResults exist OR if it's a custom input
+                  const shouldShowDetails = (testResults.testResults && testResults.testResults.length > 0) || isCustomInputResult;
+                  
+                  if (!shouldShowDetails) return null;
+                  
+                  // Ensure testResults.testResults exists and is an array
+                  const resultsArray = Array.isArray(testResults.testResults) ? testResults.testResults : [];
+                  
+                  // If no results but it's custom input, create a placeholder
+                  if (resultsArray.length === 0 && isCustomInputResult) {
+                    return (
+                      <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                          <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                          Custom Input Results
+                        </h4>
+                        <div className="p-5 rounded-xl border-2 bg-amber-900/10 border-amber-600/30">
+                          <p className="text-gray-300">No detailed results available. Check console for debug info.</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                        {isSubmitMode ? 'Test Case Results' : 'Detailed Results'}
+                      </h4>
+                      {(() => {
+                        // Sort test results by testCaseIndex if available, otherwise use array index
+                        const sortedResults = [...resultsArray].sort((a, b) => {
+                          const aIdx = (a as any).testCaseIndex !== undefined ? (a as any).testCaseIndex : 999;
+                          const bIdx = (b as any).testCaseIndex !== undefined ? (b as any).testCaseIndex : 999;
+                          return aIdx - bIdx;
+                        });
+                    
+                    return sortedResults.map((result, index) => {
+                      const testCaseNum = (result as any).testCaseIndex !== undefined 
+                        ? (result as any).testCaseIndex + 1 
+                        : index + 1;
+                      const isHidden = (result as any).isHidden || false;
+                      const errorType = (result as any).errorType || result.status;
+                      // Check if this is a custom input result
+                      const isCustomInput = result.expectedOutput === '(Custom Input)';
+                      
+                      // Determine error type color and label
+                      let errorTypeColor = 'bg-gray-600';
+                      let errorTypeLabel = result.status;
+                      if (errorType === 'TLE' || errorType === 'Time Limit Exceeded') {
+                        errorTypeColor = 'bg-orange-600';
+                        errorTypeLabel = 'TLE';
+                      } else if (errorType === 'Runtime Error') {
+                        errorTypeColor = 'bg-red-600';
+                        errorTypeLabel = 'Runtime Error';
+                      } else if (errorType === 'Compilation Error') {
+                        errorTypeColor = 'bg-purple-600';
+                        errorTypeLabel = 'Compilation Error';
+                      } else if (errorType === 'Wrong Answer') {
+                        errorTypeColor = 'bg-yellow-600';
+                        errorTypeLabel = 'Wrong Answer';
+                      } else if (errorType === 'Accepted' && result.passed) {
+                        errorTypeColor = 'bg-emerald-600';
+                        errorTypeLabel = 'Accepted';
+                      }
+                      
+                      return (
+                        <div
+                          key={index}
+                          className={`p-5 rounded-xl border-2 ${
+                            result.passed
+                              ? 'bg-emerald-900/10 border-emerald-600/30'
+                              : 'bg-red-900/10 border-red-600/30'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 mb-4 flex-wrap">
+                            {result.passed ? (
+                              <div className="p-2 bg-emerald-600 rounded-lg">
+                                <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />
+                              </div>
+                            ) : (
+                              <div className="p-2 bg-red-600 rounded-lg">
+                                <XCircle className="w-5 h-5 text-white flex-shrink-0" />
+                              </div>
+                            )}
+                            <span className="font-bold text-base text-gray-200">
+                              {isCustomInput ? 'Custom Input Test' : `Test Case ${testCaseNum}`}: {result.passed ? '✅ Passed' : '❌ Failed'}
+                            </span>
+                            {isHidden && (
+                              <span className="text-xs font-bold text-amber-300 bg-amber-900/30 px-2.5 py-1 rounded-full border border-amber-600/50">
+                                🔒 Hidden
+                              </span>
+                            )}
+                            <span className={`ml-auto text-xs font-bold text-white ${errorTypeColor} px-3 py-1.5 rounded-full border border-opacity-50`}>
+                              {errorTypeLabel}
+                            </span>
+                          </div>
+                        {(() => {
+                          // Check if this is a custom input result
+                          const isCustomInput = result.expectedOutput === '(Custom Input)';
+                          
+                          return (
+                            <div className="space-y-3">
+                              {/* For custom input, ALWAYS show input section */}
+                              {isCustomInput ? (
+                                <div>
+                                  <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                                    Custom Input:
+                                  </span>
+                                  <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
+                                    {result.input !== undefined && result.input !== null ? result.input : '(empty)'}
+                                  </pre>
+                                </div>
+                              ) : (
+                                /* For regular test cases, show input if it exists */
+                                result.input && (
+                                  <div>
+                                    <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                                      Input:
+                                    </span>
+                                    <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
+                                      {result.input}
+                                    </pre>
+                                  </div>
+                                )
+                              )}
+                              
+                              {/* For custom input, ALWAYS show output section */}
+                              {isCustomInput ? (
+                                <div>
+                                  <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    Your Output:
+                                  </span>
+                                  <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                    {result.actualOutput !== undefined && result.actualOutput !== null && result.actualOutput !== '' 
+                                      ? result.actualOutput 
+                                      : '(no output)'}
+                                  </pre>
+                                </div>
+                              ) : (
+                                /* For regular test cases, show output if available */
+                                result.actualOutput !== null && result.actualOutput !== undefined && (
+                                  <div>
+                                    <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                      Your Output:
+                                    </span>
+                                    <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                      {result.actualOutput || '(empty)'}
+                                    </pre>
+                                  </div>
+                                )
+                              )}
+                              
+                              {/* Show expected output for test cases (not custom input) when failed */}
+                              {!isCustomInput && !result.passed && result.expectedOutput && (
+                                <div>
+                                  <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                    Expected Output:
+                                  </span>
+                                  <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
+                                    {result.expectedOutput}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                          {result.error && (
+                            <div className="mt-3 p-4 bg-red-900/20 rounded-xl border-2 border-red-600/30">
+                              <span className="font-bold text-red-400 text-sm block mb-2 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                {errorType === 'TLE' || errorType === 'Time Limit Exceeded' 
+                                  ? 'Time Limit Exceeded' 
+                                  : errorType === 'Compilation Error'
+                                  ? 'Compilation Error'
+                                  : 'Runtime Error'}:
+                              </span>
+                              <pre className="mt-2 text-red-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap bg-[#0d0d0d] p-3 rounded border border-red-800/50">
+                                {result.error}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                    })()}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {output && !testResults && !error && (

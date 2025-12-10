@@ -540,7 +540,7 @@ async function executeWithTimeout(
 export async function testCodeWithTestCasesLocally(
   code: string,
   language: string,
-  testCases: Array<{ input: string; expectedOutput: string; timeoutMs?: number }>
+  testCases: Array<{ input: string; expectedOutput: string; timeoutMs?: number; isHidden?: boolean; originalIndex?: number }>
 ): Promise<{
   passed: number;
   total: number;
@@ -551,6 +551,9 @@ export async function testCodeWithTestCasesLocally(
     passed: boolean;
     error?: string;
     status: string;
+    isHidden?: boolean;
+    testCaseIndex?: number;
+    errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
   }>;
 }> {
   const langConfig = LANGUAGE_CONFIGS[language.toLowerCase()];
@@ -560,64 +563,96 @@ export async function testCodeWithTestCasesLocally(
     return await testCompiledCodeWithTestCases(code, language, testCases);
   }
   
-  // For interpreted languages, execute normally (no compilation needed)
-  const results = await Promise.all(
-    testCases.map(async (testCase) => {
-      try {
-        const response = await executeCodeLocally(
-          code,
-          language,
-          testCase.input,
-          testCase.timeoutMs || 5000
-        );
+  // For interpreted languages, execute SEQUENTIALLY to ensure deterministic order
+  // This prevents race conditions and ensures consistent results
+  const results: Array<{
+    input: string;
+    expectedOutput: string;
+    actualOutput: string | null;
+    passed: boolean;
+    error?: string;
+    status: string;
+    isHidden?: boolean;
+    testCaseIndex?: number;
+    errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
+  }> = [];
+  
+  for (let i = 0; i < testCases.length; i++) {
+    const testCase = testCases[i];
+    try {
+      const response = await executeCodeLocally(
+        code,
+        language,
+        testCase.input,
+        testCase.timeoutMs || 5000
+      );
 
-        const actualOutput = response.stdout?.trim() || null;
-        const expectedOutputTrimmed = testCase.expectedOutput.trim();
+      const actualOutput = response.stdout?.trim() || null;
+      const expectedOutputTrimmed = testCase.expectedOutput.trim();
+      
+      // Determine error type and status
+      let errorType: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted' = 'Accepted';
+      let passed = false;
+      
+      if (response.status.id === 5) {
+        // Time Limit Exceeded
+        errorType = 'TLE';
+      } else if (response.status.id === 6) {
+        // Compilation Error
+        errorType = 'Compilation Error';
+      } else if (response.status.id === 7 || response.stderr || response.error) {
+        // Runtime Error
+        errorType = 'Runtime Error';
+      } else if (response.status.id === 3 && actualOutput) {
+        // Accepted - check if output matches
+        // Normalize whitespace for comparison (consistent normalization)
+        const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+        const normalizedExpected = expectedOutputTrimmed.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
         
-        // Check if execution was successful
-        const isAccepted = response.status.id === 3; // Accepted
+        // Also try single-line comparison for cases where output is on one line
+        const singleLineActual = actualOutput.replace(/\s+/g, ' ').trim();
+        const singleLineExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
         
-        let passed = false;
-        if (isAccepted && actualOutput) {
-          // Normalize whitespace for comparison
-          const normalizedActual = actualOutput.replace(/\s+/g, ' ').trim();
-          const normalizedExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
-          passed = normalizedActual === normalizedExpected;
+        passed = normalizedActual === normalizedExpected || singleLineActual === singleLineExpected;
+        
+        if (!passed) {
+          errorType = 'Wrong Answer';
         }
-
-        const errorMsg = response.stderr || response.compileOutput || response.error;
-        const result: {
-          input: string;
-          expectedOutput: string;
-          actualOutput: string | null;
-          passed: boolean;
-          error?: string;
-          status: string;
-        } = {
-          input: testCase.input,
-          expectedOutput: testCase.expectedOutput,
-          actualOutput,
-          passed,
-          status: response.status.description,
-        };
-        
-        if (errorMsg) {
-          result.error = errorMsg;
-        }
-        
-        return result;
-      } catch (error: any) {
-        return {
-          input: testCase.input,
-          expectedOutput: testCase.expectedOutput,
-          actualOutput: null,
-          passed: false,
-          error: error.message || 'Execution failed',
-          status: 'Error',
-        };
+      } else {
+        errorType = 'Wrong Answer';
       }
-    })
-  );
+
+      const errorMsg = response.stderr || response.compileOutput || response.error;
+      const result = {
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        actualOutput,
+        passed,
+        status: response.status.description,
+        isHidden: testCase.isHidden,
+        testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
+        errorType,
+      };
+      
+      if (errorMsg) {
+        result.error = errorMsg;
+      }
+      
+      results.push(result);
+    } catch (error: any) {
+      results.push({
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        actualOutput: null,
+        passed: false,
+        error: error.message || 'Execution failed',
+        status: 'Error',
+        isHidden: testCase.isHidden,
+        testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
+        errorType: 'Runtime Error',
+      });
+    }
+  }
 
   const passed = results.filter((r) => r.passed).length;
 
@@ -635,7 +670,7 @@ export async function testCodeWithTestCasesLocally(
 async function testCompiledCodeWithTestCases(
   code: string,
   language: string,
-  testCases: Array<{ input: string; expectedOutput: string; timeoutMs?: number }>
+  testCases: Array<{ input: string; expectedOutput: string; timeoutMs?: number; isHidden?: boolean; originalIndex?: number }>
 ): Promise<{
   passed: number;
   total: number;
@@ -646,6 +681,9 @@ async function testCompiledCodeWithTestCases(
     passed: boolean;
     error?: string;
     status: string;
+    isHidden?: boolean;
+    testCaseIndex?: number;
+    errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
   }>;
 }> {
   const langConfig = LANGUAGE_CONFIGS[language.toLowerCase()];
@@ -717,13 +755,16 @@ async function testCompiledCodeWithTestCases(
           return {
             passed: 0,
             total: testCases.length,
-            results: testCases.map(tc => ({
+            results: testCases.map((tc, idx) => ({
               input: tc.input,
               expectedOutput: tc.expectedOutput,
               actualOutput: null,
               passed: false,
               error: compileResult.stderr,
               status: 'Compilation Error',
+              isHidden: tc.isHidden,
+              testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
+              errorType: 'Compilation Error' as const,
             })),
           };
         }
@@ -732,90 +773,130 @@ async function testCompiledCodeWithTestCases(
         return {
           passed: 0,
           total: testCases.length,
-          results: testCases.map(tc => ({
+          results: testCases.map((tc, idx) => ({
             input: tc.input,
             expectedOutput: tc.expectedOutput,
             actualOutput: null,
             passed: false,
             error: errorMessage,
             status: 'Compilation Error',
+            isHidden: tc.isHidden,
+            testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
+            errorType: 'Compilation Error' as const,
           })),
         };
       }
     }
     
-    // Run against all test cases (code is already compiled)
-    const results = await Promise.all(
-      testCases.map(async (testCase, idx) => {
-        try {
-          // Build run command (override for Java to handle package + classpath root)
-          let runCmd = langConfig.runCommand(filePath);
-          if (language.toLowerCase() === 'java') {
-            const fqcn = javaPackage ? `${javaPackage}.${className}` : className;
-            runCmd = `java -cp "${tempDir}" ${fqcn}`;
-          }
-          // console.log(`[Test ${idx+1}] Cmd: ${runCmd}`);
-          
-          const result = await executeWithTimeout(
-            runCmd,
-            testCase.input || '',
-            tempDir,
-            testCase.timeoutMs || 5000
-          );
-          
-          // console.log(`[Test ${idx+1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
-          
-          const actualOutput = result.stdout?.trim() || null;
-          const expectedOutputTrimmed = testCase.expectedOutput.trim();
-          
-          // Determine status and check if passed
-          let passed = false;
-          let status = 'Accepted';
-          
-          if (result.timedOut) {
-            status = 'Time Limit Exceeded';
-          } else if (result.error || result.stderr) {
-            status = 'Runtime Error';
-          } else if (actualOutput !== null) {
-            // Normalize whitespace for comparison
-            const normalizedActual = actualOutput.replace(/\s+/g, ' ').trim();
-            const normalizedExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
-            passed = normalizedActual === normalizedExpected;
-          }
-          
-          const resultObj: {
-            input: string;
-            expectedOutput: string;
-            actualOutput: string | null;
-            passed: boolean;
-            error?: string;
-            status: string;
-          } = {
-            input: testCase.input,
-            expectedOutput: testCase.expectedOutput,
-            actualOutput,
-            passed,
-            status,
-          };
-          
-          const errorMessage = result.stderr || result.error;
-          if (errorMessage) {
-            resultObj.error = errorMessage;
-          }
-          
-          return resultObj;
-        } catch (error: any) {
-          return {
-            input: testCase.input,
-            expectedOutput: testCase.expectedOutput,
-            actualOutput: null,
-            passed: false,
-            error: error.message || 'Execution failed',
-            status: 'Error',
-          };
+    // Run against all test cases SEQUENTIALLY (code is already compiled)
+    // This ensures deterministic order and prevents race conditions
+    const results: Array<{
+      input: string;
+      expectedOutput: string;
+      actualOutput: string | null;
+      passed: boolean;
+      error?: string;
+      status: string;
+      isHidden?: boolean;
+      testCaseIndex?: number;
+      errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
+    }> = [];
+    
+    for (let idx = 0; idx < testCases.length; idx++) {
+      const testCase = testCases[idx];
+      try {
+        // Build run command (override for Java to handle package + classpath root)
+        let runCmd = langConfig.runCommand(filePath);
+        if (language.toLowerCase() === 'java') {
+          const fqcn = javaPackage ? `${javaPackage}.${className}` : className;
+          runCmd = `java -cp "${tempDir}" ${fqcn}`;
         }
-      })
-    );
+        // console.log(`[Test ${idx+1}] Cmd: ${runCmd}`);
+        
+        const result = await executeWithTimeout(
+          runCmd,
+          testCase.input || '',
+          tempDir,
+          testCase.timeoutMs || 5000
+        );
+        
+        // console.log(`[Test ${idx+1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
+        
+        const actualOutput = result.stdout?.trim() || null;
+        const expectedOutputTrimmed = testCase.expectedOutput.trim();
+        
+        // Determine error type and status
+        let errorType: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted' = 'Accepted';
+        let passed = false;
+        let status = 'Accepted';
+        
+        if (result.timedOut) {
+          status = 'Time Limit Exceeded';
+          errorType = 'TLE';
+        } else if (result.error || result.stderr) {
+          status = 'Runtime Error';
+          errorType = 'Runtime Error';
+        } else if (actualOutput !== null) {
+          // Normalize whitespace for comparison (consistent normalization)
+          const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+          const normalizedExpected = expectedOutputTrimmed.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+          
+          // Also try single-line comparison for cases where output is on one line
+          const singleLineActual = actualOutput.replace(/\s+/g, ' ').trim();
+          const singleLineExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
+          
+          passed = normalizedActual === normalizedExpected || singleLineActual === singleLineExpected;
+          
+          if (!passed) {
+            errorType = 'Wrong Answer';
+            status = 'Wrong Answer';
+          }
+        } else {
+          errorType = 'Wrong Answer';
+          status = 'Wrong Answer';
+        }
+        
+        const resultObj: {
+          input: string;
+          expectedOutput: string;
+          actualOutput: string | null;
+          passed: boolean;
+          error?: string;
+          status: string;
+          isHidden?: boolean;
+          testCaseIndex?: number;
+          errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
+        } = {
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput,
+          actualOutput,
+          passed,
+          status,
+          isHidden: testCase.isHidden,
+          testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
+          errorType,
+        };
+        
+        const errorMessage = result.stderr || result.error;
+        if (errorMessage) {
+          resultObj.error = errorMessage;
+        }
+        
+        results.push(resultObj);
+      } catch (error: any) {
+        results.push({
+          input: testCase.input,
+          expectedOutput: testCase.expectedOutput,
+          actualOutput: null,
+          passed: false,
+          error: error.message || 'Execution failed',
+          status: 'Error',
+          isHidden: testCase.isHidden,
+          testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
+          errorType: 'Runtime Error',
+        });
+      }
+    }
     
     const passed = results.filter((r) => r.passed).length;
     

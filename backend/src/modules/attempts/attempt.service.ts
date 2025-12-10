@@ -978,8 +978,8 @@ export const runCode = async (
   }
 
   // 3. Execute code
-  if (customInput) {
-    // Run with custom input
+  if (customInput !== undefined) {
+    // Run with custom input (even if empty string - user wants to test with empty input)
     const result = await executeCodeLocally(code, language, customInput);
     return {
       passed: result.status.id === 3 ? 1 : 0,
@@ -1000,7 +1000,16 @@ export const runCode = async (
     // If runAllTests is true (submit mode), run all. Otherwise only visible ones.
     const testsToRun = runAllTests ? testCases : testCases.filter(tc => !tc.isHidden);
     
-    const results = await testCodeWithTestCasesLocally(code, language, testsToRun);
+    // Map test cases with metadata (isHidden, originalIndex) for proper display
+    const testsWithMetadata = testsToRun.map((tc, idx) => ({
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      timeoutMs: tc.timeoutMs,
+      isHidden: tc.isHidden || false,
+      originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
+    }));
+    
+    const results = await testCodeWithTestCasesLocally(code, language, testsWithMetadata);
     return {
       passed: results.passed,
       total: results.total,

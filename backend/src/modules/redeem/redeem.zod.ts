@@ -6,7 +6,7 @@ export const createRedeemItemSchema = z.object({
     description: z.string().optional(),
     pointsCost: z.number().int().positive(),
     itemType: z.string(),
-    metadata: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   }),
 });
 
@@ -16,7 +16,7 @@ export const updateRedeemItemSchema = z.object({
     description: z.string().optional(),
     pointsCost: z.number().int().positive().optional(),
     isActive: z.boolean().optional(),
-    metadata: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   }),
 });
 

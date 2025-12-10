@@ -6,6 +6,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmationProvider } from "@/context/ConfirmationContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ViolationNotificationProvider } from "@/context/ViolationNotificationContext";
+import { NotificationProvider } from "@/context/GlobalNotificationContext";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -54,7 +56,11 @@ export default function RootLayout({
           <ThemeProvider>
             <ConfirmationProvider>
               <ToastProvider>
-                {children}
+                <ViolationNotificationProvider>
+                  <NotificationProvider>
+                    {children}
+                  </NotificationProvider>
+                </ViolationNotificationProvider>
               </ToastProvider>
             </ConfirmationProvider>
           </ThemeProvider>

@@ -92,18 +92,36 @@ export const runCode = async (
   // 5. --- Execute Code (via Queue) ---
   let result: any;
 
-  if (customInput !== undefined && customInput !== null && customInput !== '') {
-    // Run with custom input (single execution) - queued
+  if (customInput !== undefined) {
+    // Run with custom input (even if empty string - user wants to test with empty input) - queued
     const executionResult = await executionQueue.enqueue(async () => {
       return await executeCodeLocally(code, language, customInput, 5000);
     });
 
     // Format result for custom input
+    // Format result for custom input
+    // The frontend expects testResults to be populated even for custom input
+    // and looks for expectedOutput === '(Custom Input)' to identify it
+    const isSuccess = executionResult.status.id === 3; // 3 is usually Accepted/Success in many judges, but let's rely on standard logic
+    // Actually, for custom input, we just want to show the output regardless of 'success' (exit code 0)
+    // But we mark it as passed if it ran successfully (exit code 0)
+    
     result = {
-      passed: 0,
-      total: 0,
-      testResults: [],
-      message: 'Custom input execution',
+      passed: isSuccess ? 1 : 0,
+      total: 1,
+      testResults: [
+        {
+          input: customInput,
+          expectedOutput: '(Custom Input)', // Frontend uses this magic string to identify custom input
+          actualOutput: executionResult.stdout || '',
+          passed: isSuccess,
+          status: executionResult.status.description,
+          error: executionResult.stderr || ('compile_output' in executionResult ? executionResult.compile_output : null) || ('message' in executionResult ? executionResult.message : null) || ('error' in executionResult ? (executionResult as any).error : null) || null,
+          time: typeof executionResult.time === 'string' ? parseFloat(executionResult.time) : executionResult.time,
+          memory: executionResult.memory || 0,
+        }
+      ],
+      message: 'Custom input execution completed',
       customOutput: {
         input: customInput,
         output: executionResult.stdout || '',
@@ -139,15 +157,20 @@ export const runCode = async (
     }
 
     // Test code against test cases using local executor - queued
+    // Map test cases with metadata (isHidden, originalIndex) for proper display
+    const testsWithMetadata = testCasesToRun.map((tc, idx) => ({
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+      isHidden: tc.isHidden || false,
+      originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
+    }));
+    
     const testResults = await executionQueue.enqueue(async () => {
       return await testCodeWithTestCasesLocally(
         code,
         language,
-        testCasesToRun.map((tc) => ({
-          input: tc.input,
-          expectedOutput: tc.expectedOutput,
-          timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-        }))
+        testsWithMetadata
       );
     });
 

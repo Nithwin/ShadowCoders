@@ -28,11 +28,17 @@ import {
   ChevronRight,
   Briefcase,
   MapPin,
-  Coins
+  Coins,
+  Trophy,
+  Target,
+  Flame,
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getAbsoluteImageUrl } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
+import ActivityHeatmap from '@/components/profile/ActivityHeatmap';
 
 export default function StudentProfilePage() {
   const { user, updateUser } = useAuth();
@@ -41,6 +47,16 @@ export default function StudentProfilePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [points, setPoints] = useState<number>(0);
+  const [activityData, setActivityData] = useState<Array<{ date: string; count: number }>>([]);
+  const [stats, setStats] = useState<{
+    totalExams: number;
+    averageScore: number;
+    currentStreak: number;
+    longestStreak: number;
+    totalScore: number;
+    totalMaxScore: number;
+  } | null>(null);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     reg_no: user?.reg_no || '',
@@ -71,15 +87,30 @@ export default function StudentProfilePage() {
   }, [user]);
 
   useEffect(() => {
-    const fetchPoints = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get<{ points: number }>('/student/points');
-        setPoints(res.data.points);
+        const [pointsRes, activityRes, statsRes] = await Promise.all([
+          api.get<{ points: number }>('/student/points'),
+          api.get<Array<{ date: string; count: number }>>('/student/activity'),
+          api.get<{
+            totalExams: number;
+            averageScore: number;
+            currentStreak: number;
+            longestStreak: number;
+            totalScore: number;
+            totalMaxScore: number;
+          }>('/student/stats'),
+        ]);
+        setPoints(pointsRes.data.points);
+        setActivityData(activityRes.data);
+        setStats(statsRes.data);
       } catch (err) {
-        console.error('Error fetching points:', err);
+        console.error('Error fetching profile data:', err);
+      } finally {
+        setIsLoadingActivity(false);
       }
     };
-    fetchPoints();
+    fetchData();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,6 +452,54 @@ export default function StudentProfilePage() {
 
              {/* Right Main Content */}
              <div className="lg:col-span-2 space-y-6">
+                 
+                 {/* Stats Cards - LeetCode Style */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                         <div className="flex items-center justify-between mb-3">
+                             <div className="p-2 bg-blue-50 rounded-lg">
+                                 <Target className="w-5 h-5 text-blue-600" />
+                             </div>
+                         </div>
+                         <p className="text-2xl font-bold text-gray-900">{stats?.totalExams || 0}</p>
+                         <p className="text-sm text-gray-500 mt-1">Exams Completed</p>
+                     </div>
+                     
+                     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                         <div className="flex items-center justify-between mb-3">
+                             <div className="p-2 bg-green-50 rounded-lg">
+                                 <TrendingUp className="w-5 h-5 text-green-600" />
+                             </div>
+                         </div>
+                         <p className="text-2xl font-bold text-gray-900">{stats?.averageScore || 0}%</p>
+                         <p className="text-sm text-gray-500 mt-1">Average Score</p>
+                     </div>
+                     
+                     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                         <div className="flex items-center justify-between mb-3">
+                             <div className="p-2 bg-orange-50 rounded-lg">
+                                 <Flame className="w-5 h-5 text-orange-600" />
+                             </div>
+                         </div>
+                         <p className="text-2xl font-bold text-gray-900">{stats?.currentStreak || 0}</p>
+                         <p className="text-sm text-gray-500 mt-1">Current Streak</p>
+                     </div>
+                     
+                     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+                         <div className="flex items-center justify-between mb-3">
+                             <div className="p-2 bg-purple-50 rounded-lg">
+                                 <Trophy className="w-5 h-5 text-purple-600" />
+                             </div>
+                         </div>
+                         <p className="text-2xl font-bold text-gray-900">{stats?.longestStreak || 0}</p>
+                         <p className="text-sm text-gray-500 mt-1">Longest Streak</p>
+                     </div>
+                 </div>
+
+                 {/* Activity Heatmap */}
+                 {!isLoadingActivity && (
+                     <ActivityHeatmap data={activityData} />
+                 )}
                  
                  {/* Main Details Form */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-6 sm:p-8">

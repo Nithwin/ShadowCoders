@@ -35,9 +35,9 @@ export const addPoints = async (userId: string, points: number, description?: st
       points,
       balance: newBalance,
       type: points > 0 ? 'EARNED' : 'SPENT',
-      description,
-      relatedId,
-      relatedType,
+      description: description ?? null,
+      relatedId: relatedId ?? null,
+      relatedType: relatedType ?? null,
     },
   });
   

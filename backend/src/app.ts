@@ -24,6 +24,7 @@ import { registerLeetCodeRoutes } from './modules/leetcode/leetcode.routes';
 import { reportRoutes } from './modules/reports/report.routes';
 import { registerPointsRoutes } from './modules/points/points.routes';
 import { registerRedeemRoutes } from './modules/redeem/redeem.routes';
+import notificationRoutes from './modules/notifications/notification.routes';
 
 export const createApp = () => {
     const app = express();
@@ -211,6 +212,7 @@ export const createApp = () => {
     app.use('/api/reports', reportRoutes);
     registerPointsRoutes(app);
     registerRedeemRoutes(app);
+    app.use('/api/notifications', notificationRoutes);
     
     // In production, serve the built frontend (Next.js static export)
     if (env.NODE_ENV === 'production') {

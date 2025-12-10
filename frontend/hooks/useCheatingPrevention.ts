@@ -170,104 +170,31 @@ export function useCheatingPrevention(
     if (attempt?.status !== 'IN_PROGRESS') return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 1. ALLOWED SHORTCUTS (Whitelist)
-      // Allow standard typing and navigation keys without modifiers
-      if (!e.ctrlKey && !e.altKey && !e.metaKey) {
-        return; 
+      // 1. ALLOWED KEYS - Modifier keys alone, Caps Lock, Shift + alphabet
+      const modifierKeys = ['Control', 'Ctrl', 'Shift', 'Alt', 'Meta', 'OS'];
+      const isModifierKeyOnly = modifierKeys.includes(e.key);
+      
+      // Allow modifier keys when pressed alone
+      if (isModifierKeyOnly) {
+        return; // Allow Ctrl alone, Shift alone, etc.
       }
-
-      // Allow Copy/Paste/Cut/SelectAll/Undo/Redo ONLY inside Editor/Input
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      
+      // Allow Caps Lock key
+      if (e.key === 'CapsLock' || e.key === 'Caps') {
+        return; // Allow Caps Lock
+      }
+      
+      // Allow Shift + alphabet keys (for capitalization)
+      if (e.shiftKey && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+        return; // Allow Shift + A-Z for capital letters
+      }
+      
+      // 2. ALLOWED CTRL SHORTCUTS - Allow Ctrl+V, Ctrl+C, Ctrl+A, Ctrl+Z, Ctrl+Y everywhere
+      if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         const key = e.key.toLowerCase();
-        if (key === 'c' || key === 'v' || key === 'x' || key === 'a' || key === 'z' || key === 'y') {
-           const target = e.target as HTMLElement;
-           const activeElement = document.activeElement as HTMLElement;
-           
-           // Helper function to check if element is editable
-           const isEditableElement = (el: HTMLElement | null): boolean => {
-             if (!el) return false;
-             
-             // Standard input/textarea
-             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-               return true;
-             }
-             
-             // Contenteditable elements
-             if (el.isContentEditable) {
-               return true;
-             }
-             
-             // Check for Monaco editor (comprehensive detection)
-             const monacoSelectors = [
-               '.monaco-editor',
-               '[class*="monaco"]',
-               '[data-uri]',
-               '.view-lines',
-               '.view-line',
-               '.monaco-mouse-cursor-text',
-               '.monaco-editor-background',
-               '.monaco-scrollable-element'
-             ];
-             
-             for (const selector of monacoSelectors) {
-               if (el.closest(selector)) {
-                 return true;
-               }
-             }
-             
-             // Check parent chain for Monaco editor
-             let parent = el.parentElement;
-             let depth = 0;
-             while (parent && depth < 15) {
-               const className = parent.className?.toString() || '';
-               const id = parent.id || '';
-               if (className.includes('monaco') || 
-                   id.includes('monaco') ||
-                   parent.classList.contains('monaco-editor') ||
-                   parent.hasAttribute('data-uri')) {
-                 return true;
-               }
-               parent = parent.parentElement;
-               depth++;
-             }
-             
-             // Check for editor containers
-             const editorSelectors = [
-               '[role="textbox"]',
-               '.editor',
-               '[class*="editor"]',
-               '[class*="code-editor"]',
-               '[class*="essay-editor"]',
-               '[class*="CodeEditor"]',
-               '[class*="EssayEditor"]'
-             ];
-             
-             for (const selector of editorSelectors) {
-               if (el.closest(selector)) {
-                 return true;
-               }
-             }
-             
-             return false;
-           };
-           
-           // Check both target and activeElement
-           const isEditable = isEditableElement(target) || isEditableElement(activeElement);
-           
-           // Also check if we're in a focused editor by checking if activeElement is editable
-           if (activeElement) {
-             const ae = activeElement as HTMLElement;
-             if (ae.isContentEditable || 
-                 ae.tagName === 'INPUT' || 
-                 ae.tagName === 'TEXTAREA' ||
-                 isEditableElement(ae)) {
-               return; // Allow - we're in an editor
-             }
-           }
-           
-           if (isEditable) {
-             return; // Allow inside editor - don't block
-           }
+        // Allow these shortcuts everywhere (not just in editors)
+        if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y') {
+          return; // Allow - don't block these shortcuts
         }
         
         // Block Ctrl+S (Save page) even in editors
@@ -276,22 +203,68 @@ export function useCheatingPrevention(
           return; // Don't show warning, just prevent
         }
       }
-
-      // 2. BLOCK EVERYTHING ELSE WITH MODIFIERS
-      // This catches Alt+S (Blackbox), Ctrl+Shift+I (DevTools), Ctrl+P (Print), etc.
-      // BUT: Don't block if only modifier keys are pressed (Ctrl alone, Shift alone, Ctrl+Shift alone, etc.)
-      const modifierKeys = ['Control', 'Alt', 'Meta', 'Shift', 'OS'];
-      const isModifierKeyOnly = modifierKeys.includes(e.key);
       
-      // If the key being pressed IS a modifier key itself, allow it
-      // This covers: Ctrl alone, Shift alone, Alt alone, Ctrl+Shift, Ctrl+Alt, etc.
-      if (isModifierKeyOnly) {
-        return; // Allow modifier keys to be pressed alone or in combination
+      // 3. ALLOWED NAVIGATION AND TYPING KEYS - Allow these everywhere
+      const allowedNavigationKeys = [
+        // Navigation keys
+        'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+        'Home', 'End', 'PageUp', 'PageDown',
+        // Editing keys
+        'Backspace', 'Delete', 'Insert',
+        'Tab', 'Enter', 'Escape',
+        // Numbers
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        // Special characters (common ones)
+        ' ', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
+        '-', '_', '=', '+', '[', ']', '{', '}', '\\', '|',
+        ';', ':', "'", '"', ',', '.', '<', '>', '/', '?',
+        '`', '~',
+      ];
+      
+      // Allow navigation and editing keys
+      if (allowedNavigationKeys.includes(e.key)) {
+        return; // Allow these keys
       }
       
-      // Only block if modifier is pressed WITH another non-modifier key
+      // 4. ALLOWED SHORTCUTS (Whitelist)
+      // Allow standard typing and navigation keys without modifiers
+      // This includes all single characters (letters, numbers, special chars)
+      if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+        return; 
+      }
+
+      // 4. BLOCK EVERYTHING ELSE WITH MODIFIERS
+      // This catches Alt+S (Blackbox), Ctrl+Shift+I (DevTools), Ctrl+P (Print), etc.
+      // Note: Modifier keys alone are already handled above, so we only get here if
+      // a modifier is pressed WITH another non-modifier key
       // Examples: Ctrl+T, Ctrl+Shift+I, Alt+Tab, Ctrl+Space, etc.
+      // BUT: Allow specific Ctrl shortcuts (V, C, A, Z, Y) - already handled above
       if (e.ctrlKey || e.altKey || e.metaKey) {
+        // Double-check: Allow Ctrl+V, Ctrl+C, Ctrl+A, Ctrl+Z, Ctrl+Y (already allowed above, but check again)
+        if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+          const key = e.key.toLowerCase();
+          if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y') {
+            return; // Allow these shortcuts - don't block
+          }
+        }
+        
+        // BLOCK: Ctrl+Space, Alt+Space, Ctrl+Shift (any key with Ctrl+Shift)
+        if ((e.ctrlKey && (e.key === ' ' || e.key === 'Space')) ||
+            (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
+            (e.ctrlKey && e.shiftKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          incrementWarningRef.current?.(
+            e.ctrlKey && e.shiftKey 
+              ? 'Restricted shortcut: Ctrl+Shift' 
+              : e.ctrlKey 
+              ? 'Restricted shortcut: Ctrl+Space'
+              : 'Restricted shortcut: Alt+Space'
+          );
+          return false;
+        }
+        
         // Handle Space key explicitly (can be ' ' or 'Space')
         const keyName = e.key === ' ' || e.key === 'Space' ? 'Space' : e.key;
         

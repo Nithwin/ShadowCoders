@@ -1,5 +1,6 @@
 import * as redeemRepo from './redeem.repo';
-import { RedeemOrderStatus } from '@prisma/client';
+import { RedeemOrderStatus, Role } from '@prisma/client';
+import * as notificationService from '../notifications/notification.service';
 
 export const getAllRedeemItems = async (activeOnly: boolean = false) => {
   return await redeemRepo.getAllRedeemItems(activeOnly);
@@ -35,7 +36,19 @@ export const createRedeemOrder = async (
   leaveDate?: Date, 
   message?: string
 ) => {
-  return await redeemRepo.createRedeemOrder(userId, itemId, leaveDate, message);
+  const order = await redeemRepo.createRedeemOrder(userId, itemId, leaveDate, message);
+  
+  // Notify Admins (STAFF)
+  // We use the new role-based notification helper or socket emission for now.
+  await notificationService.notifyRole(
+      Role.STAFF,
+      'New Redeem Request',
+      `A student has requested to redeem ${order.item.name}.`,
+      'REDEEM',
+      `/admin/redeem`
+  );
+  
+  return order;
 };
 
 export const getRedeemOrders = async (filters: {
@@ -61,6 +74,26 @@ export const updateRedeemOrder = async (
     processedById?: string;
   }
 ) => {
-  return await redeemRepo.updateRedeemOrder(id, data);
+  const updatedOrder = await redeemRepo.updateRedeemOrder(id, data);
+
+  // Notify Student if status changed
+  if (data.status) {
+      let message = `Your redeem request for ${updatedOrder.item.name} has been updated to ${data.status}.`;
+      if (data.status === RedeemOrderStatus.APPROVED) {
+          message = `Your redeem request for ${updatedOrder.item.name} has been APPROVED!`;
+      } else if (data.status === RedeemOrderStatus.REJECTED) {
+          message = `Your redeem request for ${updatedOrder.item.name} has been REJECTED. reason: ${data.rejectionReason || 'No reason provided'}`;
+      }
+
+      await notificationService.createNotification(
+          updatedOrder.userId,
+          'Redeem Request Update',
+          message,
+          'REDEEM',
+          '/student/redeem'
+      );
+  }
+
+  return updatedOrder;
 };
 

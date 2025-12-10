@@ -81,6 +81,16 @@ class ExamMonitoringService {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
       console.log(`[Socket] User connected: ${socket.userId} (${socket.userRole})`);
 
+      // Join user-specific room
+      if (socket.userId) {
+        socket.join(`user:${socket.userId}`);
+      }
+
+      // Join role-specific room
+      if (socket.userRole) {
+        socket.join(`role:${socket.userRole}`);
+      }
+
       // Student joins exam room
       socket.on('join-exam', async (data: { examId: string; attemptId: string }) => {
         try {
@@ -383,6 +393,14 @@ class ExamMonitoringService {
 
   notifyReport(examId: string, report: any) {
     this.io?.to(`admin:exam:${examId}`).emit('report-created', report);
+  }
+
+  sendNotification(userId: string, notification: any) {
+    this.io?.to(`user:${userId}`).emit('notification', notification);
+  }
+
+  sendRoleNotification(role: Role, notification: any) {
+    this.io?.to(`role:${role}`).emit('notification', notification);
   }
 }
 

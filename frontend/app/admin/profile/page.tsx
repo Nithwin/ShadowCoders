@@ -19,11 +19,17 @@ import {
   Loader2,
   CheckCircle2,
   Lock,
-  Upload
+  Upload,
+  Trophy,
+  Target,
+  Flame,
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { getAbsoluteImageUrl } from '@/lib/utils';
 import { useToast } from '@/context/ToastContext';
+import ActivityHeatmap from '@/components/profile/ActivityHeatmap';
 
 export default function AdminProfilePage() {
   const { user, updateUser } = useAuth();
@@ -31,6 +37,16 @@ export default function AdminProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activityData, setActivityData] = useState<Array<{ date: string; count: number }>>([]);
+  const [stats, setStats] = useState<{
+    totalExams: number;
+    averageScore: number;
+    currentStreak: number;
+    longestStreak: number;
+    totalScore: number;
+    totalMaxScore: number;
+  } | null>(null);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     reg_no: user?.reg_no || '',
@@ -192,6 +208,56 @@ export default function AdminProfilePage() {
               <X className="w-5 h-5" />
               <p className="font-semibold">{error}</p>
             </div>
+          </div>
+        )}
+
+        {/* Stats Cards - LeetCode Style */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Target className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-primary">{stats?.totalExams || 0}</p>
+            <p className="text-sm text-primary/70 mt-1">Exams Completed</p>
+          </div>
+          
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-primary">{stats?.averageScore || 0}%</p>
+            <p className="text-sm text-primary/70 mt-1">Average Score</p>
+          </div>
+          
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-orange-500/20 rounded-lg">
+                <Flame className="w-5 h-5 text-orange-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-primary">{stats?.currentStreak || 0}</p>
+            <p className="text-sm text-primary/70 mt-1">Current Streak</p>
+          </div>
+          
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Trophy className="w-5 h-5 text-purple-600" />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-primary">{stats?.longestStreak || 0}</p>
+            <p className="text-sm text-primary/70 mt-1">Longest Streak</p>
+          </div>
+        </div>
+
+        {/* Activity Heatmap */}
+        {!isLoadingActivity && (
+          <div className="mb-6">
+            <ActivityHeatmap data={activityData} />
           </div>
         )}
 

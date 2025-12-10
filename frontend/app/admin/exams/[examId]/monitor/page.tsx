@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { socketService } from '@/lib/socket';
 import { useAuth } from '@/context/AuthContext';
+import { useViolationNotifications } from '@/context/ViolationNotificationContext';
 
 type Exam = {
   id: string;
@@ -26,6 +27,7 @@ interface KeyboardViolation {
   studentName: string;
   studentEmail: string;
   timestamp: Date;
+  examId: string;
 }
 
 interface AttemptDetails {
@@ -45,10 +47,12 @@ export default function ExamMonitorPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'idle' | 'submitted'>('all');
   const [keyboardViolations, setKeyboardViolations] = useState<Map<string, KeyboardViolation>>(new Map());
   const [attemptDetails, setAttemptDetails] = useState<Map<string, AttemptDetails>>(new Map());
   const { confirm } = useConfirmationDialog();
   const { accessToken } = useAuth();
+  const { violations: globalViolations, addViolation, removeViolation } = useViolationNotifications();
 
   // Fetch attempt details from database to get correct status and score
   const fetchAttemptDetails = useCallback(async (attemptId: string) => {
@@ -88,6 +92,8 @@ export default function ExamMonitorPage() {
         newMap.set(data.attemptId, data);
         return newMap;
       });
+      // Also add to global violations context
+      addViolation(data);
     };
 
     const handleResolved = (data: { attemptId: string; action: string }) => {
@@ -96,6 +102,8 @@ export default function ExamMonitorPage() {
         newMap.delete(data.attemptId);
         return newMap;
       });
+      // Also remove from global violations context
+      removeViolation(data.attemptId);
       // Refresh attempt details after resolution
       if (data.attemptId) {
         fetchAttemptDetails(data.attemptId);
@@ -112,7 +120,19 @@ export default function ExamMonitorPage() {
   }, [accessToken, examId, fetchAttemptDetails]);
 
   // Filter activities based on search query
+  // Filter activities based on search query and status
   const filteredActivities = stats?.activities.filter((activity) => {
+    // Status Filter
+    if (filterStatus !== 'all') {
+        if (filterStatus === 'submitted') {
+            const actualStatus = getActualStatus(activity);
+            if (actualStatus !== 'SUBMITTED') return false;
+        } else if (activity.status !== filterStatus) {
+            return false;
+        }
+    }
+
+    // Search Filter
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -301,38 +321,61 @@ export default function ExamMonitorPage() {
                 {isConnected ? '✓ Connected to live monitoring' : '⚠ Disconnected - Reconnecting...'}
               </span>
             </div>
+            {/* Notification Icon */}
+            {keyboardViolations.size > 0 && (
+                <div className="absolute top-4 right-4 flex items-center justify-center">
+                    <div className="relative p-2 bg-red-100 rounded-full animate-bounce">
+                        <Bell className="w-6 h-6 text-red-600" />
+                        <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-red-600 text-white text-xs font-bold rounded-full border-2 border-white">
+                            {keyboardViolations.size}
+                        </span>
+                    </div>
+                </div>
+            )}
           </div>
         </div>
 
             {/* Keyboard Violation Notifications */}
             {keyboardViolations.size > 0 && (
-              <div className="mb-6 bg-red-50 border-2 border-red-300 rounded-xl p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <Bell className="w-5 h-5 text-red-600" />
-                  <h3 className="text-lg font-bold text-red-900">Keyboard Violations Detected</h3>
+              <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-5 shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-100 rounded-full">
+                      <Bell className="w-6 h-6 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-red-900">Keyboard Violations Detected</h3>
+                      <p className="text-sm text-red-700">{keyboardViolations.size} pending violation{keyboardViolations.size !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {Array.from(keyboardViolations.values()).map((violation) => (
-                    <div key={violation.attemptId} className="bg-white rounded-lg p-3 border border-red-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-gray-900">{violation.studentName}</p>
-                          <p className="text-sm text-gray-600">{violation.studentEmail}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Detected at {new Date(violation.timestamp).toLocaleTimeString()}
+                    <div key={violation.attemptId} className="bg-white rounded-lg p-4 border-2 border-red-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="w-5 h-5 text-red-600" />
+                            <p className="font-bold text-gray-900 text-lg">{violation.studentName}</p>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-1">{violation.studentEmail}</p>
+                          <p className="text-xs text-gray-500">
+                            Detected at {new Date(violation.timestamp).toLocaleString()}
                           </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2 min-w-[200px]">
                           <button
                             onClick={() => handleResolveViolation(violation, 'continue')}
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                            className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                           >
-                            Continue
+                            <CheckCircle2 className="w-4 h-4" />
+                            Allow Resume
                           </button>
                           <button
                             onClick={() => handleResolveViolation(violation, 'force-submit')}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                            className="px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-semibold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                           >
+                            <XCircle className="w-4 h-4" />
                             Force Submit
                           </button>
                         </div>
@@ -389,38 +432,57 @@ export default function ExamMonitorPage() {
             </div>
 
             {/* Search Section */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
-              <div className="relative flex-1 max-w-md w-full">
-                <input
-                  type="text"
-                  placeholder="Search by student name or email..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="w-full pl-11 pr-10 py-3 rounded-xl bg-secondary border-2 border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md"
-                />
-                <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2" />
-                {searchInput && (
-                  <button
-                    onClick={handleClearSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-lg transition-colors"
-                  >
-                    <XCircle className="w-4 h-4 text-primary/50" />
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={handleSearch}
-                className="px-6 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-secondary border-0 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl font-semibold flex items-center gap-2"
-              >
-                <Search className="w-4 h-4" />
-                Search
-              </button>
-              {searchQuery && (
-                <div className="text-sm text-primary/60">
-                  {filteredActivities.length} result{filteredActivities.length !== 1 ? 's' : ''} found
+            <div className="mb-6 flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-primary/10">
+              <div className="flex flex-wrap gap-4 w-full md:w-auto items-center">
+                <div className="relative flex-1 md:flex-none">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary/40 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search students..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-primary/5 border border-primary/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-64"
+                  />
                 </div>
-              )}
+                
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as any)}
+                  className="px-4 py-2 bg-primary/5 border border-primary/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="idle">Idle</option>
+                  <option value="submitted">Submitted</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2">
+                  <button
+                  onClick={() => {
+                      if (window.confirm('Are you sure you want to FORCE STOP ALL active exams? This action cannot be undone.')) {
+                          filteredActivities.forEach(activity => {
+                              if (activity.status === 'active' || activity.status === 'idle') {
+                                   const violation = keyboardViolations.get(activity.attemptId);
+                                   const mockViolation = violation || {
+                                        attemptId: activity.attemptId,
+                                        studentId: activity.studentId,
+                                        studentName: activity.studentName,
+                                        studentEmail: activity.studentEmail,
+                                        timestamp: new Date(),
+                                        examId: examId,
+                                    } as KeyboardViolation;
+                                   handleResolveViolation(mockViolation, 'force-submit');
+                              }
+                          });
+                      }
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2"
+                  >
+                  <XCircle className="w-4 h-4" />
+                  Force Stop All
+                  </button>
+              </div>
             </div>
 
             {/* Student Activity List */}
@@ -493,6 +555,9 @@ export default function ExamMonitorPage() {
                           : timeSince < 3600 
                           ? `${Math.floor(timeSince / 60)}m ago`
                           : `${Math.floor(timeSince / 3600)}h ago`;
+
+                        const hasViolation = keyboardViolations.has(activity.attemptId);
+                        const violation = keyboardViolations.get(activity.attemptId);
 
                         return (
                           <tr key={activity.attemptId} className="hover:bg-primary/5 transition-colors duration-200">
@@ -600,20 +665,47 @@ export default function ExamMonitorPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {activity.status === 'active' ? (
+                              <div className="flex flex-col gap-2">
                                 <button
                                   onClick={() => router.push(`/admin/exams/${examId}/monitor/${activity.attemptId}`)}
-                                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-md hover:shadow-lg"
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md w-full justify-center"
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Eye className="w-3 h-3" />
                                   View
                                 </button>
-                              ) : (
-                                <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary/50 text-sm font-semibold rounded-xl cursor-not-allowed border border-primary/20">
-                                  <Eye className="w-4 h-4" />
-                                  View
-                                </span>
-                              )}
+                                
+                                {(activity.status === 'active' || activity.status === 'idle') && (
+                                  <>
+                                     {hasViolation && violation && (
+                                        <button
+                                          onClick={() => handleResolveViolation(violation, 'continue')}
+                                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-xs font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md w-full justify-center"
+                                        >
+                                          <CheckCircle2 className="w-3 h-3" />
+                                          Resume
+                                        </button>
+                                     )}
+
+                                    <button
+                                      onClick={() => {
+                                          const mockViolation = violation || {
+                                              attemptId: activity.attemptId,
+                                              studentId: activity.studentId,
+                                              studentName: activity.studentName,
+                                              studentEmail: activity.studentEmail,
+                                              timestamp: new Date(),
+                                              examId: examId,
+                                          } as KeyboardViolation;
+                                          handleResolveViolation(mockViolation, 'force-submit');
+                                      }}
+                                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-xs font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md w-full justify-center"
+                                    >
+                                      <XCircle className="w-3 h-3" />
+                                      Force Stop
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );

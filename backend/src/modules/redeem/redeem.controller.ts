@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as redeemService from './redeem.service';
 import { validate } from '../../middleware/validate';
+import { AuthenticatedRequest } from '../../middleware/auth';
 import {
   createRedeemItemSchema,
   updateRedeemItemSchema,
@@ -22,12 +23,13 @@ export const getAvailableItems = async (req: Request, res: Response) => {
 
 export const createOrder = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.sub;
+    const userId = (req as AuthenticatedRequest).user?.sub;
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
     
-    const { itemId, leaveDate, message } = req.validatedData?.body || req.body;
+    // cast to any for extended validation prop or use proper type if available
+    const { itemId, leaveDate, message } = (req as any).validatedData?.body || req.body;
     const order = await redeemService.createRedeemOrder(userId, itemId, leaveDate, message);
     res.status(201).json(order);
   } catch (error: any) {
@@ -38,7 +40,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
 export const getMyOrders = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.sub;
+    const userId = (req as AuthenticatedRequest).user?.sub;
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -89,6 +91,7 @@ export const createItem = async (req: Request, res: Response) => {
 export const updateItem = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!id) throw new Error("ID is required");
     const item = await redeemService.updateRedeemItem(id, req.body);
     res.json(item);
   } catch (error: any) {
@@ -116,6 +119,7 @@ export const getAllOrders = async (req: Request, res: Response) => {
 export const getOrderById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!id) throw new Error("ID is required");
     const order = await redeemService.getRedeemOrderById(id);
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
@@ -130,7 +134,8 @@ export const getOrderById = async (req: Request, res: Response) => {
 export const updateOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const adminId = (req as any).user?.sub;
+    if (!id) throw new Error("ID is required");
+    const adminId = (req as AuthenticatedRequest).user?.sub;
     const { status, adminNotes, rejectionReason, reportUrl } = req.body;
     
     const order = await redeemService.updateRedeemOrder(id, {
@@ -138,7 +143,7 @@ export const updateOrder = async (req: Request, res: Response) => {
       adminNotes,
       rejectionReason,
       reportUrl,
-      processedById: adminId,
+      ...(adminId ? { processedById: adminId } : {}),
     });
     
     res.json(order);

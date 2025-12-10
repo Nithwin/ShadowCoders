@@ -26,6 +26,7 @@ import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
 
 import { ReportQuestionButton } from '@/components/student/ReportQuestionButton';
 import KeyboardViolationPopup from '@/components/student/exam/KeyboardViolationPopup';
+import { useViolationNotifications } from '@/context/ViolationNotificationContext';
 
 export default function ExamAttemptPage() {
   const params = useParams();
@@ -36,6 +37,7 @@ export default function ExamAttemptPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [reportedQuestions, setReportedQuestions] = useState<Set<string>>(new Set());
   const [showKeyboardViolation, setShowKeyboardViolation] = useState(false);
+  const { addViolation, removeViolation } = useViolationNotifications();
 
   // Fetch attempt and questions data
   const {
@@ -47,76 +49,6 @@ export default function ExamAttemptPage() {
     storageKey,
     setQuestions,
   } = useExamAttemptData(attemptId);
-
-  // ... (existing hooks)
-
-  // Socket.IO activity tracking
-  const { emitActivity, socket } = useExamSocket({
-    examId: attempt?.exam?.id || '',
-    attemptId: attemptId,
-  });
-
-  // Listen for real-time updates
-  useEffect(() => {
-    if (!socket || !attempt) return;
-
-    // Listen for question updates
-    const handleQuestionUpdate = (payload: { questionId: string; data: any }) => {
-        // Update local questions state
-        setQuestions(prev => prev.map(q => {
-            if (q.id === payload.questionId) {
-                // Merge update. 
-                // Note: payload.data might be the full question or partial.
-                // It comes from question.service update notification which sends verifiedQuestion (full).
-                return { ...q, ...payload.data };
-            }
-            return q;
-        }));
-    };
-
-    // Listen for report creation (to lock button)
-    const handleReportCreated = (report: any) => {
-        setReportedQuestions(prev => new Set(prev).add(report.questionId));
-    };
-
-    // Listen for violation resolution
-    const handleViolationResolved = (data: { attemptId: string; action: 'force-submit' | 'continue' }) => {
-      if (data.attemptId === attemptId) {
-        setShowKeyboardViolation(false);
-        if (data.action === 'force-submit') {
-          // Force submit the exam
-          handleSubmitExam(true, 'Force submitted by admin due to keyboard violation');
-        }
-        // If continue, just close the popup
-      }
-    };
-
-    socket.on('question-updated', handleQuestionUpdate);
-    socket.on('report-created', handleReportCreated);
-    socket.on('violation-resolved', handleViolationResolved);
-
-    return () => {
-        socket.off('question-updated', handleQuestionUpdate);
-        socket.off('report-created', handleReportCreated);
-        socket.off('violation-resolved', handleViolationResolved);
-    };
-  }, [socket, attempt, setQuestions, attemptId, handleSubmitExam]);
-
-  // Sync initial reported status from questions
-  useEffect(() => {
-      if (questions.length > 0) {
-          const initialReported = new Set<string>();
-          questions.forEach(q => {
-              if ((q as any).isReported) {
-                  initialReported.add(q.id);
-              }
-          });
-          setReportedQuestions(initialReported);
-      }
-  }, [questions]);
-
-  // ... (rest of logic)
-
 
   // Manage answers with localStorage
   const {
@@ -130,7 +62,13 @@ export default function ExamAttemptPage() {
   const exitFullscreenRef = useRef<(() => Promise<void>) | null>(null);
   const isFullscreenRef = useRef<boolean>(false);
 
-  // Exam submission
+  // Socket.IO activity tracking
+  const { emitActivity, socket } = useExamSocket({
+    examId: attempt?.exam?.id || '',
+    attemptId: attemptId,
+  });
+
+  // Exam submission (must be defined before useEffect that uses handleSubmitExam)
   const {
     isSubmitting,
     error: submissionError,
@@ -165,6 +103,67 @@ export default function ExamAttemptPage() {
       });
     }
   );
+
+  // Listen for real-time updates
+  useEffect(() => {
+    if (!socket || !attempt) return;
+
+    // Listen for question updates
+    const handleQuestionUpdate = (payload: { questionId: string; data: any }) => {
+        // Update local questions state
+        setQuestions(prev => prev.map(q => {
+            if (q.id === payload.questionId) {
+                // Merge update. 
+                // Note: payload.data might be the full question or partial.
+                // It comes from question.service update notification which sends verifiedQuestion (full).
+                return { ...q, ...payload.data };
+            }
+            return q;
+        }));
+    };
+
+    // Listen for report creation (to lock button)
+    const handleReportCreated = (report: any) => {
+        setReportedQuestions(prev => new Set(prev).add(report.questionId));
+    };
+
+    // Listen for violation resolution
+    const handleViolationResolved = (data: { attemptId: string; action: 'force-submit' | 'continue' }) => {
+      if (data.attemptId === attemptId) {
+        setShowKeyboardViolation(false);
+        // Remove from violation context
+        removeViolation(attemptId);
+        if (data.action === 'force-submit') {
+          // Force submit the exam
+          handleSubmitExam(true, 'Force submitted by admin due to keyboard violation');
+        }
+        // If continue, just close the popup
+      }
+    };
+
+    socket.on('question-updated', handleQuestionUpdate);
+    socket.on('report-created', handleReportCreated);
+    socket.on('violation-resolved', handleViolationResolved);
+
+    return () => {
+        socket.off('question-updated', handleQuestionUpdate);
+        socket.off('report-created', handleReportCreated);
+        socket.off('violation-resolved', handleViolationResolved);
+    };
+  }, [socket, attempt, setQuestions, attemptId, handleSubmitExam, removeViolation]);
+
+  // Sync initial reported status from questions
+  useEffect(() => {
+      if (questions.length > 0) {
+          const initialReported = new Set<string>();
+          questions.forEach(q => {
+              if ((q as any).isReported) {
+                  initialReported.add(q.id);
+              }
+          });
+          setReportedQuestions(initialReported);
+      }
+  }, [questions]);
 
   // Fullscreen management
   const handleAutoSubmit = (reason: string) => {
@@ -201,14 +200,103 @@ export default function ExamAttemptPage() {
       // Allow normal typing in input fields
       if (isInputField) return;
 
+      // ALLOWED KEYS - Don't trigger violation for these
+      const modifierKeys = ['Control', 'Ctrl', 'Shift', 'Alt', 'Meta', 'OS'];
+      const isModifierKey = modifierKeys.includes(e.key);
+      
+      // Allow modifier keys when pressed alone (Ctrl alone, Shift alone, etc.)
+      if (isModifierKey) {
+        return; // Don't trigger violation
+      }
+      
+      // Allow Caps Lock key
+      if (e.key === 'CapsLock' || e.key === 'Caps') {
+        return; // Don't trigger violation
+      }
+      
+      // Allow Shift + alphabet keys (for capitalization)
+      if (e.shiftKey && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+        return; // Don't trigger violation
+      }
+      
+      // Allow Ctrl + allowed shortcuts (V, C, A, Z, Y) - even outside input fields
+      if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y') {
+          return; // Don't trigger violation for allowed Ctrl shortcuts
+        }
+      }
+      
+      // BLOCK: Ctrl+Space, Alt+Space, Ctrl+Shift (any key with Ctrl+Shift)
+      if ((e.ctrlKey && (e.key === ' ' || e.key === 'Space')) ||
+          (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
+          (e.ctrlKey && e.shiftKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Emit keyboard violation event (only once per attempt)
+        if (socket?.connected && !showKeyboardViolation && attempt) {
+          socket.emit('keyboard-violation', { 
+            key: e.ctrlKey && e.shiftKey ? 'Ctrl+Shift' : e.ctrlKey ? 'Ctrl+Space' : 'Alt+Space' 
+          });
+          setShowKeyboardViolation(true);
+          // Add to violation context for notification
+          addViolation({
+            attemptId: attempt.id,
+            studentId: attempt.studentId,
+            studentName: attempt.student?.name || 'Student',
+            studentEmail: attempt.student?.email || '',
+            examId: attempt.examId,
+            timestamp: new Date(),
+          });
+        }
+        return;
+      }
+      
+      // ALLOWED NAVIGATION AND TYPING KEYS - Allow these everywhere (not just in input fields)
+      const allowedKeys = [
+        // Navigation keys
+        'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+        'Home', 'End', 'PageUp', 'PageDown',
+        // Editing keys
+        'Backspace', 'Delete', 'Insert',
+        'Tab', 'Enter', 'Escape',
+        // Numbers
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        // Special characters (common ones)
+        ' ', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
+        '-', '_', '=', '+', '[', ']', '{', '}', '\\', '|',
+        ';', ':', "'", '"', ',', '.', '<', '>', '/', '?',
+        '`', '~',
+      ];
+      
+      // Allow navigation and editing keys
+      if (allowedKeys.includes(e.key)) {
+        return; // Don't trigger violation
+      }
+      
+      // Allow any single character (letters, numbers, special chars) when not using modifiers
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
+        return; // Don't trigger violation for normal typing
+      }
+
+      // Only block suspicious shortcuts (Ctrl+other keys, Alt keys, etc.)
       // Prevent default to avoid any unwanted behavior
       e.preventDefault();
       e.stopPropagation();
 
       // Emit keyboard violation event (only once per attempt)
-      if (socket?.connected && !showKeyboardViolation) {
+      if (socket?.connected && !showKeyboardViolation && attempt) {
         socket.emit('keyboard-violation', { key: e.key });
         setShowKeyboardViolation(true);
+        // Add to violation context for notification
+        addViolation({
+          attemptId: attempt.id,
+          studentId: attempt.studentId,
+          studentName: attempt.student?.name || 'Student',
+          studentEmail: attempt.student?.email || '',
+          examId: attempt.examId,
+          timestamp: new Date(),
+        });
       }
     };
 
@@ -216,7 +304,7 @@ export default function ExamAttemptPage() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [attempt, socket, showKeyboardViolation]);
+  }, [attempt, socket, showKeyboardViolation, addViolation]);
 
   // Cheating prevention
   const {

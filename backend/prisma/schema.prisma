@@ -112,6 +112,7 @@ model User {
   attempts Attempt[]
   pointsHistory PointsHistory[]
   redeemOrders RedeemOrder[]
+  notifications Notification[]
 
   // back-relations with explicit names
   invalidatedQuestions Question[]   @relation("QuestionInvalidator")
@@ -547,4 +548,20 @@ model PointsHistory {
   @@index([userId])
   @@index([type])
   @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   // "REDEEM", "INFO", "ALERT"
+  isRead    Boolean  @default(false)
+  link      String?  // Optional link to redirect to
+  metadata  Json?    // Any extra data needed
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
 }

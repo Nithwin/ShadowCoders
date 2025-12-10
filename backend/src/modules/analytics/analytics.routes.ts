@@ -1,6 +1,7 @@
 import { Express } from 'express';
 import { requireRole, verifyAccess } from '../../middleware/auth';
 import * as analyticsController from './analytics.controller';
+import * as activityController from './activity.controller';
 
 export const registerAnalyticsRoutes = (app: Express) => {
   // Get comprehensive analytics for an exam
@@ -41,6 +42,19 @@ export const registerAnalyticsRoutes = (app: Express) => {
     verifyAccess,
     requireRole('STAFF'),
     analyticsController.getTimeAnalysisHandler
+  );
+
+  // Student activity routes
+  app.get(
+    '/api/student/activity',
+    verifyAccess,
+    activityController.getUserActivityHandler
+  );
+
+  app.get(
+    '/api/student/stats',
+    verifyAccess,
+    activityController.getUserStatsHandler
   );
 };
 

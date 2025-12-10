@@ -1,0 +1,106 @@
+﻿src/app.ts(214,35): error TS2552: Cannot find name 'notificationRoutes'. Did you mean 'Notification'?
+src/lib/local-executor.ts(586,9): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(587,9): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(591,37): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(627,16): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(628,25): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(632,19): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(633,24): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(633,63): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(638,16): error TS2339: Property 'error' does not exist on type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }'.
+src/lib/local-executor.ts(641,20): error TS2379: Argument of type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' is not assignable to parameter of type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'isHidden' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+src/lib/local-executor.ts(643,20): error TS2379: Argument of type '{ input: string; expectedOutput: string; actualOutput: null; passed: false; error: any; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Runtime Error"; }' is not assignable to parameter of type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'isHidden' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+src/lib/local-executor.ts(644,16): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(645,25): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(650,19): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(651,24): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(651,63): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(758,13): error TS2322: Type '{ input: string; expectedOutput: string; actualOutput: null; passed: false; error: string; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Compilation Error"; }[]' is not assignable to type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }[]'.
+  Type '{ input: string; expectedOutput: string; actualOutput: null; passed: false; error: string; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Compilation Error"; }' is not assignable to type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'isHidden' are incompatible.
+      Type 'boolean | undefined' is not assignable to type 'boolean'.
+        Type 'undefined' is not assignable to type 'boolean'.
+src/lib/local-executor.ts(776,11): error TS2322: Type '{ input: string; expectedOutput: string; actualOutput: null; passed: false; error: any; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Compilation Error"; }[]' is not assignable to type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }[]'.
+  Type '{ input: string; expectedOutput: string; actualOutput: null; passed: false; error: any; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Compilation Error"; }' is not assignable to type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Types of property 'isHidden' are incompatible.
+      Type 'boolean | undefined' is not assignable to type 'boolean'.
+        Type 'undefined' is not assignable to type 'boolean'.
+src/lib/local-executor.ts(818,11): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(820,11): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(826,39): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(859,15): error TS2375: Type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' is not assignable to type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'isHidden' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+src/lib/local-executor.ts(870,18): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(871,27): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(875,21): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(876,26): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(876,65): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(887,22): error TS2379: Argument of type '{ input: string; expectedOutput: string; actualOutput: null; passed: false; error: any; status: string; isHidden: boolean | undefined; testCaseIndex: number; errorType: "Runtime Error"; }' is not assignable to parameter of type '{ input: string; expectedOutput: string; actualOutput: string | null; passed: boolean; error?: string; status: string; isHidden?: boolean; testCaseIndex?: number; errorType?: "Compilation Error" | "Runtime Error" | "Accepted" | "TLE" | "Wrong Answer"; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'isHidden' are incompatible.
+    Type 'boolean | undefined' is not assignable to type 'boolean'.
+      Type 'undefined' is not assignable to type 'boolean'.
+src/lib/local-executor.ts(888,18): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(889,27): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(894,21): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(895,26): error TS18048: 'testCase' is possibly 'undefined'.
+src/lib/local-executor.ts(895,65): error TS18048: 'testCase' is possibly 'undefined'.
+src/modules/analytics/activity.service.ts(35,23): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/analytics/activity.service.ts(35,49): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/analytics/activity.service.ts(46,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/analytics/activity.service.ts(47,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/analytics/activity.service.ts(112,34): error TS2769: No overload matches this call.
+  Overload 1 of 5, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 5, '(vd: VarDate): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'VarDate'.
+      Type 'undefined' is not assignable to type 'VarDate'.
+  Overload 3 of 5, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+src/modules/analytics/activity.service.ts(116,33): error TS2769: No overload matches this call.
+  Overload 1 of 5, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 5, '(vd: VarDate): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'VarDate'.
+      Type 'undefined' is not assignable to type 'VarDate'.
+  Overload 3 of 5, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'.
+src/modules/attempts/attempt.service.ts(796,74): error TS2379: Argument of type '{ examId: string; page: number; pageSize: number; searchQuery: string | undefined; }' is not assignable to parameter of type '{ examId: string; page: number; pageSize: number; searchQuery?: string; }' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'searchQuery' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/modules/notifications/notification.controller.ts(23,42): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/notifications/notification.service.ts(13,66): error TS2379: Argument of type '{ user: { connect: { id: string; }; }; title: string; message: string; type: string; link: string | undefined; metadata: any; }' is not assignable to parameter of type 'NotificationCreateInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Types of property 'link' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/modules/points/points.repo.ts(33,5): error TS2375: Type '{ userId: string; points: number; balance: number; type: string; description: string | undefined; relatedId: string | undefined; relatedType: string | undefined; }' is not assignable to type '(Without<PointsHistoryCreateInput, PointsHistoryUncheckedCreateInput> & PointsHistoryUncheckedCreateInput) | (Without<...> & PointsHistoryCreateInput)' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+  Type '{ userId: string; points: number; balance: number; type: string; description: string | undefined; relatedId: string | undefined; relatedType: string | undefined; }' is not assignable to type 'Without<PointsHistoryCreateInput, PointsHistoryUncheckedCreateInput> & PointsHistoryUncheckedCreateInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+    Type '{ userId: string; points: number; balance: number; type: string; description: string | undefined; relatedId: string | undefined; relatedType: string | undefined; }' is not assignable to type 'PointsHistoryUncheckedCreateInput' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.
+      Types of property 'description' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string | null'.
+          Type 'undefined' is not assignable to type 'string | null'.
+src/modules/redeem/redeem.controller.ts(92,55): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/redeem/redeem.controller.ts(119,58): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/redeem/redeem.controller.ts(136,57): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/modules/redeem/redeem.zod.ts(9,17): error TS2554: Expected 2-3 arguments, but got 1.
+src/modules/redeem/redeem.zod.ts(19,17): error TS2554: Expected 2-3 arguments, but got 1.

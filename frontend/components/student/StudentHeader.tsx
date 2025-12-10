@@ -1,17 +1,21 @@
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
-import { User as UserIcon, ChevronDown, Coins } from 'lucide-react';
+import { User as UserIcon, ChevronDown, Coins, Bell, AlertCircle } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAbsoluteImageUrl } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useViolationNotifications } from '@/context/ViolationNotificationContext';
+import NotificationDropdown from '@/components/ui/NotificationDropdown';
 
 export default function StudentHeader() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [points, setPoints] = useState<number>(0);
+  const { hasPendingViolation } = useViolationNotifications();
 
   useEffect(() => {
     const fetchPoints = async () => {
@@ -47,7 +51,51 @@ export default function StudentHeader() {
         </div>
       </Link>
 
-      <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+      <div className="flex items-center gap-3">
+        {/* Notification Bell for Pending Violations */}
+        {hasPendingViolation && (
+          <DropdownMenu.Root open={notificationOpen} onOpenChange={setNotificationOpen}>
+            <DropdownMenu.Trigger asChild>
+              <button className="relative p-2 rounded-lg hover:bg-primary/5 transition-colors">
+                <Bell className="w-5 h-5 text-primary" />
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                  !
+                </span>
+              </button>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                className="w-80 bg-secondary rounded-md shadow-lg border border-primary/10"
+                sideOffset={5}
+                align="end"
+              >
+                <DropdownMenu.Label className="px-4 py-3 text-sm font-semibold text-primary border-b border-primary/10">
+                  Violation Notice
+                </DropdownMenu.Label>
+                <div className="px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-red-100 rounded-full">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-primary mb-2">
+                        Keyboard Violation Detected
+                      </p>
+                      <p className="text-xs text-primary/70">
+                        A keyboard event was detected during your exam. Your exam has been paused and is waiting for admin review. Please wait for their decision.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        )}
+
+        <NotificationDropdown />
+
+        <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger asChild>
           <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-primary/5">
             {user?.pictureUrl ? (
@@ -96,6 +144,7 @@ export default function StudentHeader() {
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      </div>
     </header>
   );
 }
