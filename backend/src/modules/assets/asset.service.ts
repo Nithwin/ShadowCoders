@@ -31,7 +31,6 @@ const getUploadsDirectory = async (): Promise<string> => {
     await fs.mkdir(fullPath, { recursive: true });
   } catch (error) {
     // Directory might already exist, that's fine
-    console.log(`Uploads directory check: ${fullPath}`);
   }
   
   return fullPath;

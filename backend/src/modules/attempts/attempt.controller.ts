@@ -214,20 +214,12 @@ export const listAttemptsForExamHandler: RequestHandler = async (req, res, next)
       pageSize: 20,
     };
     
-    console.log('[Search Controller] Received query params:', {
-      rawQuery: req.query,
-      validatedQuery: queryParams,
-      q: queryParams.q
-    });
-    
     // Pass the query object directly to the service (it expects { page, pageSize, q })
     const validatedParams = {
       page: Number(queryParams.page) || 1,
       pageSize: Number(queryParams.pageSize) || 20,
       q: queryParams.q?.trim() || undefined,
     };
-    
-    console.log('[Search Controller] Passing to service:', validatedParams);
     
     // Call the ATTEMPT service to get the data
     const result = await attemptService.listAttemptsForExam(examId, validatedParams);

@@ -249,7 +249,6 @@ export const gradeEssay = async (responseId: string) => {
   // 4. Enqueue the grading task
   essayGradingQueue.enqueue(async () => {
     try {
-      console.log(`[EssayGrade] Starting job ${job.id} for response ${response.id}`);
       
       // Update job to RUNNING
       await gradingRepo.updateGradingJob(job.id, 'RUNNING', null);
@@ -326,7 +325,6 @@ ${studentText}
 
       // Complete Job
       await gradingRepo.updateGradingJob(job.id, 'SUCCEEDED', resultJson);
-      console.log(`[EssayGrade] Job ${job.id} completed. Score: ${resultJson.score}`);
       
       return resultJson;
 

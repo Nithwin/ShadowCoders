@@ -79,7 +79,6 @@ class ExamMonitoringService {
     });
 
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log(`[Socket] User connected: ${socket.userId} (${socket.userRole})`);
 
       // Join user-specific room
       if (socket.userId) {
@@ -164,7 +163,6 @@ class ExamMonitoringService {
             totalStudents: this.examRooms.get(data.examId)?.size || 0,
           });
 
-          console.log(`[Socket] Student ${socket.userId} joined exam ${data.examId}`);
         } catch (error) {
           console.error('[Socket] Error joining exam:', error);
           socket.emit('error', { message: 'Failed to join exam' });
@@ -192,7 +190,6 @@ class ExamMonitoringService {
             activities: activities,
           });
 
-          console.log(`[Socket] Admin ${socket.userId} monitoring exam ${data.examId}`);
         } catch (error) {
           console.error('[Socket] Error admin joining exam:', error);
           socket.emit('error', { message: 'Failed to join monitoring room' });
@@ -278,7 +275,6 @@ class ExamMonitoringService {
           timestamp: violation.timestamp,
         });
 
-        console.log(`[Socket] Keyboard violation detected for attempt ${socket.attemptId}`);
       });
 
       // Admin resolves keyboard violation
@@ -309,12 +305,10 @@ class ExamMonitoringService {
           action: data.action,
         });
 
-        console.log(`[Socket] Keyboard violation resolved for attempt ${data.attemptId}: ${data.action}`);
       });
 
       // Disconnect handling
       socket.on('disconnect', () => {
-        console.log(`[Socket] User disconnected: ${socket.userId}`);
 
         if (socket.examId && socket.attemptId) {
           // Remove from exam room

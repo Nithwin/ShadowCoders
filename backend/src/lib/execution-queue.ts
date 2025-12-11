@@ -171,7 +171,6 @@ class ExecutionQueue {
     });
     this.queue = [];
     this.stats.queued = 0;
-    console.log(`[ExecutionQueue] Cleared ${cleared} queued jobs`);
   }
 
   /**

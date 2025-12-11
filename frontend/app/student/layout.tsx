@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import StudentSidebar from '@/components/layout/StudentSidebar';
 import StudentHeader from '@/components/student/StudentHeader';
+import LeetCodeIdPrompt from '@/components/student/LeetCodeIdPrompt';
 
 export default function StudentLayout({
   children,
@@ -46,14 +47,18 @@ export default function StudentLayout({
 
   // If loading is done and user is STUDENT, render the layout with sidebar
   return (
-    <div className="flex h-screen bg-secondary text-primary">
-      <StudentSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <StudentHeader />
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-          {children}
-        </main>
+    <>
+      <div className="flex h-screen bg-secondary text-primary">
+        <StudentSidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <StudentHeader />
+          <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+      {/* LeetCode ID Prompt Popup - Only shows for students without LeetCode ID */}
+      <LeetCodeIdPrompt />
+    </>
   );
 }

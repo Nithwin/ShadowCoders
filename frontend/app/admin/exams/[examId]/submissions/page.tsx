@@ -92,21 +92,8 @@ export default function ExamSubmissionsPage() {
       params.append('q', searchQuery.trim());
     }
 
-    console.log('[Search] Fetching attempts with params:', {
-      examId,
-      page: currentPage,
-      searchQuery: searchQuery.trim() || '(empty)',
-      url: `/admin/attempts/exam/${examId}?${params.toString()}`
-    });
-
     try {
       const res = await api.get<ApiResponse>(`/admin/attempts/exam/${examId}?${params.toString()}`);
-      console.log('[Search] Received response:', {
-        attemptsCount: res.data.data.length,
-        totalCount: res.data.meta.totalCount,
-        page: res.data.meta.page,
-        totalPages: res.data.meta.totalPages
-      });
       setAttempts(res.data.data);
       setMeta(res.data.meta);
       isInitialLoad.current = false;

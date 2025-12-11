@@ -259,7 +259,6 @@ export const listAttemptsForExam = async (params: {
   let studentIds: string[] | undefined = undefined;
   if (searchQuery && searchQuery.trim()) {
     const searchTerm = searchQuery.trim();
-    console.log('[Search] Searching for students with term:', searchTerm);
     
     // Build OR conditions for search - handle null values properly
     const searchConditions: Prisma.UserWhereInput[] = [
@@ -281,8 +280,6 @@ export const listAttemptsForExam = async (params: {
       },
     ];
     
-    console.log('[Search] Search conditions:', JSON.stringify(searchConditions, null, 2));
-    
     const matchingStudents = await prisma.user.findMany({
       where: {
         role: 'STUDENT',
@@ -291,16 +288,10 @@ export const listAttemptsForExam = async (params: {
       select: { id: true, name: true, email: true, reg_no: true },
     });
     
-    console.log('[Search] Found matching students:', {
-      count: matchingStudents.length,
-      students: matchingStudents.map(s => ({ id: s.id, name: s.name, email: s.email, reg_no: s.reg_no }))
-    });
-    
     studentIds = matchingStudents.map(s => s.id);
     
     // If no students match the search, return empty results early
     if (studentIds.length === 0) {
-      console.log('[Search] No matching students found, returning empty results');
       return { attempts: [], totalCount: 0 };
     }
   }
@@ -379,14 +370,6 @@ export const listAttemptsForExam = async (params: {
   // 4. Total count is the number of unique students who attempted (after search filter)
   // latestAttempts already contains only the matching students if search was applied
   const totalCount = latestAttempts.length;
-
-  console.log('[Search] Returning results:', {
-    attemptsCount: attemptsWithCorrectScores.length,
-    totalCount,
-    searchQuery: searchQuery || '(none)',
-    page: pageNum,
-    pageSize: pageSizeNum
-  });
 
   return { attempts: attemptsWithCorrectScores, totalCount };
 };

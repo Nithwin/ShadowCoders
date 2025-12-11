@@ -43,7 +43,14 @@ export const handleGoogleLogin = async (profile: GoogleProfile) => {
 
 export const handleEmailLogin = async (input: any) => {
   try {
-    const user = await authRepo.findUserByEmail(input.email);
+    // Normalize email to lowercase for consistent lookup
+    const normalizedEmail = input.email?.toLowerCase().trim();
+    
+    if (!normalizedEmail || !input.password) {
+      throw { status: 400, message: 'Email and password are required' };
+    }
+
+    const user = await authRepo.findUserByEmail(normalizedEmail);
     
     // Check for database connection errors
     if (!user || !user.password) {

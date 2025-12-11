@@ -9,13 +9,15 @@ interface AppError extends Error {
 }
 
 export const errorHandler: ErrorRequestHandler = (err: AppError, req, res, _next) => {
-  // Log full error for debugging
-  console.error('Error:', err);
-  if (err.stack) {
-    console.error('Stack:', err.stack);
-  }
-
   const status = err.status || 500;
+  
+  // Only log actual errors (not 401 authentication failures which are expected)
+  if (status >= 500 || (status >= 400 && status !== 401 && status !== 404)) {
+    console.error('Error:', err);
+    if (err.stack) {
+      console.error('Stack:', err.stack);
+    }
+  }
 
   const errorBody: Record<string, unknown> = {
     code: err.code || 'INTERNAL_ERROR',

@@ -52,9 +52,6 @@ export const createApp = () => {
                 if (origin && (value === '*' || value === 'null')) {
                     const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
                     if (allowedOrigin) {
-                        if (env.NODE_ENV !== 'production') {
-                            console.log(`[CORS-INTERCEPT] 🚫 Blocked * header, setting: ${allowedOrigin}`);
-                        }
                         return originalSetHeader(name, allowedOrigin);
                     }
                 }
@@ -90,9 +87,6 @@ export const createApp = () => {
                         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
                         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
                         
-                        if (env.NODE_ENV !== 'production') {
-                            console.log(`[CORS] 🔧 Fixed header: ${current || 'missing'} -> ${allowedOrigin}`);
-                        }
                     }
                 } else {
                     if (env.NODE_ENV !== 'production') {
@@ -278,9 +272,6 @@ export const createApp = () => {
                         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
                         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
                         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
-                        if (env.NODE_ENV !== 'production') {
-                            console.log(`[CORS-FINAL] 🔧 Fixed: ${current || 'missing'} -> ${allowedOrigin}`);
-                        }
                     }
                 }
             }

@@ -9,17 +9,6 @@ export const googleOAuthHandler: RequestHandler = async (req, res, next) => {
 
         const cookieOptions = getCookieOptions(req);
         
-        // Debug: Log cookie options (only in development)
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('[AUTH] Setting cookie with options:', {
-                httpOnly: cookieOptions.httpOnly,
-                secure: cookieOptions.secure,
-                sameSite: cookieOptions.sameSite,
-                path: cookieOptions.path,
-                maxAge: '7 days',
-                origin: req.headers.origin,
-            });
-        }
         
         res.cookie('refreshToken', refreshToken, {
             ...cookieOptions,
@@ -38,18 +27,6 @@ export const emailLoginHandler: RequestHandler = async (req, res, next) => {
 
         const cookieOptions = getCookieOptions(req);
         
-        // Debug: Log cookie options (only in development)
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('[AUTH] Setting cookie with options:', {
-                httpOnly: cookieOptions.httpOnly,
-                secure: cookieOptions.secure,
-                sameSite: cookieOptions.sameSite,
-                path: cookieOptions.path,
-                maxAge: '7 days',
-                origin: req.headers.origin,
-                host: req.get('host'),
-            });
-        }
         
         res.cookie('refreshToken', refreshToken, {
             ...cookieOptions,
@@ -79,17 +56,6 @@ export const getMeHandler: RequestHandler = async (req, res, next) => {
 export const refreshAccessTokenHandler: RequestHandler = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-
-    // Debug: Log cookie details (only in development)
-    if (process.env.NODE_ENV !== 'production') {
-        console.log('[AUTH] Refresh token request:', {
-            hasRefreshToken: !!refreshToken,
-            refreshTokenLength: refreshToken?.length || 0,
-            origin: req.headers.origin,
-            host: req.get('host'),
-            cookies: Object.keys(req.cookies),
-        });
-    }
 
     if (!refreshToken) {
       return next({ status: 401, message: 'Refresh token not found' });

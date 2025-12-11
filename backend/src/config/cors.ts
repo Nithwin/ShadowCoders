@@ -39,9 +39,6 @@ export const buildAllowedOrigins = (): string[] => {
                 `http://${localIP}:3000`,
                 `http://${localIP}:3001`
             );
-            if (env.NODE_ENV !== 'production') {
-                console.log(`[CORS] Auto-allowing LAN origins: http://${localIP}:3000, http://${localIP}:3001`);
-            }
         }
     }
     
@@ -80,9 +77,6 @@ export const isOriginAllowed = (
     
     // If ALLOW_ALL_ORIGINS is true, allow any origin (but return specific origin, not *)
     if (env.ALLOW_ALL_ORIGINS) {
-        if (env.NODE_ENV !== 'production') {
-            console.log(`[CORS] ALLOW_ALL_ORIGINS=true: Allowing origin: ${normalizedOrigin}`);
-        }
         return normalizedOrigin; // Return specific origin, NOT true or '*'
     }
     
@@ -106,9 +100,6 @@ export const isOriginAllowed = (
             
             // Allow LAN IPs on common frontend ports (3000, 3001, etc.)
             if (isLanIP && ['3000', '3001', '3002', '3003'].includes(port)) {
-                if (env.NODE_ENV !== 'production') {
-                    console.log(`[CORS] Auto-allowing LAN origin: ${normalizedOrigin}`);
-                }
                 return normalizedOrigin;
             }
         } catch (error) {
@@ -135,9 +126,6 @@ export const createCorsOptions = (allowedOrigins: string[]): cors.CorsOptions =>
             
             if (allowedOrigin) {
                 // CRITICAL: Return the origin string, NOT true (which sets *)
-                if (env.NODE_ENV !== 'production') {
-                    console.log(`[CORS] Allowing origin: ${origin} -> ${allowedOrigin}`);
-                }
                 return callback(null, allowedOrigin);
             }
             

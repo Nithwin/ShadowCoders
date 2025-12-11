@@ -84,7 +84,6 @@ export const createTemplateFromExam = async (
     })),
   });
 
-  console.log("Creating template with structure:", JSON.stringify(structure, null, 2));
 
   // 3. Create template
   try {

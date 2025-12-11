@@ -250,7 +250,6 @@ class AnswerQueue {
     });
     this.queue = [];
     this.stats.queued = 0;
-    console.log(`[AnswerQueue] Cleared ${cleared} queued jobs`);
   }
 
   /**

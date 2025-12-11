@@ -9,7 +9,6 @@ export const generateJsonFromOllama = async (prompt: string): Promise<string> =>
   const baseUrl = env.OLLAMA_BASE_URL;
   const model = env.OLLAMA_MODEL;
 
-  console.log(`[Ollama] Sending request to ${baseUrl}/api/generate using model '${model}'...`);
 
   try {
     const response = await axios.post(`${baseUrl}/api/generate`, {
@@ -27,7 +26,6 @@ export const generateJsonFromOllama = async (prompt: string): Promise<string> =>
     }
 
     const responseText = response.data.response;
-    console.log(`[Ollama] Successfully generated content.`);
     
     return responseText;
   } catch (error: any) {

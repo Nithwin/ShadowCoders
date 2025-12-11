@@ -800,14 +800,6 @@ export const listAttemptsForExam = async (
   const pageSize = typeof query.pageSize === 'string' ? parseInt(query.pageSize, 10) : (query.pageSize ?? 20);
   const searchQuery = query.q?.trim() || undefined;
 
-  console.log('[Search Service] Processing request:', {
-    examId,
-    page,
-    pageSize,
-    searchQuery: searchQuery || '(none)',
-    rawQuery: query
-  });
-
   // 1. Call the repository to get attempts and the total count
   const { attempts, totalCount } = await attemptRepo.listAttemptsForExam({
     examId,
