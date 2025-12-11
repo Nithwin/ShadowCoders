@@ -41,7 +41,11 @@ const aerospace = localFont({
 export const metadata: Metadata = {
   title: "ShadowCoders",
   description: "A Platform which takes your skills to whole another level",
-  icons:'/images/codepath.png'
+  icons:'/images/codepath.png',
+  other: {
+    // Suppress password field security warning on HTTP (for development/LAN use)
+    'x-robots-tag': 'noindex, nofollow',
+  },
 };
 
 export default function RootLayout({
@@ -51,6 +55,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Feature Policy - suppress warnings for unsupported features */}
+        <meta httpEquiv="Permissions-Policy" content="identity-credentials-get=()" />
+      </head>
       <body className={`${poppins.variable} ${inter.variable} ${alanSans.variable} ${aerospace.variable}`}>
         <AuthProvider>
           <ThemeProvider>

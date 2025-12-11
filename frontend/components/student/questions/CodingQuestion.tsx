@@ -5,6 +5,8 @@ import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -108,10 +110,13 @@ export default function CodingQuestion({
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [submitCooldown, setSubmitCooldown] = useState(0); // Cooldown in seconds
+  const [isResizing, setIsResizing] = useState(false);
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
   const previousQuestionIdRef = useRef<string>(questionId);
   const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Get Monaco language for current language
   const monacoLanguage = availableLanguages.find(lang => lang.value === language)?.monacoLang || availableLanguages[0]?.monacoLang || 'javascript';
@@ -176,6 +181,41 @@ export default function CodingQuestion({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer?.code, answer?.language, availableLanguages]);
+
+  // Mouse drag resizing functionality
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (resizeHandleRef.current?.contains(e.target as Node)) {
+        setIsResizing(true);
+        e.preventDefault();
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Clamp between 30% and 70%
+      const clampedWidth = Math.max(30, Math.min(70, newWidth));
+      setEditorWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -456,7 +496,7 @@ export default function CodingQuestion({
   }, [code, language, questionId, attemptId, onChange, submitCooldown]);
 
   return (
-    <div className="flex h-full overflow-hidden bg-gray-50">
+    <div ref={containerRef} className="flex h-full overflow-hidden bg-gray-50">
       {/* Left Panel - Question and Test Cases */}
       <div 
         className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg transition-all"
@@ -480,52 +520,36 @@ export default function CodingQuestion({
           </div>
         </div>
 
-        {/* Question Prompt - Scrollable */}
+        {/* Question Prompt - Scrollable with Markdown */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
-          <div className="prose prose-lg max-w-none">
-            <div
-              className="text-gray-900 whitespace-pre-wrap leading-relaxed text-base font-medium"
-              dangerouslySetInnerHTML={{ 
-                __html: (() => {
-                  let html = prompt;
-                  // Split by lines to process headers properly
-                  // Split by lines to process headers properly
-                  const lines = html.split(/\r?\n/);
-                  const processedLines = lines.map((line) => {
-                    // Check for headers (must check in order: ###, ##, #)
-                    // Trim line for regex check to be safe
-                    const trimmedLine = line.trim();
-                    if (/^###\s+(.+)$/.test(trimmedLine)) {
-                      return trimmedLine.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">$1</h3>');
-                    }
-                    if (/^##\s+(.+)$/.test(trimmedLine)) {
-                      return trimmedLine.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-7 mb-4">$1</h2>');
-                    }
-                    if (/^#\s+(.+)$/.test(trimmedLine)) {
-                      return trimmedLine.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-8 mb-5">$1</h1>');
-                    }
-                    return line; // Return original line content (preserves indentation/spaces if not header)
-                  });
-                  html = processedLines.join('\n');
-                  
-                  // Bold markdown **text** (but not inside headers)
-                  html = html.replace(/(?<!>)\*\*(.*?)\*\*(?!<)/g, '<strong class="font-bold">$1</strong>');
-                  // Fallback if lookbehind doesn't work
-                  html = html.replace(/\*\*(.*?)\*\*/g, (match, content) => {
-                    // Don't replace if it's inside an HTML tag
-                    if (match.includes('<') || match.includes('>')) return match;
-                    return `<strong class="font-bold">${content}</strong>`;
-                  });
-                  // Italic markdown *text* (but not bold)
-                  html = html.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="italic">$1</em>');
-                  // Code blocks `code`
-                  html = html.replace(/`([^`\n]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800">$1</code>');
-                  // Line breaks (but preserve headers on their own line)
-                  html = html.replace(/\n/g, '<br />');
-                  return html;
-                })()
+          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-code:text-gray-800 prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-pre:bg-gray-900 prose-pre:text-gray-100">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mt-8 mb-5" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 mt-7 mb-4" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3" {...props} />,
+                p: ({node, ...props}) => <p className="text-gray-900 leading-relaxed mb-4" {...props} />,
+                code: ({node, inline, ...props}: any) => {
+                  if (inline) {
+                    return <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props} />;
+                  }
+                  return <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4" {...props} />;
+                },
+                pre: ({node, ...props}: any) => <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 mb-4 text-gray-900" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-2 mb-4 text-gray-900" {...props} />,
+                li: ({node, ...props}) => <li className="text-gray-900" {...props} />,
+                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-700 my-4" {...props} />,
+                table: ({node, ...props}) => <table className="min-w-full border-collapse border border-gray-300 my-4" {...props} />,
+                thead: ({node, ...props}) => <thead className="bg-gray-100" {...props} />,
+                th: ({node, ...props}) => <th className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-900" {...props} />,
+                td: ({node, ...props}) => <td className="border border-gray-300 px-4 py-2 text-gray-900" {...props} />,
+                a: ({node, ...props}) => <a className="text-blue-600 hover:text-blue-800 underline" {...props} />,
               }}
-            />
+            >
+              {prompt}
+            </ReactMarkdown>
           </div>
 
           {/* Sample Test Cases */}
@@ -583,20 +607,14 @@ export default function CodingQuestion({
         </div>
       </div>
 
-      {/* Resize Handle */}
-      <div className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group">
+      {/* Resize Handle - Mouse Draggable */}
+      <div 
+        ref={resizeHandleRef}
+        className={`w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group ${isResizing ? 'bg-blue-500' : ''}`}
+      >
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-1 h-12 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
+          <div className={`w-1 h-12 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors ${isResizing ? 'bg-blue-500' : ''}`} />
         </div>
-        <input
-          type="range"
-          min="30"
-          max="70"
-          value={editorWidth}
-          onChange={(e) => setEditorWidth(Number(e.target.value))}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-col-resize"
-          style={{ writingMode: 'vertical-lr' }}
-        />
       </div>
 
       {/* Right Panel - Code Editor and Output */}

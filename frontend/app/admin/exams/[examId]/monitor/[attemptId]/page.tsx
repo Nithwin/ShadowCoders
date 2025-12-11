@@ -86,10 +86,16 @@ export default function StudentTrackingDetailPage() {
         }
       }
     } catch (err: any) {
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching attempt details:', err);
+      // Handle 404 errors gracefully
+      if (err.response?.status === 404) {
+        setError('Attempt not found. The student may have deleted their attempt or it was removed.');
+        setIsActive(false);
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching attempt details:', err);
+        }
+        setError(err.response?.data?.error?.message || 'Failed to load student tracking details');
       }
-      setError(err.response?.data?.error?.message || 'Failed to load student tracking details');
     } finally {
       setIsLoading(false);
     }
@@ -98,16 +104,16 @@ export default function StudentTrackingDetailPage() {
   useEffect(() => {
     if (attemptId && examId) {
       fetchAttemptDetails();
-      // Refresh every 5 seconds to get latest answers (only if attempt is active)
+      // Refresh every 5 seconds to get latest answers (only if attempt is active and no error)
       const interval = setInterval(() => {
-        // Only refresh if attempt is still active
-        if (isActive) {
+        // Only refresh if attempt is still active and no error occurred
+        if (isActive && !error) {
           fetchAttemptDetails();
         }
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [attemptId, examId, isActive, fetchAttemptDetails]);
+  }, [attemptId, examId, isActive, error, fetchAttemptDetails]);
 
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {

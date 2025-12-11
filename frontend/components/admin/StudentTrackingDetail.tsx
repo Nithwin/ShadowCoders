@@ -49,13 +49,21 @@ export default function StudentTrackingDetail({ attemptId, examId, onClose }: St
   const [questions, setQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
+    if (!attemptId) return;
+    
     fetchAttemptDetails();
-    // Refresh every 5 seconds to get latest answers
-    const interval = setInterval(fetchAttemptDetails, 5000);
+    // Refresh every 5 seconds to get latest answers (only if attempt exists)
+    const interval = setInterval(() => {
+      if (attemptId && !error) {
+        fetchAttemptDetails();
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, [attemptId]);
+  }, [attemptId, error]);
 
   const fetchAttemptDetails = async () => {
+    if (!attemptId) return;
+    
     try {
       setIsLoading(true);
       setError(null);
@@ -80,8 +88,15 @@ export default function StudentTrackingDetail({ attemptId, examId, onClose }: St
         }
       }
     } catch (err: any) {
-      console.error('Error fetching attempt details:', err);
-      setError(err.response?.data?.error?.message || 'Failed to load student tracking details');
+      // Handle 404 errors gracefully
+      if (err.response?.status === 404) {
+        setError('Attempt not found. The student may have deleted their attempt or it was removed.');
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching attempt details:', err);
+        }
+        setError(err.response?.data?.error?.message || 'Failed to load student tracking details');
+      }
     } finally {
       setIsLoading(false);
     }

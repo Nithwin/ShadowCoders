@@ -1,6 +1,34 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '') || 'http://localhost:4000';
+// Get socket URL with proper protocol handling (ws for HTTP, wss for HTTPS)
+function getSocketUrl(): string {
+  // Check environment variables first
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '');
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // In browser, auto-detect from current location
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If accessing via LAN IP (not localhost), use the same IP for socket
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      // Use the same hostname but port 4000 for backend
+      const socketUrl = `${protocol}//${hostname}:4000`;
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Socket] Auto-detected Socket URL: ${socketUrl}`);
+      }
+      return socketUrl;
+    }
+  }
+
+  // Default to localhost
+  return 'http://localhost:4000';
+}
+
+const SOCKET_URL = getSocketUrl();
 
 export interface ExamActivity {
   examId: string;
@@ -98,19 +126,43 @@ class SocketService {
     });
 
     this.socket.on('reconnect_error', (error: Error) => {
+      // Only log in development to avoid console spam
       if (process.env.NODE_ENV === 'development') {
-        console.error('[Socket] Reconnection error:', error);
+        console.warn('[Socket] Reconnection error:', error.message);
       }
     });
 
     this.socket.on('reconnect_failed', () => {
-      console.error('[Socket] Reconnection failed after maximum attempts');
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Socket] Reconnection failed after maximum attempts');
+      }
       // Notify that reconnection failed
       this.disconnectCallbacks.forEach(cb => cb());
     });
 
     this.socket.on('error', (error: { message: string }) => {
-      console.error('[Socket] Error:', error.message);
+      // Suppress common connection errors that are handled by reconnection logic
+      const suppressedMessages = [
+        'xhr poll error',
+        'websocket error',
+        'transport error',
+      ];
+      const shouldSuppress = suppressedMessages.some(msg => 
+        error.message.toLowerCase().includes(msg)
+      );
+      
+      if (!shouldSuppress && process.env.NODE_ENV === 'development') {
+        console.warn('[Socket] Error:', error.message);
+      }
+    });
+
+    // Suppress connection errors during initial connection attempts
+    this.socket.on('connect_error', (error: Error) => {
+      // Only log in development, connection will retry automatically
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Socket] Connection error (will retry):', error.message);
+      }
     });
 
     return this.socket;

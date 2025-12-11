@@ -69,6 +69,7 @@ export default function ExamAttemptPage() {
   });
 
   // Exam submission (must be defined before useEffect that uses handleSubmitExam)
+  // Removed confirmation dialog - only auto-submit is used
   const {
     isSubmitting,
     error: submissionError,
@@ -82,15 +83,7 @@ export default function ExamAttemptPage() {
     clearLocalStorage,
     exitFullscreenRef,
     isFullscreenRef,
-    async () => {
-      return await confirm({
-        title: 'Submit Exam',
-        message: 'Are you sure you want to submit this exam? You will not be able to make changes after submission.',
-        confirmText: 'Submit',
-        cancelText: 'Cancel',
-        variant: 'warning',
-      });
-    },
+    undefined, // No confirmation dialog - submit directly
     (activity) => {
       // Emit final submitted status
       emitActivity({

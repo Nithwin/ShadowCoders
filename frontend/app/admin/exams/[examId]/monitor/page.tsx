@@ -56,6 +56,8 @@ export default function ExamMonitorPage() {
 
   // Fetch attempt details from database to get correct status and score
   const fetchAttemptDetails = useCallback(async (attemptId: string) => {
+    if (!attemptId) return;
+    
     try {
       const res = await api.get<AttemptDetails>(`/admin/attempts/${attemptId}`);
       setAttemptDetails(prev => {
@@ -63,8 +65,19 @@ export default function ExamMonitorPage() {
         newMap.set(attemptId, res.data);
         return newMap;
       });
-    } catch (err) {
-      if (process.env.NODE_ENV === 'development') {
+    } catch (err: any) {
+      // Only log 404 errors in development, silently handle others
+      if (err.response?.status === 404) {
+        // Attempt doesn't exist or was deleted - remove from map
+        setAttemptDetails(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(attemptId);
+          return newMap;
+        });
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Attempt ${attemptId} not found (404)`);
+        }
+      } else if (process.env.NODE_ENV === 'development') {
         console.error('Error fetching attempt details:', err);
       }
     }
@@ -74,8 +87,11 @@ export default function ExamMonitorPage() {
     examId,
     onActivityUpdate: (updatedStats) => {
       // Fetch actual attempt details from database for each activity
+      // Only fetch for active attempts to avoid unnecessary 404s
       updatedStats.activities.forEach(activity => {
-        fetchAttemptDetails(activity.attemptId);
+        if (activity.status === 'active' || activity.status === 'idle') {
+          fetchAttemptDetails(activity.attemptId);
+        }
       });
     },
   });
