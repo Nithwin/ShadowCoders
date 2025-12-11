@@ -15,17 +15,6 @@ export default function LoginPage() {
   const { login, loginWithGoogle, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      if (user.role === 'STAFF') {
-        router.replace('/admin/dashboard');
-      } else {
-        router.replace('/student/dashboard');
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading]);
-
   const handleGoogleResponse = useCallback(async (response: { credential: string }) => {
     setError(null);
     setIsLoading(true);
@@ -137,6 +126,17 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleLoaded, handleGoogleResponse]);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (user.role === 'STAFF') {
+        router.replace('/admin/dashboard');
+      } else {
+        router.replace('/student/dashboard');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -153,6 +153,8 @@ export default function LoginPage() {
     }
   };
 
+  // Prevent rendering login form if user is already logged in
+  // All hooks must be called before any early returns
   if (authLoading) {
     return (
       <main className="flex-center min-h-screen bg-gray-100 dark:bg-zinc-900">
@@ -164,8 +166,16 @@ export default function LoginPage() {
     );
   }
 
+  // If user is already logged in, show loading while redirecting
   if (user) {
-    return null;
+    return (
+      <main className="flex-center min-h-screen bg-gray-100 dark:bg-zinc-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Redirecting...</p>
+        </div>
+      </main>
+    );
   }
 
   return (

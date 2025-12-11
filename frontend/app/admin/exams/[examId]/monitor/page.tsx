@@ -10,6 +10,7 @@ import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { socketService } from '@/lib/socket';
 import { useAuth } from '@/context/AuthContext';
 import { useViolationNotifications } from '@/context/ViolationNotificationContext';
+import { useToastNotification } from '@/context/ToastContext';
 
 type Exam = {
   id: string;
@@ -53,6 +54,7 @@ export default function ExamMonitorPage() {
   const { confirm } = useConfirmationDialog();
   const { accessToken } = useAuth();
   const { violations: globalViolations, addViolation, removeViolation } = useViolationNotifications();
+  const toast = useToastNotification();
 
   // Track failed attempt IDs to prevent repeated 404 requests
   const failedAttemptIdsRef = useRef<Set<string>>(new Set());
@@ -285,6 +287,9 @@ export default function ExamMonitorPage() {
         await api.post(`/admin/attempts/${violation.attemptId}/force-submit`, {
           submissionReason: 'Force submitted by admin due to keyboard violation',
         });
+        toast.success(`Exam force submitted successfully for ${violation.studentName}`);
+      } else {
+        toast.success(`Violation resolved. ${violation.studentName} can continue the exam.`);
       }
 
       // Emit resolution event
@@ -296,11 +301,14 @@ export default function ExamMonitorPage() {
         });
       }
 
+      // Clear the violation from the list
+      removeViolation(violation.attemptId);
+
       // Refresh attempt details
       fetchAttemptDetails(violation.attemptId);
     } catch (err: any) {
       console.error('Error resolving violation:', err);
-      alert(err.response?.data?.error?.message || 'Failed to resolve violation');
+      toast.error(err.response?.data?.error?.message || 'Failed to resolve violation');
     }
   };
 

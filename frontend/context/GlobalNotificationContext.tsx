@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { socketService } from '@/lib/socket';
 import { api } from '@/lib/api';
@@ -27,22 +27,39 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Define fetchNotifications before using it in useEffect
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await api.get<Notification[]>('/notifications');
+      setNotifications(res.data);
+    } catch (error) {
+      // Silently handle errors - notifications are not critical
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to fetch notifications:', error);
+      }
+    }
+  }, [user]);
 
   // Fetch initial notifications
   useEffect(() => {
     if (user) {
       fetchNotifications();
+    } else {
+      // Clear notifications when user logs out
+      setNotifications([]);
     }
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   // Socket listener
   useEffect(() => {
-    if (!user) return;
+    if (!user || !accessToken) return;
 
-    const socket = socketService.connect(localStorage.getItem('token') || '');
+    const socket = socketService.connect(accessToken);
     if (socket) {
       socket.on('notification', (newNotification: Notification) => {
         setNotifications(prev => [newNotification, ...prev]);
@@ -51,18 +68,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     return () => {
-      socket?.off('notification');
+      if (socket) {
+        socket.off('notification');
+      }
     };
-  }, [user]);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await api.get<Notification[]>('/notifications');
-      setNotifications(res.data);
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-    }
-  };
+  }, [user, accessToken]);
 
   const markAsRead = async (id: string) => {
     try {
