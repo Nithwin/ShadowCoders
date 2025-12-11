@@ -162,10 +162,18 @@ class SocketService {
 
     // Suppress connection errors during initial connection attempts
     this.socket.on('connect_error', (error: Error) => {
-      // Only log in development, connection will retry automatically
-      if (process.env.NODE_ENV === 'development') {
+      // Suppress connection errors - they're handled by reconnection logic
+      // Only log non-connection errors in development
+      const isConnectionError = error.message.includes('websocket') ||
+                                error.message.includes('WebSocket') ||
+                                error.message.includes('transport') ||
+                                error.message.includes('connection') ||
+                                error.message.includes('ECONNREFUSED') ||
+                                error.message.includes('ENOTFOUND');
+      if (!isConnectionError && process.env.NODE_ENV === 'development') {
         console.warn('[Socket] Connection error (will retry):', error.message);
       }
+      // Connection errors are silently handled by reconnection logic
     });
 
     return this.socket;

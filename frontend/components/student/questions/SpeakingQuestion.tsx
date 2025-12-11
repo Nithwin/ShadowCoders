@@ -470,31 +470,20 @@ export default function SpeakingQuestion({
               Previous
             </button>
             <div className="flex gap-3">
-              {!isLastQuestion && (
-                <button
-                  type="button"
-                  onClick={onNext}
-                  disabled={!canGoNext}
-                  className={`
-                    px-6 py-2 rounded-lg font-medium transition-all
-                    ${canGoNext
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  Next
-                </button>
-              )}
-              {isLastQuestion && onSubmit && (
-                <button
-                  type="button"
-                  onClick={onSubmit}
-                  className="px-6 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white transition-all"
-                >
-                  Submit Exam
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={onNext}
+                disabled={!canGoNext}
+                className={`
+                  px-6 py-2 rounded-lg font-medium transition-all
+                  ${canGoNext
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }
+                `}
+              >
+                Next
+              </button>
             </div>
           </div>
         </div>

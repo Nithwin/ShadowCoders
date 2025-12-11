@@ -10,6 +10,19 @@ export const getUserPoints = async (userId: string) => {
 };
 
 export const addPoints = async (userId: string, points: number, description?: string, relatedId?: string, relatedType?: string) => {
+  // Validate points value to prevent integer overflow (INT4 max: 2,147,483,647)
+  const INT4_MAX = 2147483647;
+  const INT4_MIN = -2147483648;
+  
+  // Convert to number if it's a string
+  const pointsValue = typeof points === 'string' ? Number(points) : points;
+  if (isNaN(pointsValue) || !Number.isInteger(pointsValue)) {
+    throw {
+      status: 400,
+      message: `Invalid points value: ${points}. Must be a valid integer.`,
+    };
+  }
+  
   // Get current balance
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -20,7 +33,15 @@ export const addPoints = async (userId: string, points: number, description?: st
     throw { status: 404, message: 'User not found' };
   }
   
-  const newBalance = user.points + points;
+  const newBalance = user.points + pointsValue;
+  
+  // Validate the new balance won't overflow
+  if (newBalance > INT4_MAX || newBalance < INT4_MIN) {
+    throw {
+      status: 400,
+      message: `Adding ${pointsValue} points would result in balance ${newBalance} which is out of range. Maximum allowed: ${INT4_MAX}, Minimum allowed: ${INT4_MIN}`,
+    };
+  }
   
   // Update user points
   await prisma.user.update({

@@ -1161,27 +1161,15 @@ export default function CodingQuestion({
             </button>
             
             <div className="flex items-center gap-3">
-              {isLastQuestion && onSubmit ? (
-                <button
-                  onClick={onSubmit}
-                  disabled={isRunning || isSubmitting}
-                  type="button"
-                  className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-4 h-4" />
-                  Submit Exam
-                </button>
-              ) : (
-                <button
-                  onClick={onNext}
-                  disabled={!canGoNext || isRunning || isSubmitting}
-                  type="button"
-                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center gap-2"
-                >
-                  Next Question
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+              <button
+                onClick={onNext}
+                disabled={!canGoNext || isRunning || isSubmitting}
+                type="button"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center gap-2"
+              >
+                Next Question
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}

@@ -7,12 +7,15 @@ import { useEffect } from 'react';
  * Suppresses:
  * - 404 errors for attempt endpoints (attempts may not exist or be deleted)
  * - Socket transport close messages (normal during navigation/reload)
+ * - CSS parsing errors from Tailwind CSS v4 (expected in development)
+ * - WebSocket connection errors (handled by reconnection logic)
  */
 export default function ConsoleErrorSuppressor() {
   useEffect(() => {
     // Store original console methods
     const originalError = console.error;
     const originalLog = console.log;
+    const originalWarn = console.warn;
     
     // Override console.error to filter expected errors
     console.error = (...args: any[]) => {
@@ -36,6 +39,28 @@ export default function ConsoleErrorSuppressor() {
         }
         return String(arg);
       }).join(' ');
+      
+      // Suppress CSS parsing errors (common with Tailwind CSS v4)
+      const isCSSParsingError = errorStr.includes('Error in parsing value for') ||
+                                errorStr.includes('Declaration dropped') ||
+                                errorStr.includes('-webkit-text-size-adjust') ||
+                                errorStr.includes('letter-spacing') ||
+                                errorStr.includes('font-size');
+      if (isCSSParsingError) {
+        return; // Don't log CSS parsing errors - they're expected with Tailwind CSS v4
+      }
+      
+      // Suppress WebSocket connection errors (handled by reconnection logic)
+      const isWebSocketError = errorStr.includes('WebSocket') ||
+                               errorStr.includes('websocket') ||
+                               errorStr.includes('socket.io') ||
+                               errorStr.includes('ws://') ||
+                               errorStr.includes('wss://') ||
+                               errorStr.includes('Connection error') ||
+                               errorStr.includes('can\'t establish a connection');
+      if (isWebSocketError) {
+        return; // Don't log WebSocket errors - they're handled by reconnection logic
+      }
       
       // Check if this is a 404 error for attempt endpoints
       const firstArg = args[0];
@@ -87,21 +112,42 @@ export default function ConsoleErrorSuppressor() {
       originalError.apply(console, args);
     };
 
-    // Override console.log to suppress socket transport close messages
+    // Override console.log to suppress socket transport close messages and Fast Refresh messages
     console.log = (...args: any[]) => {
       const message = String(args[0] || '');
       // Suppress socket transport close messages
       if (message.includes('[Socket] Disconnected from server: transport close') ||
-          message.includes('transport close')) {
+          message.includes('transport close') ||
+          message.includes('[Socket] Connection error') ||
+          message.includes('[Socket] Disconnected from server: transport error')) {
         return; // Don't log transport close - it's normal
       }
+      // Suppress Fast Refresh messages (development only)
+      if (message.includes('[Fast Refresh]')) {
+        return; // Don't log Fast Refresh messages - they're informational
+      }
       originalLog.apply(console, args);
+    };
+
+    // Override console.warn to suppress WebSocket warnings
+    console.warn = (...args: any[]) => {
+      const message = String(args[0] || '');
+      // Suppress WebSocket connection warnings
+      if (message.includes('WebSocket') ||
+          message.includes('websocket') ||
+          message.includes('socket.io') ||
+          message.includes('can\'t establish a connection') ||
+          message.includes('was interrupted')) {
+        return; // Don't log WebSocket warnings - they're handled by reconnection logic
+      }
+      originalWarn.apply(console, args);
     };
 
     // Cleanup: restore original console methods on unmount
     return () => {
       console.error = originalError;
       console.log = originalLog;
+      console.warn = originalWarn;
     };
   }, []);
 

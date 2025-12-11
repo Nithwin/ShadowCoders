@@ -59,10 +59,19 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
     });
 
     socket.on('connect_error', (error) => {
-      if (process.env.NODE_ENV === 'development') {
+      // Suppress connection errors - they're handled by reconnection logic
+      // Only log non-connection errors in development
+      const isConnectionError = error.message?.includes('websocket') ||
+                                error.message?.includes('WebSocket') ||
+                                error.message?.includes('transport') ||
+                                error.message?.includes('connection') ||
+                                error.message?.includes('ECONNREFUSED') ||
+                                error.message?.includes('ENOTFOUND');
+      if (!isConnectionError && process.env.NODE_ENV === 'development') {
         console.error('[Monitoring] Connection error:', error);
       }
       setIsConnected(false);
+      // Connection errors are silently handled by reconnection logic
     });
 
     // If already connected, join immediately

@@ -387,27 +387,15 @@ export default function EssayQuestion({
               Previous
             </button>
             
-            {isLastQuestion && onSubmit ? (
-              <button
-                onClick={onSubmit}
-                disabled={false}
-                type="button"
-                className="bg-red-600 hover:bg-red-700 text-white border-0 px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Submit Exam
-              </button>
-            ) : (
-              <button
-                onClick={onNext}
-                disabled={!canGoNext}
-                type="button"
-                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
-              >
-                Next Question
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </button>
-            )}
+            <button
+              onClick={onNext}
+              disabled={!canGoNext}
+              type="button"
+              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
+            >
+              Next Question
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </button>
           </div>
         )}
       </div>
