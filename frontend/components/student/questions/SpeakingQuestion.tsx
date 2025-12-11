@@ -490,7 +490,7 @@ export default function SpeakingQuestion({
                 <button
                   type="button"
                   onClick={onSubmit}
-                  className="px-6 py-2 rounded-lg font-medium bg-green-600 hover:bg-green-700 text-white transition-all"
+                  className="px-6 py-2 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white transition-all"
                 >
                   Submit Exam
                 </button>

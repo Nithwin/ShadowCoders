@@ -518,20 +518,49 @@ async function testCodeWithTestCasesLocally(code, language, testCases) {
     if (langConfig?.compileCommand) {
         return await testCompiledCodeWithTestCases(code, language, testCases);
     }
-    // For interpreted languages, execute normally (no compilation needed)
-    const results = await Promise.all(testCases.map(async (testCase) => {
+    // For interpreted languages, execute SEQUENTIALLY to ensure deterministic order
+    // This prevents race conditions and ensures consistent results
+    const results = [];
+    for (let i = 0; i < testCases.length; i++) {
+        const testCase = testCases[i];
+        if (!testCase) {
+            // Skip undefined test cases
+            continue;
+        }
         try {
             const response = await executeCodeLocally(code, language, testCase.input, testCase.timeoutMs || 5000);
             const actualOutput = response.stdout?.trim() || null;
             const expectedOutputTrimmed = testCase.expectedOutput.trim();
-            // Check if execution was successful
-            const isAccepted = response.status.id === 3; // Accepted
+            // Determine error type and status
+            let errorType = 'Accepted';
             let passed = false;
-            if (isAccepted && actualOutput) {
-                // Normalize whitespace for comparison
-                const normalizedActual = actualOutput.replace(/\s+/g, ' ').trim();
-                const normalizedExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
-                passed = normalizedActual === normalizedExpected;
+            if (response.status.id === 5) {
+                // Time Limit Exceeded
+                errorType = 'TLE';
+            }
+            else if (response.status.id === 6) {
+                // Compilation Error
+                errorType = 'Compilation Error';
+            }
+            else if (response.status.id === 7 || response.stderr || response.error) {
+                // Runtime Error
+                errorType = 'Runtime Error';
+            }
+            else if (response.status.id === 3 && actualOutput) {
+                // Accepted - check if output matches
+                // Normalize whitespace for comparison (consistent normalization)
+                const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+                const normalizedExpected = expectedOutputTrimmed.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+                // Also try single-line comparison for cases where output is on one line
+                const singleLineActual = actualOutput.replace(/\s+/g, ' ').trim();
+                const singleLineExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
+                passed = normalizedActual === normalizedExpected || singleLineActual === singleLineExpected;
+                if (!passed) {
+                    errorType = 'Wrong Answer';
+                }
+            }
+            else {
+                errorType = 'Wrong Answer';
             }
             const errorMsg = response.stderr || response.compileOutput || response.error;
             const result = {
@@ -540,23 +569,35 @@ async function testCodeWithTestCasesLocally(code, language, testCases) {
                 actualOutput,
                 passed,
                 status: response.status.description,
+                testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
+                errorType,
             };
+            // Only include optional properties if they have values
+            if (testCase.isHidden !== undefined) {
+                result.isHidden = testCase.isHidden;
+            }
             if (errorMsg) {
                 result.error = errorMsg;
             }
-            return result;
+            results.push(result);
         }
         catch (error) {
-            return {
+            const errorResult = {
                 input: testCase.input,
                 expectedOutput: testCase.expectedOutput,
                 actualOutput: null,
                 passed: false,
                 error: error.message || 'Execution failed',
                 status: 'Error',
+                testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
+                errorType: 'Runtime Error',
             };
+            if (testCase.isHidden !== undefined) {
+                errorResult.isHidden = testCase.isHidden;
+            }
+            results.push(errorResult);
         }
-    }));
+    }
     const passed = results.filter((r) => r.passed).length;
     return {
         passed,
@@ -632,14 +673,23 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
                     return {
                         passed: 0,
                         total: testCases.length,
-                        results: testCases.map(tc => ({
-                            input: tc.input,
-                            expectedOutput: tc.expectedOutput,
-                            actualOutput: null,
-                            passed: false,
-                            error: compileResult.stderr,
-                            status: 'Compilation Error',
-                        })),
+                        results: testCases.map((tc, idx) => {
+                            const baseResult = {
+                                input: tc.input,
+                                expectedOutput: tc.expectedOutput,
+                                actualOutput: null,
+                                passed: false,
+                                error: compileResult.stderr,
+                                status: 'Compilation Error',
+                                testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
+                                errorType: 'Compilation Error',
+                            };
+                            // Only include optional properties if they have values
+                            if (typeof tc.isHidden === 'boolean') {
+                                return { ...baseResult, isHidden: tc.isHidden };
+                            }
+                            return baseResult;
+                        }),
                     };
                 }
             }
@@ -648,19 +698,35 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
                 return {
                     passed: 0,
                     total: testCases.length,
-                    results: testCases.map(tc => ({
-                        input: tc.input,
-                        expectedOutput: tc.expectedOutput,
-                        actualOutput: null,
-                        passed: false,
-                        error: errorMessage,
-                        status: 'Compilation Error',
-                    })),
+                    results: testCases.map((tc, idx) => {
+                        const baseResult = {
+                            input: tc.input,
+                            expectedOutput: tc.expectedOutput,
+                            actualOutput: null,
+                            passed: false,
+                            error: errorMessage,
+                            status: 'Compilation Error',
+                            testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
+                            errorType: 'Compilation Error',
+                        };
+                        // Only include optional properties if they have values
+                        if (typeof tc.isHidden === 'boolean') {
+                            return { ...baseResult, isHidden: tc.isHidden };
+                        }
+                        return baseResult;
+                    }),
                 };
             }
         }
-        // Run against all test cases (code is already compiled)
-        const results = await Promise.all(testCases.map(async (testCase, idx) => {
+        // Run against all test cases SEQUENTIALLY (code is already compiled)
+        // This ensures deterministic order and prevents race conditions
+        const results = [];
+        for (let idx = 0; idx < testCases.length; idx++) {
+            const testCase = testCases[idx];
+            if (!testCase) {
+                // Skip undefined test cases
+                continue;
+            }
             try {
                 // Build run command (override for Java to handle package + classpath root)
                 let runCmd = langConfig.runCommand(filePath);
@@ -673,20 +739,34 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
                 // console.log(`[Test ${idx+1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
                 const actualOutput = result.stdout?.trim() || null;
                 const expectedOutputTrimmed = testCase.expectedOutput.trim();
-                // Determine status and check if passed
+                // Determine error type and status
+                let errorType = 'Accepted';
                 let passed = false;
                 let status = 'Accepted';
                 if (result.timedOut) {
                     status = 'Time Limit Exceeded';
+                    errorType = 'TLE';
                 }
                 else if (result.error || result.stderr) {
                     status = 'Runtime Error';
+                    errorType = 'Runtime Error';
                 }
                 else if (actualOutput !== null) {
-                    // Normalize whitespace for comparison
-                    const normalizedActual = actualOutput.replace(/\s+/g, ' ').trim();
-                    const normalizedExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
-                    passed = normalizedActual === normalizedExpected;
+                    // Normalize whitespace for comparison (consistent normalization)
+                    const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+                    const normalizedExpected = expectedOutputTrimmed.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
+                    // Also try single-line comparison for cases where output is on one line
+                    const singleLineActual = actualOutput.replace(/\s+/g, ' ').trim();
+                    const singleLineExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
+                    passed = normalizedActual === normalizedExpected || singleLineActual === singleLineExpected;
+                    if (!passed) {
+                        errorType = 'Wrong Answer';
+                        status = 'Wrong Answer';
+                    }
+                }
+                else {
+                    errorType = 'Wrong Answer';
+                    status = 'Wrong Answer';
                 }
                 const resultObj = {
                     input: testCase.input,
@@ -694,24 +774,37 @@ async function testCompiledCodeWithTestCases(code, language, testCases) {
                     actualOutput,
                     passed,
                     status,
+                    testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
+                    errorType,
                 };
+                // Only include optional properties if they have values
+                if (testCase.isHidden !== undefined) {
+                    resultObj.isHidden = testCase.isHidden;
+                }
                 const errorMessage = result.stderr || result.error;
                 if (errorMessage) {
                     resultObj.error = errorMessage;
                 }
-                return resultObj;
+                results.push(resultObj);
             }
             catch (error) {
-                return {
+                const errorResult = {
                     input: testCase.input,
                     expectedOutput: testCase.expectedOutput,
                     actualOutput: null,
                     passed: false,
                     error: error.message || 'Execution failed',
                     status: 'Error',
+                    testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
+                    errorType: 'Runtime Error',
                 };
+                // Only include optional properties if they have values
+                if (testCase.isHidden !== undefined) {
+                    errorResult.isHidden = testCase.isHidden;
+                }
+                results.push(errorResult);
             }
-        }));
+        }
         const passed = results.filter((r) => r.passed).length;
         return {
             passed,

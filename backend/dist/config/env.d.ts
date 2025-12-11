@@ -14,7 +14,7 @@ export declare const env: {
     MAX_CONCURRENT_EXECUTIONS: string;
     UPLOADS_DIR: string;
     EXECUTION_OS: string;
-    AI_PROVIDER: "gemini" | "ollama";
+    AI_PROVIDER: string;
     OLLAMA_BASE_URL: string;
     OLLAMA_MODEL: string;
 };

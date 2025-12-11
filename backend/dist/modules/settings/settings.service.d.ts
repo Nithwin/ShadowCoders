@@ -16,6 +16,7 @@ export declare const updateSettings: (userId: string, settings: any) => Promise<
     leetcodeId: string | null;
     leetcodeStats: import("@prisma/client/runtime/library").JsonValue | null;
     settings: import("@prisma/client/runtime/library").JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 }>;

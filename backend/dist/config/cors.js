@@ -37,9 +37,6 @@ const buildAllowedOrigins = () => {
         const localIP = getLocalIP();
         if (localIP) {
             allowedOrigins.push(`http://${localIP}:3000`, `http://${localIP}:3001`);
-            if (env_1.env.NODE_ENV !== 'production') {
-                console.log(`[CORS] Auto-allowing LAN origins: http://${localIP}:3000, http://${localIP}:3001`);
-            }
         }
     }
     // Add FRONTEND_ORIGIN if specified
@@ -68,11 +65,8 @@ const isOriginAllowed = (origin, allowedOrigins) => {
         return false;
     }
     const normalizedOrigin = origin.trim();
-    // If ALLOW_ALL_ORIGINS is true, allow any origin (but return specific origin, not *)
+    // Allow all origins if enabled (useful for local server deployments)
     if (env_1.env.ALLOW_ALL_ORIGINS) {
-        if (env_1.env.NODE_ENV !== 'production') {
-            console.log(`[CORS] ALLOW_ALL_ORIGINS=true: Allowing origin: ${normalizedOrigin}`);
-        }
         return normalizedOrigin; // Return specific origin, NOT true or '*'
     }
     // Check if origin is in allowed list
@@ -92,9 +86,6 @@ const isOriginAllowed = (origin, allowedOrigins) => {
                 !hostname.startsWith('0.');
             // Allow LAN IPs on common frontend ports (3000, 3001, etc.)
             if (isLanIP && ['3000', '3001', '3002', '3003'].includes(port)) {
-                if (env_1.env.NODE_ENV !== 'production') {
-                    console.log(`[CORS] Auto-allowing LAN origin: ${normalizedOrigin}`);
-                }
                 return normalizedOrigin;
             }
         }
@@ -119,9 +110,6 @@ const createCorsOptions = (allowedOrigins) => {
             const allowedOrigin = (0, exports.isOriginAllowed)(origin, allowedOrigins);
             if (allowedOrigin) {
                 // CRITICAL: Return the origin string, NOT true (which sets *)
-                if (env_1.env.NODE_ENV !== 'production') {
-                    console.log(`[CORS] Allowing origin: ${origin} -> ${allowedOrigin}`);
-                }
                 return callback(null, allowedOrigin);
             }
             // Log rejected origin for debugging (only in development)

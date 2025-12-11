@@ -2,29 +2,54 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// Get backend URL from environment or use default
+const getBackendUrl = (): string => {
+  // In production, use NEXT_PUBLIC_API_BASE_URL if set, otherwise construct from API URL
+  if (isProd) {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (apiBaseUrl) {
+      // Remove /api suffix if present, as we'll add it in the rewrite
+      return apiBaseUrl.replace(/\/api\/?$/, '');
+    }
+    // Fallback: try to construct from API URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) {
+      return apiUrl.replace(/\/api\/?$/, '');
+    }
+    // Default production backend (should be set via env vars)
+    return 'http://localhost:4000';
+  }
+  // Development: use localhost
+  return 'http://localhost:4000';
+};
+
+const backendUrl = getBackendUrl();
+
 const nextConfig: NextConfig = {
   /* config options here */
-  // Allow access from LAN (for development)
-  // This allows the frontend to be accessed from other devices on the network
-  // In production, remove this or configure properly
-  
   // Hide Next.js dev indicator/icon completely
   devIndicators: false,
   
-  // Allow all origins in development mode
+  // Allow all origins in development mode only
   // This fixes the warning: "Cross origin request detected from 10.11.16.132 to /_next/* resource"
   // ⚠️ WARNING: Only use this in development! Never in production.
-  // Setting to undefined allows all origins in development
   ...(process.env.NODE_ENV === 'development' ? {} : { allowedDevOrigins: [] }),
 
-  // In production, export static files for serving via Express
+  // In production, export static files for serving via Express (if needed)
+  // Uncomment if you want to serve static export
   // ...(isProd ? { output: 'export' } : {}),
 
   async rewrites() {
+    // Only proxy in development or if explicitly configured
+    // In production, API calls should go directly to the backend URL
+    if (isProd && !process.env.NEXT_PUBLIC_USE_API_PROXY) {
+      return [];
+    }
+    
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:4000/api/:path*', // Proxy to Backend
+        destination: `${backendUrl}/api/:path*`, // Proxy to Backend
       },
     ]
   },

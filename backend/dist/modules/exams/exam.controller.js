@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportExamResultsHandler = exports.publishExamHandler = exports.assignExamHandler = exports.getExamByIdForStudentHandler = exports.studentListExamsHandler = exports.deleteExamHandler = exports.updateExamHandler = exports.createExamHandler = exports.getExamByIdHandler = exports.listExamsHandler = void 0;
+exports.toggleResultLockHandler = exports.exportExamResultsHandler = exports.publishExamHandler = exports.deleteAssignmentHandler = exports.assignExamHandler = exports.getExamByIdForStudentHandler = exports.studentListExamsHandler = exports.deleteExamHandler = exports.updateExamHandler = exports.createExamHandler = exports.getExamByIdHandler = exports.listExamsHandler = void 0;
 const examService = __importStar(require("./exam.service"));
 const exportService = __importStar(require("./exam.export.service"));
 const listExamsHandler = async (req, res, next) => {
@@ -163,6 +163,24 @@ const assignExamHandler = async (req, res, next) => {
     }
 };
 exports.assignExamHandler = assignExamHandler;
+const deleteAssignmentHandler = async (req, res, next) => {
+    try {
+        const examId = req.params.examId;
+        const assignmentId = req.params.assignmentId;
+        if (!examId) {
+            return next({ status: 400, message: 'Missing examId parameter' });
+        }
+        if (!assignmentId) {
+            return next({ status: 400, message: 'Missing assignmentId parameter' });
+        }
+        const result = await examService.deleteAssignment(examId, assignmentId);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.deleteAssignmentHandler = deleteAssignmentHandler;
 const publishExamHandler = async (req, res, next) => {
     try {
         const examId = req.params.examId;
@@ -219,4 +237,28 @@ const exportExamResultsHandler = async (req, res, next) => {
     }
 };
 exports.exportExamResultsHandler = exportExamResultsHandler;
+const toggleResultLockHandler = async (req, res, next) => {
+    try {
+        const examId = req.params.examId;
+        if (!examId) {
+            return next({ status: 400, message: 'Missing examId parameter' });
+        }
+        const { releaseResults } = req.body;
+        if (typeof releaseResults !== 'boolean') {
+            return next({ status: 400, message: 'releaseResults must be a boolean' });
+        }
+        const updated = await examService.updateExam(examId, { releaseResults });
+        if (!updated) {
+            return next({ status: 404, message: 'Exam not found' });
+        }
+        res.status(200).json({
+            message: releaseResults ? 'Results released successfully' : 'Results locked successfully',
+            releaseResults: updated.releaseResults
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.toggleResultLockHandler = toggleResultLockHandler;
 //# sourceMappingURL=exam.controller.js.map

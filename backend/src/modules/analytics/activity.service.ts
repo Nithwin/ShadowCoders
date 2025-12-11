@@ -32,7 +32,9 @@ export const getUserActivityData = async (userId: string, year?: number): Promis
   attempts.forEach(attempt => {
     if (attempt.submittedAt) {
       const dateKey = attempt.submittedAt.toISOString().split('T')[0];
-      activityMap.set(dateKey, (activityMap.get(dateKey) || 0) + 1);
+      if (dateKey) {
+        activityMap.set(dateKey, (activityMap.get(dateKey) || 0) + 1);
+      }
     }
   });
 
@@ -42,10 +44,12 @@ export const getUserActivityData = async (userId: string, year?: number): Promis
   
   while (currentDate <= endDate) {
     const dateKey = currentDate.toISOString().split('T')[0];
-    activityData.push({
-      date: dateKey,
-      count: activityMap.get(dateKey) || 0,
-    });
+    if (dateKey) {
+      activityData.push({
+        date: dateKey,
+        count: activityMap.get(dateKey) || 0,
+      });
+    }
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
@@ -109,17 +113,23 @@ export const getUserStats = async (userId: string) => {
   const sortedDates = Array.from(datesWithActivity).sort();
   
   for (let i = 0; i < sortedDates.length; i++) {
-    const currentDate = new Date(sortedDates[i]);
+    const dateStr = sortedDates[i];
+    if (!dateStr) continue;
+    
+    const currentDate = new Date(dateStr);
     if (i === 0) {
       currentStreak = 1;
     } else {
-      const prevDate = new Date(sortedDates[i - 1]);
-      const diffDays = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays === 1) {
-        currentStreak++;
-      } else {
-        longestStreak = Math.max(longestStreak, currentStreak);
-        currentStreak = 1;
+      const prevDateStr = sortedDates[i - 1];
+      if (prevDateStr) {
+        const prevDate = new Date(prevDateStr);
+        const diffDays = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          currentStreak++;
+        } else {
+          longestStreak = Math.max(longestStreak, currentStreak);
+          currentStreak = 1;
+        }
       }
     }
   }

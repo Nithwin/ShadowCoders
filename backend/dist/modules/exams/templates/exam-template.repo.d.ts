@@ -3,8 +3,8 @@ export declare const createTemplate: (data: Prisma.ExamTemplateCreateInput) => P
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    title: string;
     description: string | null;
+    title: string;
     structure: Prisma.JsonValue;
     isPublic: boolean;
     createdBy: string;
@@ -19,8 +19,8 @@ export declare const findTemplateById: (id: string) => Prisma.Prisma__ExamTempla
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    title: string;
     description: string | null;
+    title: string;
     structure: Prisma.JsonValue;
     isPublic: boolean;
     createdBy: string;
@@ -41,8 +41,8 @@ export declare const listTemplates: (params: {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string | null;
+        title: string;
         structure: Prisma.JsonValue;
         isPublic: boolean;
         createdBy: string;
@@ -53,8 +53,8 @@ export declare const deleteTemplate: (id: string) => Prisma.Prisma__ExamTemplate
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    title: string;
     description: string | null;
+    title: string;
     structure: Prisma.JsonValue;
     isPublic: boolean;
     createdBy: string;

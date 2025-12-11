@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerAnalyticsRoutes = void 0;
 const auth_1 = require("../../middleware/auth");
 const analyticsController = __importStar(require("./analytics.controller"));
+const activityController = __importStar(require("./activity.controller"));
 const registerAnalyticsRoutes = (app) => {
     // Get comprehensive analytics for an exam
     app.get('/api/admin/exams/:examId/analytics', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), analyticsController.getExamAnalyticsHandler);
@@ -47,6 +48,9 @@ const registerAnalyticsRoutes = (app) => {
     app.get('/api/admin/exams/:examId/analytics/trends', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), analyticsController.getPerformanceTrendsHandler);
     // Get time spent analysis
     app.get('/api/admin/exams/:examId/analytics/time', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), analyticsController.getTimeAnalysisHandler);
+    // Student activity routes
+    app.get('/api/student/activity', auth_1.verifyAccess, activityController.getUserActivityHandler);
+    app.get('/api/student/stats', auth_1.verifyAccess, activityController.getUserStatsHandler);
 };
 exports.registerAnalyticsRoutes = registerAnalyticsRoutes;
 //# sourceMappingURL=analytics.routes.js.map

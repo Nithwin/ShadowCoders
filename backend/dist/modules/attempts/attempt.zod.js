@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.submitAttemptSchema = exports.resetAttemptsSchema = exports.listAttemptsSchema = exports.runCodeSchema = exports.submitAnswerSchema = void 0;
+exports.forceSubmitAttemptSchema = exports.submitAttemptSchema = exports.resetAttemptsSchema = exports.listAttemptsSchema = exports.runCodeSchema = exports.submitAnswerSchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 const answerPayloadSchema = zod_1.default.record(zod_1.default.string(), zod_1.default.any()).nullable();
 exports.submitAnswerSchema = zod_1.default.object({
@@ -36,6 +36,7 @@ exports.listAttemptsSchema = zod_1.default.object({
             .max(100, 'Page size cannot exceed 100')
             .optional()
             .default(20), // Default to 20 per page
+        q: zod_1.default.string().optional(), // Search query for student name or email
     }),
 });
 exports.resetAttemptsSchema = zod_1.default.object({
@@ -48,6 +49,11 @@ exports.resetAttemptsSchema = zod_1.default.object({
 exports.submitAttemptSchema = zod_1.default.object({
     body: zod_1.default.object({
         submissionReason: zod_1.default.string().optional(),
+    }),
+});
+exports.forceSubmitAttemptSchema = zod_1.default.object({
+    body: zod_1.default.object({
+        submissionReason: zod_1.default.string().optional().default('Force submitted by admin'),
     }),
 });
 //# sourceMappingURL=attempt.zod.js.map

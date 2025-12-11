@@ -15,6 +15,7 @@ class ExamMonitoringService {
         this.examRooms = new Map(); // examId -> Set of socketIds
         this.studentActivities = new Map(); // attemptId -> activity
         this.socketToAttempt = new Map(); // socketId -> attemptId
+        this.keyboardViolations = new Map(); // attemptId -> violation
     }
     initialize(server) {
         this.io = new socket_io_1.Server(server, {
@@ -45,7 +46,14 @@ class ExamMonitoringService {
             }
         });
         this.io.on('connection', (socket) => {
-            console.log(`[Socket] User connected: ${socket.userId} (${socket.userRole})`);
+            // Join user-specific room
+            if (socket.userId) {
+                socket.join(`user:${socket.userId}`);
+            }
+            // Join role-specific room
+            if (socket.userRole) {
+                socket.join(`role:${socket.userRole}`);
+            }
             // Student joins exam room
             socket.on('join-exam', async (data) => {
                 try {
@@ -108,7 +116,6 @@ class ExamMonitoringService {
                     socket.emit('exam-stats', {
                         totalStudents: this.examRooms.get(data.examId)?.size || 0,
                     });
-                    console.log(`[Socket] Student ${socket.userId} joined exam ${data.examId}`);
                 }
                 catch (error) {
                     console.error('[Socket] Error joining exam:', error);
@@ -132,7 +139,6 @@ class ExamMonitoringService {
                         totalStudents: this.examRooms.get(data.examId)?.size || 0,
                         activities: activities,
                     });
-                    console.log(`[Socket] Admin ${socket.userId} monitoring exam ${data.examId}`);
                 }
                 catch (error) {
                     console.error('[Socket] Error admin joining exam:', error);
@@ -173,9 +179,65 @@ class ExamMonitoringService {
                 }
                 socket.emit('heartbeat-ack');
             });
+            // Keyboard violation detected
+            socket.on('keyboard-violation', (data) => {
+                if (!socket.attemptId || !socket.examId || socket.userRole !== client_1.Role.STUDENT)
+                    return;
+                const activity = this.studentActivities.get(socket.attemptId);
+                if (!activity || activity.status !== 'active')
+                    return;
+                // Check if there's already an unresolved violation
+                const existingViolation = this.keyboardViolations.get(socket.attemptId);
+                if (existingViolation && !existingViolation.resolved) {
+                    // Already has an unresolved violation, don't create another
+                    return;
+                }
+                // Create new violation
+                const violation = {
+                    attemptId: socket.attemptId,
+                    studentId: activity.studentId,
+                    studentName: activity.studentName,
+                    studentEmail: activity.studentEmail,
+                    examId: socket.examId,
+                    timestamp: new Date(),
+                    resolved: false,
+                };
+                this.keyboardViolations.set(socket.attemptId, violation);
+                // Notify admins
+                this.io?.to(`admin:exam:${socket.examId}`).emit('keyboard-violation', {
+                    attemptId: socket.attemptId,
+                    studentId: activity.studentId,
+                    studentName: activity.studentName,
+                    studentEmail: activity.studentEmail,
+                    timestamp: violation.timestamp,
+                });
+            });
+            // Admin resolves keyboard violation
+            socket.on('resolve-keyboard-violation', (data) => {
+                if (socket.userRole !== client_1.Role.STAFF) {
+                    socket.emit('error', { message: 'Only staff can resolve violations' });
+                    return;
+                }
+                const violation = this.keyboardViolations.get(data.attemptId);
+                if (!violation) {
+                    socket.emit('error', { message: 'Violation not found' });
+                    return;
+                }
+                violation.resolved = true;
+                violation.resolution = data.action;
+                // Notify the student
+                this.io?.to(`exam:${violation.examId}`).emit('violation-resolved', {
+                    attemptId: data.attemptId,
+                    action: data.action,
+                });
+                // Notify all admins monitoring this exam
+                this.io?.to(`admin:exam:${violation.examId}`).emit('violation-resolved', {
+                    attemptId: data.attemptId,
+                    action: data.action,
+                });
+            });
             // Disconnect handling
             socket.on('disconnect', () => {
-                console.log(`[Socket] User disconnected: ${socket.userId}`);
                 if (socket.examId && socket.attemptId) {
                     // Remove from exam room
                     const examRoom = this.examRooms.get(socket.examId);
@@ -233,6 +295,21 @@ class ExamMonitoringService {
             averageProgress: Math.round(avgProgress * 100),
             activities: activities,
         };
+    }
+    notifyQuestionUpdate(examId, questionId, data) {
+        this.io?.to(`exam:${examId}`).emit('question-updated', {
+            questionId,
+            data
+        });
+    }
+    notifyReport(examId, report) {
+        this.io?.to(`admin:exam:${examId}`).emit('report-created', report);
+    }
+    sendNotification(userId, notification) {
+        this.io?.to(`user:${userId}`).emit('notification', notification);
+    }
+    sendRoleNotification(role, notification) {
+        this.io?.to(`role:${role}`).emit('notification', notification);
     }
 }
 exports.examMonitoring = new ExamMonitoringService();

@@ -61,9 +61,63 @@ const updateUser = async (id, data) => {
 };
 exports.updateUser = updateUser;
 const deleteUser = async (id) => {
-    return (0, db_health_1.withDatabaseErrorHandling)(() => prisma_1.prisma.user.delete({
-        where: { id },
-    }), 'deleteUser');
+    return (0, db_health_1.withDatabaseErrorHandling)(async () => {
+        // Use transaction to ensure atomicity
+        return await prisma_1.prisma.$transaction(async (tx) => {
+            // 1. Get all attempts for this user
+            const attempts = await tx.attempt.findMany({
+                where: { studentId: id },
+                select: { id: true },
+            });
+            const attemptIds = attempts.map(a => a.id);
+            if (attemptIds.length > 0) {
+                // 2. Get all response IDs
+                const responses = await tx.response.findMany({
+                    where: { attemptId: { in: attemptIds } },
+                    select: { id: true },
+                });
+                const responseIds = responses.map(r => r.id);
+                if (responseIds.length > 0) {
+                    // 3. Delete grading jobs (references Response)
+                    await tx.gradingJob.deleteMany({
+                        where: { responseId: { in: responseIds } },
+                    });
+                    // 4. Delete evaluations (references Response)
+                    await tx.evaluation.deleteMany({
+                        where: { responseId: { in: responseIds } },
+                    });
+                    // 5. Delete response artifacts (references Response)
+                    await tx.responseArtifact.deleteMany({
+                        where: { responseId: { in: responseIds } },
+                    });
+                    // 6. Delete responses
+                    await tx.response.deleteMany({
+                        where: { attemptId: { in: attemptIds } },
+                    });
+                }
+                // 7. Delete attempt sections
+                await tx.attemptSection.deleteMany({
+                    where: { attemptId: { in: attemptIds } },
+                });
+                // 8. Delete attempts
+                await tx.attempt.deleteMany({
+                    where: { studentId: id },
+                });
+            }
+            // 9. Delete question reports by this user
+            await tx.questionReport.deleteMany({
+                where: { studentId: id },
+            });
+            // 10. Delete refresh tokens
+            await tx.refreshToken.deleteMany({
+                where: { userId: id },
+            });
+            // 11. Finally, delete the user
+            return await tx.user.delete({
+                where: { id },
+            });
+        });
+    }, 'deleteUser');
 };
 exports.deleteUser = deleteUser;
 const createUser = async (data) => {

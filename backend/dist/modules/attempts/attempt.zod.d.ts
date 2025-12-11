@@ -18,6 +18,7 @@ export declare const listAttemptsSchema: z.ZodObject<{
     query: z.ZodObject<{
         page: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
         pageSize: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
+        q: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const resetAttemptsSchema: z.ZodObject<{
@@ -30,6 +31,11 @@ export declare const resetAttemptsSchema: z.ZodObject<{
 export declare const submitAttemptSchema: z.ZodObject<{
     body: z.ZodObject<{
         submissionReason: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>;
+}, z.core.$strip>;
+export declare const forceSubmitAttemptSchema: z.ZodObject<{
+    body: z.ZodObject<{
+        submissionReason: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 //# sourceMappingURL=attempt.zod.d.ts.map

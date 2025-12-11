@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Settings,
   AlertTriangle,
-  ShoppingCart
+  ShoppingCart,
+  Activity
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -32,6 +33,7 @@ const navLinks = [
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { name: 'LeetCode Stats', href: '/admin/leetcode', icon: Code2 },
   { name: 'Users', href: '/admin/users', icon: UserIcon },
+  { name: 'Resource Monitoring', href: '/admin/resources', icon: Activity },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

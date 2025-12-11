@@ -25,7 +25,6 @@ const findUserByEmailAndLinkGoogle = async ({ email, name, pictureUrl, googleId 
         }
         catch (error) {
             if (error.name === 'PrismaClientKnownRequestError' && error.code === 'P2025') {
-                console.log('User not found, creating new user with email:', email);
                 try {
                     const newUser = await prisma_1.prisma.user.create({
                         data: {
@@ -36,7 +35,6 @@ const findUserByEmailAndLinkGoogle = async ({ email, name, pictureUrl, googleId 
                             role: 'STUDENT',
                         }
                     });
-                    console.log('New user created:', newUser.id);
                     return newUser;
                 }
                 catch (createError) {

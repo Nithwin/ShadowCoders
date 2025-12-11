@@ -68,7 +68,6 @@ const fetchLeetCodeStats = async (username) => {
         console.error(`Failed to fetch LeetCode stats for ${username}:`, error.message);
         // Fallback: Try the public API endpoint
         try {
-            console.log(`Trying fallback API for ${username}...`);
             const publicApiUrl = `https://leetcode-stats-api.herokuapp.com/${username}`;
             const fallbackResponse = await axios_1.default.get(publicApiUrl, {
                 timeout: 10000,

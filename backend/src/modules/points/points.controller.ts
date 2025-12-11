@@ -92,3 +92,22 @@ export const addPointsByEmail = async (req: Request, res: Response) => {
   }
 };
 
+export const bulkAwardPointsForExam = async (req: Request, res: Response) => {
+  try {
+    const examId = req.params.examId;
+    if (!examId) {
+      return res.status(400).json({ message: 'Exam ID is required' });
+    }
+    
+    const result = await pointsService.bulkAwardPointsForExam(examId);
+    
+    res.json({
+      message: `Points awarded: ${result.awarded}, Skipped: ${result.skipped}, Errors: ${result.errors}`,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error('Error bulk awarding points:', error);
+    res.status(error.status || 500).json({ message: error.message || 'Failed to award points' });
+  }
+};
+

@@ -32,11 +32,9 @@ const listAvailableModels = async () => {
                 // Try a minimal request to test if model is available
                 await model.generateContent('test');
                 availableModels.push(modelName);
-                console.log(`✓ Model ${modelName} is available`);
             }
             catch (error) {
                 unavailableModels.push(modelName);
-                console.log(`✗ Model ${modelName} is not available: ${error.message}`);
             }
         }
         return { availableModels, unavailableModels };
@@ -84,16 +82,12 @@ const generateJsonFromAi = async (prompt) => {
     if (!env_1.env.GOOGLE_API_KEY) {
         throw { status: 500, message: 'Google API key is not configured. Please contact administrator.' };
     }
-    // Log API key info (first 10 chars for debugging, not full key)
-    const apiKeyPrefix = env_1.env.GOOGLE_API_KEY.substring(0, 10);
-    console.log(`Using API key: ${apiKeyPrefix}... (length: ${env_1.env.GOOGLE_API_KEY.length})`);
     let lastError = null;
     const errorsByModel = [];
     // Try each model in priority order
     for (const modelName of MODEL_PRIORITIES) {
         try {
             const currentModel = getModel(modelName);
-            console.log(`[Gemini] Attempting to use model: ${modelName}`);
             const result = await currentModel.generateContent(prompt);
             const response = result.response;
             // Check if the response was blocked by safety settings
@@ -108,7 +102,6 @@ const generateJsonFromAi = async (prompt) => {
             if (!responseText || responseText.trim().length === 0) {
                 throw { status: 500, message: 'AI returned an empty response. Please try again.' };
             }
-            console.log(`[Gemini] Successfully used model: ${modelName}`);
             return responseText;
         }
         catch (error) {

@@ -76,6 +76,15 @@ const createTemplateFromExam = async (examId, userId, metadata) => {
         }
         return result;
     };
+    // Identify questions used in sections
+    const sectionQuestionIds = new Set();
+    exam.sections.forEach((section) => {
+        section.sectionQuestions.forEach((sq) => {
+            sectionQuestionIds.add(sq.questionId);
+        });
+    });
+    // Filter for top-level questions (not in any section)
+    const topLevelQuestions = exam.questions.filter((q) => !sectionQuestionIds.has(q.id));
     const structure = sanitize({
         durationMins: exam.durationMins,
         timingMode: exam.timingMode,
@@ -85,6 +94,10 @@ const createTemplateFromExam = async (examId, userId, metadata) => {
         maxAttempts: exam.maxAttempts,
         maxTabSwitches: exam.maxTabSwitches,
         allowedLanguages: exam.allowedLanguages,
+        questions: topLevelQuestions.map((q) => ({
+            ...q,
+            order: q.order,
+        })),
         sections: exam.sections.map((section) => ({
             title: section.title,
             order: section.order,
@@ -96,7 +109,6 @@ const createTemplateFromExam = async (examId, userId, metadata) => {
             })),
         })),
     });
-    console.log("Creating template with structure:", JSON.stringify(structure, null, 2));
     // 3. Create template
     try {
         return await templateRepo.createTemplate({
@@ -138,29 +150,44 @@ const createExamFromTemplate = async (templateId, userId, examData) => {
     });
     // 3. Recreate sections and questions
     // Note: We need to clone questions because they are unique entities
-    for (const sectionData of structure.sections) {
-        const newSection = await sectionRepo.createSection(newExam.id, {
-            title: sectionData.title,
-            order: sectionData.order,
-            description: sectionData.description,
-            durationMins: sectionData.durationMins,
-        });
-        for (const questionData of sectionData.questions) {
-            // Create a copy of the question
+    if (structure.sections) {
+        for (const sectionData of structure.sections) {
+            const newSection = await sectionRepo.createSection(newExam.id, {
+                title: sectionData.title,
+                order: sectionData.order,
+                description: sectionData.description,
+                durationMins: sectionData.durationMins,
+            });
+            for (const questionData of sectionData.questions) {
+                // Create a copy of the question
+                const { id, examId, createdAt, updatedAt, ...questionProps } = questionData;
+                // Create question directly (bypassing service to avoid overhead)
+                const newQuestion = await prisma_1.prisma.question.create({
+                    data: {
+                        ...questionProps,
+                        examId: newExam.id,
+                        order: questionData.order, // Use preserved order
+                    },
+                });
+                // Link to section
+                await prisma_1.prisma.sectionQuestion.create({
+                    data: {
+                        sectionId: newSection.id,
+                        questionId: newQuestion.id,
+                        order: questionData.order,
+                    },
+                });
+            }
+        }
+    }
+    // 4. Recreate top-level questions (not in sections)
+    if (structure.questions && Array.isArray(structure.questions)) {
+        for (const questionData of structure.questions) {
             const { id, examId, createdAt, updatedAt, ...questionProps } = questionData;
-            // Create question directly (bypassing service to avoid overhead)
-            const newQuestion = await prisma_1.prisma.question.create({
+            await prisma_1.prisma.question.create({
                 data: {
                     ...questionProps,
                     examId: newExam.id,
-                    order: questionData.order, // Use preserved order
-                },
-            });
-            // Link to section
-            await prisma_1.prisma.sectionQuestion.create({
-                data: {
-                    sectionId: newSection.id,
-                    questionId: newQuestion.id,
                     order: questionData.order,
                 },
             });

@@ -579,6 +579,11 @@ export async function testCodeWithTestCasesLocally(
   
   for (let i = 0; i < testCases.length; i++) {
     const testCase = testCases[i];
+    if (!testCase) {
+      // Skip undefined test cases
+      continue;
+    }
+    
     try {
       const response = await executeCodeLocally(
         code,
@@ -623,16 +628,30 @@ export async function testCodeWithTestCasesLocally(
       }
 
       const errorMsg = response.stderr || response.compileOutput || response.error;
-      const result = {
+      const result: {
+        input: string;
+        expectedOutput: string;
+        actualOutput: string | null;
+        passed: boolean;
+        error?: string;
+        status: string;
+        isHidden?: boolean;
+        testCaseIndex?: number;
+        errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
+      } = {
         input: testCase.input,
         expectedOutput: testCase.expectedOutput,
         actualOutput,
         passed,
         status: response.status.description,
-        isHidden: testCase.isHidden,
         testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
         errorType,
       };
+      
+      // Only include optional properties if they have values
+      if (testCase.isHidden !== undefined) {
+        result.isHidden = testCase.isHidden;
+      }
       
       if (errorMsg) {
         result.error = errorMsg;
@@ -640,17 +659,32 @@ export async function testCodeWithTestCasesLocally(
       
       results.push(result);
     } catch (error: any) {
-      results.push({
+      const errorResult: {
+        input: string;
+        expectedOutput: string;
+        actualOutput: string | null;
+        passed: boolean;
+        error?: string;
+        status: string;
+        isHidden?: boolean;
+        testCaseIndex?: number;
+        errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
+      } = {
         input: testCase.input,
         expectedOutput: testCase.expectedOutput,
         actualOutput: null,
         passed: false,
         error: error.message || 'Execution failed',
         status: 'Error',
-        isHidden: testCase.isHidden,
         testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
         errorType: 'Runtime Error',
-      });
+      };
+      
+      if (testCase.isHidden !== undefined) {
+        errorResult.isHidden = testCase.isHidden;
+      }
+      
+      results.push(errorResult);
     }
   }
 
@@ -755,17 +789,24 @@ async function testCompiledCodeWithTestCases(
           return {
             passed: 0,
             total: testCases.length,
-            results: testCases.map((tc, idx) => ({
-              input: tc.input,
-              expectedOutput: tc.expectedOutput,
-              actualOutput: null,
-              passed: false,
-              error: compileResult.stderr,
-              status: 'Compilation Error',
-              isHidden: tc.isHidden,
-              testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
-              errorType: 'Compilation Error' as const,
-            })),
+            results: testCases.map((tc, idx) => {
+              const baseResult = {
+                input: tc.input,
+                expectedOutput: tc.expectedOutput,
+                actualOutput: null as string | null,
+                passed: false,
+                error: compileResult.stderr,
+                status: 'Compilation Error',
+                testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
+                errorType: 'Compilation Error' as const,
+              };
+              
+              // Only include optional properties if they have values
+              if (typeof tc.isHidden === 'boolean') {
+                return { ...baseResult, isHidden: tc.isHidden };
+              }
+              return baseResult;
+            }),
           };
         }
       } catch (compileError: any) {
@@ -773,17 +814,24 @@ async function testCompiledCodeWithTestCases(
         return {
           passed: 0,
           total: testCases.length,
-          results: testCases.map((tc, idx) => ({
-            input: tc.input,
-            expectedOutput: tc.expectedOutput,
-            actualOutput: null,
-            passed: false,
-            error: errorMessage,
-            status: 'Compilation Error',
-            isHidden: tc.isHidden,
-            testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
-            errorType: 'Compilation Error' as const,
-          })),
+          results: testCases.map((tc, idx) => {
+            const baseResult = {
+              input: tc.input,
+              expectedOutput: tc.expectedOutput,
+              actualOutput: null as string | null,
+              passed: false,
+              error: errorMessage,
+              status: 'Compilation Error',
+              testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
+              errorType: 'Compilation Error' as const,
+            };
+            
+            // Only include optional properties if they have values
+            if (typeof tc.isHidden === 'boolean') {
+              return { ...baseResult, isHidden: tc.isHidden };
+            }
+            return baseResult;
+          }),
         };
       }
     }
@@ -804,6 +852,11 @@ async function testCompiledCodeWithTestCases(
     
     for (let idx = 0; idx < testCases.length; idx++) {
       const testCase = testCases[idx];
+      if (!testCase) {
+        // Skip undefined test cases
+        continue;
+      }
+      
       try {
         // Build run command (override for Java to handle package + classpath root)
         let runCmd = langConfig.runCommand(filePath);
@@ -872,10 +925,14 @@ async function testCompiledCodeWithTestCases(
           actualOutput,
           passed,
           status,
-          isHidden: testCase.isHidden,
           testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
           errorType,
         };
+        
+        // Only include optional properties if they have values
+        if (testCase.isHidden !== undefined) {
+          resultObj.isHidden = testCase.isHidden;
+        }
         
         const errorMessage = result.stderr || result.error;
         if (errorMessage) {
@@ -884,17 +941,33 @@ async function testCompiledCodeWithTestCases(
         
         results.push(resultObj);
       } catch (error: any) {
-        results.push({
+        const errorResult: {
+          input: string;
+          expectedOutput: string;
+          actualOutput: string | null;
+          passed: boolean;
+          error?: string;
+          status: string;
+          isHidden?: boolean;
+          testCaseIndex?: number;
+          errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
+        } = {
           input: testCase.input,
           expectedOutput: testCase.expectedOutput,
           actualOutput: null,
           passed: false,
           error: error.message || 'Execution failed',
           status: 'Error',
-          isHidden: testCase.isHidden,
           testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
           errorType: 'Runtime Error',
-        });
+        };
+        
+        // Only include optional properties if they have values
+        if (testCase.isHidden !== undefined) {
+          errorResult.isHidden = testCase.isHidden;
+        }
+        
+        results.push(errorResult);
       }
     }
     

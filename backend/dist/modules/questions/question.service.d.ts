@@ -3,9 +3,9 @@
  */
 export declare const listQuestionsForExam: (examId: string) => Promise<{
     id: string;
-    order: number;
-    type: import(".prisma/client").$Enums.QType;
     points: Prisma.Decimal;
+    type: import(".prisma/client").$Enums.QType;
+    order: number;
     prompt: string | null;
     options: Prisma.JsonValue;
     correctOptionIds: Prisma.JsonValue;
@@ -22,9 +22,9 @@ export declare const getQuestionForStudent: (studentId: string, attemptId: strin
 type UpdateQuestionInput = z.infer<typeof updateQuestionSchema>['body'];
 export declare const updateQuestion: (questionId: string, input: UpdateQuestionInput) => Promise<{
     id: string;
-    order: number;
-    type: import(".prisma/client").$Enums.QType;
     points: Prisma.Decimal;
+    type: import(".prisma/client").$Enums.QType;
+    order: number;
     prompt: string | null;
     options: Prisma.JsonValue;
     correctOptionIds: Prisma.JsonValue;

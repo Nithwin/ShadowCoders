@@ -41,6 +41,7 @@ const examController = __importStar(require("./exam.controller"));
 const registerExamRoutes = (app) => {
     app.post('/api/admin/exams', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(exam_zod_1.createExamSchema), examController.createExamHandler);
     app.post('/api/admin/exams/:examId/assign', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(exam_zod_1.assignExamSchema), examController.assignExamHandler);
+    app.delete('/api/admin/exams/:examId/assignments/:assignmentId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), examController.deleteAssignmentHandler);
     app.post('/api/admin/exams/:examId/publish', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), examController.publishExamHandler);
     app.get('/api/admin/exams', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(exam_zod_1.listExamsSchema), examController.listExamsHandler);
     app.get('/api/student/exams', auth_1.verifyAccess, (0, validate_1.validate)(exam_zod_1.studentListExamsSchema), examController.studentListExamsHandler);
@@ -51,6 +52,7 @@ const registerExamRoutes = (app) => {
     // Single exam fetch for students (with access control)
     app.get('/api/student/exams/:examId', auth_1.verifyAccess, examController.getExamByIdForStudentHandler);
     app.put('/api/admin/exams/:examId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(exam_zod_1.updateExamSchema), examController.updateExamHandler);
+    app.patch('/api/admin/exams/:examId/release-results', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), examController.toggleResultLockHandler);
     app.delete('/api/admin/exams/:examId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), examController.deleteExamHandler);
 };
 exports.registerExamRoutes = registerExamRoutes;

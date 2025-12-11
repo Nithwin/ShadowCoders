@@ -332,12 +332,57 @@ export default function ExamSubmissionsPage() {
             />
             <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <Link href={`/admin/export?examId=${examId}`}>
-            <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl">
-              <Download className="w-4 h-4 mr-2" />
-              Export Data
+          <div className="flex gap-3">
+            <Button 
+              onClick={async () => {
+                const confirmed = window.confirm(
+                  `Are you sure you want to award points to all students who submitted this exam?\n\n` +
+                  `This will award points based on their exam performance:\n` +
+                  `- 90-100%: 100 points\n` +
+                  `- 80-89%: 75 points\n` +
+                  `- 70-79%: 50 points\n` +
+                  `- 60-69%: 25 points\n` +
+                  `- Below 60%: 10 points\n\n` +
+                  `Note: Retakes (attemptNo > 1) and already awarded attempts will be skipped.`
+                );
+                
+                if (!confirmed) return;
+                
+                try {
+                  setIsExporting(true);
+                  const res = await api.post(`/admin/exams/${examId}/award-points`);
+                  toast.success(
+                    `Points awarded successfully! Awarded: ${res.data.awarded}, Skipped: ${res.data.skipped}, Errors: ${res.data.errors}`
+                  );
+                } catch (err: any) {
+                  console.error('Error awarding points:', err);
+                  toast.error(err.response?.data?.message || 'Failed to award points');
+                } finally {
+                  setIsExporting(false);
+                }
+              }}
+              disabled={isExporting}
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Awarding...
+                </>
+              ) : (
+                <>
+                  <Award className="w-4 h-4 mr-2" />
+                  Give Points for All
+                </>
+              )}
             </Button>
-          </Link>
+            <Link href={`/admin/export?examId=${examId}`}>
+              <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl">
+                <Download className="w-4 h-4 mr-2" />
+                Export Data
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

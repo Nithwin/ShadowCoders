@@ -25,6 +25,7 @@ import { reportRoutes } from './modules/reports/report.routes';
 import { registerPointsRoutes } from './modules/points/points.routes';
 import { registerRedeemRoutes } from './modules/redeem/redeem.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
+import { registerSystemRoutes } from './modules/system/system.routes';
 
 export const createApp = () => {
     const app = express();
@@ -207,6 +208,7 @@ export const createApp = () => {
     registerPointsRoutes(app);
     registerRedeemRoutes(app);
     app.use('/api/notifications', notificationRoutes);
+    registerSystemRoutes(app);
     
     // In production, serve the built frontend (Next.js static export)
     if (env.NODE_ENV === 'production') {

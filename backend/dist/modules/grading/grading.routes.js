@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerGradingRoutes = void 0;
 const auth_1 = require("../../middleware/auth");
+const auth_2 = require("../../middleware/auth");
 const validate_1 = require("../../middleware/validate");
 const grading_zod_1 = require("./grading.zod");
 const gradingController = __importStar(require("./grading.controller"));
@@ -47,6 +48,8 @@ const registerGradingRoutes = (app) => {
     (0, validate_1.validate)(grading_zod_1.autoGradeEssaySchema), gradingController.gradeEssayHandler);
     // Queue status endpoint (public for students to check wait times)
     app.get('/api/queue/status', gradingController.getQueueStatusHandler);
+    // Override grade (for admins)
+    app.put('/api/grading/response/:responseId/override', (0, auth_2.requireRole)('STAFF'), gradingController.overrideResponseGradeHandler);
 };
 exports.registerGradingRoutes = registerGradingRoutes;
 //# sourceMappingURL=grading.routes.js.map

@@ -12,6 +12,7 @@ export declare const generateQuestionsSchema: z.ZodObject<{
             HARD: "HARD";
             ANY: "ANY";
         }>>>;
+        points: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 //# sourceMappingURL=ai.zod.d.ts.map

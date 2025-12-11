@@ -7,6 +7,8 @@ export declare const deleteExamHandler: RequestHandler;
 export declare const studentListExamsHandler: RequestHandler;
 export declare const getExamByIdForStudentHandler: RequestHandler;
 export declare const assignExamHandler: RequestHandler;
+export declare const deleteAssignmentHandler: RequestHandler;
 export declare const publishExamHandler: RequestHandler;
 export declare const exportExamResultsHandler: RequestHandler;
+export declare const toggleResultLockHandler: RequestHandler;
 //# sourceMappingURL=exam.controller.d.ts.map

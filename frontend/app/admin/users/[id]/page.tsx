@@ -26,6 +26,9 @@ export default function EditUserPage() {
     department: '',
     year: '',
     section: '',
+    leetcodeId: '',
+    points: '',
+    pictureUrl: '',
   });
 
   useEffect(() => {
@@ -46,6 +49,9 @@ export default function EditUserPage() {
         department: user.department || '',
         year: user.year ? String(user.year) : '',
         section: user.section || '',
+        leetcodeId: user.leetcodeId || '',
+        points: user.points ? String(user.points) : '0',
+        pictureUrl: user.pictureUrl || '',
       });
     } catch (err) {
       console.error(err);
@@ -78,12 +84,27 @@ export default function EditUserPage() {
         payload.password = formData.password;
       }
 
+      // LeetCode ID - available for all users
+      payload.leetcodeId = formData.leetcodeId?.trim() || null;
+
+      // Points - available for all users
+      payload.points = formData.points ? parseInt(formData.points) : 0;
+
+      // Picture URL - available for all users
+      payload.pictureUrl = formData.pictureUrl?.trim() || null;
+
       if (formData.role === 'STUDENT') {
         // Only include reg_no if provided, otherwise null
         payload.reg_no = formData.reg_no?.trim() || null;
         payload.department = formData.department?.trim() || null;
         payload.year = formData.year ? parseInt(formData.year) : null;
         payload.section = formData.section?.trim() || null;
+      } else {
+        // Clear student-specific fields if role is STAFF
+        payload.reg_no = null;
+        payload.department = null;
+        payload.year = null;
+        payload.section = null;
       }
 
       await api.put(`/users/${userId}`, payload);
@@ -177,6 +198,49 @@ export default function EditUserPage() {
                 <option value="STUDENT">Student</option>
                 <option value="STAFF">Staff (Admin)</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                LeetCode ID
+              </label>
+              <input
+                type="text"
+                name="leetcodeId"
+                value={formData.leetcodeId}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="e.g., username123"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                Points
+              </label>
+              <input
+                type="number"
+                name="points"
+                value={formData.points}
+                onChange={handleChange}
+                min="0"
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
+                Profile Picture URL
+              </label>
+              <input
+                type="url"
+                name="pictureUrl"
+                value={formData.pictureUrl}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="https://example.com/picture.jpg"
+              />
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -105,18 +105,16 @@ export default function CodingQuestion({
     queued: number;
     estimatedWaitTimeMs: number;
   } | null>(null);
-  const [editorWidth, setEditorWidth] = useState(60); // Percentage width for editor (60% default - increased size)
+  const [isEditorFullscreen, setIsEditorFullscreen] = useState(false); // Toggle between 50% and 100% (fullscreen)
   const [isSubmitMode, setIsSubmitMode] = useState(false); // Track if we're in submit mode (hide detailed results)
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [submitCooldown, setSubmitCooldown] = useState(0); // Cooldown in seconds
-  const [isResizing, setIsResizing] = useState(false);
   const [showTestResults, setShowTestResults] = useState(true); // Toggle to show/hide test results
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
   const previousQuestionIdRef = useRef<string>(questionId);
   const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const resizeHandleRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Get Monaco language for current language
@@ -183,63 +181,10 @@ export default function CodingQuestion({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer?.code, answer?.language, availableLanguages]);
 
-  // Smooth mouse drag resizing functionality
-  useEffect(() => {
-    let animationFrameId: number | null = null;
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (resizeHandleRef.current?.contains(e.target as Node)) {
-        setIsResizing(true);
-        e.preventDefault();
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-      }
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
-      
-      // Use requestAnimationFrame for smooth resizing
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-      
-      animationFrameId = requestAnimationFrame(() => {
-        const containerRect = containerRef.current?.getBoundingClientRect();
-        if (!containerRect) return;
-        
-        const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-        
-        // Clamp between 40% and 75% (increased range for larger editor)
-        const clampedWidth = Math.max(40, Math.min(75, newWidth));
-        setEditorWidth(clampedWidth);
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [isResizing]);
+  // Toggle editor fullscreen
+  const toggleEditorFullscreen = () => {
+    setIsEditorFullscreen(prev => !prev);
+  };
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -364,13 +309,13 @@ export default function CodingQuestion({
       isInitialMount.current = false;
     }
     
-    // Debounce the onChange callback
+    // Debounce the onChange callback with 5 second delay for auto-save
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
       onChange({ code: newCode, language });
-    }, 500); // 500ms debounce for code
+    }, 5000); // 5 second debounce for code auto-save
   };
 
   // Handle clear button - reset to starter code or empty
@@ -519,13 +464,18 @@ export default function CodingQuestion({
     }
   }, [code, language, questionId, attemptId, onChange, submitCooldown]);
 
+  // Calculate widths based on fullscreen state
+  const editorWidth = isEditorFullscreen ? 100 : 50;
+  const questionWidth = isEditorFullscreen ? 0 : 50;
+
   return (
     <div ref={containerRef} className="flex h-full overflow-hidden bg-gray-50">
       {/* Left Panel - Question and Test Cases */}
-      <div 
-        className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg transition-all"
-        style={{ width: `${100 - editorWidth}%` }}
-      >
+      {!isEditorFullscreen && (
+        <div 
+          className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg transition-all"
+          style={{ width: `${questionWidth}%` }}
+        >
         {/* Question Header */}
         <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -630,16 +580,7 @@ export default function CodingQuestion({
           </div>
         </div>
       </div>
-
-      {/* Resize Handle - Mouse Draggable with smooth transitions */}
-      <div 
-        ref={resizeHandleRef}
-        className={`w-1.5 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-all duration-200 relative group ${isResizing ? 'bg-blue-500 w-2' : ''}`}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className={`w-0.5 h-16 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-all duration-200 ${isResizing ? 'bg-blue-500 h-20' : ''}`} />
-        </div>
-      </div>
+      )}
 
       {/* Right Panel - Code Editor and Output */}
       <div 
@@ -654,7 +595,7 @@ export default function CodingQuestion({
             <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Code Editor</span>
           </div>
           
-          {/* Right: Language, Theme, and Action Buttons */}
+          {/* Right: Language, Theme, Fullscreen Toggle, and Action Buttons */}
           <div className="flex items-center gap-3">
             {/* Language Selector - LeetCode style */}
             <div className="flex items-center gap-2">
@@ -683,10 +624,25 @@ export default function CodingQuestion({
               </select>
             </div>
 
-            {/* Theme Display - LeetCode style */}
-            <div className="px-3 py-1.5 bg-[#2d2d2d] text-gray-400 border border-gray-600 rounded text-sm font-medium">
-              Dark
-            </div>
+            {/* Fullscreen Toggle Button */}
+            <button
+              onClick={toggleEditorFullscreen}
+              type="button"
+              className="px-2 py-1 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-xs font-medium transition-all flex items-center gap-1"
+              title={isEditorFullscreen ? 'Show question panel (half screen)' : 'Hide question panel (full screen editor)'}
+            >
+              {isEditorFullscreen ? (
+                <>
+                  <Minimize2 className="w-3 h-3" />
+                  Half
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3 h-3" />
+                  Full
+                </>
+              )}
+            </button>
 
             {/* Divider */}
             <div className="w-px h-6 bg-gray-600"></div>

@@ -10,4 +10,5 @@ export declare const getStudentAttemptsHandler: RequestHandler;
 export declare const listAttemptsForExamHandler: RequestHandler;
 export declare const getAttemptForAdminHandler: RequestHandler;
 export declare const resetAttemptsHandler: RequestHandler;
+export declare const forceSubmitAttemptHandler: RequestHandler;
 //# sourceMappingURL=attempt.controller.d.ts.map

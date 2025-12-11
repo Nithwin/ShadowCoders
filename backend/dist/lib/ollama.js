@@ -13,7 +13,6 @@ const env_1 = require("../config/env");
 const generateJsonFromOllama = async (prompt) => {
     const baseUrl = env_1.env.OLLAMA_BASE_URL;
     const model = env_1.env.OLLAMA_MODEL;
-    console.log(`[Ollama] Sending request to ${baseUrl}/api/generate using model '${model}'...`);
     try {
         const response = await axios_1.default.post(`${baseUrl}/api/generate`, {
             model: model,
@@ -28,7 +27,6 @@ const generateJsonFromOllama = async (prompt) => {
             throw { status: 500, message: 'Ollama returned an empty response.' };
         }
         const responseText = response.data.response;
-        console.log(`[Ollama] Successfully generated content.`);
         return responseText;
     }
     catch (error) {

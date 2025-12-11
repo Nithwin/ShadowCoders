@@ -6,8 +6,8 @@ const local_executor_1 = require("../../lib/local-executor");
 const areArraysEqual = (arr1, arr2) => {
     if (arr1.length !== arr2.length)
         return false;
-    const sortedArr1 = [...arr1].sort();
-    const sortedArr2 = [...arr2].sort();
+    const sortedArr1 = [...arr1].map(String).sort();
+    const sortedArr2 = [...arr2].map(String).sort();
     return sortedArr1.every((value, index) => value === sortedArr2[index]);
 };
 exports.areArraysEqual = areArraysEqual;
@@ -52,11 +52,27 @@ const gradeCoding = async (answer, testcases, points) => {
             expectedOutput: tc.expectedOutput,
             timeoutMs: tc.timeoutMs || 2000,
         })));
-        const passedRatio = testResults.total > 0 ? testResults.passed / testResults.total : 0;
-        const earnedPoints = Math.round(points * passedRatio * 100) / 100;
+        // Partial grading logic
+        // Calculate ratio of passed test cases
+        const totalTestCases = testResults.total;
+        const passedTestCases = testResults.passed;
+        // Avoid division by zero
+        const passedRatio = totalTestCases > 0 ? (passedTestCases / totalTestCases) : 0;
+        // Earned points proportional to passed test cases
+        // Use Math.max(0, ...) to be safe, though passedRatio should be >= 0
+        let earnedPoints = parseFloat((passedRatio * points).toFixed(2));
+        // Determine verdict
+        let verdict = 'FAIL';
+        if (passedTestCases === totalTestCases && totalTestCases > 0) {
+            verdict = 'PASS';
+        }
+        else if (passedTestCases > 0) {
+            verdict = 'PARTIAL';
+        }
+        // else verdict remains 'FAIL'
         return {
             earnedPoints,
-            verdict: testResults.passed === testResults.total ? 'PASS' : 'PARTIAL',
+            verdict,
             gradingMode: client_1.GradingMode.AUTO,
         };
     }

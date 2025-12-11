@@ -4,9 +4,9 @@
  */
 export declare const listQuestionsForExam: (examId: string) => Prisma.PrismaPromise<{
     id: string;
-    order: number;
-    type: import(".prisma/client").$Enums.QType;
     points: Prisma.Decimal;
+    type: import(".prisma/client").$Enums.QType;
+    order: number;
     prompt: string | null;
     options: Prisma.JsonValue;
     correctOptionIds: Prisma.JsonValue;
@@ -18,9 +18,9 @@ import { Prisma } from "@prisma/client";
 export declare const createManyQuestions: (examId: string, questionsData: Prisma.QuestionCreateManyInput[]) => Prisma.PrismaPromise<Prisma.BatchPayload>;
 export declare const getQuestionById: (questionId: string) => Prisma.Prisma__QuestionClient<{
     id: string;
+    points: Prisma.Decimal;
     examId: string;
     type: import(".prisma/client").$Enums.QType;
-    points: Prisma.Decimal;
     prompt: string | null;
     options: Prisma.JsonValue;
     correctOptionIds: Prisma.JsonValue;
@@ -39,12 +39,16 @@ export declare const getQuestionById: (questionId: string) => Prisma.Prisma__Que
         kind: import(".prisma/client").$Enums.AssetKind;
         url: string;
     } | null;
+    reports: {
+        id: string;
+        status: import(".prisma/client").$Enums.ReportStatus;
+    }[];
 } | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const updateQuestion: (questionId: string, data: Prisma.QuestionUpdateInput) => Prisma.Prisma__QuestionClient<{
     id: string;
-    order: number;
-    type: import(".prisma/client").$Enums.QType;
     points: Prisma.Decimal;
+    type: import(".prisma/client").$Enums.QType;
+    order: number;
     prompt: string | null;
     options: Prisma.JsonValue;
     correctOptionIds: Prisma.JsonValue;
@@ -54,13 +58,13 @@ export declare const updateQuestion: (questionId: string, data: Prisma.QuestionU
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const deleteQuestion: (questionId: string) => Promise<{
     id: string;
+    points: Prisma.Decimal;
     createdAt: Date;
     updatedAt: Date;
     examId: string;
     status: import(".prisma/client").$Enums.QuestionStatus;
-    order: number;
     type: import(".prisma/client").$Enums.QType;
-    points: Prisma.Decimal;
+    order: number;
     prompt: string | null;
     options: Prisma.JsonValue | null;
     correctOptionIds: Prisma.JsonValue | null;

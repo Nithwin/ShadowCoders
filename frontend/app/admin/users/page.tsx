@@ -17,6 +17,8 @@ type User = {
   department?: string;
   year?: number;
   section?: string;
+  leetcodeId?: string | null;
+  points?: number;
 };
 
 export default function UserManagementPage() {
@@ -105,7 +107,8 @@ export default function UserManagementPage() {
       return (
         (user.name?.toLowerCase() || '').includes(lowerSearch) ||
         user.email.toLowerCase().includes(lowerSearch) ||
-        (user.reg_no?.toLowerCase() || '').includes(lowerSearch)
+        (user.reg_no?.toLowerCase() || '').includes(lowerSearch) ||
+        (user.leetcodeId?.toLowerCase() || '').includes(lowerSearch)
       );
   });
 
@@ -222,6 +225,8 @@ export default function UserManagementPage() {
                     </div>
                   </th>
                   <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Dept/Year/Sec</th>
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">LeetCode ID</th>
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Points</th>
                   <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Actions</th>
                 </tr>
               </thead>
@@ -248,6 +253,8 @@ export default function UserManagementPage() {
                     <td className="p-3 text-sm">
                         {user.department || '-'}/{user.year || '-'}/{user.section || '-'}
                     </td>
+                    <td className="p-3 text-sm">{user.leetcodeId || '-'}</td>
+                    <td className="p-3 text-sm">{user.points || 0}</td>
                     <td className="p-3">
                       <div className="flex gap-2 text-primary/70">
                         <Link

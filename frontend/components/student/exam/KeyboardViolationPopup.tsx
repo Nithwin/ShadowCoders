@@ -1,19 +1,56 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface KeyboardViolationPopupProps {
   show: boolean;
   onResolved: () => void;
+  attemptId: string;
 }
 
-export default function KeyboardViolationPopup({ show, onResolved }: KeyboardViolationPopupProps) {
+export default function KeyboardViolationPopup({ show, onResolved, attemptId }: KeyboardViolationPopupProps) {
   const [isVisible, setIsVisible] = useState(show);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     setIsVisible(show);
   }, [show]);
+
+  const checkViolationStatus = async () => {
+    setIsChecking(true);
+    try {
+      // Fetch the attempt to check its status
+      const res = await api.get(`/student/attempts/${attemptId}`);
+      const attempt = res.data;
+      
+      // If the attempt has been submitted, the violation is resolved (force submitted)
+      if (attempt.submittedAt || attempt.status === 'SUBMITTED' || attempt.status === 'GRADED') {
+        // Violation has been resolved - exam was force submitted
+        onResolved();
+        setIsVisible(false);
+        // Reload the page to show results
+        window.location.reload();
+        return;
+      }
+      
+      // If the attempt is still IN_PROGRESS, the admin might have allowed continuation
+      // We'll close the popup and let the student continue
+      // The socket listener should have handled this, but if it didn't, we'll do it manually
+      if (attempt.status === 'IN_PROGRESS' && !attempt.submittedAt) {
+        // Admin likely allowed continuation - close the popup
+        onResolved();
+        setIsVisible(false);
+      }
+    } catch (error) {
+      console.error('Error checking violation status:', error);
+      // On error, we'll still try to close the popup in case the violation was resolved
+      // but the API call failed for another reason
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   if (!isVisible) return null;
 
@@ -31,9 +68,19 @@ export default function KeyboardViolationPopup({ show, onResolved }: KeyboardVio
             <p className="text-gray-700 mb-4">
               A keyboard event was detected during the exam. Your exam has been paused and is waiting for admin or staff review.
             </p>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Please wait for admin decision...</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Please wait for admin decision...</span>
+              </div>
+              <button
+                onClick={checkViolationStatus}
+                disabled={isChecking}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
+                Check Status
+              </button>
             </div>
           </div>
         </div>

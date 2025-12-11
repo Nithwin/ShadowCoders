@@ -4,12 +4,63 @@ import os from "os";
 import http from "http";
 import { examMonitoring } from "./lib/socket";
 
-const PORT = env.PORT || 4000;
+const PORT = Number(env.PORT) || 4000;
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+    console.error('❌ Uncaught Exception:', error);
+    console.error('Stack:', error.stack);
+    // In production, you might want to gracefully shutdown
+    if (env.NODE_ENV === 'production') {
+        console.error('Application will exit due to uncaught exception');
+        process.exit(1);
+    }
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+    console.error('❌ Unhandled Rejection at:', promise);
+    console.error('Reason:', reason);
+    // In production, you might want to gracefully shutdown
+    if (env.NODE_ENV === 'production') {
+        console.error('Application will exit due to unhandled rejection');
+        process.exit(1);
+    }
+});
+
+// Handle SIGTERM (used by process managers like PM2)
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+
+// Handle SIGINT (Ctrl+C)
+process.on('SIGINT', () => {
+    console.log('\nSIGINT received, shutting down gracefully...');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
 
 const app = createApp();
 
 // Create HTTP server
 const server = http.createServer(app);
+
+// Handle server errors
+server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use. Please use a different port.`);
+        process.exit(1);
+    } else {
+        console.error('❌ Server error:', error);
+        process.exit(1);
+    }
+});
 
 // Initialize Socket.IO
 examMonitoring.initialize(server);
@@ -35,7 +86,7 @@ const getLocalIP = (): string | null => {
 const HOST = '0.0.0.0';
 const localIP = getLocalIP();
 
-server.listen(Number(PORT), HOST, () => {
+server.listen(PORT, HOST, () => {
     console.log('\n' + '='.repeat(60));
     console.log('🚀 Backend Server Started Successfully!');
     console.log('='.repeat(60));

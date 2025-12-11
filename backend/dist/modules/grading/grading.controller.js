@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getQueueStatusHandler = exports.gradeEssayHandler = exports.runCodeHandler = void 0;
+exports.overrideResponseGradeHandler = exports.getQueueStatusHandler = exports.gradeEssayHandler = exports.runCodeHandler = void 0;
 const gradingService = __importStar(require("./grading.service"));
 const execution_queue_1 = require("../../lib/execution-queue");
 const runCodeHandler = async (req, res, next) => {
@@ -83,4 +83,23 @@ const getQueueStatusHandler = async (req, res, next) => {
     }
 };
 exports.getQueueStatusHandler = getQueueStatusHandler;
+const overrideResponseGradeHandler = async (req, res, next) => {
+    try {
+        const { responseId } = req.params;
+        const { score, feedback } = req.body;
+        if (!responseId) {
+            return next({ status: 400, message: 'Response ID is required' });
+        }
+        // Simple validation
+        if (score === undefined || score === null || isNaN(Number(score))) {
+            return next({ status: 400, message: 'Valid score is required' });
+        }
+        const result = await gradingService.overrideResponseGrade(responseId, Number(score), feedback);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.overrideResponseGradeHandler = overrideResponseGradeHandler;
 //# sourceMappingURL=grading.controller.js.map

@@ -4,8 +4,8 @@ export declare const createExam: (data: Prisma.ExamCreateInput) => Prisma.Prisma
     createdAt: Date;
     updatedAt: Date;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
@@ -16,8 +16,18 @@ export declare const createExam: (data: Prisma.ExamCreateInput) => Prisma.Prisma
     maxAttempts: number | null;
     maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
+    releaseResults: boolean;
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const createExamAssignment: (examId: string, assignmentData: Omit<Prisma.ExamAssignmentCreateManyInput, "examId">) => Prisma.Prisma__ExamAssignmentClient<{
+    id: string;
+    examId: string;
+    assignToAll: boolean;
+    cohortYear: number | null;
+    cohortDepartment: string | null;
+    cohortSection: string | null;
+    studentIds: Prisma.JsonValue | null;
+}, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
+export declare const deleteExamAssignment: (assignmentId: string) => Prisma.Prisma__ExamAssignmentClient<{
     id: string;
     examId: string;
     assignToAll: boolean;
@@ -31,8 +41,8 @@ export declare const updateExamStatus: (examId: string, status: ExamStatus) => P
     createdAt: Date;
     updatedAt: Date;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
@@ -43,31 +53,53 @@ export declare const updateExamStatus: (examId: string, status: ExamStatus) => P
     maxAttempts: number | null;
     maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
+    releaseResults: boolean;
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient<({
     sections: ({
         sectionQuestions: ({
             question: {
                 id: string;
-                order: number;
-                type: import(".prisma/client").$Enums.QType;
                 points: Prisma.Decimal;
+                createdAt: Date;
+                updatedAt: Date;
+                examId: string;
+                status: import(".prisma/client").$Enums.QuestionStatus;
+                type: import(".prisma/client").$Enums.QType;
+                order: number;
                 prompt: string | null;
+                options: Prisma.JsonValue | null;
+                correctOptionIds: Prisma.JsonValue | null;
+                starterCode: string | null;
+                testcases: Prisma.JsonValue | null;
+                languageHints: Prisma.JsonValue | null;
+                wordLimit: number | null;
+                mediaAssetId: string | null;
+                passageAssetId: string | null;
+                maxDurationSec: number | null;
+                clozeTemplate: string | null;
+                blanks: Prisma.JsonValue | null;
+                clozeConfig: Prisma.JsonValue | null;
+                config: Prisma.JsonValue | null;
+                rubricId: string | null;
+                invalidationReason: string | null;
+                invalidatedAt: Date | null;
+                invalidatedById: string | null;
             };
         } & {
             id: string;
             order: number;
-            sectionId: string;
             questionId: string;
+            sectionId: string;
         })[];
     } & {
         id: string;
         createdAt: Date;
         updatedAt: Date;
         examId: string;
-        order: number;
-        title: string;
         description: string | null;
+        title: string;
+        order: number;
         durationMins: number | null;
         startsAt: Date | null;
         endsAt: Date | null;
@@ -77,6 +109,34 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
         attempts: number;
         questions: number;
     };
+    questions: {
+        id: string;
+        points: Prisma.Decimal;
+        createdAt: Date;
+        updatedAt: Date;
+        examId: string;
+        status: import(".prisma/client").$Enums.QuestionStatus;
+        type: import(".prisma/client").$Enums.QType;
+        order: number;
+        prompt: string | null;
+        options: Prisma.JsonValue | null;
+        correctOptionIds: Prisma.JsonValue | null;
+        starterCode: string | null;
+        testcases: Prisma.JsonValue | null;
+        languageHints: Prisma.JsonValue | null;
+        wordLimit: number | null;
+        mediaAssetId: string | null;
+        passageAssetId: string | null;
+        maxDurationSec: number | null;
+        clozeTemplate: string | null;
+        blanks: Prisma.JsonValue | null;
+        clozeConfig: Prisma.JsonValue | null;
+        config: Prisma.JsonValue | null;
+        rubricId: string | null;
+        invalidationReason: string | null;
+        invalidatedAt: Date | null;
+        invalidatedById: string | null;
+    }[];
     assignments: {
         id: string;
         examId: string;
@@ -91,8 +151,8 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
     createdAt: Date;
     updatedAt: Date;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
@@ -103,6 +163,7 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
     maxAttempts: number | null;
     maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
+    releaseResults: boolean;
 }) | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const listExams: (params: {
     status?: ExamStatus;
@@ -115,8 +176,8 @@ export declare const listExams: (params: {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.ExamStatus;
-        title: string;
         description: string | null;
+        title: string;
         _count: {
             sections: number;
             attempts: number;
@@ -143,8 +204,8 @@ export declare const findExamByIdForStudent: (params: {
     attemptCount: number;
     id: string;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
@@ -161,8 +222,8 @@ export declare const listExamsForStudent: (params: {
     exams: {
         id: string;
         status: import(".prisma/client").$Enums.ExamStatus;
-        title: string;
         description: string | null;
+        title: string;
         attempts: {
             id: string;
             attemptNo: number;
@@ -181,21 +242,22 @@ export declare const listExamsForStudent: (params: {
 export declare const updateExam: (examId: string, data: Prisma.ExamUpdateInput) => Prisma.Prisma__ExamClient<{
     id: string;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
     timingMode: import(".prisma/client").$Enums.TimingMode;
     sectionLockPolicy: import(".prisma/client").$Enums.SectionLockPolicy;
+    releaseResults: boolean;
 }, never, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const deleteExamAndChildren: (examId: string) => Promise<{
     id: string;
     createdAt: Date;
     updatedAt: Date;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
@@ -206,5 +268,6 @@ export declare const deleteExamAndChildren: (examId: string) => Promise<{
     maxAttempts: number | null;
     maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
+    releaseResults: boolean;
 }>;
 //# sourceMappingURL=exam.repo.d.ts.map

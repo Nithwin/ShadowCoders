@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetAttemptsHandler = exports.getAttemptForAdminHandler = exports.listAttemptsForExamHandler = exports.getStudentAttemptsHandler = exports.getAttemptResultsHandler = exports.getQuestionHandler = exports.getAttemptDetailsHandler = exports.submitAttemptHandler = exports.runCodeHandler = exports.submitAnswerHandler = exports.startAttemptHandler = void 0;
+exports.forceSubmitAttemptHandler = exports.resetAttemptsHandler = exports.getAttemptForAdminHandler = exports.listAttemptsForExamHandler = exports.getStudentAttemptsHandler = exports.getAttemptResultsHandler = exports.getQuestionHandler = exports.getAttemptDetailsHandler = exports.submitAttemptHandler = exports.runCodeHandler = exports.submitAnswerHandler = exports.startAttemptHandler = void 0;
 const attemptService = __importStar(require("./attempt.service"));
 const startAttemptHandler = async (req, res, next) => {
     try {
@@ -211,10 +211,11 @@ const listAttemptsForExamHandler = async (req, res, next) => {
             page: 1,
             pageSize: 20,
         };
-        // Ensure pageSize is a number
+        // Pass the query object directly to the service (it expects { page, pageSize, q })
         const validatedParams = {
             page: Number(queryParams.page) || 1,
             pageSize: Number(queryParams.pageSize) || 20,
+            q: queryParams.q?.trim() || undefined,
         };
         // Call the ATTEMPT service to get the data
         const result = await attemptService.listAttemptsForExam(examId, validatedParams);
@@ -261,4 +262,21 @@ const resetAttemptsHandler = async (req, res, next) => {
     }
 };
 exports.resetAttemptsHandler = resetAttemptsHandler;
+const forceSubmitAttemptHandler = async (req, res, next) => {
+    try {
+        const attemptId = req.params.attemptId;
+        const { submissionReason } = req.body;
+        if (!attemptId) {
+            return next({ status: 400, message: 'Attempt ID parameter is required' });
+        }
+        // Call the service to force submit the attempt
+        const submittedAttempt = await attemptService.forceSubmitAttempt(attemptId, submissionReason);
+        // Send back the details of the submitted attempt
+        res.status(200).json(submittedAttempt);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.forceSubmitAttemptHandler = forceSubmitAttemptHandler;
 //# sourceMappingURL=attempt.controller.js.map

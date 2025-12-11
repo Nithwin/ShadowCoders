@@ -36,6 +36,7 @@ export declare const getUserById: (id: string) => Promise<{
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 } | null>;
@@ -56,6 +57,7 @@ export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => P
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 }>;
@@ -76,6 +78,7 @@ export declare const deleteUser: (id: string) => Promise<{
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 }>;
@@ -96,6 +99,7 @@ export declare const createUser: (data: Prisma.UserCreateInput) => Promise<{
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 }>;

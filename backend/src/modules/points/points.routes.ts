@@ -36,5 +36,13 @@ export const registerPointsRoutes = (app: Express) => {
     validate(addPointsByEmailSchema),
     pointsController.addPointsByEmail
   );
+
+  // Admin route to bulk award points for an exam
+  app.post(
+    '/api/admin/exams/:examId/award-points',
+    verifyAccess,
+    requireRole('STAFF'),
+    pointsController.bulkAwardPointsForExam
+  );
 };
 

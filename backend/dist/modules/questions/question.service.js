@@ -135,6 +135,14 @@ const getQuestionForStudent = async (studentId, attemptId, questionId) => {
         // mediaAsset is already included in the question object
         delete scrubbedQuestion.correctOptionIds;
     }
+    // Handle reports status
+    // Check if there are any open reports?
+    // User Requirement: "if one student reported that question other should can't report it"
+    // So we check if reports array is not empty (assuming repo returns active reports or all)
+    // We selected { id: true, status: true } in repo.
+    const hasActiveReport = question.reports && question.reports.some((r) => r.status === 'OPEN');
+    scrubbedQuestion.isReported = !!hasActiveReport;
+    delete scrubbedQuestion.reports;
     return scrubbedQuestion;
 };
 exports.getQuestionForStudent = getQuestionForStudent;
@@ -221,10 +229,18 @@ const updateQuestion = async (questionId, input) => {
     if (input.passageAssetId !== undefined && input.passageAssetId) {
         dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
     }
+    if (input.config !== undefined) {
+        dataToUpdate.config = input.config;
+    }
     // Call Repository
     const updatedQuestion = await questionRepo.updateQuestion(questionId, dataToUpdate);
     // Verify the update was successful
     const verifiedQuestion = await questionRepo.getQuestionById(questionId);
+    // Notify students via socket
+    if (verifiedQuestion) {
+        const { examMonitoring } = await Promise.resolve().then(() => __importStar(require('../../lib/socket')));
+        examMonitoring.notifyQuestionUpdate(verifiedQuestion.examId, questionId, verifiedQuestion);
+    }
     return updatedQuestion;
 };
 exports.updateQuestion = updateQuestion;

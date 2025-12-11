@@ -60,6 +60,11 @@ const settings_routes_1 = require("./modules/settings/settings.routes");
 const users_routes_1 = require("./modules/users/users.routes");
 const exam_template_routes_1 = require("./modules/exams/templates/exam-template.routes");
 const leetcode_routes_1 = require("./modules/leetcode/leetcode.routes");
+const report_routes_1 = require("./modules/reports/report.routes");
+const points_routes_1 = require("./modules/points/points.routes");
+const redeem_routes_1 = require("./modules/redeem/redeem.routes");
+const notification_routes_1 = __importDefault(require("./modules/notifications/notification.routes"));
+const system_routes_1 = require("./modules/system/system.routes");
 const createApp = () => {
     const app = (0, express_1.default)();
     // Trust proxy to get correct client info
@@ -81,9 +86,6 @@ const createApp = () => {
                 if (origin && (value === '*' || value === 'null')) {
                     const allowedOrigin = (0, cors_1.isOriginAllowed)(origin, allowedOrigins);
                     if (allowedOrigin) {
-                        if (env_1.env.NODE_ENV !== 'production') {
-                            console.log(`[CORS-INTERCEPT] 🚫 Blocked * header, setting: ${allowedOrigin}`);
-                        }
                         return originalSetHeader(name, allowedOrigin);
                     }
                 }
@@ -115,9 +117,6 @@ const createApp = () => {
                         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
                         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
                         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
-                        if (env_1.env.NODE_ENV !== 'production') {
-                            console.log(`[CORS] 🔧 Fixed header: ${current || 'missing'} -> ${allowedOrigin}`);
-                        }
                     }
                 }
                 else {
@@ -224,6 +223,11 @@ const createApp = () => {
     (0, users_routes_1.registerUserRoutes)(app);
     (0, exam_template_routes_1.registerTemplateRoutes)(app);
     (0, leetcode_routes_1.registerLeetCodeRoutes)(app);
+    app.use('/api/reports', report_routes_1.reportRoutes);
+    (0, points_routes_1.registerPointsRoutes)(app);
+    (0, redeem_routes_1.registerRedeemRoutes)(app);
+    app.use('/api/notifications', notification_routes_1.default);
+    (0, system_routes_1.registerSystemRoutes)(app);
     // In production, serve the built frontend (Next.js static export)
     if (env_1.env.NODE_ENV === 'production') {
         const frontendOutDir = path_1.default.resolve(__dirname, '../../frontend/out');
@@ -282,9 +286,6 @@ const createApp = () => {
                         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
                         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
                         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
-                        if (env_1.env.NODE_ENV !== 'production') {
-                            console.log(`[CORS-FINAL] 🔧 Fixed: ${current || 'missing'} -> ${allowedOrigin}`);
-                        }
                     }
                 }
             }

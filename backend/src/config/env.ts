@@ -3,9 +3,55 @@ import path from 'path';
 
 dotenv.config();
 
+/**
+ * Validates required environment variables and throws an error if any are missing
+ */
+function validateEnv(): void {
+    const errors: string[] = [];
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    // Required in all environments
+    if (!process.env.JWT_SECRET) {
+        errors.push('JWT_SECRET is required');
+    } else if (process.env.JWT_SECRET.length < 32 && isProduction) {
+        errors.push('JWT_SECRET must be at least 32 characters long in production');
+    }
+    
+    // Database validation
+    const useSupabase = process.env.USE_SUPABASE !== 'false';
+    if (useSupabase) {
+        if (!process.env.DATABASE_URL) {
+            errors.push('DATABASE_URL is required when USE_SUPABASE is true');
+        }
+    } else {
+        if (!process.env.LOCAL_DATABASE_URL && !process.env.DATABASE_URL) {
+            errors.push('LOCAL_DATABASE_URL or DATABASE_URL is required when USE_SUPABASE is false');
+        }
+    }
+    
+    // Production-specific validations
+    if (isProduction) {
+        if (!process.env.FRONTEND_ORIGIN && !process.env.ALLOWED_ORIGINS) {
+            errors.push('FRONTEND_ORIGIN or ALLOWED_ORIGINS must be set in production');
+        }
+        
+        // Note: ALLOW_ALL_ORIGINS warning removed - allowed for local server deployments
+    }
+    
+    if (errors.length > 0) {
+        console.error('\n❌ Environment Variable Validation Failed:\n');
+        errors.forEach(error => console.error(`  - ${error}`));
+        console.error('\nPlease check your .env file and ensure all required variables are set.\n');
+        process.exit(1);
+    }
+}
+
+// Validate environment variables on module load
+validateEnv();
+
 export const env = {
-    PORT:process.env.PORT!,
-    NODE_ENV:process.env.NODE_ENV!,
+    PORT: process.env.PORT || '4000',
+    NODE_ENV: process.env.NODE_ENV || 'development',
     // Database configuration
     // If USE_SUPABASE=true, use DATABASE_URL (Supabase connection string)
     // If USE_SUPABASE=false, use LOCAL_DATABASE_URL (local PostgreSQL)
@@ -18,7 +64,7 @@ export const env = {
     // DIRECT_URL is only needed for Supabase (for migrations)
     DIRECT_URL: process.env.DIRECT_URL,
     JWT_SECRET: process.env.JWT_SECRET!,
-    GOOGLE_API_KEY:process.env.GOOGLE_API_KEY!,
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || '',
     FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN,
     FRONTEND_URL: process.env.FRONTEND_URL || process.env.FRONTEND_ORIGIN || 'http://localhost:3000',
     // Comma-separated list of allowed origins (e.g., "http://localhost:3000,http://localhost:3001")

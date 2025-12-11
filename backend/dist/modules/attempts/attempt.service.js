@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runCode = exports.resetAttempts = exports.getAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getAttemptResults = exports.getQuestionForStudent = exports.getQuestionById = exports.getAttemptDetails = exports.submitAttempt = exports.submitAnswer = exports.startAttempt = void 0;
+exports.runCode = exports.resetAttempts = exports.getAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getAttemptResults = exports.getQuestionForStudent = exports.getQuestionById = exports.getAttemptDetails = exports.forceSubmitAttempt = exports.submitAttempt = exports.submitAnswer = exports.startAttempt = void 0;
 const attemptRepo = __importStar(require("./attempt.repo"));
 const client_1 = require("@prisma/client");
 const utils_1 = require("../../lib/utils");
@@ -219,25 +219,7 @@ const startAttempt = async (studentId, examId) => {
 exports.startAttempt = startAttempt;
 const submitAnswer = async (studentId, attemptId, input) => {
     const { questionId, answer } = input;
-    const attempt = await prisma_1.prisma.attempt.findUnique({
-        where: { id: attemptId },
-        select: {
-            studentId: true,
-            status: true,
-            examId: true,
-        },
-    });
-    if (!attempt) {
-        throw { status: 404, message: "Attempt not found" };
-    }
-    if (attempt.studentId !== studentId) {
-        throw {
-            status: 403,
-            message: "You are not authorized to modify this attempt",
-        };
-    }
-    // Allow students to edit answers even after submission
-    // We allow editing for both IN_PROGRESS and SUBMITTED status
+    // First, fetch question to determine if we need queue (coding questions have more frequent auto-saves)
     const question = await prisma_1.prisma.question.findUnique({
         where: { id: questionId },
         select: { examId: true, type: true },
@@ -245,26 +227,54 @@ const submitAnswer = async (studentId, attemptId, input) => {
     if (!question) {
         throw { status: 404, message: "Question not found" };
     }
-    if (question.examId !== attempt.examId) {
-        throw {
-            status: 403,
-            message: "Forbidden: Question does not belong to this exam",
+    // Use queue system for all question types to prevent race conditions
+    // The queue ensures requests for the same (attemptId, questionId) are processed sequentially
+    // This is especially important for coding questions with auto-save, but applies to all types
+    const { answerQueue } = await Promise.resolve().then(() => __importStar(require("../../lib/queues/answer-queue")));
+    // Higher priority for non-coding questions (they're usually manual submissions)
+    // Coding questions get lower priority since they're auto-saved frequently
+    const priority = question.type === client_1.QType.CODING ? 0 : 1;
+    return answerQueue.enqueue(attemptId, questionId, async () => {
+        const attempt = await prisma_1.prisma.attempt.findUnique({
+            where: { id: attemptId },
+            select: {
+                studentId: true,
+                status: true,
+                examId: true,
+            },
+        });
+        if (!attempt) {
+            throw { status: 404, message: "Attempt not found" };
+        }
+        if (attempt.studentId !== studentId) {
+            throw {
+                status: 403,
+                message: "You are not authorized to modify this attempt",
+            };
+        }
+        // Allow students to edit answers even after submission
+        // We allow editing for both IN_PROGRESS and SUBMITTED status
+        if (question.examId !== attempt.examId) {
+            throw {
+                status: 403,
+                message: "Forbidden: Question does not belong to this exam",
+            };
+        }
+        // For SPEAKING questions, extract audioAssetId from answer if present
+        let audioAssetId;
+        if (question.type === client_1.QType.SPEAKING && answer && typeof answer === 'object' && 'audioAssetId' in answer) {
+            audioAssetId = answer.audioAssetId;
+        }
+        const responseData = {
+            attemptId: attemptId,
+            questionId: questionId,
+            answer: answer ? answer : client_1.Prisma.JsonNull,
+            type: question.type,
+            ...(audioAssetId && { audioAssetId }),
         };
-    }
-    // For SPEAKING questions, extract audioAssetId from answer if present
-    let audioAssetId;
-    if (question.type === client_1.QType.SPEAKING && answer && typeof answer === 'object' && 'audioAssetId' in answer) {
-        audioAssetId = answer.audioAssetId;
-    }
-    const responseData = {
-        attemptId: attemptId,
-        questionId: questionId,
-        answer: answer ? answer : client_1.Prisma.JsonNull,
-        type: question.type,
-        ...(audioAssetId && { audioAssetId }),
-    };
-    const savedResponse = await attemptRepo.upsertResponse(responseData);
-    return savedResponse;
+        const savedResponse = await attemptRepo.upsertResponse(responseData);
+        return savedResponse;
+    }, priority);
 };
 exports.submitAnswer = submitAnswer;
 const submitAttempt = async (studentId, attemptId, submissionReason) => {
@@ -289,6 +299,28 @@ const submitAttempt = async (studentId, attemptId, submissionReason) => {
         maxScore += questionPoints;
         // Find the student's response for this question
         const response = attempt.responses.find((r) => r.questionId === question.id);
+        // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
+        const config = question.config;
+        if (config && config.forceFullMarks === true) {
+            // Award full points regardless of answer
+            totalScore += questionPoints;
+            // If response exists, update it to reflect full marks
+            if (response) {
+                await prisma_1.prisma.response.updateMany({
+                    where: {
+                        attemptId: attemptId,
+                        questionId: question.id,
+                    },
+                    data: {
+                        earnedPoints: questionPoints,
+                        verdict: 'PASS',
+                        gradingMode: client_1.GradingMode.AUTO,
+                        feedback: 'Full marks awarded by staff override.',
+                    },
+                });
+            }
+            continue; // Skip normal grading logic
+        }
         if (response && response.answer) {
             // Auto-grade based on question type
             let gradingResult = {
@@ -356,9 +388,127 @@ const submitAttempt = async (studentId, attemptId, submissionReason) => {
             timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
         },
     });
+    // Award points based on exam performance
+    try {
+        const { awardPointsForExam } = await Promise.resolve().then(() => __importStar(require('../points/points.service')));
+        await awardPointsForExam(studentId, attemptId, Number(totalScore), Number(maxScore));
+    }
+    catch (error) {
+        // Log error but don't fail the submission
+        console.error('Error awarding points for exam:', error);
+    }
     return submittedAttempt;
 };
 exports.submitAttempt = submitAttempt;
+const forceSubmitAttempt = async (attemptId, submissionReason) => {
+    // 1. Fetch all data needed for grading
+    const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
+    // 2. --- Validation Checks ---
+    if (!attempt) {
+        throw { status: 404, message: 'Attempt not found' };
+    }
+    if (attempt.status !== client_1.AttemptStatus.IN_PROGRESS) {
+        throw { status: 403, message: `Attempt has already been ${attempt.status.toLowerCase()}` };
+    }
+    let totalScore = 0;
+    let maxScore = 0;
+    for (const question of attempt.exam.questions) {
+        // Add question's points to the max possible score
+        const questionPoints = Number(question.points);
+        maxScore += questionPoints;
+        // Find the student's response for this question
+        const response = attempt.responses.find((r) => r.questionId === question.id);
+        // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
+        const config = question.config;
+        if (config && config.forceFullMarks === true) {
+            totalScore += questionPoints;
+            if (response) {
+                await prisma_1.prisma.response.updateMany({
+                    where: {
+                        attemptId: attemptId,
+                        questionId: question.id,
+                    },
+                    data: {
+                        earnedPoints: questionPoints,
+                        verdict: 'PASS',
+                        gradingMode: client_1.GradingMode.AUTO,
+                        feedback: 'Full marks awarded by staff override.',
+                    },
+                });
+            }
+            continue;
+        }
+        if (response && response.answer) {
+            let gradingResult = {
+                earnedPoints: 0,
+                verdict: 'FAIL',
+                gradingMode: client_1.GradingMode.MANUAL,
+            };
+            switch (question.type) {
+                case client_1.QType.MCQ:
+                    gradingResult = (0, grading_logic_1.gradeMCQ)(response.answer, question.correctOptionIds, questionPoints);
+                    break;
+                case client_1.QType.CODING:
+                    gradingResult = await (0, grading_logic_1.gradeCoding)(response.answer, question.testcases, questionPoints);
+                    break;
+                case client_1.QType.ESSAY:
+                case client_1.QType.SPEAKING:
+                    gradingResult = {
+                        earnedPoints: 0,
+                        verdict: 'PENDING',
+                        gradingMode: client_1.GradingMode.MANUAL,
+                    };
+                    break;
+                default:
+                    gradingResult = {
+                        earnedPoints: 0,
+                        verdict: 'FAIL',
+                        gradingMode: client_1.GradingMode.MANUAL,
+                    };
+            }
+            if (gradingResult.gradingMode === client_1.GradingMode.AUTO) {
+                totalScore += gradingResult.earnedPoints;
+            }
+            if (gradingResult.gradingMode === client_1.GradingMode.AUTO) {
+                await prisma_1.prisma.response.updateMany({
+                    where: {
+                        attemptId: attemptId,
+                        questionId: question.id,
+                    },
+                    data: {
+                        earnedPoints: gradingResult.earnedPoints,
+                        verdict: gradingResult.verdict,
+                        gradingMode: gradingResult.gradingMode,
+                    },
+                });
+            }
+        }
+    }
+    // Update the Attempt in the Database
+    const submittedAttempt = await prisma_1.prisma.attempt.update({
+        where: { id: attemptId },
+        data: {
+            status: client_1.AttemptStatus.SUBMITTED,
+            submittedAt: new Date(),
+            score: totalScore,
+            maxScore: maxScore,
+            submissionType: 'AUTO',
+            submissionReason: submissionReason || 'Force submitted by admin',
+            timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
+        },
+    });
+    // Award points based on exam performance
+    try {
+        const { awardPointsForExam } = await Promise.resolve().then(() => __importStar(require('../points/points.service')));
+        await awardPointsForExam(attempt.studentId, attemptId, Number(totalScore), Number(maxScore));
+    }
+    catch (error) {
+        // Log error but don't fail the submission
+        console.error('Error awarding points for exam:', error);
+    }
+    return submittedAttempt;
+};
+exports.forceSubmitAttempt = forceSubmitAttempt;
 const getAttemptDetails = async (studentId, attemptId) => {
     // 1. Fetch all attempt data from the repository
     const attempt = await attemptRepo.getAttemptDetails(attemptId);
@@ -418,42 +568,48 @@ const getQuestionById = (questionId) => {
 };
 exports.getQuestionById = getQuestionById;
 const getQuestionForStudent = async (attemptId, questionId, studentId) => {
-    // 1. Verify the attempt belongs to the student
-    const attempt = await prisma_1.prisma.attempt.findUnique({
-        where: { id: attemptId },
-        select: { studentId: true, examId: true, status: true },
-    });
-    if (!attempt) {
-        throw { status: 404, message: 'Attempt not found' };
+    try {
+        // 1. Verify the attempt belongs to the student
+        const attempt = await prisma_1.prisma.attempt.findUnique({
+            where: { id: attemptId },
+            select: { studentId: true, examId: true, status: true },
+        });
+        if (!attempt) {
+            throw { status: 404, message: 'Attempt not found' };
+        }
+        if (attempt.studentId !== studentId) {
+            throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
+        }
+        // 2. Get the question
+        const question = await (0, exports.getQuestionById)(questionId);
+        if (!question) {
+            throw { status: 404, message: 'Question not found' };
+        }
+        if (question.examId !== attempt.examId) {
+            throw { status: 403, message: 'Question is not part of this exam' };
+        }
+        // 3. Scrub the question data for students
+        const scrubbedQuestion = {
+            id: question.id,
+            type: question.type,
+            prompt: question.prompt,
+            points: question.points,
+            order: question.order,
+            options: question.options,
+            starterCode: question.starterCode,
+            wordLimit: question.wordLimit,
+            // Remove correctOptionIds and blanks
+            // For coding questions, only show visible test cases
+            testcases: question.type === client_1.QType.CODING && Array.isArray(question.testcases)
+                ? question.testcases.filter((tc) => !tc.isHidden)
+                : undefined,
+        };
+        return scrubbedQuestion;
     }
-    if (attempt.studentId !== studentId) {
-        throw { status: 403, message: 'Forbidden: You do not have access to this attempt' };
+    catch (error) {
+        console.error('Error in getQuestionForStudent:', error);
+        throw error;
     }
-    // 2. Get the question
-    const question = await (0, exports.getQuestionById)(questionId);
-    if (!question) {
-        throw { status: 404, message: 'Question not found' };
-    }
-    if (question.examId !== attempt.examId) {
-        throw { status: 403, message: 'Question is not part of this exam' };
-    }
-    // 3. Scrub the question data for students
-    const scrubbedQuestion = {
-        id: question.id,
-        type: question.type,
-        prompt: question.prompt,
-        points: question.points,
-        order: question.order,
-        options: question.options,
-        starterCode: question.starterCode,
-        wordLimit: question.wordLimit,
-        // Remove correctOptionIds and blanks
-        // For coding questions, only show visible test cases
-        testcases: question.type === client_1.QType.CODING && question.testcases
-            ? question.testcases.filter((tc) => !tc.isHidden)
-            : undefined,
-    };
-    return scrubbedQuestion;
 };
 exports.getQuestionForStudent = getQuestionForStudent;
 const getAttemptResults = async (studentId, attemptId) => {
@@ -473,15 +629,60 @@ const getAttemptResults = async (studentId, attemptId) => {
     if (attemptResults.status !== client_1.AttemptStatus.SUBMITTED) {
         throw { status: 403, message: 'Forbidden: Results are not available for this attempt yet' };
     }
-    // 5. Sort responses by question order for consistent display
+    // 4a. Check if results are released
+    const exam = attemptResults.exam;
+    if (exam.releaseResults === false) {
+        // Results are locked - hide ALL results
+        // Check if exam has manual grading questions
+        const hasManualGrading = exam.questions?.some((q) => {
+            const qType = q.type;
+            return qType === client_1.QType.ESSAY || qType === client_1.QType.SPEAKING;
+        });
+        // Return locked state with no score or response data
+        return {
+            id: attemptResults.id,
+            studentId: attemptResults.studentId,
+            status: attemptResults.status,
+            startedAt: attemptResults.startedAt,
+            submittedAt: attemptResults.submittedAt,
+            submissionType: attemptResults.submissionType,
+            submissionReason: attemptResults.submissionReason,
+            exam: {
+                id: exam.id,
+                title: exam.title,
+                questions: exam.questions, // Include questions for display structure
+            },
+            responses: [], // No responses shown when locked
+            message: hasManualGrading
+                ? "Results are pending manual grading by staff. Please check back later."
+                : "Results are currently locked by the administrator.",
+            isLocked: true,
+            hasManualGrading,
+        };
+    }
+    // 5. Scrub hidden test cases from the results
+    // This ensures students cannot see hidden test cases in the network response
+    if (attemptResults.exam && attemptResults.exam.questions) {
+        attemptResults.exam.questions.forEach((q) => {
+            if (q.type === client_1.QType.CODING && Array.isArray(q.testcases)) {
+                q.testcases = q.testcases.filter((tc) => !tc.isHidden);
+            }
+        });
+    }
     if (attemptResults.responses && Array.isArray(attemptResults.responses)) {
+        attemptResults.responses.forEach((r) => {
+            if (r.question && r.question.type === client_1.QType.CODING && Array.isArray(r.question.testcases)) {
+                r.question.testcases = r.question.testcases.filter((tc) => !tc.isHidden);
+            }
+        });
+        // 6. Sort responses by question order for consistent display
         attemptResults.responses.sort((a, b) => {
             const orderA = a.question?.order ?? 999;
             const orderB = b.question?.order ?? 999;
             return orderA - orderB;
         });
     }
-    // 6. Return the full results
+    // 7. Return the full results
     return attemptResults;
 };
 exports.getAttemptResults = getAttemptResults;
@@ -489,11 +690,13 @@ const listAttemptsForExam = async (examId, query) => {
     // Ensure page and pageSize are numbers
     const page = typeof query.page === 'string' ? parseInt(query.page, 10) : (query.page ?? 1);
     const pageSize = typeof query.pageSize === 'string' ? parseInt(query.pageSize, 10) : (query.pageSize ?? 20);
+    const searchQuery = query.q?.trim() || undefined;
     // 1. Call the repository to get attempts and the total count
     const { attempts, totalCount } = await attemptRepo.listAttemptsForExam({
         examId,
         page,
         pageSize,
+        ...(searchQuery ? { searchQuery } : {}),
     });
     // 2. Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / pageSize);
@@ -639,8 +842,8 @@ const runCode = async (studentId, attemptId, questionId, code, language, customI
         throw { status: 400, message: 'Not a coding question' };
     }
     // 3. Execute code
-    if (customInput) {
-        // Run with custom input
+    if (customInput !== undefined) {
+        // Run with custom input (even if empty string - user wants to test with empty input)
         const result = await (0, local_executor_1.executeCodeLocally)(code, language, customInput);
         return {
             passed: result.status.id === 3 ? 1 : 0,
@@ -661,7 +864,15 @@ const runCode = async (studentId, attemptId, questionId, code, language, customI
         const testCases = question.testcases || [];
         // If runAllTests is true (submit mode), run all. Otherwise only visible ones.
         const testsToRun = runAllTests ? testCases : testCases.filter(tc => !tc.isHidden);
-        const results = await (0, local_executor_1.testCodeWithTestCasesLocally)(code, language, testsToRun);
+        // Map test cases with metadata (isHidden, originalIndex) for proper display
+        const testsWithMetadata = testsToRun.map((tc, idx) => ({
+            input: tc.input,
+            expectedOutput: tc.expectedOutput,
+            timeoutMs: tc.timeoutMs,
+            isHidden: tc.isHidden || false,
+            originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
+        }));
+        const results = await (0, local_executor_1.testCodeWithTestCasesLocally)(code, language, testsWithMetadata);
         return {
             passed: results.passed,
             total: results.total,

@@ -61,7 +61,7 @@ export function useAnswerManagement(attemptId: string | undefined, initialAnswer
             console.error('Error saving to localStorage:', err);
           }
         }
-      }, 500); // Debounce by 500ms
+      }, 5000); // Debounce by 5 seconds for auto-save
       
       return () => clearTimeout(timeoutId);
     }

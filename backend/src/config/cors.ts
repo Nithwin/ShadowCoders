@@ -75,7 +75,7 @@ export const isOriginAllowed = (
     
     const normalizedOrigin = origin.trim();
     
-    // If ALLOW_ALL_ORIGINS is true, allow any origin (but return specific origin, not *)
+    // Allow all origins if enabled (useful for local server deployments)
     if (env.ALLOW_ALL_ORIGINS) {
         return normalizedOrigin; // Return specific origin, NOT true or '*'
     }

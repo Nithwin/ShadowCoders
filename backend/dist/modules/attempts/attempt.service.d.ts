@@ -46,6 +46,21 @@ export declare const submitAttempt: (studentId: string, attemptId: string, submi
     timeSpentSec: number;
     orderMap: Prisma.JsonValue | null;
 }>;
+export declare const forceSubmitAttempt: (attemptId: string, submissionReason?: string) => Promise<{
+    id: string;
+    examId: string;
+    studentId: string;
+    attemptNo: number;
+    startedAt: Date;
+    submittedAt: Date | null;
+    status: import(".prisma/client").$Enums.AttemptStatus;
+    submissionType: import(".prisma/client").$Enums.SubmissionType;
+    submissionReason: string | null;
+    score: Prisma.Decimal | null;
+    maxScore: Prisma.Decimal | null;
+    timeSpentSec: number;
+    orderMap: Prisma.JsonValue | null;
+}>;
 export declare const getAttemptDetails: (studentId: string, attemptId: string) => Promise<{
     id: string;
     examId: string;
@@ -60,8 +75,8 @@ export declare const getAttemptDetails: (studentId: string, attemptId: string) =
         title: string;
         sections: {
             id: string;
-            order: number;
             title: string;
+            order: number;
             sectionQuestions: {
                 question: {
                     id: string;
@@ -89,10 +104,10 @@ export declare const getAttemptDetails: (studentId: string, attemptId: string) =
 }>;
 export declare const getQuestionById: (questionId: string) => Prisma.Prisma__QuestionClient<{
     id: string;
-    examId: string;
-    order: number;
-    type: import(".prisma/client").$Enums.QType;
     points: Prisma.Decimal;
+    examId: string;
+    type: import(".prisma/client").$Enums.QType;
+    order: number;
     prompt: string | null;
     options: Prisma.JsonValue;
     correctOptionIds: Prisma.JsonValue;
@@ -113,58 +128,16 @@ export declare const getQuestionById: (questionId: string) => Prisma.Prisma__Que
     } | null;
 } | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const getQuestionForStudent: (attemptId: string, questionId: string, studentId: string) => Promise<any>;
-export declare const getAttemptResults: (studentId: string, attemptId: string) => Promise<{
-    id: string;
-    studentId: string;
-    startedAt: Date;
-    submittedAt: Date | null;
-    status: import(".prisma/client").$Enums.AttemptStatus;
-    submissionType: import(".prisma/client").$Enums.SubmissionType;
-    submissionReason: string | null;
-    score: Prisma.Decimal | null;
-    maxScore: Prisma.Decimal | null;
-    exam: {
-        id: string;
-        title: string;
-        maxAttempts: number | null;
-    };
-    responses: {
-        id: string;
-        question: {
-            id: string;
-            order: number;
-            type: import(".prisma/client").$Enums.QType;
-            points: Prisma.Decimal;
-            prompt: string | null;
-            options: Prisma.JsonValue;
-            correctOptionIds: Prisma.JsonValue;
-            starterCode: string | null;
-            testcases: Prisma.JsonValue;
-            blanks: Prisma.JsonValue;
-        };
-        questionId: string;
-        answer: Prisma.JsonValue;
-        verdict: string | null;
-        earnedPoints: Prisma.Decimal | null;
-        feedback: string | null;
-        evaluations: {
-            id: string;
-            score: Prisma.Decimal | null;
-            kind: import(".prisma/client").$Enums.EvaluationKind;
-            breakdown: Prisma.JsonValue;
-            comments: string | null;
-            isFinal: boolean;
-        }[];
-    }[];
-}>;
+export declare const getAttemptResults: (studentId: string, attemptId: string) => Promise<any>;
 type ListAttemptsQuery = z.infer<typeof listAttemptsSchema>['query'];
 export declare const listAttemptsForExam: (examId: string, query: ListAttemptsQuery) => Promise<{
     data: {
+        score: number;
         id: string;
+        attemptNo: number;
         startedAt: Date;
         submittedAt: Date | null;
         status: import(".prisma/client").$Enums.AttemptStatus;
-        score: Prisma.Decimal | null;
         maxScore: Prisma.Decimal | null;
         student: {
             name: string | null;
@@ -181,11 +154,11 @@ export declare const listAttemptsForExam: (examId: string, query: ListAttemptsQu
     };
 }>;
 export declare const getStudentAttempts: (studentId: string) => Promise<{
+    score: number;
     id: string;
     startedAt: Date;
     submittedAt: Date | null;
     status: import(".prisma/client").$Enums.AttemptStatus;
-    score: Prisma.Decimal | null;
     maxScore: Prisma.Decimal | null;
     exam: {
         id: string;
@@ -213,9 +186,9 @@ export declare const getAttemptForAdmin: (attemptId: string) => Promise<{
         id: string;
         question: {
             id: string;
-            order: number;
-            type: import(".prisma/client").$Enums.QType;
             points: Prisma.Decimal;
+            type: import(".prisma/client").$Enums.QType;
+            order: number;
             prompt: string | null;
             options: Prisma.JsonValue;
             correctOptionIds: Prisma.JsonValue;
@@ -275,6 +248,9 @@ export declare const runCode: (studentId: string, attemptId: string, questionId:
         passed: boolean;
         error?: string;
         status: string;
+        isHidden?: boolean;
+        testCaseIndex?: number;
+        errorType?: "TLE" | "Runtime Error" | "Compilation Error" | "Wrong Answer" | "Accepted";
     }[];
     message: string;
 }>;

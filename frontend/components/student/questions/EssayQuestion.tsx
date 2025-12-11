@@ -392,7 +392,7 @@ export default function EssayQuestion({
                 onClick={onSubmit}
                 disabled={false}
                 type="button"
-                className="bg-green-600 hover:bg-green-700 text-white border-0 px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-red-600 hover:bg-red-700 text-white border-0 px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4 mr-2" />
                 Submit Exam

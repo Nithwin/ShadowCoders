@@ -52,7 +52,7 @@ const buildSystemPrompt = (input) => {
         HARD: 30,
         ANY: 15,
     };
-    const points = pointsMap[difficulty] || 15;
+    const points = input.points || pointsMap[difficulty] || 15;
     return `You are an expert exam question generator for a platform called "ShadowCoders".
 Generate exam questions based on the following requirements:
 
@@ -94,7 +94,7 @@ Generate exam questions based on the following requirements:
   "order": <number>,
   "points": ${points},
   "prompt": "<problem description with clear problem statement, constraints, input/output format, and examples>",
-  "starterCode": "<optional starter code with function signature>",
+  "starterCode": "// write your code here",
   "testcases": [
     // EXACTLY 2 sample test cases (visible to students) - MUST be valid and executable
     { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": false, "timeoutMs": 2000 },

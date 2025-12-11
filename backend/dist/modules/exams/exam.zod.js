@@ -24,6 +24,7 @@ exports.createExamSchema = zod_1.z.object({
         maxAttempts: zod_1.z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
         maxTabSwitches: zod_1.z.number().int().min(0).nullable().optional(), // null means unlimited
         allowedLanguages: zod_1.z.array(zod_1.z.string()).optional(), // Array of allowed programming languages
+        releaseResults: zod_1.z.boolean().optional().default(true),
     }),
 });
 exports.assignExamSchema = zod_1.z.object({
@@ -128,6 +129,7 @@ exports.updateExamSchema = zod_1.z.object({
         maxAttempts: zod_1.z.number().int().min(1).nullable().optional(), // null means unlimited, 1+ means limited
         maxTabSwitches: zod_1.z.number().int().min(0).nullable().optional(), // null means unlimited
         allowedLanguages: zod_1.z.array(zod_1.z.string()).optional(), // Array of allowed programming languages
+        releaseResults: zod_1.z.boolean().optional(),
     })
         // Add a refinement to ensure if both dates are sent, start is before end
         .refine((data) => {

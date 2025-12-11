@@ -375,17 +375,6 @@ export default function ExamMonitorPage() {
                 {isConnected ? '✓ Connected to live monitoring' : '⚠ Disconnected - Reconnecting...'}
               </span>
             </div>
-            {/* Notification Icon */}
-            {keyboardViolations.size > 0 && (
-                <div className="absolute top-4 right-4 flex items-center justify-center">
-                    <div className="relative p-2 bg-red-100 rounded-full animate-bounce">
-                        <Bell className="w-6 h-6 text-red-600" />
-                        <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-red-600 text-white text-xs font-bold rounded-full border-2 border-white">
-                            {keyboardViolations.size}
-                        </span>
-                    </div>
-                </div>
-            )}
           </div>
         </div>
 
@@ -513,28 +502,74 @@ export default function ExamMonitorPage() {
 
               <div className="flex gap-2">
                   <button
-                  onClick={() => {
-                      if (window.confirm('Are you sure you want to FORCE STOP ALL active exams? This action cannot be undone.')) {
-                          filteredActivities.forEach(activity => {
-                              if (activity.status === 'active' || activity.status === 'idle') {
-                                   const violation = keyboardViolations.get(activity.attemptId);
-                                   const mockViolation = violation || {
-                                        attemptId: activity.attemptId,
-                                        studentId: activity.studentId,
-                                        studentName: activity.studentName,
-                                        studentEmail: activity.studentEmail,
-                                        timestamp: new Date(),
-                                        examId: examId,
-                                    } as KeyboardViolation;
-                                   handleResolveViolation(mockViolation, 'force-submit');
-                              }
+                  onClick={async () => {
+                      const confirmed = await confirm({
+                          title: 'Force Submit All Active Exams?',
+                          message: `Are you sure you want to FORCE SUBMIT ALL active and idle exams? This will submit ${filteredActivities.filter(a => a.status === 'active' || a.status === 'idle').length} exam(s). This action cannot be undone.`,
+                          confirmText: 'Force Submit All',
+                          cancelText: 'Cancel',
+                          variant: 'danger',
+                      });
+
+                      if (!confirmed) return;
+
+                      const activeAttempts = filteredActivities.filter(activity => 
+                          activity.status === 'active' || activity.status === 'idle'
+                      );
+
+                      if (activeAttempts.length === 0) {
+                          toast.success('No active exams to submit.');
+                          return;
+                      }
+
+                      let successCount = 0;
+                      let errorCount = 0;
+                      const errorMessages: string[] = [];
+
+                      // Submit all attempts in parallel with better error handling
+                      const submitPromises = activeAttempts.map(async (activity) => {
+                          try {
+                              await api.post(`/admin/attempts/${activity.attemptId}/force-submit`, {
+                                  submissionReason: 'Force submitted by admin - Force Submit All',
+                              });
+                              successCount++;
+                              // Refresh attempt details to get updated status
+                              fetchAttemptDetails(activity.attemptId);
+                          } catch (err: any) {
+                              console.error(`Failed to force submit attempt ${activity.attemptId}:`, err);
+                              errorCount++;
+                              const errorMsg = err.response?.data?.error?.message || err.message || 'Unknown error';
+                              errorMessages.push(`${activity.studentName}: ${errorMsg}`);
+                          }
+                      });
+
+                      await Promise.all(submitPromises);
+
+                      // Show results
+                      if (successCount > 0) {
+                          toast.success(`Successfully force submitted ${successCount} exam(s).`);
+                      }
+                      if (errorCount > 0) {
+                          const errorSummary = errorMessages.length > 0 
+                              ? `\n\nErrors:\n${errorMessages.slice(0, 5).join('\n')}${errorMessages.length > 5 ? `\n...and ${errorMessages.length - 5} more` : ''}`
+                              : '';
+                          toast.error(`Failed to submit ${errorCount} exam(s).${errorSummary}`);
+                      }
+                      
+                      // The socket should automatically update the activities list
+                      // But we can also manually refresh attempt details for all submitted attempts
+                      if (successCount > 0) {
+                          activeAttempts.forEach(activity => {
+                              setTimeout(() => {
+                                  fetchAttemptDetails(activity.attemptId);
+                              }, 500);
                           });
                       }
                   }}
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2"
                   >
                   <XCircle className="w-4 h-4" />
-                  Force Stop All
+                  Force Submit All
                   </button>
               </div>
             </div>
@@ -730,9 +765,19 @@ export default function ExamMonitorPage() {
                                 
                                 {(activity.status === 'active' || activity.status === 'idle') && (
                                   <>
-                                     {hasViolation && violation && (
+                                     {hasViolation && (
                                         <button
-                                          onClick={() => handleResolveViolation(violation, 'continue')}
+                                          onClick={() => {
+                                            const violationToUse = violation || {
+                                              attemptId: activity.attemptId,
+                                              studentId: activity.studentId,
+                                              studentName: activity.studentName,
+                                              studentEmail: activity.studentEmail,
+                                              timestamp: new Date(),
+                                              examId: examId,
+                                            } as KeyboardViolation;
+                                            handleResolveViolation(violationToUse, 'continue');
+                                          }}
                                           className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-xs font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md w-full justify-center"
                                         >
                                           <CheckCircle2 className="w-3 h-3" />
@@ -755,7 +800,7 @@ export default function ExamMonitorPage() {
                                       className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-xs font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md w-full justify-center"
                                     >
                                       <XCircle className="w-3 h-3" />
-                                      Force Stop
+                                      Force Submit
                                     </button>
                                   </>
                                 )}

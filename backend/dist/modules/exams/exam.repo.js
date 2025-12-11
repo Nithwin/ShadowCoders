@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteExamAndChildren = exports.updateExam = exports.listExamsForStudent = exports.findExamByIdForStudent = exports.listExams = exports.findExamById = exports.updateExamStatus = exports.createExamAssignment = exports.createExam = void 0;
+exports.deleteExamAndChildren = exports.updateExam = exports.listExamsForStudent = exports.findExamByIdForStudent = exports.listExams = exports.findExamById = exports.updateExamStatus = exports.deleteExamAssignment = exports.createExamAssignment = exports.createExam = void 0;
 const client_1 = require("@prisma/client");
 const prisma_1 = require("../../lib/prisma");
 const createExam = (data) => {
@@ -20,6 +20,12 @@ const createExamAssignment = (examId, assignmentData) => {
     });
 };
 exports.createExamAssignment = createExamAssignment;
+const deleteExamAssignment = (assignmentId) => {
+    return prisma_1.prisma.examAssignment.delete({
+        where: { id: assignmentId },
+    });
+};
+exports.deleteExamAssignment = deleteExamAssignment;
 const updateExamStatus = (examId, status) => {
     return prisma_1.prisma.exam.update({
         where: { id: examId },
@@ -35,21 +41,18 @@ const findExamById = (examId) => {
                 include: {
                     sectionQuestions: {
                         include: {
-                            question: {
-                                select: {
-                                    id: true,
-                                    type: true,
-                                    prompt: true,
-                                    points: true,
-                                    order: true,
-                                },
-                            },
+                            question: true,
                         },
                         orderBy: {
                             order: 'asc',
                         },
                     },
                 },
+                orderBy: {
+                    order: 'asc',
+                },
+            },
+            questions: {
                 orderBy: {
                     order: 'asc',
                 },
@@ -71,13 +74,40 @@ const listExams = async (params) => {
     const skip = (page - 1) * pageSize;
     const whereClause = {};
     if (status) {
-        whereClause.status = status;
+        // For CLOSED status, include exams that are either:
+        // 1. Explicitly marked as CLOSED, OR
+        // 2. Have endAt date in the past (exam has completed)
+        if (status === 'CLOSED') {
+            const now = new Date();
+            whereClause.OR = [
+                { status: 'CLOSED' },
+                { endAt: { lt: now } }
+            ];
+        }
+        else {
+            whereClause.status = status;
+        }
     }
     if (searchQuery) {
-        whereClause.OR = [
-            { title: { contains: searchQuery, mode: "insensitive" } },
-            { description: { contains: searchQuery, mode: "insensitive" } },
-        ];
+        // If we already have an OR clause for CLOSED status, we need to combine it with search
+        if (whereClause.OR) {
+            whereClause.AND = [
+                { OR: whereClause.OR },
+                {
+                    OR: [
+                        { title: { contains: searchQuery, mode: "insensitive" } },
+                        { description: { contains: searchQuery, mode: "insensitive" } },
+                    ]
+                }
+            ];
+            delete whereClause.OR;
+        }
+        else {
+            whereClause.OR = [
+                { title: { contains: searchQuery, mode: "insensitive" } },
+                { description: { contains: searchQuery, mode: "insensitive" } },
+            ];
+        }
     }
     const exams = await prisma_1.prisma.exam.findMany({
         where: whereClause,
@@ -131,15 +161,19 @@ const findExamByIdForStudent = async (params) => {
                         assignToAll: true,
                     },
                     // Condition 2: Assigned via cohort match (only if student has cohort info)
-                    ...(student.year && student.department && student.section
-                        ? [
-                            {
-                                cohortYear: student.year,
-                                cohortDepartment: student.department,
-                                cohortSection: student.section,
-                            },
+                    // Condition 2: Assigned via cohort match (flexible)
+                    {
+                        AND: [
+                            // If student has year, match assignment year OR assignment has no year (applies to all years)
+                            student.year ? { OR: [{ cohortYear: null }, { cohortYear: student.year }] } : {},
+                            // If student has department, match assignment dept OR assignment has no dept
+                            student.department ? { OR: [{ cohortDepartment: null }, { cohortDepartment: student.department }] } : {},
+                            // If student has section, match assignment section OR assignment has no section
+                            student.section ? { OR: [{ cohortSection: null }, { cohortSection: student.section }] } : {},
+                            // Ensure we are not matching purely empty assignments if assignToAll is false (though create validation prevents this)
+                            { assignToAll: false }
                         ]
-                        : []),
+                    },
                     // Condition 3: Assigned directly via student ID
                     {
                         studentIds: {
@@ -175,7 +209,9 @@ const findExamByIdForStudent = async (params) => {
                     status: true,
                     submittedAt: true,
                 },
-                take: 1,
+                orderBy: {
+                    attemptNo: 'desc',
+                },
             },
             // Include question types to check if exam has speaking questions
             questions: {
@@ -239,15 +275,15 @@ const listExamsForStudent = async (params) => {
                         assignToAll: true,
                     },
                     // Condition 2: Assigned via cohort match (only if student has cohort info)
-                    ...(student.year && student.department && student.section
-                        ? [
-                            {
-                                cohortYear: student.year,
-                                cohortDepartment: student.department,
-                                cohortSection: student.section,
-                            },
+                    // Condition 2: Assigned via cohort match (flexible)
+                    {
+                        AND: [
+                            student.year ? { OR: [{ cohortYear: null }, { cohortYear: student.year }] } : {},
+                            student.department ? { OR: [{ cohortDepartment: null }, { cohortDepartment: student.department }] } : {},
+                            student.section ? { OR: [{ cohortSection: null }, { cohortSection: student.section }] } : {},
+                            { assignToAll: false }
                         ]
-                        : []),
+                    },
                     // Condition 3: Assigned directly via student ID
                     {
                         studentIds: {
@@ -338,7 +374,6 @@ const listExamsForStudent = async (params) => {
                 orderBy: {
                     attemptNo: 'desc', // Get the latest attempt first
                 },
-                take: 1, // Only get the latest attempt
             },
         },
     });
@@ -364,6 +399,7 @@ const updateExam = (examId, data // Use the generic update input type
             timingMode: true,
             sectionLockPolicy: true,
             status: true,
+            releaseResults: true,
         },
     });
 };

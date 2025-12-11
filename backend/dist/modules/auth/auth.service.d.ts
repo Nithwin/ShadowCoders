@@ -29,6 +29,7 @@ export declare const findUserById: (id: string) => Promise<{
     leetcodeId: string | null;
     leetcodeStats: import("@prisma/client/runtime/library").JsonValue | null;
     settings: import("@prisma/client/runtime/library").JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 } | null>;
@@ -62,6 +63,7 @@ export declare const updateUserProfile: (userId: string, updateData: {
     leetcodeId: string | null;
     leetcodeStats: import("@prisma/client/runtime/library").JsonValue | null;
     settings: import("@prisma/client/runtime/library").JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 }>;
@@ -82,6 +84,7 @@ export declare const changePassword: (userId: string, { currentPassword, newPass
     leetcodeId: string | null;
     leetcodeStats: import("@prisma/client/runtime/library").JsonValue | null;
     settings: import("@prisma/client/runtime/library").JsonValue | null;
+    points: number;
     createdAt: Date;
     updatedAt: Date;
 }>;

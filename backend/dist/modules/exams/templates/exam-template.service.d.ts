@@ -7,8 +7,8 @@ export declare const createTemplateFromExam: (examId: string, userId: string, me
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    title: string;
     description: string | null;
+    title: string;
     structure: Prisma.JsonValue;
     isPublic: boolean;
     createdBy: string;
@@ -22,8 +22,8 @@ export declare const createExamFromTemplate: (templateId: string, userId: string
     createdAt: Date;
     updatedAt: Date;
     status: import(".prisma/client").$Enums.ExamStatus;
-    title: string;
     description: string | null;
+    title: string;
     startAt: Date;
     endAt: Date;
     durationMins: number;
@@ -34,6 +34,7 @@ export declare const createExamFromTemplate: (templateId: string, userId: string
     maxAttempts: number | null;
     maxTabSwitches: number | null;
     allowedLanguages: Prisma.JsonValue | null;
+    releaseResults: boolean;
 }>;
 export declare const listTemplates: (userId: string, query: any) => Promise<{
     templates: ({
@@ -45,8 +46,8 @@ export declare const listTemplates: (userId: string, query: any) => Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        title: string;
         description: string | null;
+        title: string;
         structure: Prisma.JsonValue;
         isPublic: boolean;
         createdBy: string;
@@ -57,8 +58,8 @@ export declare const deleteTemplate: (templateId: string, userId: string) => Pro
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    title: string;
     description: string | null;
+    title: string;
     structure: Prisma.JsonValue;
     isPublic: boolean;
     createdBy: string;
@@ -73,8 +74,8 @@ export declare const getTemplateById: (templateId: string) => Promise<{
     id: string;
     createdAt: Date;
     updatedAt: Date;
-    title: string;
     description: string | null;
+    title: string;
     structure: Prisma.JsonValue;
     isPublic: boolean;
     createdBy: string;

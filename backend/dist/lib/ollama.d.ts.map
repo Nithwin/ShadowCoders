@@ -1,1 +1,1 @@
-{"version":3,"file":"ollama.d.ts","sourceRoot":"","sources":["../../src/lib/ollama.ts"],"names":[],"mappings":"AAGA;;;GAGG;AACH,eAAO,MAAM,sBAAsB,GAAU,QAAQ,MAAM,KAAG,OAAO,CAAC,MAAM,CAgD3E,CAAC"}
+{"version":3,"file":"ollama.d.ts","sourceRoot":"","sources":["../../src/lib/ollama.ts"],"names":[],"mappings":"AAGA;;;GAGG;AACH,eAAO,MAAM,sBAAsB,GAAU,QAAQ,MAAM,KAAG,OAAO,CAAC,MAAM,CA8C3E,CAAC"}

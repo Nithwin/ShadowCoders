@@ -49,6 +49,7 @@ const registerAttemptRoutes = (app) => {
     app.get('/api/admin/attempts/exam/:examId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(attempt_zod_1.listAttemptsSchema), attemptController.listAttemptsForExamHandler);
     app.get('/api/admin/attempts/:attemptId', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), attemptController.getAttemptForAdminHandler);
     app.post('/api/admin/attempts/reset', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(attempt_zod_1.resetAttemptsSchema), attemptController.resetAttemptsHandler);
+    app.post('/api/admin/attempts/:attemptId/force-submit', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(attempt_zod_1.forceSubmitAttemptSchema), attemptController.forceSubmitAttemptHandler);
 };
 exports.registerAttemptRoutes = registerAttemptRoutes;
 //# sourceMappingURL=attempt.routes.js.map

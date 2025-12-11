@@ -423,19 +423,8 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
     },
   });
 
-  // Award points based on exam performance
-  try {
-    const { awardPointsForExam } = await import('../points/points.service');
-    await awardPointsForExam(
-      studentId,
-      attemptId,
-      Number(totalScore),
-      Number(maxScore)
-    );
-  } catch (error) {
-    // Log error but don't fail the submission
-    console.error('Error awarding points for exam:', error);
-  }
+  // Points are now awarded manually by admin from the submissions page
+  // No automatic points awarding on submission
 
   return submittedAttempt;
 };
@@ -564,19 +553,8 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
     },
   });
 
-  // Award points based on exam performance
-  try {
-    const { awardPointsForExam } = await import('../points/points.service');
-    await awardPointsForExam(
-      attempt.studentId,
-      attemptId,
-      Number(totalScore),
-      Number(maxScore)
-    );
-  } catch (error) {
-    // Log error but don't fail the submission
-    console.error('Error awarding points for exam:', error);
-  }
+  // Points are now awarded manually by admin from the submissions page
+  // No automatic points awarding on force submit
 
   return submittedAttempt;
 };

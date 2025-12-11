@@ -22,6 +22,8 @@ export declare function testCodeWithTestCasesLocally(code: string, language: str
     input: string;
     expectedOutput: string;
     timeoutMs?: number;
+    isHidden?: boolean;
+    originalIndex?: number;
 }>): Promise<{
     passed: number;
     total: number;
@@ -32,6 +34,9 @@ export declare function testCodeWithTestCasesLocally(code: string, language: str
         passed: boolean;
         error?: string;
         status: string;
+        isHidden?: boolean;
+        testCaseIndex?: number;
+        errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
     }>;
 }>;
 export declare const SUPPORTED_LANGUAGES: string[];

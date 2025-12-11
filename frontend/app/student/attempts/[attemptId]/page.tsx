@@ -145,6 +145,39 @@ export default function ExamAttemptPage() {
     };
   }, [socket, attempt, setQuestions, attemptId, handleSubmitExam, removeViolation]);
 
+  // Periodically check if attempt was force submitted (fallback if socket event doesn't arrive)
+  useEffect(() => {
+    if (!showKeyboardViolation || !attemptId || !attempt) return;
+
+    const checkAttemptStatus = async () => {
+      try {
+        const res = await api.get(`/student/attempts/${attemptId}`);
+        const updatedAttempt = res.data;
+        
+        // If attempt was submitted or status changed, close the violation popup
+        if (updatedAttempt.submittedAt || updatedAttempt.status !== 'IN_PROGRESS') {
+          setShowKeyboardViolation(false);
+          removeViolation(attemptId);
+          // If force submitted, reload to show results
+          if (updatedAttempt.submittedAt) {
+            window.location.reload();
+          }
+        }
+      } catch (error) {
+        // Silently handle errors - don't spam console
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error checking attempt status:', error);
+        }
+      }
+    };
+
+    // Check immediately and then every 3 seconds
+    checkAttemptStatus();
+    const interval = setInterval(checkAttemptStatus, 3000);
+
+    return () => clearInterval(interval);
+  }, [showKeyboardViolation, attemptId, attempt, removeViolation]);
+
   // Sync initial reported status from questions
   useEffect(() => {
       if (questions.length > 0) {
@@ -212,18 +245,24 @@ export default function ExamAttemptPage() {
         return; // Don't trigger violation
       }
       
-      // Allow Ctrl + allowed shortcuts (V, C, A, Z, Y) - even outside input fields
-      if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+      // Allow Ctrl + allowed shortcuts (V, C, A, Z, Y, X) - even outside input fields
+      // Also allow Ctrl+Shift+Z for redo
+      if (e.ctrlKey && !e.altKey && !e.metaKey) {
         const key = e.key.toLowerCase();
-        if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y') {
+        // Allow Ctrl+Shift+Z for redo (some editors use this) - check this first
+        if (e.shiftKey && key === 'z') {
+          return; // Don't trigger violation for Ctrl+Shift+Z
+        }
+        // Allow Ctrl+V (paste), Ctrl+C (copy), Ctrl+A (select all), Ctrl+Z (undo), Ctrl+Y (redo), Ctrl+X (cut)
+        if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y' || key === 'x') {
           return; // Don't trigger violation for allowed Ctrl shortcuts
         }
       }
       
-      // BLOCK: Ctrl+Space, Alt+Space, Ctrl+Shift (any key with Ctrl+Shift)
+      // BLOCK: Ctrl+Space, Alt+Space, Ctrl+Shift (except Ctrl+Shift+Z for redo which is already handled above)
       if ((e.ctrlKey && (e.key === ' ' || e.key === 'Space')) ||
           (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
-          (e.ctrlKey && e.shiftKey)) {
+          (e.ctrlKey && e.shiftKey && e.key.toLowerCase() !== 'z')) {
         e.preventDefault();
         e.stopPropagation();
         // Emit keyboard violation event (only once per attempt)
@@ -460,7 +499,16 @@ export default function ExamAttemptPage() {
     <div ref={containerRef} className="h-screen overflow-hidden bg-gray-50 text-gray-900 flex flex-col">
       <KeyboardViolationPopup 
         show={showKeyboardViolation} 
-        onResolved={() => setShowKeyboardViolation(false)}
+        onResolved={() => {
+          setShowKeyboardViolation(false);
+          removeViolation(attemptId);
+          // Refresh attempt data to get latest status
+          if (attempt) {
+            // The socket listener will handle the actual resolution
+            // This just closes the popup
+          }
+        }}
+        attemptId={attemptId}
       />
       <FullscreenWarning 
         warningCount={warningCount} 

@@ -26,6 +26,7 @@ declare class ExamMonitoringService {
     private examRooms;
     private studentActivities;
     private socketToAttempt;
+    private keyboardViolations;
     initialize(server: HTTPServer): SocketIOServer<import("socket.io").DefaultEventsMap, import("socket.io").DefaultEventsMap, import("socket.io").DefaultEventsMap, any>;
     getExamStats(examId: string): {
         totalStudents: number;
@@ -35,6 +36,10 @@ declare class ExamMonitoringService {
         averageProgress: number;
         activities: ExamActivity[];
     };
+    notifyQuestionUpdate(examId: string, questionId: string, data: any): void;
+    notifyReport(examId: string, report: any): void;
+    sendNotification(userId: string, notification: any): void;
+    sendRoleNotification(role: Role, notification: any): void;
 }
 export declare const examMonitoring: ExamMonitoringService;
 export {};

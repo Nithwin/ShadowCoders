@@ -21,6 +21,7 @@ export declare const createExamSchema: z.ZodObject<{
         maxAttempts: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         maxTabSwitches: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         allowedLanguages: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        releaseResults: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const assignExamSchema: z.ZodObject<{
@@ -50,9 +51,9 @@ export declare const studentListExamsSchema: z.ZodObject<{
         page: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
         pageSize: z.ZodDefault<z.ZodOptional<z.ZodCoercedNumber<unknown>>>;
         filter: z.ZodOptional<z.ZodEnum<{
+            COMPLETED: "COMPLETED";
             UPCOMING: "UPCOMING";
             LIVE: "LIVE";
-            COMPLETED: "COMPLETED";
         }>>;
         q: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>;
@@ -79,6 +80,7 @@ export declare const updateExamSchema: z.ZodObject<{
         maxAttempts: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         maxTabSwitches: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         allowedLanguages: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        releaseResults: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 //# sourceMappingURL=exam.zod.d.ts.map

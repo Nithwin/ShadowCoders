@@ -39,9 +39,11 @@ const userController = __importStar(require("./users.controller"));
 const auth_1 = require("../../middleware/auth");
 const registerUserRoutes = (app) => {
     const router = (0, express_1.Router)();
+    // Public routes (no auth required) - e.g. for images that need to be loaded by <img> tags
+    router.get('/:id/picture', userController.getUserPicture);
     // Routes requiring only authentication (Student + Staff)
     router.use(auth_1.verifyAccess);
-    router.get('/:id/picture', userController.getUserPicture);
+    // router.get('/:id/picture', userController.getUserPicture); // Moved up
     // Routes requiring STAFF (Admin) role
     const adminRouter = (0, express_1.Router)();
     adminRouter.use((0, auth_1.requireRole)('STAFF'));

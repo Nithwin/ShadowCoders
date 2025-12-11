@@ -8,10 +8,57 @@ const env_1 = require("./config/env");
 const os_1 = __importDefault(require("os"));
 const http_1 = __importDefault(require("http"));
 const socket_1 = require("./lib/socket");
-const PORT = env_1.env.PORT || 4000;
+const PORT = Number(env_1.env.PORT) || 4000;
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    console.error('Stack:', error.stack);
+    // In production, you might want to gracefully shutdown
+    if (env_1.env.NODE_ENV === 'production') {
+        console.error('Application will exit due to uncaught exception');
+        process.exit(1);
+    }
+});
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise);
+    console.error('Reason:', reason);
+    // In production, you might want to gracefully shutdown
+    if (env_1.env.NODE_ENV === 'production') {
+        console.error('Application will exit due to unhandled rejection');
+        process.exit(1);
+    }
+});
+// Handle SIGTERM (used by process managers like PM2)
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
+// Handle SIGINT (Ctrl+C)
+process.on('SIGINT', () => {
+    console.log('\nSIGINT received, shutting down gracefully...');
+    server.close(() => {
+        console.log('Server closed');
+        process.exit(0);
+    });
+});
 const app = (0, app_1.createApp)();
 // Create HTTP server
 const server = http_1.default.createServer(app);
+// Handle server errors
+server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use. Please use a different port.`);
+        process.exit(1);
+    }
+    else {
+        console.error('❌ Server error:', error);
+        process.exit(1);
+    }
+});
 // Initialize Socket.IO
 socket_1.examMonitoring.initialize(server);
 // Get local IP address for LAN access
@@ -33,7 +80,7 @@ const getLocalIP = () => {
 // Listen on all network interfaces (0.0.0.0) to allow LAN access
 const HOST = '0.0.0.0';
 const localIP = getLocalIP();
-server.listen(Number(PORT), HOST, () => {
+server.listen(PORT, HOST, () => {
     console.log('\n' + '='.repeat(60));
     console.log('🚀 Backend Server Started Successfully!');
     console.log('='.repeat(60));

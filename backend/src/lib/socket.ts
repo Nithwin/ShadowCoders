@@ -293,17 +293,20 @@ class ExamMonitoringService {
         violation.resolved = true;
         violation.resolution = data.action;
 
-        // Notify the student
-        this.io?.to(`exam:${violation.examId}`).emit('violation-resolved', {
+        // Notify the student - emit to both exam room and user-specific room for reliability
+        const violationData = {
           attemptId: data.attemptId,
           action: data.action,
-        });
+        };
+        
+        // Emit to exam room (all students in the exam)
+        this.io?.to(`exam:${violation.examId}`).emit('violation-resolved', violationData);
+        
+        // Also emit to the specific student's room for direct delivery
+        this.io?.to(`user:${violation.studentId}`).emit('violation-resolved', violationData);
 
         // Notify all admins monitoring this exam
-        this.io?.to(`admin:exam:${violation.examId}`).emit('violation-resolved', {
-          attemptId: data.attemptId,
-          action: data.action,
-        });
+        this.io?.to(`admin:exam:${violation.examId}`).emit('violation-resolved', violationData);
 
       });
 

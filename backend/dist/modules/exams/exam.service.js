@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getExamByIdForStudent = exports.getExamById = exports.ensureDefaultSections = exports.deleteExam = exports.updateExam = exports.listExamsForStudent = exports.listExams = exports.pubishExam = exports.assignExam = exports.createExam = void 0;
+exports.getExamByIdForStudent = exports.getExamById = exports.ensureDefaultSections = exports.deleteExam = exports.updateExam = exports.listExamsForStudent = exports.listExams = exports.pubishExam = exports.deleteAssignment = exports.assignExam = exports.createExam = void 0;
 const examRepo = __importStar(require("./exam.repo"));
 const client_1 = require("@prisma/client");
 const userRepo = __importStar(require("../auth/auth.repo"));
@@ -97,6 +97,23 @@ const assignExam = async (examId, input) => {
     return assignment;
 };
 exports.assignExam = assignExam;
+const deleteAssignment = async (examId, assignmentId) => {
+    // Check if exam exists? (Optional, but good practice)
+    const exam = await examRepo.findExamById(examId);
+    if (!exam) {
+        throw { status: 404, message: "Exam not found" };
+    }
+    // Delete the assignment
+    try {
+        await examRepo.deleteExamAssignment(assignmentId);
+        return { message: "Assignment deleted successfully" };
+    }
+    catch (error) {
+        // Check if error is "Record to delete does not exist"
+        throw { status: 404, message: "Assignment not found" };
+    }
+};
+exports.deleteAssignment = deleteAssignment;
 const pubishExam = async (examId) => {
     const exam = await examRepo.findExamById(examId);
     if (!exam) {
@@ -184,10 +201,12 @@ const listExamsForStudent = async (studentId, query) => {
         });
     }
     const examsWithAttemptStatus = examsToReturn.map((exam) => {
+        // Ensure attempts are sorted by attemptNo descending (latest first)
+        const sortedAttempts = exam.attempts?.sort((a, b) => b.attemptNo - a.attemptNo) || [];
         // Check if student has any submitted attempts
-        const submittedAttempts = exam.attempts?.filter(a => a.status === 'SUBMITTED') || [];
+        const submittedAttempts = sortedAttempts.filter(a => a.status === 'SUBMITTED');
         const hasCompletedAttempt = submittedAttempts.length > 0;
-        const latestAttempt = exam.attempts && exam.attempts.length > 0 ? exam.attempts[0] : null;
+        const latestAttempt = sortedAttempts.length > 0 ? sortedAttempts[0] : null;
         // Remove attempts from response (we only needed it for checking)
         const { attempts, ...examData } = exam;
         return {
@@ -195,10 +214,10 @@ const listExamsForStudent = async (studentId, query) => {
             hasAttempt: hasCompletedAttempt,
             attemptId: latestAttempt?.id || null,
             attemptStatus: latestAttempt?.status || null,
-            attemptCount: exam.attempts?.length || 0,
+            attemptCount: sortedAttempts.length,
             submittedAttemptCount: submittedAttempts.length,
-            latestScore: latestAttempt?.score ? Number(latestAttempt.score) : null,
-            latestMaxScore: latestAttempt?.maxScore ? Number(latestAttempt.maxScore) : null,
+            latestScore: latestAttempt?.score ? parseFloat(String(latestAttempt.score)) : null,
+            latestMaxScore: latestAttempt?.maxScore ? parseFloat(String(latestAttempt.maxScore)) : null,
         };
     });
     // 5. Adjust totalCount for LIVE filter (since we filter in service layer)

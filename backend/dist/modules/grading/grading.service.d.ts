@@ -11,5 +11,25 @@ export declare const gradeEssay: (responseId: string) => Promise<{
     status: string;
     message: string;
 }>;
+export declare const overrideResponseGrade: (responseId: string, score: number, feedback?: string) => Promise<{
+    code: string | null;
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    type: import(".prisma/client").$Enums.QType;
+    questionId: string;
+    attemptId: string;
+    answer: Prisma.JsonValue | null;
+    chosenOptionIds: Prisma.JsonValue | null;
+    language: string | null;
+    textAnswer: string | null;
+    audioAssetId: string | null;
+    gradingMode: import(".prisma/client").$Enums.GradingMode | null;
+    verdict: string | null;
+    earnedPoints: Prisma.Decimal | null;
+    manualAdjustment: Prisma.Decimal | null;
+    feedback: string | null;
+    judgeRunId: string | null;
+}>;
 export {};
 //# sourceMappingURL=grading.service.d.ts.map

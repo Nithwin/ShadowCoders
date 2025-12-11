@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.gradeEssay = exports.runCode = void 0;
+exports.overrideResponseGrade = exports.gradeEssay = exports.runCode = void 0;
 const gradingRepo = __importStar(require("./grading.repo"));
 const prisma_1 = require("../../lib/prisma");
 const client_1 = require("@prisma/client");
@@ -110,17 +110,34 @@ const runCode = async (studentId, attemptId, input) => {
     const job = await gradingRepo.createGradingJob(jobData);
     // 5. --- Execute Code (via Queue) ---
     let result;
-    if (customInput !== undefined && customInput !== null && customInput !== '') {
-        // Run with custom input (single execution) - queued
+    if (customInput !== undefined) {
+        // Run with custom input (even if empty string - user wants to test with empty input) - queued
         const executionResult = await execution_queue_1.executionQueue.enqueue(async () => {
             return await (0, local_executor_1.executeCodeLocally)(code, language, customInput, 5000);
         });
         // Format result for custom input
+        // Format result for custom input
+        // The frontend expects testResults to be populated even for custom input
+        // and looks for expectedOutput === '(Custom Input)' to identify it
+        const isSuccess = executionResult.status.id === 3; // 3 is usually Accepted/Success in many judges, but let's rely on standard logic
+        // Actually, for custom input, we just want to show the output regardless of 'success' (exit code 0)
+        // But we mark it as passed if it ran successfully (exit code 0)
         result = {
-            passed: 0,
-            total: 0,
-            testResults: [],
-            message: 'Custom input execution',
+            passed: isSuccess ? 1 : 0,
+            total: 1,
+            testResults: [
+                {
+                    input: customInput,
+                    expectedOutput: '(Custom Input)', // Frontend uses this magic string to identify custom input
+                    actualOutput: executionResult.stdout || '',
+                    passed: isSuccess,
+                    status: executionResult.status.description,
+                    error: executionResult.stderr || ('compile_output' in executionResult ? executionResult.compile_output : null) || ('message' in executionResult ? executionResult.message : null) || ('error' in executionResult ? executionResult.error : null) || null,
+                    time: typeof executionResult.time === 'string' ? parseFloat(executionResult.time) : executionResult.time,
+                    memory: executionResult.memory || 0,
+                }
+            ],
+            message: 'Custom input execution completed',
             customOutput: {
                 input: customInput,
                 output: executionResult.stdout || '',
@@ -148,12 +165,16 @@ const runCode = async (studentId, attemptId, input) => {
             throw { status: 400, message: errorMessage };
         }
         // Test code against test cases using local executor - queued
+        // Map test cases with metadata (isHidden, originalIndex) for proper display
+        const testsWithMetadata = testCasesToRun.map((tc, idx) => ({
+            input: tc.input,
+            expectedOutput: tc.expectedOutput,
+            timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+            isHidden: tc.isHidden || false,
+            originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
+        }));
         const testResults = await execution_queue_1.executionQueue.enqueue(async () => {
-            return await (0, local_executor_1.testCodeWithTestCasesLocally)(code, language, testCasesToRun.map((tc) => ({
-                input: tc.input,
-                expectedOutput: tc.expectedOutput,
-                timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-            })));
+            return await (0, local_executor_1.testCodeWithTestCasesLocally)(code, language, testsWithMetadata);
         });
         // Format Result
         result = {
@@ -196,7 +217,7 @@ const gradeEssay = async (responseId) => {
     if (response.question.type !== client_1.QType.ESSAY) {
         throw { status: 400, message: 'This is not an essay response' };
     }
-    // 2. Extact text answer
+    // 2. Extract text answer
     // Handle both possible locations for essay text (answer JSON or textAnswer field)
     let studentText = response.textAnswer;
     if (!studentText && response.answer && typeof response.answer === 'object') {
@@ -216,12 +237,11 @@ const gradeEssay = async (responseId) => {
     // 4. Enqueue the grading task
     essayGradingQueue.enqueue(async () => {
         try {
-            console.log(`[EssayGrade] Starting job ${job.id} for response ${response.id}`);
             // Update job to RUNNING
             await gradingRepo.updateGradingJob(job.id, 'RUNNING', null);
             // Prepare Prompt
             const questionPrompt = response.question.prompt || 'No prompt provided';
-            const maxPoints = Number(response.question.points);
+            const maxPoints = response.question.points ? parseFloat(String(response.question.points)) : 0;
             const rubricText = response.question.rubric
                 ? JSON.stringify(response.question.rubric.criteria)
                 : 'No specific rubric provided. Grade based on clarity, relevance, and completeness.';
@@ -260,7 +280,6 @@ ${studentText}
                 aiResponseString = await generateJsonFromAi(systemPrompt);
             }
             // Parse Result
-            // Clean up markdown code blocks if present
             let cleaned = aiResponseString.trim();
             if (cleaned.startsWith('```')) {
                 const lines = cleaned.split('\n');
@@ -274,20 +293,19 @@ ${studentText}
             if (typeof resultJson.score !== 'number' || typeof resultJson.feedback !== 'string') {
                 throw new Error('AI returned invalid JSON structure');
             }
-            // 5. Save Evaluation
+            // Save Evaluation
             await prisma_1.prisma.evaluation.create({
                 data: {
                     responseId: response.id,
                     kind: 'AI',
                     score: resultJson.score,
                     comments: resultJson.feedback,
-                    isFinal: false, // Teacher must approve
+                    isFinal: false,
                     createdAt: new Date(),
                 }
             });
-            // 6. Complete Job
+            // Complete Job
             await gradingRepo.updateGradingJob(job.id, 'SUCCEEDED', resultJson);
-            console.log(`[EssayGrade] Job ${job.id} completed. Score: ${resultJson.score}`);
             return resultJson;
         }
         catch (error) {
@@ -299,4 +317,39 @@ ${studentText}
     return { jobId: job.id, status: 'QUEUED', message: 'Essay grading has been queued.' };
 };
 exports.gradeEssay = gradeEssay;
+const overrideResponseGrade = async (responseId, score, feedback) => {
+    // 1. Check if response exists
+    const response = await prisma_1.prisma.response.findUnique({
+        where: { id: responseId },
+        include: { question: true }
+    });
+    if (!response) {
+        throw { status: 404, message: 'Response not found' };
+    }
+    // 2. Update the response
+    const updatedResponse = await prisma_1.prisma.response.update({
+        where: { id: responseId },
+        data: {
+            earnedPoints: score,
+            verdict: score === 0 ? 'FAIL' : (score >= (response.question.points ? parseFloat(String(response.question.points)) : 0) ? 'PASS' : 'PARTIAL'),
+            feedback: feedback || 'Manual grade override by administrator',
+            gradingMode: 'MANUAL'
+        }
+    });
+    // 3. Recalculate attempt score
+    // We need to re-sum all response/earnedPoints for the attempt
+    const allResponses = await prisma_1.prisma.response.findMany({
+        where: { attemptId: response.attemptId },
+        select: { earnedPoints: true }
+    });
+    const totalScore = allResponses.reduce((acc, curr) => acc + (curr.earnedPoints ? parseFloat(String(curr.earnedPoints)) : 0), 0);
+    await prisma_1.prisma.attempt.update({
+        where: { id: response.attemptId },
+        data: {
+            score: totalScore
+        }
+    });
+    return updatedResponse;
+};
+exports.overrideResponseGrade = overrideResponseGrade;
 //# sourceMappingURL=grading.service.js.map

@@ -57,7 +57,6 @@ const getUploadsDirectory = async () => {
     }
     catch (error) {
         // Directory might already exist, that's fine
-        console.log(`Uploads directory check: ${fullPath}`);
     }
     return fullPath;
 };
