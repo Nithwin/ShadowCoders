@@ -74,12 +74,17 @@ export const assignExam = async (examId: string, input: AssignExamInput) => {
     // Normalize regNos to lowercase for case-insensitive matching
     const normalizedRegNos = input.regNos.map(regNo => regNo.toLowerCase().trim());
     
+    // Use case-insensitive matching with OR conditions since PostgreSQL's 'in' operator is case-sensitive
+    // Prisma doesn't support mode: 'insensitive' with 'in', so we use OR with equals
     const students = await prisma.user.findMany({
       where: {
         role: 'STUDENT',
-        reg_no: {
-          in: normalizedRegNos,
-        },
+        OR: normalizedRegNos.map(regNo => ({
+          reg_no: {
+            equals: regNo,
+            mode: 'insensitive',
+          },
+        })),
       },
       select: {
         id: true,

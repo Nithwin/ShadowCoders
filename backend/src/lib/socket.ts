@@ -289,7 +289,7 @@ class ExamMonitoringService {
       });
 
       // Admin resolves keyboard violation
-      socket.on('resolve-keyboard-violation', (data: { attemptId: string; action: 'force-submit' | 'continue' }) => {
+      socket.on('resolve-keyboard-violation', async (data: { attemptId: string; action: 'force-submit' | 'continue' }) => {
         if (socket.userRole !== Role.STAFF) {
           socket.emit('error', { message: 'Only staff can resolve violations' });
           return;
@@ -303,16 +303,47 @@ class ExamMonitoringService {
           // If violation doesn't exist but action is force-submit, still try to notify
           // This can happen if the attempt was force submitted via API first
           if (data.action === 'force-submit') {
-            // Try to find the exam ID from the attempt by querying the database
-            // For now, emit to all rooms and let clients filter by attemptId
-            const violationData = {
-              attemptId: data.attemptId,
-              action: data.action,
-            };
-            
-            // Emit to all connected clients - they will filter by attemptId
-            // This ensures the student gets notified even if violation wasn't tracked
-            this.io?.emit('violation-resolved', violationData);
+            // Query the database to get examId and studentId from the attempt
+            try {
+              const attempt = await prisma.attempt.findUnique({
+                where: { id: data.attemptId },
+                select: {
+                  examId: true,
+                  studentId: true,
+                },
+              });
+
+              if (attempt) {
+                const violationData = {
+                  attemptId: data.attemptId,
+                  action: data.action,
+                };
+                
+                // Emit to the specific exam room (consistent with when violation exists)
+                this.io?.to(`exam:${attempt.examId}`).emit('violation-resolved', violationData);
+                
+                // Also emit to the specific student's room for direct delivery
+                this.io?.to(`user:${attempt.studentId}`).emit('violation-resolved', violationData);
+                
+                // Notify all admins monitoring this exam
+                this.io?.to(`admin:exam:${attempt.examId}`).emit('violation-resolved', violationData);
+              } else {
+                // Attempt not found - fallback to global emit (shouldn't happen in normal flow)
+                const violationData = {
+                  attemptId: data.attemptId,
+                  action: data.action,
+                };
+                this.io?.emit('violation-resolved', violationData);
+              }
+            } catch (error) {
+              console.error(`[Socket] Error querying attempt ${data.attemptId}:`, error);
+              // Fallback to global emit if query fails
+              const violationData = {
+                attemptId: data.attemptId,
+                action: data.action,
+              };
+              this.io?.emit('violation-resolved', violationData);
+            }
             
             // Don't log error for force-submit when violation not found - it's expected
             // The API call already handled the submission, we're just notifying
