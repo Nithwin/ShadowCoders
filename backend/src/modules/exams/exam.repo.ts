@@ -82,13 +82,38 @@ export const listExams = async (params: {
 
   const whereClause: Prisma.ExamWhereInput = {};
   if (status) {
-    whereClause.status = status;
+    // For CLOSED status, include exams that are either:
+    // 1. Explicitly marked as CLOSED, OR
+    // 2. Have endAt date in the past (exam has completed)
+    if (status === 'CLOSED') {
+      const now = new Date();
+      whereClause.OR = [
+        { status: 'CLOSED' },
+        { endAt: { lt: now } }
+      ];
+    } else {
+      whereClause.status = status;
+    }
   }
   if (searchQuery) {
-    whereClause.OR = [
-      { title: { contains: searchQuery, mode: "insensitive" } },
-      { description: { contains: searchQuery, mode: "insensitive" } },
-    ];
+    // If we already have an OR clause for CLOSED status, we need to combine it with search
+    if (whereClause.OR) {
+      whereClause.AND = [
+        { OR: whereClause.OR },
+        {
+          OR: [
+            { title: { contains: searchQuery, mode: "insensitive" } },
+            { description: { contains: searchQuery, mode: "insensitive" } },
+          ]
+        }
+      ];
+      delete whereClause.OR;
+    } else {
+      whereClause.OR = [
+        { title: { contains: searchQuery, mode: "insensitive" } },
+        { description: { contains: searchQuery, mode: "insensitive" } },
+      ];
+    }
   }
 
   const exams = await prisma.exam.findMany({

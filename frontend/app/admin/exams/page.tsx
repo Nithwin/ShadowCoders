@@ -13,6 +13,7 @@ type Exam = {
   title: string;
   status: ExamStatus;
   startAt: string;
+  endAt: string;
   updatedAt: string;
 };
 
@@ -102,6 +103,20 @@ export default function ExamManagementPage() {
 
   const handlePageChange = (newPage: number) => {
     if (newPage > 0 && newPage <= (meta?.totalPages || 1)) setCurrentPage(newPage);
+  };
+
+  // Helper function to get display status (considers endAt date)
+  const getDisplayStatus = (exam: Exam): ExamStatus => {
+    const now = new Date();
+    const endAt = new Date(exam.endAt);
+    
+    // If exam has expired (endAt is in the past), show as CLOSED
+    if (endAt < now) {
+      return 'CLOSED';
+    }
+    
+    // Otherwise, use the actual status from database
+    return exam.status;
   };
 
   const handleDelete = async (examId: string) => {
@@ -218,18 +233,20 @@ export default function ExamManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-primary/10">
-              {exams.map((exam) => (
+              {exams.map((exam) => {
+                const displayStatus = getDisplayStatus(exam);
+                return (
                 <tr key={exam.id} className="hover:bg-primary/5">
                   <td className="p-3 font-medium">{exam.title}</td>
                   <td className="p-3">
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        exam.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' : ''
-                      } ${exam.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' : ''} ${
-                        exam.status === 'CLOSED' ? 'bg-red-100 text-red-800' : ''
+                        displayStatus === 'PUBLISHED' ? 'bg-green-100 text-green-800' : ''
+                      } ${displayStatus === 'DRAFT' ? 'bg-yellow-100 text-yellow-800' : ''} ${
+                        displayStatus === 'CLOSED' ? 'bg-red-100 text-red-800' : ''
                       }`}
                     >
-                      {exam.status}
+                      {displayStatus}
                     </span>
                   </td>
                   <td className="p-3 text-sm text-primary/70">
@@ -268,7 +285,8 @@ export default function ExamManagementPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         )}

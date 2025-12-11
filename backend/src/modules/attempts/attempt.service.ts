@@ -760,8 +760,24 @@ export const getAttemptResults = async (
     };
   }
 
-  // 5. Sort responses by question order for consistent display
+  // 5. Scrub hidden test cases from the results
+  // This ensures students cannot see hidden test cases in the network response
+  if (attemptResults.exam && attemptResults.exam.questions) {
+    attemptResults.exam.questions.forEach((q: any) => {
+      if (q.type === QType.CODING && Array.isArray(q.testcases)) {
+        q.testcases = q.testcases.filter((tc: any) => !tc.isHidden);
+      }
+    });
+  }
+
   if (attemptResults.responses && Array.isArray(attemptResults.responses)) {
+    attemptResults.responses.forEach((r: any) => {
+      if (r.question && r.question.type === QType.CODING && Array.isArray(r.question.testcases)) {
+        r.question.testcases = r.question.testcases.filter((tc: any) => !tc.isHidden);
+      }
+    });
+
+    // 6. Sort responses by question order for consistent display
     attemptResults.responses.sort((a: any, b: any) => {
       const orderA = a.question?.order ?? 999;
       const orderB = b.question?.order ?? 999;
@@ -769,7 +785,7 @@ export const getAttemptResults = async (
     });
   }
 
-  // 6. Return the full results
+  // 7. Return the full results
   return attemptResults;
 };
 
@@ -797,7 +813,7 @@ export const listAttemptsForExam = async (
     examId,
     page,
     pageSize,
-    searchQuery,
+    ...(searchQuery ? { searchQuery } : {}),
   });
 
   // 2. Calculate pagination metadata

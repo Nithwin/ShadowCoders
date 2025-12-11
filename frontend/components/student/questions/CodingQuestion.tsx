@@ -994,74 +994,90 @@ export default function CodingQuestion({
                         {(() => {
                           // Check if this is a custom input result
                           const isCustomInput = result.expectedOutput === '(Custom Input)';
+                          // Check if we should hide details for hidden test cases in submit mode
+                          const shouldHideDetails = isSubmitMode && isHidden && !isCustomInput;
                           
                           return (
                             <div className="space-y-3">
-                              {/* For custom input, ALWAYS show input section */}
-                              {isCustomInput ? (
-                                <div>
-                                  <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                                    Custom Input:
-                                  </span>
-                                  <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
-                                    {result.input !== undefined && result.input !== null ? result.input : '(empty)'}
-                                  </pre>
+                              {shouldHideDetails ? (
+                                /* For hidden test cases in submit mode, show locked message */
+                                <div className="p-4 bg-gray-900/50 border-2 border-gray-700 rounded-lg">
+                                  <div className="flex items-center gap-2 text-gray-400">
+                                    <span className="text-sm font-medium">🔒 Test case is hidden</span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Input and output are hidden. Only pass/fail status is shown.
+                                  </p>
                                 </div>
                               ) : (
-                                /* For regular test cases, show input if it exists */
-                                result.input && (
-                                  <div>
-                                    <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                      <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                                      Input:
-                                    </span>
-                                    <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
-                                      {result.input}
-                                    </pre>
-                                  </div>
-                                )
-                              )}
-                              
-                              {/* For custom input, ALWAYS show output section */}
-                              {isCustomInput ? (
-                                <div>
-                                  <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                    Your Output:
-                                  </span>
-                                  <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
-                                    {result.actualOutput !== undefined && result.actualOutput !== null && result.actualOutput !== '' 
-                                      ? result.actualOutput 
-                                      : '(no output)'}
-                                  </pre>
-                                </div>
-                              ) : (
-                                /* For regular test cases, show output if available */
-                                result.actualOutput !== null && result.actualOutput !== undefined && (
-                                  <div>
-                                    <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                      Your Output:
-                                    </span>
-                                    <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
-                                      {result.actualOutput || '(empty)'}
-                                    </pre>
-                                  </div>
-                                )
-                              )}
-                              
-                              {/* Show expected output for test cases (not custom input) when failed */}
-                              {!isCustomInput && !result.passed && result.expectedOutput && (
-                                <div>
-                                  <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                                    Expected Output:
-                                  </span>
-                                  <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
-                                    {result.expectedOutput}
-                                  </pre>
-                                </div>
+                                <>
+                                  {/* For custom input, ALWAYS show input section */}
+                                  {isCustomInput ? (
+                                    <div>
+                                      <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                                        Custom Input:
+                                      </span>
+                                      <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
+                                        {result.input !== undefined && result.input !== null ? result.input : '(empty)'}
+                                      </pre>
+                                    </div>
+                                  ) : (
+                                    /* For regular test cases, show input if it exists */
+                                    result.input && (
+                                      <div>
+                                        <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                                          Input:
+                                        </span>
+                                        <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
+                                          {result.input}
+                                        </pre>
+                                      </div>
+                                    )
+                                  )}
+                                  
+                                  {/* For custom input, ALWAYS show output section */}
+                                  {isCustomInput ? (
+                                    <div>
+                                      <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                        Your Output:
+                                      </span>
+                                      <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                        {result.actualOutput !== undefined && result.actualOutput !== null && result.actualOutput !== '' 
+                                          ? result.actualOutput 
+                                          : '(no output)'}
+                                      </pre>
+                                    </div>
+                                  ) : (
+                                    /* For regular test cases, show output if available */
+                                    result.actualOutput !== null && result.actualOutput !== undefined && (
+                                      <div>
+                                        <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                          Your Output:
+                                        </span>
+                                        <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                          {result.actualOutput || '(empty)'}
+                                        </pre>
+                                      </div>
+                                    )
+                                  )}
+                                  
+                                  {/* Show expected output for test cases (not custom input) when failed */}
+                                  {!isCustomInput && !result.passed && result.expectedOutput && (
+                                    <div>
+                                      <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                        Expected Output:
+                                      </span>
+                                      <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
+                                        {result.expectedOutput}
+                                      </pre>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           );
