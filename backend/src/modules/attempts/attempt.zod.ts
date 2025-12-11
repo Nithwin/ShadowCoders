@@ -58,3 +58,11 @@ export const forceSubmitAttemptSchema = z.object({
     submissionReason: z.string().optional().default('Force submitted by admin'),
   }),
 });
+
+export const resumeAttemptsSchema = z.object({
+  body: z.object({
+    examId: z.string().cuid({ message: 'Invalid exam ID format' }),
+    studentIds: z.array(z.string().cuid({ message: 'Invalid student ID format' })).optional(),
+    resumeAll: z.boolean().optional().default(false),
+  }),
+});

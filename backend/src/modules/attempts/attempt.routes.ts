@@ -2,7 +2,7 @@ import { Express } from 'express';
 import { requireRole, verifyAccess } from '../../middleware/auth';
 import * as attemptController from './attempt.controller';
 import { validate } from '../../middleware/validate';
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, submitAttemptSchema, forceSubmitAttemptSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, submitAttemptSchema, forceSubmitAttemptSchema, resumeAttemptsSchema } from './attempt.zod';
 
 export const registerAttemptRoutes = (app: Express) => {
   app.post(
@@ -70,6 +70,14 @@ export const registerAttemptRoutes = (app: Express) => {
     requireRole('STAFF'),
     validate(resetAttemptsSchema),
     attemptController.resetAttemptsHandler
+  );
+
+  app.post(
+    '/api/admin/attempts/resume',
+    verifyAccess,
+    requireRole('STAFF'),
+    validate(resumeAttemptsSchema),
+    attemptController.resumeAttemptsHandler
   );
 
   app.post(

@@ -3,7 +3,7 @@ import { Prisma, ExamStatus, AttemptStatus, QType, GradingMode } from "@prisma/c
 import { shuffleArray } from "../../lib/utils";
 import { prisma } from "../../lib/prisma";
 import z from "zod";
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from "./attempt.zod";
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, resumeAttemptsSchema } from "./attempt.zod";
 import * as userRepo from "../auth/auth.repo";
 import { gradeMCQ, gradeCoding } from "../grading/grading.logic";
 import { executeCodeLocally, testCodeWithTestCasesLocally } from "../../lib/local-executor";
@@ -925,6 +925,66 @@ export const resetAttempts = async (input: ResetAttemptsInput) => {
   return {
     deletedCount: result.count,
     message: `Successfully reset ${result.count} attempt(s)`,
+  };
+};
+
+type ResumeAttemptsInput = z.infer<typeof resumeAttemptsSchema>['body'];
+
+export const resumeAttempts = async (input: ResumeAttemptsInput) => {
+  const { examId, studentIds, resumeAll } = input;
+
+  // Verify exam exists
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { id: true, title: true },
+  });
+
+  if (!exam) {
+    throw { status: 404, message: 'Exam not found' };
+  }
+
+  // Build where clause for attempts to resume
+  const whereClause: Prisma.AttemptWhereInput = {
+    examId: examId,
+    status: AttemptStatus.SUBMITTED,
+    submissionType: 'AUTO', // Only resume auto-submitted attempts (using Prisma enum value)
+  };
+
+  if (!resumeAll && studentIds && studentIds.length > 0) {
+    whereClause.studentId = { in: studentIds };
+  }
+
+  // Get all attempts to resume
+  const attemptsToResume = await prisma.attempt.findMany({
+    where: whereClause,
+    select: { id: true },
+  });
+
+  const attemptIds = attemptsToResume.map(a => a.id);
+
+  if (attemptIds.length === 0) {
+    return {
+      resumedCount: 0,
+      message: 'No auto-submitted attempts found to resume',
+    };
+  }
+
+  // Resume attempts: change status back to IN_PROGRESS and clear submittedAt
+  const result = await prisma.attempt.updateMany({
+    where: {
+      id: { in: attemptIds },
+    },
+    data: {
+      status: AttemptStatus.IN_PROGRESS,
+      submittedAt: null,
+      submissionType: 'NORMAL', // Reset to normal since it's being resumed
+      submissionReason: null, // Clear the auto-submit reason
+    },
+  });
+
+  return {
+    resumedCount: result.count,
+    message: `Successfully resumed ${result.count} attempt(s)`,
   };
 };
 

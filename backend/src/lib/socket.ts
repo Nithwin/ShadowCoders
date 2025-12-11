@@ -3,7 +3,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { prisma } from './prisma';
-import { Role } from '@prisma/client';
+import { Role, AttemptStatus } from '@prisma/client';
 
 export interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -181,9 +181,115 @@ class ExamMonitoringService {
           socket.join(roomName);
           socket.examId = data.examId;
 
-          // Send current activity to admin
-          // Deduplicate by attemptId (shouldn't be needed since Map is keyed by attemptId, but just in case)
+          // Fetch active attempts from database (IN_PROGRESS and SUBMITTED)
+          const attempts = await prisma.attempt.findMany({
+            where: {
+              examId: data.examId,
+              status: {
+                in: [AttemptStatus.IN_PROGRESS, AttemptStatus.SUBMITTED],
+              },
+            },
+            select: {
+              id: true,
+              studentId: true,
+              status: true,
+              timeSpentSec: true,
+              startedAt: true,
+              submittedAt: true,
+              student: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              responses: {
+                select: {
+                  id: true,
+                  questionId: true,
+                  updatedAt: true,
+                },
+                orderBy: {
+                  updatedAt: 'desc',
+                },
+              },
+              exam: {
+                select: {
+                  questions: {
+                    select: {
+                      id: true,
+                      order: true,
+                    },
+                    where: {
+                      status: 'ACTIVE',
+                    },
+                    orderBy: {
+                      order: 'asc',
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          // Build activities map from database attempts
           const activitiesMap = new Map<string, ExamActivity>();
+          
+          // First, add activities from database
+          for (const attempt of attempts) {
+            const totalQuestions = attempt.exam.questions.length;
+            const answeredCount = attempt.responses.length;
+            
+            // Calculate current question index
+            // If they've answered questions, they're likely on the next one
+            // Use answeredCount as a proxy (they're on question answeredCount + 1, index = answeredCount)
+            // But cap it at totalQuestions - 1
+            const currentQuestionIndex = Math.min(answeredCount, Math.max(0, totalQuestions - 1));
+
+            // Determine status
+            let status: 'active' | 'idle' | 'submitted' = 'active';
+            if (attempt.status === AttemptStatus.SUBMITTED) {
+              status = 'submitted';
+            } else {
+              // For IN_PROGRESS, check last activity time
+              // Use most recent response timestamp, or startedAt if no responses
+              const lastResponseTime = attempt.responses.length > 0 && attempt.responses[0]?.updatedAt
+                ? new Date(attempt.responses[0].updatedAt).getTime()
+                : new Date(attempt.startedAt).getTime();
+              const timeSinceActivity = Date.now() - lastResponseTime;
+              // If no activity in last 2 minutes, mark as idle
+              if (timeSinceActivity > 2 * 60 * 1000) {
+                status = 'idle';
+              }
+            }
+            
+            // Get last activity timestamp
+            const lastActivityTime = attempt.status === AttemptStatus.SUBMITTED && attempt.submittedAt
+              ? attempt.submittedAt
+              : attempt.responses.length > 0 && attempt.responses[0]?.updatedAt
+              ? attempt.responses[0].updatedAt
+              : attempt.startedAt;
+
+            const activity: ExamActivity = {
+              examId: data.examId,
+              attemptId: attempt.id,
+              studentId: attempt.studentId,
+              studentName: attempt.student.name || 'Unknown',
+              studentEmail: attempt.student.email,
+              currentQuestionIndex: currentQuestionIndex,
+              totalQuestions: totalQuestions,
+              answeredCount: answeredCount,
+              timeSpent: attempt.timeSpentSec || 0,
+              lastActivity: lastActivityTime,
+              status: status,
+            };
+
+            activitiesMap.set(attempt.id, activity);
+            // Also update the in-memory map so future updates work correctly
+            this.studentActivities.set(attempt.id, activity);
+          }
+
+          // Then, merge with in-memory activities (these might be more recent)
           Array.from(this.studentActivities.values())
             .filter(a => a.examId === data.examId)
             .forEach(activity => {

@@ -211,16 +211,19 @@ export const findExamByIdForStudent = async (params: {
       status: true,
       allowedLanguages: true, // Include allowed languages for coding questions
       maxAttempts: true, // Include maxAttempts
-      // Include attempts to check if student has completed this exam
+      // Include attempts to check if student has completed or has in-progress attempt
       attempts: {
         where: {
           studentId: student.id,
-          status: 'SUBMITTED',
+          status: {
+            in: ['SUBMITTED', 'IN_PROGRESS'],
+          },
         },
         select: {
           id: true,
           status: true,
           submittedAt: true,
+          attemptNo: true,
         },
         orderBy: {
           attemptNo: 'desc',
@@ -251,7 +254,8 @@ export const findExamByIdForStudent = async (params: {
   }
 
   // Transform to include attempt status and question types
-  const hasCompletedAttempt = exam.attempts && exam.attempts.length > 0;
+  const hasAttempt = exam.attempts && exam.attempts.length > 0;
+  const latestAttempt = hasAttempt ? exam.attempts[0] : null;
   const { attempts, questions, _count, ...examData } = exam;
   
   // Extract unique question types
@@ -260,8 +264,9 @@ export const findExamByIdForStudent = async (params: {
   
   return {
     ...examData,
-    hasAttempt: hasCompletedAttempt,
-    attemptId: hasCompletedAttempt ? exam.attempts[0]!.id : null,
+    hasAttempt: hasAttempt,
+    attemptId: latestAttempt?.id || null,
+    attemptStatus: latestAttempt?.status || null,
     questionTypes,
     hasSpeakingQuestions,
     attemptCount: _count.attempts,

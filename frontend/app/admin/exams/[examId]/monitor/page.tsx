@@ -37,6 +37,8 @@ interface AttemptDetails {
   score: number | null;
   maxScore: number | null;
   submittedAt: string | null;
+  submissionType?: string | null;
+  submissionReason?: string | null;
 }
 
 export default function ExamMonitorPage() {
@@ -167,9 +169,33 @@ export default function ExamMonitorPage() {
     };
   }, [accessToken, examId, fetchAttemptDetails]);
 
-  // Filter activities based on search query
+  // Deduplicate activities by studentId (show only latest attempt per student)
+  const deduplicatedActivities = stats?.activities.reduce((acc, activity) => {
+    const existing = acc.find(a => a.studentId === activity.studentId);
+    if (!existing) {
+      acc.push(activity);
+    } else {
+      // Keep the one with more recent lastActivity, or if same, prefer active/idle over submitted
+      const existingDate = new Date(existing.lastActivity);
+      const currentDate = new Date(activity.lastActivity);
+      
+      // If current is more recent, replace
+      if (currentDate > existingDate) {
+        const index = acc.indexOf(existing);
+        acc[index] = activity;
+      } else if (currentDate.getTime() === existingDate.getTime()) {
+        // If same time, prefer non-submitted status
+        if (activity.status !== 'submitted' && existing.status === 'submitted') {
+          const index = acc.indexOf(existing);
+          acc[index] = activity;
+        }
+      }
+    }
+    return acc;
+  }, [] as typeof stats.activities) || [];
+
   // Filter activities based on search query and status
-  const filteredActivities = stats?.activities.filter((activity) => {
+  const filteredActivities = deduplicatedActivities.filter((activity) => {
     // Status Filter
     if (filterStatus !== 'all') {
         if (filterStatus === 'submitted') {
@@ -187,7 +213,7 @@ export default function ExamMonitorPage() {
       activity.studentName.toLowerCase().includes(query) ||
       activity.studentEmail.toLowerCase().includes(query)
     );
-  }) || [];
+  });
 
   const handleSearch = () => {
     setSearchQuery(searchInput);
@@ -272,6 +298,45 @@ export default function ExamMonitorPage() {
       return `${hours}h ${minutes}m ${secs}s`;
     }
     return `${minutes}m ${secs}s`;
+  };
+
+  const handleResumeAttempt = async (attemptId: string, studentName: string) => {
+    const confirmed = await confirm({
+      title: 'Resume Test?',
+      message: `Are you sure you want to resume the test for ${studentName}? They will be able to continue from where they left off.`,
+      confirmText: 'Resume Test',
+      cancelText: 'Cancel',
+      variant: 'default',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      // Get the activity to find the student ID
+      const activity = stats?.activities.find(a => a.attemptId === attemptId);
+      if (!activity) {
+        toast.error('Activity not found');
+        return;
+      }
+
+      // Call the resume endpoint - we need examId and studentIds
+      await api.post('/admin/attempts/resume', {
+        examId: examId,
+        studentIds: [activity.studentId],
+        resumeAll: false,
+      });
+
+      toast.success(`Test resumed successfully for ${studentName}`);
+      
+      // Refresh attempt details
+      setTimeout(() => {
+        fetchAttemptDetails(attemptId);
+      }, 500);
+    } catch (err: any) {
+      console.error('Error resuming attempt:', err);
+      const errorMsg = err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Unknown error';
+      toast.error(`Failed to resume test: ${errorMsg}`);
+    }
   };
 
   const handleResolveViolation = async (violation: KeyboardViolation, action: 'force-submit' | 'continue') => {
@@ -700,6 +765,9 @@ export default function ExamMonitorPage() {
 
                         const hasViolation = keyboardViolations.has(activity.attemptId);
                         const violation = keyboardViolations.get(activity.attemptId);
+                        const actualStatus = getActualStatus(activity);
+                        const isSubmitted = actualStatus === 'SUBMITTED';
+                        const details = attemptDetails.get(activity.attemptId);
 
                         return (
                           <tr key={activity.attemptId} className="hover:bg-primary/5 transition-colors duration-200">
@@ -856,6 +924,17 @@ export default function ExamMonitorPage() {
                                       Force Submit
                                     </button>
                                   </>
+                                )}
+                                
+                                {/* Show Resume button for auto-submitted attempts */}
+                                {isSubmitted && details && details.submissionType === 'AUTO' && (
+                                  <button
+                                    onClick={() => handleResumeAttempt(activity.attemptId, activity.studentName)}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white text-xs font-semibold rounded-lg transition-all duration-300 shadow-sm hover:shadow-md w-full justify-center"
+                                  >
+                                    <RefreshCw className="w-3 h-3" />
+                                    Resume Test
+                                  </button>
                                 )}
                               </div>
                             </td>

@@ -19,6 +19,7 @@ type Exam = {
   status: string;
   hasAttempt?: boolean;
   attemptId?: string | null;
+  attemptStatus?: string | null;
   hasSpeakingQuestions?: boolean;
   questionTypes?: string[];
   maxAttempts?: number | null;
@@ -97,6 +98,12 @@ export default function ExamDetailPage() {
   const handleStartExam = async () => {
     if (!examId) return;
     
+    // If there's an IN_PROGRESS attempt, navigate to it instead of creating a new one
+    if (exam?.attemptStatus === 'IN_PROGRESS' && exam?.attemptId) {
+      router.push(`/student/attempts/${exam.attemptId}`);
+      return;
+    }
+    
     // Check if exam has speaking questions and request microphone access first
     if (exam?.hasSpeakingQuestions) {
       const hasAccess = await requestMicrophoneAccess();
@@ -149,7 +156,7 @@ export default function ExamDetailPage() {
   };
 
   const getExamStatus = () => {
-    if (!exam) return { label: 'Unknown', color: 'bg-gray-100 text-gray-800', canStart: false };
+    if (!exam) return { label: 'Unknown', color: 'bg-gray-100 text-gray-800', canStart: false, canResume: false, canRetake: false };
     
     const now = new Date();
     const start = new Date(exam.startAt);
@@ -163,6 +170,17 @@ export default function ExamDetailPage() {
 
     // If student has already attempted
     if (exam.hasAttempt) {
+      // Check if there's an IN_PROGRESS attempt (resumed test)
+      if (exam.attemptStatus === 'IN_PROGRESS' && isWithinTimeWindow) {
+        return {
+          label: 'In Progress',
+          color: 'bg-blue-100 text-blue-800',
+          canStart: true,
+          canResume: true,
+          message: 'You have an exam in progress. You can resume it.',
+        };
+      }
+      
       if (canRetake && isWithinTimeWindow) {
         return {
           label: 'Completed - Can Retake',
@@ -400,8 +418,8 @@ export default function ExamDetailPage() {
 
         {/* Start Button */}
         <div className="flex justify-end pt-4 border-t border-primary/10 gap-3">
-          {/* View Results Button (Always show if there's an attempt) */}
-          {exam?.hasAttempt && exam?.attemptId && (
+          {/* View Results Button (Only show for submitted attempts, not IN_PROGRESS) */}
+          {exam?.hasAttempt && exam?.attemptId && exam?.attemptStatus === 'SUBMITTED' && (
             <Link href={`/student/attempts/${exam.attemptId}/results`}>
               <Button className="min-w-[200px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
                 <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -410,7 +428,7 @@ export default function ExamDetailPage() {
             </Link>
           )}
 
-          {/* Start/Retake Button */}
+          {/* Start/Retake/Resume Button */}
           {status.canStart ? (
             <Button
               onClick={handleStartExam}
@@ -420,12 +438,12 @@ export default function ExamDetailPage() {
               {isStarting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Starting...
+                  {status.canResume ? 'Resuming...' : 'Starting...'}
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 mr-2" />
-                  {status.canRetake ? 'Retake Exam' : 'Start Exam'}
+                  {status.canResume ? 'Resume Exam' : status.canRetake ? 'Retake Exam' : 'Start Exam'}
                 </>
               )}
             </Button>

@@ -106,6 +106,18 @@ export default function StudentExamsPage() {
     // Check if student can retake (if maxAttempts is null/unlimited, or attemptCount < maxAttempts)
     const canRetake = maxAttempts === null || maxAttempts === undefined || attemptCount < maxAttempts;
 
+    // Check if there's an IN_PROGRESS attempt (resumed test)
+    if (exam.hasAttempt && exam.attemptStatus === 'IN_PROGRESS' && isWithinTimeWindow) {
+      return {
+        label: 'In Progress',
+        color: 'bg-blue-100 text-blue-800',
+        icon: <Clock className="w-4 h-4" />,
+        canStart: true,
+        canResume: true,
+        canRetake: false,
+      };
+    }
+
     // If student has submitted an attempt
     if (hasSubmittedAttempt) {
       // Check if they can retake and exam is still live
@@ -371,7 +383,7 @@ export default function StudentExamsPage() {
                       <Link href={`/student/exams/${exam.id}`} className="block">
                         <Button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl py-3 font-semibold">
                           <Play className="w-5 h-5 mr-2" />
-                          {status.canRetake ? 'Retake Exam' : 'Start Exam'}
+                          {(status as any).canResume ? 'Resume Exam' : status.canRetake ? 'Retake Exam' : 'Start Exam'}
                         </Button>
                       </Link>
                     ) : exam.hasAttempt && exam.attemptId && exam.attemptStatus === 'SUBMITTED' ? (

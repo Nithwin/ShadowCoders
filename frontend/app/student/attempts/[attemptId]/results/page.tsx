@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2, AlertTriangle, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2, AlertTriangle, Lock, Play } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { QType } from '@/types';
+import { useToastNotification } from '@/context/ToastContext';
 
 type QuestionResult = {
   questionId: string;
@@ -60,11 +62,14 @@ type AttemptResults = {
 
 export default function ExamResultsPage() {
   const params = useParams();
+  const router = useRouter();
+  const toast = useToastNotification();
   const attemptId = params?.attemptId as string;
 
   const [results, setResults] = useState<AttemptResults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResuming, setIsResuming] = useState(false);
 
   const fetchResults = async () => {
     setIsLoading(true);
@@ -105,6 +110,34 @@ export default function ExamResultsPage() {
     fetchResults();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
+
+  const handleResumeTest = async () => {
+    if (!results || !results.exam) return;
+    
+    setIsResuming(true);
+    try {
+      // Refresh results to get latest status
+      await fetchResults();
+      
+      // Check if attempt can be resumed
+      // If status is IN_PROGRESS, admin has already resumed it - student can continue
+      // If status is SUBMITTED with AUTO submissionType, admin needs to resume it first
+      if (results.status === 'IN_PROGRESS') {
+        // Navigate to the attempt page - admin has already resumed it
+        router.push(`/student/attempts/${attemptId}`);
+      } else if (results.status === 'SUBMITTED' && results.submissionType === 'AUTO') {
+        // Attempt is still submitted - admin needs to resume it first
+        toast.error('Please contact your administrator to resume this test. The test needs to be resumed by an administrator before you can continue.');
+      } else {
+        toast.error('This test cannot be resumed.');
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      toast.error('Failed to resume test. Please try again.');
+    } finally {
+      setIsResuming(false);
+    }
+  };
 
 
   const formatDate = (dateString: string) => {
@@ -266,21 +299,45 @@ export default function ExamResultsPage() {
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <AlertTriangle className="w-32 h-32 text-amber-500" />
                     </div>
-                    <div className="relative z-10 flex items-start gap-4">
-                        <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
-                            <AlertTriangle className="w-6 h-6" />
+                    <div className="relative z-10">
+                        <div className="flex items-start gap-4 mb-4">
+                            <div className="p-3 bg-amber-100 rounded-lg text-amber-600">
+                                <AlertTriangle className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-bold text-amber-900 mb-1">Auto-Submitted Exam</h3>
+                                <p className="text-amber-800 mb-3">
+                                This exam was automatically submitted by the system. {results.submissionReason ? 'Reason provided below via Anti-Cheat system.' : ''}
+                                </p>
+                                {results.submissionReason && (
+                                    <div className="bg-white/50 border border-amber-200 rounded-lg p-3 text-sm font-medium text-amber-900 inline-block mb-3">
+                                        Reason: {results.submissionReason}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-amber-900 mb-1">Auto-Submitted Exam</h3>
-                            <p className="text-amber-800 mb-3">
-                            This exam was automatically submitted by the system. {results.submissionReason ? 'Reason provided below via Anti-Cheat system.' : ''}
-                            </p>
-                            {results.submissionReason && (
-                                <div className="bg-white/50 border border-amber-200 rounded-lg p-3 text-sm font-medium text-amber-900 inline-block">
-                                    Reason: {results.submissionReason}
-                                </div>
-                            )}
-                        </div>
+                        {/* Show Resume button only if attempt is IN_PROGRESS (admin has resumed it) or if it's AUTO submitted (admin can resume) */}
+                        {(results.status === 'IN_PROGRESS' || (results.status === 'SUBMITTED' && results.submissionType === 'AUTO')) && (
+                            <div className="flex justify-end">
+                                <Button
+                                    onClick={handleResumeTest}
+                                    disabled={isResuming}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+                                >
+                                    {isResuming ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            {results.status === 'IN_PROGRESS' ? 'Loading...' : 'Checking...'}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Play className="w-4 h-4 mr-2" />
+                                            {results.status === 'IN_PROGRESS' ? 'Continue Test' : 'Resume Test'}
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
                 )}

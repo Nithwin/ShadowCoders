@@ -31,6 +31,8 @@ type AttemptResponse = {
   data: Array<{
     id: string;
     status: string;
+    submissionType?: string;
+    submissionReason?: string;
     student: Student;
   }>;
   meta: ApiMeta;
@@ -47,10 +49,13 @@ export default function ReattemptsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [resetAll, setResetAll] = useState(false);
+  const [resumeAll, setResumeAll] = useState(false);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [attemptsData, setAttemptsData] = useState<AttemptResponse['data']>([]);
 
   // Fetch exams
   useEffect(() => {
@@ -99,6 +104,9 @@ export default function ReattemptsPage() {
       params.append('pageSize', '100');
       
       const res = await api.get<AttemptResponse>(`/admin/attempts/exam/${selectedExamId}?${params.toString()}`);
+      
+      // Store attempts data for filtering
+      setAttemptsData(res.data.data);
       
       // Get unique students who have submitted attempts
       const studentMap = new Map<string, Student>();
@@ -185,6 +193,55 @@ export default function ReattemptsPage() {
     }
   };
 
+  const handleResumeAttempts = async () => {
+    if (!selectedExamId) {
+      toast.error('Please select an exam first.');
+      return;
+    }
+
+    if (!resumeAll && selectedStudents.size === 0) {
+      toast.error('Please select at least one student or choose "Resume All".');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Resume Tests',
+      message: resumeAll
+        ? `Are you sure you want to resume ALL auto-submitted attempts for this exam? Students will be able to continue their tests.`
+        : `Are you sure you want to resume tests for ${selectedStudents.size} selected student(s)? They will be able to continue their tests.`,
+      confirmText: 'Resume Tests',
+      cancelText: 'Cancel',
+      variant: 'default',
+    });
+
+    if (!confirmed) return;
+
+    setIsResuming(true);
+    try {
+      await api.post('/admin/attempts/resume', {
+        examId: selectedExamId,
+        studentIds: resumeAll ? undefined : Array.from(selectedStudents),
+        resumeAll: resumeAll,
+      });
+
+      toast.success(resumeAll 
+        ? 'All auto-submitted attempts have been resumed successfully!' 
+        : `Tests for ${selectedStudents.size} student(s) have been resumed successfully!`
+      );
+      
+      // Refresh students list
+      await fetchStudents();
+      setSelectedStudents(new Set());
+      setResumeAll(false);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      console.error(err);
+      toast.error(error.response?.data?.error?.message || 'Failed to resume attempts.');
+    } finally {
+      setIsResuming(false);
+    }
+  };
+
   const filteredStudents = students.filter(student => {
     const nameMatch = student.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
     const emailMatch = student.email?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
@@ -218,6 +275,7 @@ export default function ReattemptsPage() {
               setSelectedExamId(e.target.value || null);
               setSelectedStudents(new Set());
               setResetAll(false);
+              setResumeAll(false);
             }}
             className="w-full md:w-96 px-4 py-2 rounded-lg bg-primary/10 border border-transparent focus:outline-none focus:ring-2 focus:ring-primary/50 text-primary"
           >
@@ -246,10 +304,26 @@ export default function ReattemptsPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
+                    checked={resumeAll}
+                    onChange={(e) => {
+                      setResumeAll(e.target.checked);
+                      if (e.target.checked) {
+                        setResetAll(false);
+                        setSelectedStudents(new Set());
+                      }
+                    }}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">Resume All Auto-Submitted</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
                     checked={resetAll}
                     onChange={(e) => {
                       setResetAll(e.target.checked);
                       if (e.target.checked) {
+                        setResumeAll(false);
                         setSelectedStudents(new Set());
                       }
                     }}
@@ -286,7 +360,7 @@ export default function ReattemptsPage() {
               </div>
 
               {/* Students List */}
-              {!resetAll && (
+              {!resetAll && !resumeAll && (
                 <>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm text-primary/70">
@@ -333,6 +407,20 @@ export default function ReattemptsPage() {
                 </>
               )}
 
+              {resumeAll && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-800">Resume All Auto-Submitted Tests</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        This will resume all auto-submitted attempts for this exam. Students will be able to continue their tests from where they left off.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {resetAll && (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
                   <div className="flex items-start gap-2">
@@ -347,8 +435,31 @@ export default function ReattemptsPage() {
                 </div>
               )}
 
-              {/* Action Button */}
-              <div className="mt-6 flex justify-end">
+              {/* Action Buttons */}
+              <div className="mt-6 flex justify-end gap-3">
+                {/* Check if there are any auto-submitted attempts */}
+                {attemptsData.some(a => a.status === 'SUBMITTED' && a.submissionType === 'AUTO') && (
+                  <Button
+                    onClick={handleResumeAttempts}
+                    disabled={isResuming || (!resumeAll && selectedStudents.size === 0)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isResuming ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Resuming...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        {resumeAll 
+                          ? 'Resume All Tests' 
+                          : `Resume Tests (${selectedStudents.size} selected)`
+                        }
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button
                   onClick={handleResetAttempts}
                   disabled={isResetting || (!resetAll && selectedStudents.size === 0)}

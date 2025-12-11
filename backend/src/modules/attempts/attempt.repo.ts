@@ -331,6 +331,8 @@ export const listAttemptsForExam = async (params: {
       startedAt: true,
       submittedAt: true,
       attemptNo: true,
+      submissionType: true,
+      submissionReason: true,
       student: {
         select: {
           id: true,
@@ -453,6 +455,8 @@ export const getFullAttemptForAdmin = (attemptId: string) => {
       maxScore: true,
       startedAt: true,
       submittedAt: true,
+      submissionType: true,
+      submissionReason: true,
       // Get student info
       student: {
         select: {

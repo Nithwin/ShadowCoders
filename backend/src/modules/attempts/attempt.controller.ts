@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import * as attemptService from './attempt.service';
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, forceSubmitAttemptSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, forceSubmitAttemptSchema, resumeAttemptsSchema } from './attempt.zod';
 import z from 'zod';
 
 export const startAttemptHandler: RequestHandler = async (req, res, next) => {
@@ -265,6 +265,29 @@ export const resetAttemptsHandler: RequestHandler = async (req, res, next) => {
 
     // Call the service to reset attempts
     const result = await attemptService.resetAttempts(resetData);
+
+    res.status(200).json(result);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resumeAttemptsHandler: RequestHandler = async (req, res, next) => {
+  try {
+    // Get validated body data
+    const resumeData = req.validatedData?.body as z.infer<typeof resumeAttemptsSchema>['body'] || req.body;
+
+    if (!resumeData.examId) {
+      return next({ status: 400, message: 'Exam ID is required' });
+    }
+
+    if (!resumeData.resumeAll && (!resumeData.studentIds || resumeData.studentIds.length === 0)) {
+      return next({ status: 400, message: 'Either resumeAll must be true or studentIds must be provided' });
+    }
+
+    // Call the service to resume attempts
+    const result = await attemptService.resumeAttempts(resumeData);
 
     res.status(200).json(result);
 
