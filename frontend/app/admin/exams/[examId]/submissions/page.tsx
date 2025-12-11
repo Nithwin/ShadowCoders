@@ -131,11 +131,19 @@ export default function ExamSubmissionsPage() {
       const res = await api.get(`/admin/attempts/${attemptId}`);
       setAttemptDetails(res.data);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error fetching attempt details:', err);
+      const error = err as { response?: { status?: number; data?: { error?: { message?: string } } }; code?: string };
+      const is404 = error.response?.status === 404 || error.code === 'ERR_BAD_REQUEST';
+      
+      // Silently handle 404s - attempt doesn't exist
+      if (is404) {
+        toast.error('Attempt not found. It may have been deleted.');
+      } else {
+        // Only log non-404 errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching attempt details:', err);
+        }
+        toast.error(error.response?.data?.error?.message || 'Failed to load attempt details.');
       }
-      toast.error(error.response?.data?.error?.message || 'Failed to load attempt details.');
     } finally {
       setIsLoadingDetails(false);
     }

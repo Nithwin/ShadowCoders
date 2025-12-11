@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -105,12 +105,13 @@ export default function CodingQuestion({
     queued: number;
     estimatedWaitTimeMs: number;
   } | null>(null);
-  const [editorWidth, setEditorWidth] = useState(50); // Percentage width for editor (50% default)
+  const [editorWidth, setEditorWidth] = useState(60); // Percentage width for editor (60% default - increased size)
   const [isSubmitMode, setIsSubmitMode] = useState(false); // Track if we're in submit mode (hide detailed results)
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [submitCooldown, setSubmitCooldown] = useState(0); // Cooldown in seconds
   const [isResizing, setIsResizing] = useState(false);
+  const [showTestResults, setShowTestResults] = useState(true); // Toggle to show/hide test results
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
   const previousQuestionIdRef = useRef<string>(questionId);
@@ -182,28 +183,46 @@ export default function CodingQuestion({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answer?.code, answer?.language, availableLanguages]);
 
-  // Mouse drag resizing functionality
+  // Smooth mouse drag resizing functionality
   useEffect(() => {
+    let animationFrameId: number | null = null;
+
     const handleMouseDown = (e: MouseEvent) => {
       if (resizeHandleRef.current?.contains(e.target as Node)) {
         setIsResizing(true);
         e.preventDefault();
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
       }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing || !containerRef.current) return;
       
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      // Use requestAnimationFrame for smooth resizing
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
       
-      // Clamp between 30% and 70%
-      const clampedWidth = Math.max(30, Math.min(70, newWidth));
-      setEditorWidth(clampedWidth);
+      animationFrameId = requestAnimationFrame(() => {
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        if (!containerRect) return;
+        
+        const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+        
+        // Clamp between 40% and 75% (increased range for larger editor)
+        const clampedWidth = Math.max(40, Math.min(75, newWidth));
+        setEditorWidth(clampedWidth);
+      });
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
 
     document.addEventListener('mousedown', handleMouseDown);
@@ -214,6 +233,11 @@ export default function CodingQuestion({
       document.removeEventListener('mousedown', handleMouseDown);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
   }, [isResizing]);
 
@@ -607,19 +631,19 @@ export default function CodingQuestion({
         </div>
       </div>
 
-      {/* Resize Handle - Mouse Draggable */}
+      {/* Resize Handle - Mouse Draggable with smooth transitions */}
       <div 
         ref={resizeHandleRef}
-        className={`w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group ${isResizing ? 'bg-blue-500' : ''}`}
+        className={`w-1.5 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-all duration-200 relative group ${isResizing ? 'bg-blue-500 w-2' : ''}`}
       >
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className={`w-1 h-12 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors ${isResizing ? 'bg-blue-500' : ''}`} />
+          <div className={`w-0.5 h-16 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-all duration-200 ${isResizing ? 'bg-blue-500 h-20' : ''}`} />
         </div>
       </div>
 
       {/* Right Panel - Code Editor and Output */}
       <div 
-        className="flex flex-col overflow-hidden bg-white shadow-lg transition-all"
+        className="flex flex-col overflow-hidden bg-[#1e1e1e] shadow-lg transition-all duration-300 ease-out"
         style={{ width: `${editorWidth}%` }}
       >
         {/* LeetCode-style Editor Header - Compact with Language, Theme, and Actions */}
@@ -739,8 +763,8 @@ export default function CodingQuestion({
         )}
 
         {/* Monaco Code Editor - LeetCode style dark container */}
-        <div className="flex-1 min-h-0 relative bg-[#1e1e1e]">
-          <div className="absolute inset-0">
+        <div className={`relative bg-[#1e1e1e] pr-6 transition-all duration-300 ${showTestResults ? 'flex-1 min-h-0' : 'flex-1'}`}>
+          <div className="absolute inset-0 pr-6">
             <MonacoEditor
               height="100%"
               language={monacoLanguage}
@@ -798,27 +822,38 @@ export default function CodingQuestion({
           </div>
         </div>
 
-        {/* Output/Results Panel - Dark Theme */}
-        <div className="border-t border-gray-700 bg-[#1e1e1e] flex flex-col max-h-[40%] min-h-[250px]">
-          <div className="bg-[#252526] border-b border-gray-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <Terminal className="w-5 h-5 text-gray-300" />
-              <span className="text-sm font-bold text-gray-200">Test Results</span>
+        {/* Output/Results Panel - Dark Theme with Toggle */}
+        {showTestResults && (
+          <div className="border-t border-gray-700 bg-[#1e1e1e] flex flex-col max-h-[40%] min-h-[200px] transition-all duration-300">
+            <div className="bg-[#252526] border-b border-gray-700 px-6 py-3 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <Terminal className="w-5 h-5 text-gray-300" />
+                <span className="text-sm font-bold text-gray-200">Test Results</span>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                {/* Custom Input Toggle */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={showCustomInput} 
+                    onChange={(e) => setShowCustomInput(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-600 bg-[#2d2d2d] text-blue-600 focus:ring-blue-500 focus:ring-offset-[#252526]"
+                  />
+                  <span className="text-xs font-medium text-gray-300">Custom Input</span>
+                </label>
+                
+                {/* Hide/Show Toggle Button */}
+                <button
+                  onClick={() => setShowTestResults(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-300 border border-gray-600 rounded text-xs font-medium transition-all"
+                  title="Hide test results to see more code"
+                >
+                  <EyeOff className="w-3.5 h-3.5" />
+                  Hide
+                </button>
+              </div>
             </div>
-            
-            {/* Custom Input Toggle */}
-            <div className="flex items-center gap-2">
-               <label className="flex items-center gap-2 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showCustomInput} 
-                  onChange={(e) => setShowCustomInput(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-600 bg-[#2d2d2d] text-blue-600 focus:ring-blue-500 focus:ring-offset-[#252526]"
-                />
-                <span className="text-xs font-medium text-gray-300">Custom Input</span>
-              </label>
-            </div>
-          </div>
           
           {/* Custom Input Area */}
           {showCustomInput && (
@@ -1139,42 +1174,59 @@ export default function CodingQuestion({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        )}
 
-        {/* Navigation Buttons for Coding Questions */}
+        {/* Show Test Results Button (when hidden) */}
+        {!showTestResults && (
+          <div className="border-t border-gray-700 bg-[#252526] px-6 py-3 flex items-center justify-center flex-shrink-0">
+            <button
+              onClick={() => setShowTestResults(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-300 border border-gray-600 rounded text-sm font-medium transition-all"
+              title="Show test results"
+            >
+              <Eye className="w-4 h-4" />
+              <span>Show Test Results</span>
+            </button>
+          </div>
+        )}
+
+        {/* Navigation Buttons for Coding Questions - Fixed at bottom */}
         {(onNext || onPrev || onSubmit) && (
-          <div className="border-t border-gray-300 bg-white px-6 py-5 flex items-center justify-between flex-shrink-0 shadow-lg">
+          <div className="border-t border-gray-700 bg-[#1e1e1e] px-6 py-4 flex items-center justify-between flex-shrink-0">
             <button
               onClick={onPrev}
               disabled={!canGoPrev || isRunning || isSubmitting}
               type="button"
-              className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-50 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all min-w-[140px] flex items-center justify-center"
-              style={{ color: '#1f2937', backgroundColor: '#ffffff', borderColor: '#9ca3af' }}
+              className="px-6 py-2.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-w-[120px]"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-4 h-4" />
               Previous
             </button>
             
-            {isLastQuestion && onSubmit ? (
-              <button
-                onClick={onSubmit}
-                disabled={isRunning || isSubmitting}
-                type="button"
-                className="bg-green-600 hover:bg-green-700 text-white border-0 px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Submit Exam
-              </button>
-            ) : (
-              <button
-                onClick={onNext}
-                disabled={!canGoNext || isRunning || isSubmitting}
-                type="button"
-                className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center"
-              >
-                Next Question
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {isLastQuestion && onSubmit ? (
+                <button
+                  onClick={onSubmit}
+                  disabled={isRunning || isSubmitting}
+                  type="button"
+                  className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-4 h-4" />
+                  Submit Exam
+                </button>
+              ) : (
+                <button
+                  onClick={onNext}
+                  disabled={!canGoNext || isRunning || isSubmitting}
+                  type="button"
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium shadow-md hover:shadow-lg transition-all min-w-[140px] flex items-center justify-center gap-2"
+                >
+                  Next Question
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

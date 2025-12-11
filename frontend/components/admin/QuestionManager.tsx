@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { QType } from '@/types';
-import { Edit, Trash2, Loader2, Wand2, Plus } from 'lucide-react';
+import { Edit, Trash2, Loader2, Wand2, Plus, Eye } from 'lucide-react';
 import GenerateAiQuestionsModal from './GenerateAiQuestionsModal';
 import ManualQuestionForm from './question/ManualQuestionForm';
 import EditQuestionModal from './question/EditQuestionModal';
+import ViewQuestionModal from './question/ViewQuestionModal';
 import { Button } from '@/components/ui/Button';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
@@ -40,6 +41,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [viewingQuestion, setViewingQuestion] = useState<Question | null>(null);
   // State for when we are saving new questions
   const [isSaving, setIsSaving] = useState(false);
 
@@ -368,6 +370,13 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           onSuccess={handleQuestionEditSuccess}
         />
       )}
+      {viewingQuestion && (
+        <ViewQuestionModal
+          question={viewingQuestion}
+          open={!!viewingQuestion}
+          onOpenChange={(open) => !open && setViewingQuestion(null)}
+        />
+      )}
 
       <div className="p-6 bg-secondary border border-primary/10 rounded-lg shadow-md">
         {/* Header and Actions */}
@@ -595,6 +604,13 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
                           {q.points} pts
                         </div>
                         <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setViewingQuestion(q)}
+                            title="View Question"
+                            className="p-2 hover:bg-primary/10 rounded-md hover:text-blue-600 transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => setEditingQuestion(q)}
                             title="Edit Question"

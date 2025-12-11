@@ -89,9 +89,12 @@ export default function StudentTrackingDetail({ attemptId, examId, onClose }: St
       }
     } catch (err: any) {
       // Handle 404 errors gracefully
-      if (err.response?.status === 404) {
+      const is404 = err.response?.status === 404 || err.code === 'ERR_BAD_REQUEST';
+      
+      if (is404) {
         setError('Attempt not found. The student may have deleted their attempt or it was removed.');
       } else {
+        // Only log non-404 errors in development
         if (process.env.NODE_ENV === 'development') {
           console.error('Error fetching attempt details:', err);
         }

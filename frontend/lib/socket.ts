@@ -98,7 +98,10 @@ class SocketService {
     });
 
     this.socket.on('disconnect', (reason: string) => {
-      if (process.env.NODE_ENV === 'development') {
+      // Suppress "transport close" errors - these are normal during page navigation/reload
+      const isTransportClose = reason === 'transport close';
+      
+      if (process.env.NODE_ENV === 'development' && !isTransportClose) {
         console.log('[Socket] Disconnected from server:', reason);
       }
       // Notify disconnect callbacks

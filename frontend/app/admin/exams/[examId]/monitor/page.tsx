@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useExamMonitoring, type ExamStats } from '@/hooks/useExamMonitoring';
@@ -54,9 +54,17 @@ export default function ExamMonitorPage() {
   const { accessToken } = useAuth();
   const { violations: globalViolations, addViolation, removeViolation } = useViolationNotifications();
 
+  // Track failed attempt IDs to prevent repeated 404 requests
+  const failedAttemptIdsRef = useRef<Set<string>>(new Set());
+
   // Fetch attempt details from database to get correct status and score
   const fetchAttemptDetails = useCallback(async (attemptId: string) => {
     if (!attemptId) return;
+    
+    // Skip if we know this attempt doesn't exist
+    if (failedAttemptIdsRef.current.has(attemptId)) {
+      return;
+    }
     
     try {
       const res = await api.get<AttemptDetails>(`/admin/attempts/${attemptId}`);
@@ -65,19 +73,35 @@ export default function ExamMonitorPage() {
         newMap.set(attemptId, res.data);
         return newMap;
       });
+      // Remove from failed list if it succeeds
+      failedAttemptIdsRef.current.delete(attemptId);
     } catch (err: any) {
-      // Only log 404 errors in development, silently handle others
-      if (err.response?.status === 404) {
-        // Attempt doesn't exist or was deleted - remove from map
+      // Silently handle 404 errors - attempt doesn't exist or was deleted
+      // Check for both status code and axios error code
+      const is404 = err.response?.status === 404 || 
+                    (err.code === 'ERR_BAD_REQUEST' && err.response?.status === 404) ||
+                    (err.message?.includes('404') || err.message?.includes('Not Found'));
+      
+      if (is404) {
+        // Mark as failed to prevent future requests
+        failedAttemptIdsRef.current.add(attemptId);
+        
+        // Remove from map
         setAttemptDetails(prev => {
           const newMap = new Map(prev);
           newMap.delete(attemptId);
           return newMap;
         });
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`Attempt ${attemptId} not found (404)`);
-        }
-      } else if (process.env.NODE_ENV === 'development') {
+        
+        // Suppress console error for 404s - this is expected behavior
+        // when attempts are deleted or don't exist yet
+        // Return early to prevent error propagation
+        // The error is already caught and handled, so it won't propagate
+        return;
+      }
+      
+      // Only log non-404 errors in development
+      if (process.env.NODE_ENV === 'development') {
         console.error('Error fetching attempt details:', err);
       }
     }
@@ -88,13 +112,19 @@ export default function ExamMonitorPage() {
     onActivityUpdate: (updatedStats) => {
       // Fetch actual attempt details from database for each activity
       // Only fetch for active attempts to avoid unnecessary 404s
+      // Also skip if we know the attempt doesn't exist
       updatedStats.activities.forEach(activity => {
-        if (activity.status === 'active' || activity.status === 'idle') {
+        if ((activity.status === 'active' || activity.status === 'idle') && 
+            !failedAttemptIdsRef.current.has(activity.attemptId)) {
           fetchAttemptDetails(activity.attemptId);
         }
       });
     },
   });
+
+  // Note: Console error suppression is handled globally by ConsoleErrorSuppressor component
+  // in the root layout. This ensures 404 errors for attempts and socket transport close
+  // messages are suppressed across the entire application.
 
   // Listen for keyboard violations
   useEffect(() => {

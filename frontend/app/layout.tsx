@@ -8,6 +8,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ViolationNotificationProvider } from "@/context/ViolationNotificationContext";
 import { NotificationProvider } from "@/context/GlobalNotificationContext";
+import ConsoleErrorSuppressor from "@/components/ConsoleErrorSuppressor";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -60,6 +61,7 @@ export default function RootLayout({
         <meta httpEquiv="Permissions-Policy" content="identity-credentials-get=()" />
       </head>
       <body className={`${poppins.variable} ${inter.variable} ${alanSans.variable} ${aerospace.variable}`}>
+        <ConsoleErrorSuppressor />
         <AuthProvider>
           <ThemeProvider>
             <ConfirmationProvider>

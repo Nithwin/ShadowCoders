@@ -58,6 +58,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Suppress console errors for 404s on attempt endpoints (expected behavior)
+    if (error.response?.status === 404 && originalRequest.url?.includes('/admin/attempts/')) {
+      // Silently handle 404s for attempts - they may not exist yet or have been deleted
+      // Mark the error as handled to prevent console logging
+      error._isHandled = true;
+      // Return a rejected promise but don't log to console
+      return Promise.reject(error);
+    }
+
     // Don't intercept refresh or initial auth check requests
     if (originalRequest.url?.includes('/auth/refresh') || 
         originalRequest.url?.includes('/me')) {
