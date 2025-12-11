@@ -27,6 +27,7 @@ import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
 import { ReportQuestionButton } from '@/components/student/ReportQuestionButton';
 import KeyboardViolationPopup from '@/components/student/exam/KeyboardViolationPopup';
 import { useViolationNotifications } from '@/context/ViolationNotificationContext';
+import { api } from '@/lib/api';
 
 export default function ExamAttemptPage() {
   const params = useParams();
@@ -230,9 +231,24 @@ export default function ExamAttemptPage() {
       const modifierKeys = ['Control', 'Ctrl', 'Shift', 'Alt', 'Meta', 'OS'];
       const isModifierKey = modifierKeys.includes(e.key);
       
-      // Allow modifier keys when pressed alone (Ctrl alone, Shift alone, etc.)
+      // Allow modifier keys when pressed alone (Ctrl alone, Shift alone, Meta/Command alone, etc.)
       if (isModifierKey) {
         return; // Don't trigger violation
+      }
+      
+      // Allow Command key (Meta) on Mac - it's used for many legitimate shortcuts
+      if (e.metaKey && !e.ctrlKey && !e.altKey) {
+        // Allow Command + common shortcuts (V, C, A, Z, Y, X) similar to Ctrl
+        const key = e.key.toLowerCase();
+        if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y' || key === 'x') {
+          return; // Don't trigger violation for Command shortcuts (Mac equivalent of Ctrl)
+        }
+        // Allow Command key alone or with Shift
+        if (e.shiftKey && key === 'z') {
+          return; // Command+Shift+Z for redo
+        }
+        // For other Command combinations, allow them (Mac users need Command for many things)
+        return; // Don't trigger violation for Command key combinations
       }
       
       // Allow Caps Lock key

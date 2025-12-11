@@ -182,11 +182,22 @@ class ExamMonitoringService {
           socket.examId = data.examId;
 
           // Send current activity to admin
-          const activities = Array.from(this.studentActivities.values())
-            .filter(a => a.examId === data.examId);
+          // Deduplicate by attemptId (shouldn't be needed since Map is keyed by attemptId, but just in case)
+          const activitiesMap = new Map<string, ExamActivity>();
+          Array.from(this.studentActivities.values())
+            .filter(a => a.examId === data.examId)
+            .forEach(activity => {
+              // Keep the most recent activity if duplicates exist
+              const existing = activitiesMap.get(activity.attemptId);
+              if (!existing || new Date(activity.lastActivity) > new Date(existing.lastActivity)) {
+                activitiesMap.set(activity.attemptId, activity);
+              }
+            });
+          
+          const activities = Array.from(activitiesMap.values());
 
           socket.emit('exam-activity', {
-            totalStudents: this.examRooms.get(data.examId)?.size || 0,
+            totalStudents: activities.length, // Use actual unique activities count
             activities: activities,
           });
 
@@ -285,8 +296,37 @@ class ExamMonitoringService {
         }
 
         const violation = this.keyboardViolations.get(data.attemptId);
+        
+        // For force-submit, violation might not exist if attempt was already submitted via API
+        // Still emit the event to notify the student
         if (!violation) {
-          socket.emit('error', { message: 'Violation not found' });
+          // If violation doesn't exist but action is force-submit, still try to notify
+          // This can happen if the attempt was force submitted via API first
+          if (data.action === 'force-submit') {
+            // Try to find the exam ID from the attempt by querying the database
+            // For now, emit to all rooms and let clients filter by attemptId
+            const violationData = {
+              attemptId: data.attemptId,
+              action: data.action,
+            };
+            
+            // Emit to all connected clients - they will filter by attemptId
+            // This ensures the student gets notified even if violation wasn't tracked
+            this.io?.emit('violation-resolved', violationData);
+            
+            // Don't log error for force-submit when violation not found - it's expected
+            // The API call already handled the submission, we're just notifying
+            return;
+          }
+          
+          // For 'continue' action, violation should exist
+          // Only emit error for 'continue' action - 'force-submit' is handled above
+          // Don't emit error in production to avoid console spam
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`[Socket] Violation not found for attempt ${data.attemptId} with action ${data.action}`);
+            socket.emit('error', { message: 'Violation not found' });
+          }
+          // In production, silently ignore missing violations for 'continue' action
           return;
         }
 

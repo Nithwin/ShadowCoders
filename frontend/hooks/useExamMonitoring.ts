@@ -72,15 +72,26 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
 
     // Listen for initial exam activity
     socket.on('exam-activity', (data: { totalStudents: number; activities: ExamActivity[] }) => {
+      // Deduplicate activities by attemptId (keep the latest one if duplicates exist)
+      const activitiesMap = new Map<string, ExamActivity>();
+      data.activities.forEach(activity => {
+        // If activity already exists, keep the one with more recent lastActivity or keep existing
+        const existing = activitiesMap.get(activity.attemptId);
+        if (!existing || new Date(activity.lastActivity) > new Date(existing.lastActivity)) {
+          activitiesMap.set(activity.attemptId, activity);
+        }
+      });
+      const deduplicatedActivities = Array.from(activitiesMap.values());
+      
       const newStats: ExamStats = {
-        totalStudents: data.totalStudents,
-        activeStudents: data.activities.filter(a => a.status === 'active').length,
-        idleStudents: data.activities.filter(a => a.status === 'idle').length,
-        submittedStudents: data.activities.filter(a => a.status === 'submitted').length,
-        averageProgress: data.activities.length > 0
-          ? Math.round((data.activities.reduce((sum, a) => sum + (a.answeredCount / a.totalQuestions), 0) / data.activities.length) * 100)
+        totalStudents: deduplicatedActivities.length,
+        activeStudents: deduplicatedActivities.filter(a => a.status === 'active').length,
+        idleStudents: deduplicatedActivities.filter(a => a.status === 'idle').length,
+        submittedStudents: deduplicatedActivities.filter(a => a.status === 'submitted').length,
+        averageProgress: deduplicatedActivities.length > 0
+          ? Math.round((deduplicatedActivities.reduce((sum, a) => sum + (a.answeredCount / a.totalQuestions), 0) / deduplicatedActivities.length) * 100)
           : 0,
-        activities: data.activities,
+        activities: deduplicatedActivities,
       };
       setStats(newStats);
       onActivityUpdateRef.current?.(newStats);
@@ -105,13 +116,15 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
           return newStats;
         }
 
-        const activities = [...prev.activities];
-        const index = activities.findIndex(a => a.attemptId === data.attemptId);
-        if (index >= 0) {
-          activities[index] = data.activity;
-        } else {
-          activities.push(data.activity);
-        }
+        // Deduplicate activities by attemptId before updating
+        const activitiesMap = new Map<string, ExamActivity>();
+        // First, add all existing activities
+        prev.activities.forEach(activity => {
+          activitiesMap.set(activity.attemptId, activity);
+        });
+        // Then update or add the new activity
+        activitiesMap.set(data.attemptId, data.activity);
+        const activities = Array.from(activitiesMap.values());
         const newStats: ExamStats = {
           totalStudents: activities.length,
           activeStudents: activities.filter(a => a.status === 'active').length,
@@ -127,12 +140,11 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
       });
     });
 
-    // Listen for student joining - request updated stats
+    // Listen for student joining - activity-update events will handle new students
+    // No need to re-join exam room as we're already monitoring it
     socket.on('student-joined', (data: { attemptId: string; studentId: string; studentName: string; timestamp: Date }) => {
-      // Request updated activity from server
-      if (socket.connected) {
-        socket.emit('admin-join-exam', { examId });
-      }
+      // The server will automatically send activity-update events for new students
+      // No need to request full exam-activity again (which could cause duplicates)
     });
 
     // Listen for student disconnecting - remove or update their activity
@@ -173,6 +185,12 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
 
     // Listen for errors
     socket.on('error', (error: { message: string }) => {
+      // Suppress "Violation not found" errors - these are expected when force-submitting via API first
+      if (error.message?.includes('Violation not found')) {
+        // This is expected behavior when force-submitting - violation might not exist in socket map
+        return;
+      }
+      // Log other socket errors for debugging
       if (process.env.NODE_ENV === 'development') {
         console.error('[Monitoring] Socket error:', error.message);
       }

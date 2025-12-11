@@ -25,7 +25,8 @@ export default function KeyboardViolationPopup({ show, onResolved, attemptId }: 
       const res = await api.get(`/student/attempts/${attemptId}`);
       const attempt = res.data;
       
-      // If the attempt has been submitted, the violation is resolved (force submitted)
+      // Only close the popup if the attempt has been submitted (force submitted by admin)
+      // Do NOT automatically resume if status is IN_PROGRESS - wait for admin's explicit decision via socket event
       if (attempt.submittedAt || attempt.status === 'SUBMITTED' || attempt.status === 'GRADED') {
         // Violation has been resolved - exam was force submitted
         onResolved();
@@ -35,18 +36,14 @@ export default function KeyboardViolationPopup({ show, onResolved, attemptId }: 
         return;
       }
       
-      // If the attempt is still IN_PROGRESS, the admin might have allowed continuation
-      // We'll close the popup and let the student continue
-      // The socket listener should have handled this, but if it didn't, we'll do it manually
-      if (attempt.status === 'IN_PROGRESS' && !attempt.submittedAt) {
-        // Admin likely allowed continuation - close the popup
-        onResolved();
-        setIsVisible(false);
-      }
+      // If the attempt is still IN_PROGRESS, the violation is still pending
+      // Do NOT close the popup - wait for the admin's decision via socket event 'violation-resolved'
+      // The socket listener will handle closing the popup when admin explicitly resolves it
+      // We'll just show a message that the status is still pending
+      
     } catch (error) {
       console.error('Error checking violation status:', error);
-      // On error, we'll still try to close the popup in case the violation was resolved
-      // but the API call failed for another reason
+      // Don't close popup on error - violation might still be pending
     } finally {
       setIsChecking(false);
     }
@@ -76,10 +73,11 @@ export default function KeyboardViolationPopup({ show, onResolved, attemptId }: 
               <button
                 onClick={checkViolationStatus}
                 disabled={isChecking}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Check if exam was force submitted (will not resume automatically - wait for admin decision)"
               >
                 <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
-                Check Status
+                {isChecking ? 'Checking...' : 'Check Status'}
               </button>
             </div>
           </div>

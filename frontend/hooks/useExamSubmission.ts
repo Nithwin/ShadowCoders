@@ -22,6 +22,17 @@ export function useExamSubmission(
   const handleSubmitExam = useCallback(async (isAutoSubmit: boolean = false, reason?: string) => {
     if (isSubmitting) return;
 
+    // Check if attempt is already submitted before attempting submission
+    if (attempt && attempt.status !== 'IN_PROGRESS') {
+      // Attempt is already submitted/graded, just redirect to results
+      clearLocalStorage();
+      if (isFullscreenRef?.current && exitFullscreenRef?.current) {
+        await exitFullscreenRef.current();
+      }
+      router.replace(`/student/attempts/${attemptId}/results`);
+      return;
+    }
+
     // If manual submit, ask for confirmation
     if (!isAutoSubmit && confirmSubmit) {
       const confirmed = await confirmSubmit();
@@ -69,24 +80,31 @@ export function useExamSubmission(
       router.replace(`/student/attempts/${attemptId}/results`);
 
     } catch (err: unknown) {
-      console.error('Failed to submit exam:', err);
-      
       const error = err as { response?: { status?: number; data?: { message?: string } } };
-      let errorMessage = 'Failed to submit exam. Please try again.';
-
+      
       // Check for specific error conditions
       const isAlreadySubmitted = error.response?.status === 403 || 
                                  error.response?.data?.message?.includes('already been submitted') ||
-                                 error.response?.data?.message?.includes('already submitted');
+                                 error.response?.data?.message?.includes('already submitted') ||
+                                 error.response?.data?.message?.includes('already been');
 
       if (isAutoSubmit || isAlreadySubmitted) {
         // If it was an auto-submit (e.g. time up/anti-cheat) OR if the backend says it's already done,
         // we MUST let the user leave the exam page.
         // Redirect to results immediately.
+        // Don't log error for expected cases (already submitted)
+        clearLocalStorage();
+        if (isFullscreenRef?.current && exitFullscreenRef?.current) {
+          await exitFullscreenRef.current();
+        }
         router.replace(`/student/attempts/${attemptId}/results`);
         return;
       }
 
+      // Only log unexpected errors
+      console.error('Failed to submit exam:', err);
+      
+      let errorMessage = 'Failed to submit exam. Please try again.';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (err instanceof Error) {

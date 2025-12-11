@@ -58,6 +58,31 @@ export default function ConsoleErrorSuppressor() {
         return; // Don't log this error - it's expected behavior
       }
       
+      // Suppress "Violation not found" socket errors - these are expected when force-submitting
+      const isViolationNotFound = errorStr.includes('Violation not found') || 
+                                  errorStr.includes('violation not found');
+      if (isViolationNotFound) {
+        return; // Don't log this error - it's expected when force-submitting via API
+      }
+      
+      // Suppress 403 errors for already submitted attempts (expected when admin force-submits or race conditions)
+      const is403 = firstArg?.response?.status === 403 || 
+                    errorStr.includes('403') ||
+                    errorStr.includes('Request failed with status code 403');
+      const submitUrl = firstArg?.config?.url || '';
+      const isSubmitEndpoint = (submitUrl.includes('/attempts/') && submitUrl.includes('/submit')) ||
+                               submitUrl.includes('/student/attempts/') ||
+                               errorStr.includes('/attempts/') && errorStr.includes('/submit') ||
+                               errorStr.includes('useExamSubmission');
+      const isAlreadySubmitted = errorStr.includes('already been submitted') ||
+                                 errorStr.includes('already submitted') ||
+                                 errorStr.includes('already been') ||
+                                 firstArg?.response?.data?.message?.includes('already');
+      
+      if (is403 && (isSubmitEndpoint || isAlreadySubmitted)) {
+        return; // Don't log this error - it's expected when attempt is already submitted
+      }
+      
       // Log all other errors normally
       originalError.apply(console, args);
     };

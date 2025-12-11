@@ -63,7 +63,16 @@ export default function CreateUserPage() {
       router.push('/admin/users');
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.message || err.message || 'Failed to create user.');
+      // Handle 409 Conflict (duplicate email or reg_no)
+      if (err.response?.status === 409) {
+        const errorMessage = err.response?.data?.message || err.response?.data?.error?.message || 'User already exists. Email or registration number may be duplicate.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else {
+        const errorMessage = err.response?.data?.message || err.response?.data?.error?.message || err.message || 'Failed to create user.';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }

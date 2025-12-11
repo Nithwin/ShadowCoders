@@ -8,6 +8,7 @@ import {
 } from "./exam.zod";
 import * as examRepo from "./exam.repo";
 import { ExamStatus, Prisma, User } from "@prisma/client";
+import { prisma } from "../../lib/prisma";
 import * as userRepo from '../auth/auth.repo'; 
 import { prisma } from '../../lib/prisma';
 import * as sectionRepo from '../sections/section.repo';
@@ -66,13 +67,50 @@ export const createExam = async (input: CreateExamInput) => {
 type AssignExamInput = z.infer<typeof assignExamSchema>["body"];
 
 export const assignExam = async (examId: string, input: AssignExamInput) => {
+  let studentIds: string[] | null = null;
+  
+  // If regNos are provided, convert them to student IDs
+  if (input.regNos && Array.isArray(input.regNos) && input.regNos.length > 0) {
+    // Normalize regNos to lowercase for case-insensitive matching
+    const normalizedRegNos = input.regNos.map(regNo => regNo.toLowerCase().trim());
+    
+    const students = await prisma.user.findMany({
+      where: {
+        role: 'STUDENT',
+        reg_no: {
+          in: normalizedRegNos,
+        },
+      },
+      select: {
+        id: true,
+        reg_no: true,
+      },
+    });
+    
+    // Check for invalid reg_nos (case-insensitive comparison)
+    const foundRegNosLower = new Set(students.map(s => s.reg_no?.toLowerCase()));
+    const invalidRegNos = input.regNos.filter(regNo => !foundRegNosLower.has(regNo.toLowerCase().trim()));
+    
+    if (invalidRegNos.length > 0) {
+      throw {
+        status: 400,
+        message: `Invalid registration numbers: ${invalidRegNos.join(', ')}. Please check the format (e.g., 22cs001).`,
+      };
+    }
+    
+    studentIds = students.map(s => s.id);
+  } else if (input.studentIds && input.studentIds.length > 0) {
+    // Use provided student IDs directly
+    studentIds = input.studentIds;
+  }
+  
   const dataToSave = {
     assignToAll: input.assignToAll ?? false,
     cohortYear: input.cohortYear ?? null,
     cohortDepartment: input.cohortDepartment ?? null,
     cohortSection: input.cohortSection ?? null,
-    studentIds: input.studentIds
-      ? (input.studentIds as unknown as Prisma.InputJsonValue)
+    studentIds: studentIds
+      ? (studentIds as unknown as Prisma.InputJsonValue)
       : Prisma.JsonNull,
   };
   const assignment = await examRepo.createExamAssignment(examId, dataToSave);

@@ -37,18 +37,16 @@ const assignExamSchema = z
     }).pipe(z.number().int().min(1).max(6).optional()),
     cohortDepartment: z.string().max(50).optional(),
     cohortSection: z.string().max(10).optional(),
-    studentIds: z.string().optional(), // Comma-separated string for input
   })
   .refine(
     (data) => {
       const hasCohort =
         data.cohortYear || data.cohortDepartment || data.cohortSection;
-      const hasStudentIds = data.studentIds && data.studentIds.trim().length > 0;
-      return data.assignToAll === true || hasCohort || hasStudentIds;
+      return data.assignToAll === true || hasCohort;
     },
     {
       message:
-        'Assignment requires setting "Assign to All", providing cohort details, or a list of student IDs',
+        'Assignment requires setting "Assign to All" or providing cohort details',
       path: ['assignToAll'],
     }
   )
@@ -56,15 +54,14 @@ const assignExamSchema = z
     (data) => {
       const hasCohort =
         data.cohortYear || data.cohortDepartment || data.cohortSection;
-      const hasStudentIds = data.studentIds && data.studentIds.trim().length > 0;
       if (data.assignToAll === true) {
-        return !(hasCohort || hasStudentIds);
+        return !hasCohort;
       }
-      return !(hasCohort && hasStudentIds);
+      return true;
     },
     {
       message:
-        'Cannot use "Assign to All" with other assignment methods, or mix cohort with specific student IDs',
+        'Cannot use "Assign to All" with cohort assignment methods',
       path: ['assignToAll'],
     }
   );
@@ -263,7 +260,7 @@ function CreateAssignmentModal({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [assignmentType, setAssignmentType] = useState<'all' | 'cohort' | 'students'>('all');
+  const [assignmentType, setAssignmentType] = useState<'all' | 'cohort'>('all');
 
   const {
     register,
@@ -278,7 +275,6 @@ function CreateAssignmentModal({
       cohortYear: undefined,
       cohortDepartment: '',
       cohortSection: '',
-      studentIds: '',
     },
   });
 
@@ -289,15 +285,8 @@ function CreateAssignmentModal({
       setValue('cohortYear', undefined);
       setValue('cohortDepartment', '');
       setValue('cohortSection', '');
-      setValue('studentIds', '');
     } else if (assignmentType === 'cohort') {
       setValue('assignToAll', false);
-      setValue('studentIds', '');
-    } else {
-      setValue('assignToAll', false);
-      setValue('cohortYear', undefined);
-      setValue('cohortDepartment', '');
-      setValue('cohortSection', '');
     }
   }, [assignmentType, setValue]);
 
@@ -319,13 +308,6 @@ function CreateAssignmentModal({
         if (validatedData.cohortYear) payload.cohortYear = validatedData.cohortYear;
         if (validatedData.cohortDepartment) payload.cohortDepartment = validatedData.cohortDepartment;
         if (validatedData.cohortSection) payload.cohortSection = validatedData.cohortSection;
-      } else if (assignmentType === 'students' && validatedData.studentIds) {
-        // Student IDs assignment - convert comma-separated string to array
-        const ids = validatedData.studentIds
-          .split(',')
-          .map((id) => id.trim())
-          .filter((id) => id.length > 0);
-        payload.studentIds = ids;
       }
 
       await api.post(`/admin/exams/${examId}/assign`, payload);
@@ -384,21 +366,6 @@ function CreateAssignmentModal({
                 </p>
               </div>
             </label>
-            <label className="flex items-center gap-3 p-3 border border-primary/20 rounded-md cursor-pointer hover:bg-primary/5">
-              <input
-                type="radio"
-                value="students"
-                checked={assignmentType === 'students'}
-                onChange={(e) => setAssignmentType(e.target.value as 'students')}
-                className="h-4 w-4 text-primary focus:ring-primary/50"
-              />
-              <div>
-                <p className="font-medium text-primary">Assign to Specific Students</p>
-                <p className="text-xs text-primary/60">
-                  Enter student IDs separated by commas
-                </p>
-              </div>
-            </label>
           </div>
         </div>
 
@@ -448,27 +415,6 @@ function CreateAssignmentModal({
             </div>
             <p className="text-xs text-primary/60">
               Leave fields empty to include all (e.g. Set Year=1 and leave Department empty for All Year 1 students)
-            </p>
-          </div>
-        )}
-
-        {/* Student IDs Field */}
-        {assignmentType === 'students' && (
-          <div className="p-4 bg-primary/5 rounded-md border border-primary/20">
-            <label className="block text-sm font-semibold text-primary mb-2">
-              Student IDs <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              {...register('studentIds')}
-              rows={4}
-              className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none font-mono"
-              placeholder="Enter student IDs separated by commas&#10;e.g. clx1234567890, clx0987654321, clx1122334455"
-            />
-            {errors.studentIds && (
-              <p className="mt-1 text-sm text-red-500">{errors.studentIds.message}</p>
-            )}
-            <p className="mt-2 text-xs text-primary/60">
-              Enter student IDs (CUIDs) separated by commas. You can enter up to 1000 student IDs.
             </p>
           </div>
         )}

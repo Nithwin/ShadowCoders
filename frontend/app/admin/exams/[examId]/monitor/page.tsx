@@ -196,6 +196,11 @@ export default function ExamMonitorPage() {
   const handleClearSearch = () => {
     setSearchInput('');
     setSearchQuery('');
+    // Force focus back to input if it exists
+    const searchInputElement = document.querySelector('input[type="text"][placeholder*="Search"]') as HTMLInputElement;
+    if (searchInputElement) {
+      searchInputElement.focus();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -284,31 +289,46 @@ export default function ExamMonitorPage() {
 
     try {
       if (action === 'force-submit') {
+        // Force submit via API - this will handle the submission
         await api.post(`/admin/attempts/${violation.attemptId}/force-submit`, {
           submissionReason: 'Force submitted by admin due to keyboard violation',
         });
         toast.success(`Exam force submitted successfully for ${violation.studentName}`);
+        
+        // Emit resolution event AFTER successful API call to notify student
+        const socket = socketService.getSocket();
+        if (socket?.connected) {
+          socket.emit('resolve-keyboard-violation', {
+            attemptId: violation.attemptId,
+            action: 'force-submit',
+          });
+        }
       } else {
+        // For 'continue' action, only emit socket event (no API call needed)
+        const socket = socketService.getSocket();
+        if (socket?.connected) {
+          socket.emit('resolve-keyboard-violation', {
+            attemptId: violation.attemptId,
+            action: 'continue',
+          });
+        }
         toast.success(`Violation resolved. ${violation.studentName} can continue the exam.`);
-      }
-
-      // Emit resolution event
-      const socket = socketService.getSocket();
-      if (socket?.connected) {
-        socket.emit('resolve-keyboard-violation', {
-          attemptId: violation.attemptId,
-          action,
-        });
       }
 
       // Clear the violation from the list
       removeViolation(violation.attemptId);
+      setKeyboardViolations(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(violation.attemptId);
+        return newMap;
+      });
 
       // Refresh attempt details
       fetchAttemptDetails(violation.attemptId);
     } catch (err: any) {
       console.error('Error resolving violation:', err);
-      toast.error(err.response?.data?.error?.message || 'Failed to resolve violation');
+      const errorMessage = err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Failed to resolve violation';
+      toast.error(errorMessage);
     }
   };
 
@@ -529,17 +549,50 @@ export default function ExamMonitorPage() {
                       // Submit all attempts in parallel with better error handling
                       const submitPromises = activeAttempts.map(async (activity) => {
                           try {
+                              // Check if attempt details show it's already submitted
+                              const attemptDetail = attemptDetails.get(activity.attemptId);
+                              if (attemptDetail && (attemptDetail.status === 'SUBMITTED' || attemptDetail.submittedAt)) {
+                                  // Already submitted, skip silently
+                                  return;
+                              }
+
                               await api.post(`/admin/attempts/${activity.attemptId}/force-submit`, {
                                   submissionReason: 'Force submitted by admin - Force Submit All',
                               });
                               successCount++;
+                              
+                              // Emit socket event to notify student (only if socket is connected)
+                              // Don't emit if violation doesn't exist - that's expected for force-submit
+                              const socket = socketService.getSocket();
+                              if (socket?.connected) {
+                                  // Silently emit - if violation doesn't exist, socket handler will handle it gracefully
+                                  socket.emit('resolve-keyboard-violation', {
+                                      attemptId: activity.attemptId,
+                                      action: 'force-submit',
+                                  });
+                              }
+                              
                               // Refresh attempt details to get updated status
                               fetchAttemptDetails(activity.attemptId);
                           } catch (err: any) {
-                              console.error(`Failed to force submit attempt ${activity.attemptId}:`, err);
-                              errorCount++;
-                              const errorMsg = err.response?.data?.error?.message || err.message || 'Unknown error';
-                              errorMessages.push(`${activity.studentName}: ${errorMsg}`);
+                              // Handle 403 errors gracefully (attempt already submitted)
+                              if (err.response?.status === 403) {
+                                  const errorMsg = err.response?.data?.error?.message || err.response?.data?.message || 'Already submitted';
+                                  // If it says "already been submitted", skip silently
+                                  if (errorMsg.toLowerCase().includes('already') || errorMsg.toLowerCase().includes('submitted')) {
+                                      // Already submitted, don't count as error
+                                      return;
+                                  }
+                                  // Other 403 errors are real errors
+                                  errorCount++;
+                                  errorMessages.push(`${activity.studentName}: ${errorMsg}`);
+                              } else {
+                                  // Other errors are real errors
+                                  console.error(`Failed to force submit attempt ${activity.attemptId}:`, err);
+                                  errorCount++;
+                                  const errorMsg = err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Unknown error';
+                                  errorMessages.push(`${activity.studentName}: ${errorMsg}`);
+                              }
                           }
                       });
 
