@@ -64,7 +64,7 @@ Generate exam questions based on the following requirements:
   "type": "CODING",
   "order": <number>,
   "points": ${points},
-  "prompt": "<problem description in Markdown (.md) format with clear problem statement, constraints, input/output format, and examples - use markdown syntax for code blocks, lists, headers, etc.>",
+  "prompt": "<problem description in Markdown (.md) format with clear problem statement, constraints, input/output format, and examples - use markdown syntax for code blocks, lists, headers, etc. DO NOT include any starter code, function signatures, or code snippets in the prompt - only describe the problem>",
   "starterCode": "// write your code here",
   "testcases": [
     // EXACTLY 2 sample test cases (visible to students) - MUST be valid and executable
@@ -181,6 +181,10 @@ Example 3 - "Reverse a string":
     - Output format specification
     - Constraints
     - At least 2 examples showing input/output pairs
+  * **CRITICAL: DO NOT include starter code, function signatures, or any code snippets in the "prompt" field**
+    - The prompt should ONLY contain the problem description, constraints, input/output format, and examples
+    - Starter code should ONLY be in the "starterCode" field (use a simple placeholder like "// write your code here")
+    - Do NOT show code examples, function definitions, or any code in the prompt text itself
 - Points should be ${points} for all questions (based on difficulty: ${difficulty})
 - DO NOT include any markdown code blocks, explanations, or text outside the JSON object
 - Return ONLY the raw JSON object, no markdown formatting, no code blocks, no explanations

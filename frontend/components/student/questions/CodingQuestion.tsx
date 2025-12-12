@@ -497,7 +497,7 @@ export default function CodingQuestion({
 
         {/* Question Prompt - Scrollable with Markdown */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
-          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-pre:bg-gray-900 prose-pre:text-gray-100">
+          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-pre:bg-gray-900 prose-pre:text-gray-100 [&_code]:!bg-transparent [&_code]:!p-0 [&_code]:!m-0">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -507,7 +507,25 @@ export default function CodingQuestion({
                 p: ({node, ...props}) => <p className="text-gray-900 leading-relaxed mb-4" {...props} />,
                 code: ({node, inline, ...props}: any) => {
                   if (inline) {
-                    return <code className="!inline !bg-gray-100 !px-1.5 !py-0.5 !rounded !text-sm !font-mono !text-gray-800 !not-prose" {...props} />;
+                    return (
+                      <code 
+                        {...props}
+                        className="not-prose"
+                        style={{ 
+                          display: 'inline',
+                          backgroundColor: '#f3f4f6',
+                          padding: '0.125rem 0.375rem',
+                          borderRadius: '0.25rem',
+                          border: 'none',
+                          lineHeight: 'inherit',
+                          fontSize: '0.875rem',
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+                          color: '#1f2937',
+                          whiteSpace: 'normal',
+                          wordBreak: 'normal'
+                        }}
+                      />
+                    );
                   }
                   return <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4" {...props} />;
                 },
