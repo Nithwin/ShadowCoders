@@ -49,7 +49,7 @@ Generate exam questions based on the following requirements:
   "type": "MCQ",
   "order": <number starting from 1>,
   "points": ${points},
-  "prompt": "<question text>",
+  "prompt": "<question text in Markdown (.md) format - use markdown syntax for formatting, code blocks, lists, etc.>",
   "options": [
     { "id": "opt1", "text": "<option text>" },
     { "id": "opt2", "text": "<option text>" },
@@ -64,7 +64,7 @@ Generate exam questions based on the following requirements:
   "type": "CODING",
   "order": <number>,
   "points": ${points},
-  "prompt": "<problem description with clear problem statement, constraints, input/output format, and examples>",
+  "prompt": "<problem description in Markdown (.md) format with clear problem statement, constraints, input/output format, and examples - use markdown syntax for code blocks, lists, headers, etc.>",
   "starterCode": "// write your code here",
   "testcases": [
     // EXACTLY 2 sample test cases (visible to students) - MUST be valid and executable
@@ -152,13 +152,17 @@ Example 3 - "Reverse a string":
   "type": "ESSAY",
   "order": <number>,
   "points": ${points},
-  "prompt": "<essay prompt>",
+  "prompt": "<essay prompt in Markdown (.md) format - use markdown syntax for formatting, lists, emphasis, etc.>",
   "wordLimit": <optional number>
 }
 
 **IMPORTANT RULES:**
 - Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, and ${essayCount} essay questions
 - Order numbers should be sequential starting from 1
+- **CRITICAL: All question prompts (for MCQ, CODING, and ESSAY) MUST be formatted in Markdown (.md) format**
+  - Use markdown syntax for formatting: headers (#, ##), bold (**text**), italic (*text*), code blocks (\`\`\`), lists (- or 1.), links, etc.
+  - For code examples in prompts, use markdown code blocks with language specification
+  - For structured content, use markdown lists, tables, and other formatting as appropriate
 - For MCQ: Include exactly 4 options with unique IDs (opt1, opt2, opt3, opt4), with at least one correct answer marked in correctOptionIds array
 - For CODING: You MUST include EXACTLY 7 test cases total:
   * 2 sample test cases with isHidden: false (visible to students for testing their code)
