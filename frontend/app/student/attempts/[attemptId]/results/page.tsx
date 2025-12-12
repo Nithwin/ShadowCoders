@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2, AlertTriangle, Lock, Play } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Clock, Trophy, AlertCircle, Loader2, AlertTriangle, Lock, Users, Medal } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { QType } from '@/types';
 import { useToastNotification } from '@/context/ToastContext';
@@ -58,18 +57,22 @@ type AttemptResults = {
   isLocked?: boolean;
   hasManualGrading?: boolean;
   message?: string;
+  rank?: number | null;
+  totalParticipants?: number;
 };
 
 export default function ExamResultsPage() {
   const params = useParams();
-  const router = useRouter();
   const toast = useToastNotification();
   const attemptId = params?.attemptId as string;
 
   const [results, setResults] = useState<AttemptResults | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isResuming, setIsResuming] = useState(false);
+
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<any>(null);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
   const fetchResults = async () => {
     setIsLoading(true);
@@ -108,36 +111,34 @@ export default function ExamResultsPage() {
   useEffect(() => {
     if (!attemptId) return;
     fetchResults();
+    // Reset leaderboard when results change
+    setLeaderboard(null);
+    setShowLeaderboard(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
 
-  const handleResumeTest = async () => {
-    if (!results || !results.exam) return;
+  const fetchLeaderboard = async () => {
+    if (!results?.exam?.id) return;
     
-    setIsResuming(true);
+    setIsLoadingLeaderboard(true);
     try {
-      // Refresh results to get latest status
-      await fetchResults();
-      
-      // Check if attempt can be resumed
-      // If status is IN_PROGRESS, admin has already resumed it - student can continue
-      // If status is SUBMITTED with AUTO submissionType, admin needs to resume it first
-      if (results.status === 'IN_PROGRESS') {
-        // Navigate to the attempt page - admin has already resumed it
-        router.push(`/student/attempts/${attemptId}`);
-      } else if (results.status === 'SUBMITTED' && results.submissionType === 'AUTO') {
-        // Attempt is still submitted - admin needs to resume it first
-        toast.error('Please contact your administrator to resume this test. The test needs to be resumed by an administrator before you can continue.');
-      } else {
-        toast.error('This test cannot be resumed.');
-      }
+      const res = await api.get(`/student/exams/${results.exam.id}/leaderboard`);
+      setLeaderboard(res.data);
     } catch (err: unknown) {
-      console.error(err);
-      toast.error('Failed to resume test. Please try again.');
+      console.error('Error fetching leaderboard:', err);
+      toast.error('Failed to load leaderboard.');
     } finally {
-      setIsResuming(false);
+      setIsLoadingLeaderboard(false);
     }
   };
+
+  useEffect(() => {
+    if (showLeaderboard && results?.exam?.id && !leaderboard && !isLoadingLeaderboard) {
+      fetchLeaderboard();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLeaderboard, results?.exam?.id]);
+
 
 
   const formatDate = (dateString: string) => {
@@ -258,17 +259,34 @@ export default function ExamResultsPage() {
 
                     {/* Score Badge */}
                     {!results.isLocked && (
-                        <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 ${gradeColorClass}`}>
-                            <div className="text-right">
-                                <div className="text-xs font-bold uppercase tracking-wider opacity-80">Total Score</div>
-                                <div className="text-3xl font-black leading-none">
-                                    {formatScore(results.score)} <span className="text-lg font-medium opacity-60">/ {formatScore(results.maxScore)}</span>
+                        <div className="flex items-center gap-4">
+                            <div className={`px-6 py-3 rounded-2xl border-2 flex items-center gap-4 ${gradeColorClass}`}>
+                                <div className="text-right">
+                                    <div className="text-xs font-bold uppercase tracking-wider opacity-80">Total Score</div>
+                                    <div className="text-3xl font-black leading-none">
+                                        {formatScore(results.score)} <span className="text-lg font-medium opacity-60">/ {formatScore(results.maxScore)}</span>
+                                    </div>
+                                </div>
+                                <div className="h-10 w-px bg-current opacity-20"></div>
+                                <div className="text-4xl font-black flex items-center">
+                                    {percentage}%
                                 </div>
                             </div>
-                            <div className="h-10 w-px bg-current opacity-20"></div>
-                            <div className="text-4xl font-black flex items-center">
-                                {percentage}%
-                            </div>
+                            {/* Rank Badge */}
+                            {results.rank !== null && results.rank !== undefined && results.totalParticipants !== undefined && (
+                                <div className="px-6 py-3 rounded-2xl border-2 bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 flex items-center gap-4">
+                                    <Medal className="w-8 h-8 text-amber-600" />
+                                    <div>
+                                        <div className="text-xs font-bold uppercase tracking-wider text-amber-700 opacity-80">Your Rank</div>
+                                        <div className="text-3xl font-black leading-none text-amber-900">
+                                            #{results.rank}
+                                            {results.totalParticipants > 0 && (
+                                                <span className="text-lg font-medium opacity-60"> / {results.totalParticipants}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -316,28 +334,6 @@ export default function ExamResultsPage() {
                                 )}
                             </div>
                         </div>
-                        {/* Show Resume button only if attempt is IN_PROGRESS (admin has resumed it) or if it's AUTO submitted (admin can resume) */}
-                        {(results.status === 'IN_PROGRESS' || (results.status === 'SUBMITTED' && results.submissionType === 'AUTO')) && (
-                            <div className="flex justify-end">
-                                <Button
-                                    onClick={handleResumeTest}
-                                    disabled={isResuming}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white border-0"
-                                >
-                                    {isResuming ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                            {results.status === 'IN_PROGRESS' ? 'Loading...' : 'Checking...'}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Play className="w-4 h-4 mr-2" />
-                                            {results.status === 'IN_PROGRESS' ? 'Continue Test' : 'Resume Test'}
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        )}
                     </div>
                 </div>
                 )}
@@ -359,6 +355,104 @@ export default function ExamResultsPage() {
                         />
                     </div>
                 </div>
+
+                {/* Leaderboard Toggle */}
+                {!results.isLocked && results.rank !== null && results.rank !== undefined && (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <button
+                            onClick={() => setShowLeaderboard(!showLeaderboard)}
+                            className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-xl transition-all duration-200 border border-blue-200"
+                        >
+                            <div className="flex items-center gap-3">
+                                <Trophy className="w-6 h-6 text-amber-600" />
+                                <div className="text-left">
+                                    <div className="font-bold text-gray-900">View Leaderboard</div>
+                                    <div className="text-sm text-gray-600">See how you rank against other students</div>
+                                </div>
+                            </div>
+                            <Users className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Leaderboard */}
+                {showLeaderboard && leaderboard && (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                                <Trophy className="w-6 h-6 text-amber-600" />
+                                Leaderboard
+                            </h2>
+                            {leaderboard.currentStudentRank && (
+                                <div className="text-sm text-gray-600">
+                                    Your Rank: <span className="font-bold text-amber-600">#{leaderboard.currentStudentRank}</span> of {leaderboard.totalParticipants}
+                                </div>
+                            )}
+                        </div>
+                        
+                        {isLoadingLeaderboard ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
+                            </div>
+                        ) : leaderboard.leaderboard.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                                No rankings available yet.
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {leaderboard.leaderboard.map((entry: any, index: number) => {
+                                    const isTopThree = entry.rank <= 3;
+                                    const rankEmoji = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : '';
+                                    
+                                    return (
+                                        <div
+                                            key={entry.studentId}
+                                            className={`p-4 rounded-xl border-2 transition-all ${
+                                                entry.isCurrentStudent
+                                                    ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-md'
+                                                    : isTopThree
+                                                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                                                    : 'bg-gray-50 border-gray-200'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4 flex-1">
+                                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                                                        entry.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white' :
+                                                        entry.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-white' :
+                                                        entry.rank === 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                                                        'bg-gray-200 text-gray-700'
+                                                    }`}>
+                                                        {rankEmoji || entry.rank}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-semibold text-gray-900 truncate">
+                                                            {entry.studentName || entry.studentEmail}
+                                                            {entry.isCurrentStudent && (
+                                                                <span className="ml-2 text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full">You</span>
+                                                            )}
+                                                        </div>
+                                                        {entry.studentRegNo && (
+                                                            <div className="text-sm text-gray-500">{entry.studentRegNo}</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right ml-4">
+                                                    <div className="font-bold text-lg text-gray-900">
+                                                        {entry.score.toFixed(2)} / {entry.maxScore.toFixed(2)}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        {Math.floor(entry.timeSpentSec / 60)}m {entry.timeSpentSec % 60}s
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Question List */}
                 <div className="grid grid-cols-1 gap-6">

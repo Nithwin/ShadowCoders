@@ -85,9 +85,11 @@ export default function ExamTimer({
         return;
       }
       
-      setTimeRemaining(remaining);
-      
-      if (remaining === 0) {
+      // If time already elapsed (remaining is 0 or endTime is in the past),
+      // only trigger auto-submit if the attempt is actually IN_PROGRESS
+      // This prevents auto-submit on resumed attempts that haven't started yet
+      if (remaining === 0 && status === 'IN_PROGRESS') {
+        setTimeRemaining(0);
         // Time is up - call callback
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
@@ -96,7 +98,10 @@ export default function ExamTimer({
         if (onTimeUpRef.current) {
           onTimeUpRef.current();
         }
+        return;
       }
+      
+      setTimeRemaining(remaining);
     };
 
     // Update immediately

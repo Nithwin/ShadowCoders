@@ -50,6 +50,12 @@ export const registerAttemptRoutes = (app: Express) => {
   );
 
   app.get(
+    '/api/student/exams/:examId/leaderboard',
+    verifyAccess,
+    attemptController.getExamLeaderboardHandler
+  );
+
+  app.get(
     '/api/admin/attempts/exam/:examId',
     verifyAccess,
     requireRole('STAFF'),

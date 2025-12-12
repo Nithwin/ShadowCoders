@@ -763,8 +763,267 @@ export const getAttemptResults = async (
     });
   }
 
-  // 7. Return the full results
-  return attemptResults;
+  // 7. Calculate and add rank information
+  const rankInfo = await calculateStudentRank(attemptResults.examId, studentId);
+  
+  // 8. Return the full results with rank
+  return {
+    ...attemptResults,
+    rank: rankInfo.rank,
+    totalParticipants: rankInfo.totalParticipants,
+  };
+};
+
+/**
+ * Calculate the rank of a student for a specific exam
+ * Ranking is based on:
+ * 1. Score (descending) - higher score = better rank
+ * 2. Time spent (ascending) - faster completion = better rank (if same score)
+ * 3. Submission time (ascending) - earlier submission = better rank (if same score and time)
+ */
+export const calculateStudentRank = async (
+  examId: string,
+  studentId: string
+): Promise<{ rank: number | null; totalParticipants: number }> => {
+  // Get all submitted attempts for this exam, ordered by:
+  // 1. Score (descending)
+  // 2. Time spent (ascending) - faster is better
+  // 3. SubmittedAt (ascending) - earlier submission is better
+  const allAttempts = await prisma.attempt.findMany({
+    where: {
+      examId: examId,
+      status: AttemptStatus.SUBMITTED,
+      score: { not: null },
+    },
+    select: {
+      id: true,
+      studentId: true,
+      score: true,
+      timeSpentSec: true,
+      submittedAt: true,
+    },
+    orderBy: [
+      { score: 'desc' },
+      { timeSpentSec: 'asc' },
+      { submittedAt: 'asc' },
+    ],
+  });
+
+  if (allAttempts.length === 0) {
+    return { rank: null, totalParticipants: 0 };
+  }
+
+  // Get the best attempt for each student (highest score, then fastest time)
+  const studentBestAttempts = new Map<string, typeof allAttempts[0]>();
+  
+  for (const attempt of allAttempts) {
+    const existing = studentBestAttempts.get(attempt.studentId);
+    if (!existing) {
+      studentBestAttempts.set(attempt.studentId, attempt);
+    } else {
+      // Compare: score first, then time, then submission time
+      const existingScore = Number(existing.score || 0);
+      const attemptScore = Number(attempt.score || 0);
+      
+      if (attemptScore > existingScore) {
+        studentBestAttempts.set(attempt.studentId, attempt);
+      } else if (attemptScore === existingScore) {
+        const existingTime = existing.timeSpentSec || 0;
+        const attemptTime = attempt.timeSpentSec || 0;
+        
+        if (attemptTime < existingTime) {
+          studentBestAttempts.set(attempt.studentId, attempt);
+        } else if (attemptTime === existingTime && attempt.submittedAt && existing.submittedAt) {
+          if (attempt.submittedAt < existing.submittedAt) {
+            studentBestAttempts.set(attempt.studentId, attempt);
+          }
+        }
+      }
+    }
+  }
+
+  // Convert to array and sort again for ranking
+  const rankedAttempts = Array.from(studentBestAttempts.values()).sort((a, b) => {
+    const scoreA = Number(a.score || 0);
+    const scoreB = Number(b.score || 0);
+    
+    if (scoreB !== scoreA) {
+      return scoreB - scoreA; // Higher score = better
+    }
+    
+    const timeA = a.timeSpentSec || 0;
+    const timeB = b.timeSpentSec || 0;
+    
+    if (timeA !== timeB) {
+      return timeA - timeB; // Faster = better
+    }
+    
+    // If same score and time, earlier submission wins
+    if (a.submittedAt && b.submittedAt) {
+      return a.submittedAt.getTime() - b.submittedAt.getTime();
+    }
+    
+    return 0;
+  });
+
+  const totalParticipants = rankedAttempts.length;
+  
+  // Find the student's rank
+  const studentRank = rankedAttempts.findIndex(
+    (attempt) => attempt.studentId === studentId
+  );
+
+  if (studentRank === -1) {
+    return { rank: null, totalParticipants };
+  }
+
+  // Rank is 1-indexed (1st place, 2nd place, etc.)
+  return { rank: studentRank + 1, totalParticipants };
+};
+
+/**
+ * Get leaderboard for an exam
+ * Returns top N students ranked by their best attempt
+ */
+export const getExamLeaderboard = async (
+  examId: string,
+  studentId: string,
+  limit: number = 50
+): Promise<{
+  leaderboard: Array<{
+    rank: number;
+    studentId: string;
+    studentName: string | null;
+    studentEmail: string;
+    studentRegNo: string | null;
+    score: number;
+    maxScore: number;
+    timeSpentSec: number;
+    submittedAt: Date | null;
+    isCurrentStudent: boolean;
+  }>;
+  currentStudentRank: number | null;
+  totalParticipants: number;
+}> => {
+  // Get all submitted attempts for this exam
+  const allAttempts = await prisma.attempt.findMany({
+    where: {
+      examId: examId,
+      status: AttemptStatus.SUBMITTED,
+      score: { not: null },
+    },
+    select: {
+      id: true,
+      studentId: true,
+      score: true,
+      maxScore: true,
+      timeSpentSec: true,
+      submittedAt: true,
+      student: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          reg_no: true,
+        },
+      },
+    },
+    orderBy: [
+      { score: 'desc' },
+      { timeSpentSec: 'asc' },
+      { submittedAt: 'asc' },
+    ],
+  });
+
+  if (allAttempts.length === 0) {
+    return {
+      leaderboard: [],
+      currentStudentRank: null,
+      totalParticipants: 0,
+    };
+  }
+
+  // Get the best attempt for each student
+  const studentBestAttempts = new Map<string, typeof allAttempts[0]>();
+  
+  for (const attempt of allAttempts) {
+    const existing = studentBestAttempts.get(attempt.studentId);
+    if (!existing) {
+      studentBestAttempts.set(attempt.studentId, attempt);
+    } else {
+      const existingScore = Number(existing.score || 0);
+      const attemptScore = Number(attempt.score || 0);
+      
+      if (attemptScore > existingScore) {
+        studentBestAttempts.set(attempt.studentId, attempt);
+      } else if (attemptScore === existingScore) {
+        const existingTime = existing.timeSpentSec || 0;
+        const attemptTime = attempt.timeSpentSec || 0;
+        
+        if (attemptTime < existingTime) {
+          studentBestAttempts.set(attempt.studentId, attempt);
+        } else if (attemptTime === existingTime && attempt.submittedAt && existing.submittedAt) {
+          if (attempt.submittedAt < existing.submittedAt) {
+            studentBestAttempts.set(attempt.studentId, attempt);
+          }
+        }
+      }
+    }
+  }
+
+  // Sort for ranking
+  const rankedAttempts = Array.from(studentBestAttempts.values()).sort((a, b) => {
+    const scoreA = Number(a.score || 0);
+    const scoreB = Number(b.score || 0);
+    
+    if (scoreB !== scoreA) {
+      return scoreB - scoreA;
+    }
+    
+    const timeA = a.timeSpentSec || 0;
+    const timeB = b.timeSpentSec || 0;
+    
+    if (timeA !== timeB) {
+      return timeA - timeB;
+    }
+    
+    if (a.submittedAt && b.submittedAt) {
+      return a.submittedAt.getTime() - b.submittedAt.getTime();
+    }
+    
+    return 0;
+  });
+
+  const totalParticipants = rankedAttempts.length;
+  
+  // Find current student's rank
+  const currentStudentIndex = rankedAttempts.findIndex(
+    (attempt) => attempt.studentId === studentId
+  );
+  const currentStudentRank = currentStudentIndex === -1 ? null : currentStudentIndex + 1;
+
+  // Get top N for leaderboard
+  const topAttempts = rankedAttempts.slice(0, limit);
+
+  // Build leaderboard response
+  const leaderboard = topAttempts.map((attempt, index) => ({
+    rank: index + 1,
+    studentId: attempt.studentId,
+    studentName: attempt.student.name,
+    studentEmail: attempt.student.email,
+    studentRegNo: attempt.student.reg_no,
+    score: Number(attempt.score || 0),
+    maxScore: Number(attempt.maxScore || 0),
+    timeSpentSec: attempt.timeSpentSec,
+    submittedAt: attempt.submittedAt,
+    isCurrentStudent: attempt.studentId === studentId,
+  }));
+
+  return {
+    leaderboard,
+    currentStudentRank,
+    totalParticipants,
+  };
 };
 
 type ListAttemptsQuery = z.infer<typeof listAttemptsSchema>['query'];
@@ -844,10 +1103,14 @@ export const resetAttempts = async (input: ResetAttemptsInput) => {
     throw { status: 404, message: 'Exam not found' };
   }
 
-  // Build where clause for attempts to delete
+  // Build where clause for attempts to delete/reset
+  // For reattempts, we should reset both SUBMITTED and IN_PROGRESS attempts
+  // This ensures a clean slate when giving reattempts
   const whereClause: Prisma.AttemptWhereInput = {
     examId: examId,
-    status: AttemptStatus.SUBMITTED, // Only delete submitted attempts
+    status: {
+      in: [AttemptStatus.SUBMITTED, AttemptStatus.IN_PROGRESS], // Delete both submitted and in-progress attempts for reattempts
+    },
   };
 
   if (!resetAll && studentIds && studentIds.length > 0) {
@@ -865,7 +1128,7 @@ export const resetAttempts = async (input: ResetAttemptsInput) => {
   if (attemptIds.length === 0) {
     return {
       deletedCount: 0,
-      message: 'No submitted attempts found to reset',
+      message: 'No attempts found to reset',
     };
   }
 
@@ -969,7 +1232,9 @@ export const resumeAttempts = async (input: ResumeAttemptsInput) => {
     };
   }
 
-  // Resume attempts: change status back to IN_PROGRESS and clear submittedAt
+  // Resume attempts: change status back to IN_PROGRESS, clear submittedAt, and update startedAt to current time
+  // This ensures the timer starts fresh for resumed attempts
+  const now = new Date();
   const result = await prisma.attempt.updateMany({
     where: {
       id: { in: attemptIds },
@@ -977,6 +1242,7 @@ export const resumeAttempts = async (input: ResumeAttemptsInput) => {
     data: {
       status: AttemptStatus.IN_PROGRESS,
       submittedAt: null,
+      startedAt: now, // Reset startedAt to current time so timer starts fresh
       submissionType: 'NORMAL', // Reset to normal since it's being resumed
       submissionReason: null, // Clear the auto-submit reason
     },

@@ -587,122 +587,103 @@ export default function CodingQuestion({
         className="flex flex-col overflow-hidden bg-[#1e1e1e] shadow-lg transition-all duration-300 ease-out"
         style={{ width: `${editorWidth}%` }}
       >
-        {/* LeetCode-style Editor Header - Compact with Language, Theme, and Actions */}
-        <div className="bg-[#1e1e1e] border-b border-gray-700 flex items-center justify-between px-5 py-3 flex-shrink-0">
-          {/* Left: Editor Label */}
-          <div className="flex items-center gap-2.5">
-            <Code className="w-4 h-4 text-gray-400" />
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Code Editor</span>
-          </div>
+        {/* Editor Header - Optimized Layout */}
+        <div className="bg-[#1e1e1e] border-b border-gray-700 flex items-center justify-end px-4 py-2.5 flex-shrink-0 gap-2 overflow-x-auto">
+          {/* Language Selector */}
+          <select
+            value={language}
+            onChange={(e) => {
+              const newLang = e.target.value;
+              if (availableLanguages.some(l => l.value === newLang)) {
+                setLanguage(newLang);
+                if (isInitialMount.current) {
+                  isInitialMount.current = false;
+                }
+                onChange({ code, language: newLang });
+              }
+            }}
+            className="px-3 py-1.5 bg-[#2d2d2d] text-gray-200 border border-gray-600 rounded text-sm font-medium cursor-pointer hover:bg-[#3d3d3d] hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all flex-shrink-0"
+          >
+            {availableLanguages.map((lang) => (
+              <option key={lang.value} value={lang.value} className="bg-[#2d2d2d]">
+                {lang.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={toggleEditorFullscreen}
+            type="button"
+            className="px-2.5 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-xs font-medium transition-all flex items-center justify-center w-8 h-8 flex-shrink-0"
+            title={isEditorFullscreen ? 'Show question panel' : 'Full screen editor'}
+          >
+            {isEditorFullscreen ? (
+              <Minimize2 className="w-3.5 h-3.5" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-600 flex-shrink-0"></div>
+
+          {/* Clear Button */}
+          <button
+            onClick={handleClearCode}
+            disabled={isRunning || isSubmitting}
+            type="button"
+            className="px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 disabled:hover:bg-[#2d2d2d] flex-shrink-0 w-[75px]"
+            title="Clear code and reset to starter code"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="text-xs">Clear</span>
+          </button>
           
-          {/* Right: Language, Theme, Fullscreen Toggle, and Action Buttons */}
-          <div className="flex items-center gap-3">
-            {/* Language Selector - LeetCode style */}
-            <div className="flex items-center gap-2">
-              <select
-                value={language}
-                onChange={(e) => {
-                  const newLang = e.target.value;
-                  // Ensure the selected language is in the allowed list
-                  if (availableLanguages.some(l => l.value === newLang)) {
-                    setLanguage(newLang);
-                    // Mark that user has made changes
-                    if (isInitialMount.current) {
-                      isInitialMount.current = false;
-                    }
-                    // Update parent with new language
-                    onChange({ code, language: newLang });
-                  }
-                }}
-                className="px-3 py-1.5 bg-[#2d2d2d] text-gray-200 border border-gray-600 rounded text-sm font-medium cursor-pointer hover:bg-[#3d3d3d] hover:border-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
-              >
-                {availableLanguages.map((lang) => (
-                  <option key={lang.value} value={lang.value} className="bg-[#2d2d2d]">
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Fullscreen Toggle Button */}
-            <button
-              onClick={toggleEditorFullscreen}
-              type="button"
-              className="px-2 py-1 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-xs font-medium transition-all flex items-center gap-1"
-              title={isEditorFullscreen ? 'Show question panel (half screen)' : 'Hide question panel (full screen editor)'}
-            >
-              {isEditorFullscreen ? (
-                <>
-                  <Minimize2 className="w-3 h-3" />
-                  Half
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3 h-3" />
-                  Full
-                </>
-              )}
-            </button>
-
-            {/* Divider */}
-            <div className="w-px h-6 bg-gray-600"></div>
-
-            {/* Action Buttons - Compact LeetCode style */}
-            <button
-              onClick={handleClearCode}
-              disabled={isRunning || isSubmitting}
-              type="button"
-              className="px-4 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-[#2d2d2d]"
-              title="Clear code and reset to starter code"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Clear
-            </button>
-            
-            <button
-              onClick={handleRunCode}
-              disabled={isRunning || isSubmitting || !code.trim()}
-              type="button"
-              className="px-4 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-[#2d2d2d]"
-            >
-              {isRunning ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  {queueStatus && queueStatus.queued > 0 ? 'Queued' : 'Running'}
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5" />
-                  Run
-                </>
-              )}
-            </button>
-            
-            <button
-              onClick={handleSubmitCode}
-              disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0}
-              type="button"
-              className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 disabled:hover:bg-green-600"
-              title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : 'Submit your code'}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Submitting
-                </>
-              ) : submitCooldown > 0 ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Wait {submitCooldown}s
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  Submit
-                </>
-              )}
-            </button>
-          </div>
+          {/* Run Button - Fixed width to prevent layout shift */}
+          <button
+            onClick={handleRunCode}
+            disabled={isRunning || isSubmitting || !code.trim()}
+            type="button"
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 disabled:hover:bg-blue-600 flex-shrink-0 w-[80px]"
+          >
+            {isRunning ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              </>
+            ) : (
+              <>
+                <Play className="w-3.5 h-3.5" />
+              </>
+            )}
+            <span className="text-xs">Run</span>
+          </button>
+          
+          {/* Submit Button - Fixed width to prevent layout shift */}
+          <button
+            onClick={handleSubmitCode}
+            disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0}
+            type="button"
+            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 disabled:hover:bg-green-600 flex-shrink-0 w-[90px]"
+            title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : 'Submit your code'}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              </>
+            ) : submitCooldown > 0 ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              </>
+            ) : (
+              <>
+                <Send className="w-3.5 h-3.5" />
+              </>
+            )}
+            <span className="text-xs">
+              {isSubmitting ? 'Submit' : submitCooldown > 0 ? `Wait ${submitCooldown}s` : 'Submit'}
+            </span>
+          </button>
         </div>
 
         {/* Queue Status Indicator - Compact */}

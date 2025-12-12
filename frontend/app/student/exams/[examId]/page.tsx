@@ -181,7 +181,9 @@ export default function ExamDetailPage() {
         };
       }
       
-      if (canRetake && isWithinTimeWindow) {
+      // Only show "Retake Exam" if there are existing submitted attempts (attemptCount > 0)
+      // After a reset, attempts are deleted so attemptCount will be 0, showing "Start Exam" instead
+      if (canRetake && isWithinTimeWindow && attemptCount > 0) {
         return {
           label: 'Completed - Can Retake',
           color: 'bg-purple-100 text-purple-800',

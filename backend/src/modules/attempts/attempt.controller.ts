@@ -315,3 +315,26 @@ export const forceSubmitAttemptHandler: RequestHandler = async (req, res, next) 
     next(error);
   }
 };
+
+export const getExamLeaderboardHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const studentId = req.user?.sub;
+    const examId = req.params.examId;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+
+    if (!studentId) {
+      return next({ status: 401, message: 'Unauthorized' });
+    }
+    if (!examId) {
+      return next({ status: 400, message: 'Exam ID parameter is required' });
+    }
+
+    // Call the service to get the leaderboard
+    const leaderboard = await attemptService.getExamLeaderboard(examId, studentId, limit);
+
+    res.status(200).json(leaderboard);
+
+  } catch (error) {
+    next(error);
+  }
+};

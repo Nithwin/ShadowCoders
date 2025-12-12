@@ -120,8 +120,10 @@ export default function StudentExamsPage() {
 
     // If student has submitted an attempt
     if (hasSubmittedAttempt) {
-      // Check if they can retake and exam is still live
-      if (canRetake && isWithinTimeWindow) {
+      // Only show "Retake Exam" if there are existing submitted attempts (attemptCount > 0)
+      // After a reset (reattempt given), attempts are deleted so attemptCount will be 0
+      // In that case, it should show "Start Exam" instead of "Retake Exam"
+      if (canRetake && isWithinTimeWindow && attemptCount > 0) {
         return {
           label: 'Completed - Can Retake',
           color: 'bg-purple-100 text-purple-800',
