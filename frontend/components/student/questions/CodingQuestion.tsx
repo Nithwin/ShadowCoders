@@ -497,7 +497,7 @@ export default function CodingQuestion({
 
         {/* Question Prompt - Scrollable with Markdown */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
-          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-code:text-gray-800 prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-pre:bg-gray-900 prose-pre:text-gray-100">
+          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-pre:bg-gray-900 prose-pre:text-gray-100">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -507,7 +507,7 @@ export default function CodingQuestion({
                 p: ({node, ...props}) => <p className="text-gray-900 leading-relaxed mb-4" {...props} />,
                 code: ({node, inline, ...props}: any) => {
                   if (inline) {
-                    return <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props} />;
+                    return <code className="!inline !bg-gray-100 !px-1.5 !py-0.5 !rounded !text-sm !font-mono !text-gray-800 !not-prose" {...props} />;
                   }
                   return <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4" {...props} />;
                 },
