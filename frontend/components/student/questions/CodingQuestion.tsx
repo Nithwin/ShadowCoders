@@ -309,13 +309,14 @@ export default function CodingQuestion({
       isInitialMount.current = false;
     }
     
-    // Debounce the onChange callback with 5 second delay for auto-save
+    // Debounce the onChange callback with 1 second delay for auto-save
+    // Reduced from 5 seconds to prevent cursor jumping when typing fast
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
       onChange({ code: newCode, language });
-    }, 5000); // 5 second debounce for code auto-save
+    }, 1000); // 1 second debounce for code auto-save
   };
 
   // Handle clear button - reset to starter code or empty
