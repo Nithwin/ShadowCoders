@@ -497,7 +497,7 @@ export default function CodingQuestion({
 
         {/* Question Prompt - Scrollable with Markdown */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
-          <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-pre:bg-gray-900 prose-pre:text-gray-100 [&_code]:!bg-transparent [&_code]:!p-0 [&_code]:!m-0">
+          <div className="text-gray-900 leading-relaxed text-base">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -505,40 +505,53 @@ export default function CodingQuestion({
                 h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 mt-7 mb-4" {...props} />,
                 h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 mt-6 mb-3" {...props} />,
                 p: ({node, ...props}) => <p className="text-gray-900 leading-relaxed mb-4" {...props} />,
-                code: ({node, inline, ...props}: any) => {
-                  if (inline) {
+                // Unified code block styling
+                code(props) {
+                  const {children, className, node, ...rest} = props
+                  const match = /language-(\w+)/.exec(className || '')
+                  const isInline = !match && !String(children).includes('\n')
+                  
+                  if (isInline) {
                     return (
                       <code 
-                        {...props}
-                        className="not-prose"
+                        {...rest}
+                        className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-sm font-mono border border-blue-100 align-middle inline-block mx-0.5"
                         style={{ 
-                          display: 'inline',
-                          backgroundColor: '#f3f4f6',
-                          padding: '0.125rem 0.375rem',
-                          borderRadius: '0.25rem',
-                          border: 'none',
-                          lineHeight: 'inherit',
-                          fontSize: '0.875rem',
-                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                          color: '#1f2937',
                           whiteSpace: 'normal',
-                          wordBreak: 'normal'
+                          wordBreak: 'break-word',
                         }}
-                      />
-                    );
+                      >
+                        {children}
+                      </code>
+                    )
                   }
-                  return <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4" {...props} />;
+                  
+                  // Block code content
+                  return (
+                    <code {...rest} className="bg-transparent text-inherit p-0 border-none">
+                      {children}
+                    </code>
+                  )
                 },
-                pre: ({node, ...props}: any) => <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-4" {...props} />,
-                ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 mb-4 text-gray-900" {...props} />,
-                ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-2 mb-4 text-gray-900" {...props} />,
-                li: ({node, ...props}) => <li className="text-gray-900" {...props} />,
-                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-700 my-4" {...props} />,
-                table: ({node, ...props}) => <table className="min-w-full border-collapse border border-gray-300 my-4" {...props} />,
-                thead: ({node, ...props}) => <thead className="bg-gray-100" {...props} />,
-                th: ({node, ...props}) => <th className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-900" {...props} />,
-                td: ({node, ...props}) => <td className="border border-gray-300 px-4 py-2 text-gray-900" {...props} />,
-                a: ({node, ...props}) => <a className="text-blue-600 hover:text-blue-800 underline" {...props} />,
+                // Style the pre container for block code
+                pre: ({node, ...props}) => (
+                  <div className="my-5 rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm">
+                    <pre {...props} className="p-4 overflow-x-auto text-gray-800 text-sm font-mono m-0 bg-white" />
+                  </div>
+                ),
+                ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-2 mb-4 text-gray-900 pl-4" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-2 mb-4 text-gray-900 pl-4" {...props} />,
+                li: ({node, ...props}) => <li className="text-gray-900 pl-1 mb-1" {...props} />,
+                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-300 pl-4 italic text-gray-700 my-4 bg-blue-50/50 py-3 rounded-r" {...props} />,
+                table: ({node, ...props}) => (
+                   <div className="overflow-x-auto my-5 border border-gray-200 rounded-lg shadow-sm">
+                    <table className="min-w-full divide-y divide-gray-200" {...props} />
+                   </div>
+                ),
+                thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
+                th: ({node, ...props}) => <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider" {...props} />,
+                td: ({node, ...props}) => <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-t border-gray-100" {...props} />,
+                a: ({node, ...props}) => <a className="text-blue-600 hover:text-blue-800 underline font-medium transition-colors" {...props} />,
               }}
             >
               {prompt}
@@ -606,7 +619,7 @@ export default function CodingQuestion({
         className="flex flex-col overflow-hidden bg-[#1e1e1e] shadow-lg transition-all duration-300 ease-out"
         style={{ width: `${editorWidth}%` }}
       >
-        {/* Editor Header - Optimized Layout */}
+        {/* Editor Header - Reverted to Original Layout with Icon Fix */}
         <div className="bg-[#1e1e1e] border-b border-gray-700 flex items-center justify-end px-4 py-2.5 flex-shrink-0 gap-2 overflow-x-auto">
           {/* Language Selector */}
           <select
@@ -630,73 +643,73 @@ export default function CodingQuestion({
             ))}
           </select>
 
-          {/* Fullscreen Toggle Button */}
+          {/* Fullscreen Toggle Button - Increased Visibility */}
           <button
             onClick={toggleEditorFullscreen}
             type="button"
-            className="px-2.5 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-xs font-medium transition-all flex items-center justify-center w-8 h-8 flex-shrink-0"
+            className="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-white border border-gray-500 rounded text-xs font-medium transition-all flex items-center justify-center w-9 h-9 flex-shrink-0 relative z-10 shadow-sm"
             title={isEditorFullscreen ? 'Show question panel' : 'Full screen editor'}
           >
             {isEditorFullscreen ? (
-              <Minimize2 className="w-3.5 h-3.5" />
+              <Minimize2 className="w-5 h-5 text-white" strokeWidth={2} />
             ) : (
-              <Maximize2 className="w-3.5 h-3.5" />
+              <Maximize2 className="w-5 h-5 text-white" strokeWidth={2} />
             )}
           </button>
 
           {/* Divider */}
-          <div className="w-px h-5 bg-gray-600 flex-shrink-0"></div>
+          <div className="w-px h-6 bg-gray-600 flex-shrink-0"></div>
 
           {/* Clear Button */}
           <button
             onClick={handleClearCode}
             disabled={isRunning || isSubmitting}
             type="button"
-            className="px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 disabled:hover:bg-[#2d2d2d] flex-shrink-0 w-[75px]"
+            className="px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-[#2d2d2d] flex-shrink-0 w-[85px]"
             title="Clear code and reset to starter code"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-4 h-4" />
             <span className="text-xs">Clear</span>
           </button>
           
-          {/* Run Button - Fixed width to prevent layout shift */}
+          {/* Run Button - Fixed width, larger icon */}
           <button
             onClick={handleRunCode}
             disabled={isRunning || isSubmitting || !code.trim()}
             type="button"
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 disabled:hover:bg-blue-600 flex-shrink-0 w-[80px]"
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-blue-600 flex-shrink-0 w-[90px]"
           >
             {isRunning ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               </>
             ) : (
               <>
-                <Play className="w-3.5 h-3.5" />
+                <Play className="w-4 h-4" />
               </>
             )}
             <span className="text-xs">Run</span>
           </button>
           
-          {/* Submit Button - Fixed width to prevent layout shift */}
+          {/* Submit Button - Fixed width, larger icon */}
           <button
             onClick={handleSubmitCode}
             disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0}
             type="button"
-            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 disabled:hover:bg-green-600 flex-shrink-0 w-[90px]"
+            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-green-600 flex-shrink-0 w-[100px]"
             title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : 'Submit your code'}
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               </>
             ) : submitCooldown > 0 ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               </>
             ) : (
               <>
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-4 h-4" />
               </>
             )}
             <span className="text-xs">

@@ -10,6 +10,7 @@ export const generateQuestionsSchema = z.object({
       // Define counts for each type
       mcqCount: z.number().int().min(0).max(20).optional().default(0),
       codingCount: z.number().int().min(0).max(10).optional().default(0),
+      sqlCount: z.number().int().min(0).max(10).optional().default(0),
       essayCount: z.number().int().min(0).max(10).optional().default(0),
 
       // Define difficulty

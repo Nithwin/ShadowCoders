@@ -47,6 +47,14 @@ export const addQuestionsToExam = async (examId: string, questions: AddQuestions
         baseData.maxDurationSec = q.maxDurationSec ?? null;
         baseData.config = q.maxReattempts !== undefined ? ({ maxReattempts: q.maxReattempts } as Prisma.InputJsonValue) : Prisma.JsonNull;
         break;
+      case QType.SQL:
+        baseData.config = q.config ? (q.config as Prisma.InputJsonValue) : Prisma.JsonNull;
+        baseData.testcases = q.testcases ? (q.testcases as Prisma.JsonArray) : Prisma.JsonNull;
+        break;
+      case QType.FILL:
+      case QType.READING:
+          // Handle other types if necessary or just break if they share base structure
+          break;
       default:
         const exhaustiveCheck: never = q; 
         throw new Error(`Unsupported question type encountered: ${JSON.stringify(exhaustiveCheck)}`);
@@ -207,7 +215,16 @@ export const updateQuestion = async (
       if (input.config !== undefined)
         dataToUpdate.config = input.config as Prisma.InputJsonValue;
       break;
-    // Add cases for FILL, READING here...
+    case QType.SQL:
+      if (input.config !== undefined)
+        dataToUpdate.config = input.config as Prisma.InputJsonValue;
+      if (input.testcases !== undefined)
+        dataToUpdate.testcases = input.testcases as Prisma.JsonArray;
+      break;
+    case QType.FILL:
+    case QType.READING:
+      // Handle other types if necessary
+      break;
   }
   
   // Add other optional fields (only if not already handled in switch)

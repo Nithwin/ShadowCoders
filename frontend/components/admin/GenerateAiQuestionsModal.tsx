@@ -17,6 +17,7 @@ const generateQuestionsFormSchema = z.object({
   topic: z.string().min(3, 'A topic is required'),
   mcqCount: z.coerce.number().int().min(0).default(0),
   codingCount: z.coerce.number().int().min(0).default(0),
+  sqlCount: z.coerce.number().int().min(0).default(0),
   essayCount: z.coerce.number().int().min(0).default(0),
   difficulty: z.enum(['EASY', 'MEDIUM', 'HARD', 'ANY']).default('ANY'),
   points: z.coerce.number().int().positive().optional(),
@@ -48,6 +49,7 @@ export default function GenerateAiQuestionsModal({
       topic: '',
       mcqCount: 0,
       codingCount: 0,
+      sqlCount: 0,
       essayCount: 0,
       difficulty: 'ANY' as const,
       points: undefined,
@@ -68,7 +70,7 @@ export default function GenerateAiQuestionsModal({
     setApiError(null);
     try {
       // Validate that at least one question type is requested
-      if (data.mcqCount === 0 && data.codingCount === 0 && data.essayCount === 0) {
+      if (data.mcqCount === 0 && data.codingCount === 0 && data.essayCount === 0 && data.sqlCount === 0) {
         setApiError('Please select at least one question type to generate.');
         return;
       }
@@ -78,6 +80,7 @@ export default function GenerateAiQuestionsModal({
         topic: data.topic,
         mcqCount: data.mcqCount || 0,
         codingCount: data.codingCount || 0,
+        sqlCount: data.sqlCount || 0,
         essayCount: data.essayCount || 0,
         difficulty: data.difficulty || 'ANY',
         points: data.points, // Send points if provided
@@ -133,7 +136,7 @@ export default function GenerateAiQuestionsModal({
         {/* Counts (keep same) */}
         <div>
            <label className="block text-sm font-semibold text-primary mb-2">Number of Questions</label>
-           <div className="grid grid-cols-3 gap-4">
+           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
              <div>
                <label htmlFor="mcqCount" className="block text-xs font-medium text-primary/70 mb-1">MCQs</label>
                <Input id="mcqCount" type="number" min={0} max={20} {...register('mcqCount')} disabled={isSubmitting} placeholder="0" />
@@ -145,6 +148,10 @@ export default function GenerateAiQuestionsModal({
              <div>
                <label htmlFor="essayCount" className="block text-xs font-medium text-primary/70 mb-1">Essay</label>
                <Input id="essayCount" type="number" min={0} max={10} {...register('essayCount')} disabled={isSubmitting} placeholder="0" />
+             </div>
+             <div>
+                <label htmlFor="sqlCount" className="block text-xs font-medium text-primary/70 mb-1">SQL</label>
+                <Input id="sqlCount" type="number" min={0} max={10} {...register('sqlCount')} disabled={isSubmitting} placeholder="0" />
              </div>
            </div>
         </div>

@@ -67,17 +67,52 @@ const speakingSchema = z.object({
   maxReattempts: z.number().int().nonnegative().optional(),
 });
 
+const sqlSchema = z.object({
+  type: z.literal(QType.SQL),
+  prompt: z.string().min(1, 'SQL prompt cannot be empty'),
+  config: z.object({
+    ddl: z.string().min(1, "DDL (Schema) is required"),
+  }),
+  testcases: z
+    .array(
+      z.object({
+        input: z.string(), // DML (Inserts)
+        expectedOutput: z.string(),
+        isHidden: z.boolean().default(false),
+        timeoutMs: z.number().int().positive().default(5000),
+      })
+    )
+    .min(1, 'SQL question must have at least 1 testcase'),
+});
+
+const fillSchema = z.object({
+  type: z.literal(QType.FILL),
+  prompt: z.string().min(1, 'FILL prompt cannot be empty'),
+  clozeTemplate: z.string().optional(),
+  blanks: z.array(z.unknown()).optional(),
+  clozeConfig: z.record(z.string(), z.unknown()).optional(),
+});
+
+const readingSchema = z.object({
+  type: z.literal(QType.READING),
+  prompt: z.string().min(1, 'READING prompt cannot be empty'),
+  passageAssetId: z.string().cuid().optional(),
+});
+
 
 export const addQuestionsSchema = z.object({
   body: z.object({
     questions: z
       .array(
-        z.discriminatedUnion('type', [
+        z.union([
           mcqSchema,
           codingSchema,
           essaySchema,
           listeningSchema,
           speakingSchema,
+          sqlSchema,
+          fillSchema,
+          readingSchema,
         ])
         .and(
           z.object({

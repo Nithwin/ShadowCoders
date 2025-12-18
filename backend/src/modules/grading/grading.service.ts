@@ -38,7 +38,7 @@ export const runCode = async (
   // 2. --- Validation: Check Question ---
   const question = await prisma.question.findUnique({
     where: { id: questionId },
-    select: { examId: true, type: true, testcases: true },
+    select: { examId: true, type: true, testcases: true, config: true },
   });
 
   if (!question) {
@@ -47,8 +47,8 @@ export const runCode = async (
   if (question.examId !== attempt.examId) {
     throw { status: 403, message: 'Question is not part of this exam' };
   }
-  if (question.type !== QType.CODING) {
-    throw { status: 400, message: 'This is not a coding question' };
+  if (question.type !== QType.CODING && question.type !== QType.SQL) {
+    throw { status: 400, message: 'This is not a coding or SQL question' };
   }
   
   // 3. --- Upsert Response (create if doesn't exist) ---
@@ -64,7 +64,7 @@ export const runCode = async (
       data: {
         attemptId: attemptId,
         questionId: questionId,
-        type: QType.CODING,
+        type: question.type,
         answer: { code, language },
       },
       select: { id: true }
@@ -143,6 +143,14 @@ export const runCode = async (
       isHidden?: boolean;
       timeoutMs?: number;
     }>;
+    
+    // For SQL, we need to prepend DDL (Schema) to the input (DML) for each test case
+    if (question.type === QType.SQL) {
+      const config = question.config as { ddl?: string } | null;
+      const ddl = config?.ddl || '';
+      // Mutate or map testCases to include DDL
+      // We map below anyway
+    }
 
     // Filter test cases: if runAllTests is true, use all test cases; otherwise only visible ones
     const testCasesToRun = runAllTests 
@@ -158,13 +166,24 @@ export const runCode = async (
 
     // Test code against test cases using local executor - queued
     // Map test cases with metadata (isHidden, originalIndex) for proper display
-    const testsWithMetadata = testCasesToRun.map((tc, idx) => ({
-      input: tc.input,
-      expectedOutput: tc.expectedOutput,
-      timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-      isHidden: tc.isHidden || false,
-      originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
-    }));
+    const testsWithMetadata = testCasesToRun.map((tc, idx) => {
+      // Prepend DDL for SQL questions
+      let input = tc.input;
+      if (question.type === QType.SQL) {
+        const config = question.config as { ddl?: string } | null;
+        if (config?.ddl) {
+          input = `${config.ddl}\n${tc.input}`;
+        }
+      }
+
+      return {
+        input: input,
+        expectedOutput: tc.expectedOutput,
+        timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+        isHidden: tc.isHidden || false,
+        originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
+      };
+    });
     
     const testResults = await executionQueue.enqueue(async () => {
       return await testCodeWithTestCasesLocally(

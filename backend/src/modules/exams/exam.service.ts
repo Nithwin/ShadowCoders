@@ -10,7 +10,6 @@ import * as examRepo from "./exam.repo";
 import { ExamStatus, Prisma, User } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import * as userRepo from '../auth/auth.repo'; 
-import { prisma } from '../../lib/prisma';
 import * as sectionRepo from '../sections/section.repo';
 
 type CreateExamInput = z.infer<typeof createExamSchema>["body"];

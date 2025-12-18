@@ -138,8 +138,16 @@ export const generateJsonFromAi = async (prompt: string): Promise<string> => {
         continue; // Try next model
       }
       
-      // If it's not a 404, it's a different error (safety, quota, etc.) - don't retry
-      console.error(`[Gemini] Non-404 error for model ${modelName}, stopping retry loop`);
+      // If it's not a 404, it's a different error (safety, quota, etc.)
+      
+      // Check for 503 Service Unavailable - this should be retried
+      if (error?.status === 503 || error?.code === 503 || error?.message?.includes('503') || error?.message?.includes('overloaded')) {
+        console.warn(`[Gemini] Model ${modelName} overloaded (503), trying next model...`);
+        continue; // Try next model
+      }
+
+      // Other errors - don't retry
+      console.error(`[Gemini] Non-404/Non-503 error for model ${modelName}, stopping retry loop`);
       break;
     }
   }

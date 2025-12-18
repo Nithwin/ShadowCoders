@@ -24,6 +24,12 @@ export type Attempt = {
   id: string;
   status: string;
   startedAt: string;
+  studentId: string;
+  student?: {
+    name: string;
+    email: string;
+  };
+  examId: string;
   exam: {
     id: string;
     title: string;

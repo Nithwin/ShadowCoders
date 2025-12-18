@@ -118,12 +118,37 @@ const speakingQuestionSchema = z.object({
   }).pipe(z.number().int().nonnegative().optional()),
 });
 
+// Schema for SQL question
+const sqlQuestionSchema = z.object({
+  type: z.literal(QType.SQL),
+  prompt: z.string().min(1, 'Prompt is required'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
+  config: z.object({
+    ddl: z.string().min(1, 'DDL (Schema) is required'),
+  }),
+  testcases: z
+    .array(
+      z.object({
+        input: z.string().min(1, 'DML (Inserts) is required'),
+        expectedOutput: z.string().min(1, 'Expected output is required'),
+        isHidden: z.boolean().default(false),
+        timeoutMs: z.number().int().positive().default(5000),
+      })
+    )
+    .min(1, 'At least one test case required'),
+});
+
 const questionFormSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
   codingQuestionSchema,
   essayQuestionSchema,
   listeningQuestionSchema,
   speakingQuestionSchema,
+  sqlQuestionSchema,
 ]);
 
 type QuestionFormInput = z.input<typeof questionFormSchema>;
@@ -199,7 +224,7 @@ export default function ManualQuestionForm({
     setAudioFile(null);
     setAudioAssetId(null);
     reset({
-      type: newType as QType.MCQ | QType.CODING | QType.ESSAY | QType.LISTENING | QType.SPEAKING,
+      type: newType as string as any, // Cast to avoid discriminated union issues during reset
       prompt: '',
       points: newType === QType.ESSAY ? ('' as unknown as number) : 10,
       ...(newType === QType.MCQ && {
@@ -214,6 +239,10 @@ export default function ManualQuestionForm({
       ...(newType === QType.CODING && {
         starterCode: '',
         testcases: [{ input: '', expectedOutput: '', isHidden: false, timeoutMs: 2000 }],
+      }),
+      ...(newType === QType.SQL && {
+        config: { ddl: '' },
+        testcases: [{ input: '', expectedOutput: '', isHidden: false, timeoutMs: 5000 }],
       }),
       ...(newType === QType.ESSAY && {
         wordLimit: undefined,
@@ -315,6 +344,17 @@ export default function ManualQuestionForm({
         if (validatedData.maxReattempts !== undefined) {
           questionData.config = { maxReattempts: validatedData.maxReattempts };
         }
+
+      } else if (validatedData.type === QType.SQL) {
+        questionData.config = { ddl: validatedData.config.ddl };
+        if (validatedData.testcases && Array.isArray(validatedData.testcases)) {
+           questionData.testcases = validatedData.testcases.map((tc) => ({
+             input: String(tc.input || ''),
+             expectedOutput: String(tc.expectedOutput || ''),
+             isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
+             timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 5000,
+           }));
+        }
       }
 
       // Call API to create question
@@ -362,6 +402,7 @@ export default function ManualQuestionForm({
           >
             <option value={QType.MCQ}>Multiple Choice (MCQ)</option>
             <option value={QType.CODING}>Coding</option>
+            <option value={QType.SQL}>SQL</option>
             <option value={QType.ESSAY}>Essay</option>
             <option value={QType.LISTENING}>Listening</option>
             <option value={QType.SPEAKING}>Speaking</option>
@@ -546,6 +587,89 @@ export default function ManualQuestionForm({
           </div>
         )}
 
+        {/* SQL DDL and Test Cases */}
+        {questionType === QType.SQL && (
+          <div className="space-y-4">
+             <div>
+               <label className="block text-sm font-semibold text-primary mb-2">
+                 Database Schema (DDL) <span className="text-red-500">*</span>
+               </label>
+               <textarea
+                 rows={6}
+                 {...register('config.ddl' as any)}
+                 className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                 placeholder="CREATE TABLE users (id INT, name TEXT);&#10;INSERT INTO users VALUES (1, 'Initial Data');"
+               />
+                {'config' in errors && (errors as any).config?.ddl && (
+                    <p className="mt-1.5 text-sm text-red-500">{(errors as any).config.ddl.message}</p>
+                )}
+             </div>
+
+             <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-primary">
+                  Test Cases <span className="text-red-500">*</span>
+                </label>
+                <Button
+                  type="button"
+                  onClick={() => appendTestcase({ input: '', expectedOutput: '', isHidden: false, timeoutMs: 5000 })}
+                  className="h-8 px-3 text-xs"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Test Case
+                </Button>
+              </div>
+              {testcaseFields.map((field, index) => (
+                <div key={field.id} className="p-3 border border-primary/20 rounded-md space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-primary">Test Case {index + 1}</span>
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-1 text-xs text-primary/70">
+                        <input
+                          type="checkbox"
+                          {...register(`testcases.${index}.isHidden`)}
+                          className="h-3 w-3"
+                        />
+                        Hidden
+                      </label>
+                      {testcaseFields.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeTestcase(index)}
+                          className="p-1 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <textarea
+                    rows={3}
+                    {...register(`testcases.${index}.input`)}
+                    placeholder="DML / Inserts (e.g. INSERT INTO users VALUES (2, 'Test');)"
+                    className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  />
+                  <textarea
+                    rows={3}
+                    {...register(`testcases.${index}.expectedOutput`)}
+                    placeholder="Expected Result (e.g. 1|Alice)"
+                    className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  />
+                  <Input
+                    type="number"
+                    {...register(`testcases.${index}.timeoutMs`, { valueAsNumber: true })}
+                    placeholder="Timeout (ms)"
+                    className="w-full"
+                  />
+                </div>
+              ))}
+              {'testcases' in errors && errors.testcases && (
+                <p className="text-sm text-red-500">{errors.testcases.message}</p>
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* Essay Word Limit */}
         {questionType === QType.ESSAY && (
           <div>

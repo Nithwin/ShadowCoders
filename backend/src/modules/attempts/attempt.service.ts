@@ -363,6 +363,21 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
             questionPoints
           );
           break;
+
+        case QType.SQL:
+          const sqlConfig = (question as any).config;
+          const ddl = sqlConfig?.ddl || '';
+          const sqlTestCases = (question.testcases as any[]).map((tc) => ({
+            ...tc,
+            input: ddl ? `${ddl}\n${tc.input}` : tc.input,
+          }));
+          
+          gradingResult = await gradeCoding(
+            response.answer as { code?: string; language?: string },
+            sqlTestCases,
+            questionPoints
+          );
+          break;
           
         case QType.ESSAY:
         case QType.SPEAKING:
@@ -498,6 +513,21 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
           gradingResult = await gradeCoding(
             response.answer as { code?: string; language?: string },
             question.testcases as any[],
+            questionPoints
+          );
+          break;
+
+        case QType.SQL:
+          const sqlConfigForce = (question as any).config;
+          const ddlForce = sqlConfigForce?.ddl || '';
+          const sqlTestCasesForce = (question.testcases as any[]).map((tc) => ({
+            ...tc,
+            input: ddlForce ? `${ddlForce}\n${tc.input}` : tc.input,
+          }));
+
+          gradingResult = await gradeCoding(
+            response.answer as { code?: string; language?: string },
+            sqlTestCasesForce,
             questionPoints
           );
           break;

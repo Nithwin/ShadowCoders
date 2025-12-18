@@ -10,6 +10,12 @@ export interface ExtensionDetectionResult {
   message: string;
 }
 
+declare global {
+  interface Window {
+    chrome: any;
+  }
+}
+
 /**
  * Tries to detect an extension by attempting to fetch a resource from it
  * Based on: https://stackoverflow.com/questions/6293498/check-whether-user-has-a-chrome-extension-installed

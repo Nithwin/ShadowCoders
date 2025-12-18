@@ -14,6 +14,7 @@ export enum QType {
   LISTENING = 'LISTENING',
   FILL = 'FILL',
   READING = 'READING',
+  SQL = 'SQL',
 }
 // Add other enums as needed...
 

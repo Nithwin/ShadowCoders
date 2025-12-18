@@ -11,6 +11,7 @@ type GenerateInput = z.infer<typeof generateQuestionsSchema>['body'];
 const buildSystemPrompt = (input: GenerateInput): string => {
   const mcqCount = input.mcqCount || 0;
   const codingCount = input.codingCount || 0;
+  const sqlCount = input.sqlCount || 0;
   const essayCount = input.essayCount || 0;
   const difficulty = input.difficulty || 'ANY';
   const language = input.language || 'any programming language';
@@ -32,6 +33,7 @@ Generate exam questions based on the following requirements:
 **Question Types Requested:**
 - Multiple Choice Questions (MCQ): ${mcqCount}
 - Coding Questions: ${codingCount} (Language: ${language})
+- SQL Questions: ${sqlCount}
 - Essay Questions: ${essayCount}
 
 **CRITICAL REQUIREMENTS:**
@@ -78,6 +80,32 @@ Generate exam questions based on the following requirements:
     { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 }
   ]
 }
+
+**For SQL questions:**
+{
+  "type": "SQL",
+  "order": <number>,
+  "points": ${points},
+  "prompt": "<SQL problem description in Markdown (.md)...>",
+  "config": {
+    "ddl": "<DDL statements using SQLite syntax: CREATE TABLE...; INSERT INTO...;>"
+  },
+  "testcases": [
+    // EXACTLY 2 sample test cases
+    { "input": "<DML statements: INSERT INTO...;>", "expectedOutput": "<Expected result: e.g. 1|Alice>", "isHidden": false, "timeoutMs": 5000 },
+    { "input": "", "expectedOutput": "", "isHidden": false, "timeoutMs": 5000 },
+    // EXACTLY 3 hidden test cases
+    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
+    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
+    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 }
+  ]
+}
+
+**CRITICAL SQL REQUIREMENTS:**
+- 'config' object with 'ddl' string is MANDATORY.
+- 'testcases' array is MANDATORY.
+- 'input' for testcases should be additional INSERT statements or empty string if data is already in DDL.
+- 'expectedOutput' should be the pipe-delimited result of the query (SQLite format).
 
 **CRITICAL TEST CASE REQUIREMENTS FOR CODING QUESTIONS:**
 
@@ -157,7 +185,7 @@ Example 3 - "Reverse a string":
 }
 
 **IMPORTANT RULES:**
-- Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, and ${essayCount} essay questions
+- Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, ${sqlCount} SQL questions, and ${essayCount} essay questions
 - Order numbers should be sequential starting from 1
 - **CRITICAL: All question prompts (for MCQ, CODING, and ESSAY) MUST be formatted in Markdown (.md) format**
   - Use markdown syntax for formatting: headers (#, ##), bold (**text**), italic (*text*), code blocks (\`\`\`), lists (- or 1.), links, etc.
@@ -208,8 +236,8 @@ Generate the questions now and return ONLY the JSON:`;
 export const generateQuestions = async (input: GenerateInput) => {
   try {
     // Validate that at least one question type is requested
-    if ((input.mcqCount || 0) === 0 && (input.codingCount || 0) === 0 && (input.essayCount || 0) === 0) {
-      throw { status: 400, message: 'At least one question type must be requested (mcqCount, codingCount, or essayCount)' };
+    if ((input.mcqCount || 0) === 0 && (input.codingCount || 0) === 0 && (input.sqlCount || 0) === 0 && (input.essayCount || 0) === 0) {
+      throw { status: 400, message: 'At least one question type must be requested (mcqCount, codingCount, sqlCount, or essayCount)' };
     }
 
     // 1. Build the prompt for the AI

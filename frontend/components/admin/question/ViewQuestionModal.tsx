@@ -93,30 +93,74 @@ export default function ViewQuestionModal({ question, open, onOpenChange }: View
             </h3>
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
               {question.type === QType.CODING ? (
-                <div className="prose prose-lg max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-code:text-gray-800 prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-pre:bg-gray-900 prose-pre:text-gray-100">
+                // Removed 'prose' entirely to have full control over styling
+                <div className="text-gray-900 leading-relaxed">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-gray-900 mt-6 mb-4" {...props} />,
                       h2: ({node, ...props}) => <h2 className="text-xl font-bold text-gray-900 mt-5 mb-3" {...props} />,
                       h3: ({node, ...props}) => <h3 className="text-lg font-semibold text-gray-900 mt-4 mb-2" {...props} />,
-                      p: ({node, ...props}) => <p className="text-gray-900 leading-relaxed mb-3" {...props} />,
-                      code: ({node, inline, ...props}: any) => {
-                        if (inline) {
-                          return <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props} />;
+                      p: ({node, ...props}) => <p className="text-gray-900 leading-relaxed mb-4" {...props} />,
+                      // Standardized code/pre handling
+                      code(props) {
+                        const {children, className, node, ...rest} = props
+                        const match = /language-(\w+)/.exec(className || '')
+                        // Check if it's rendered inside a pre (block) or inline
+                        // react-markdown passes 'inline' prop, but types can be loose, so we rely on context or absence of newline for heuristics if needed.
+                        // Actually, just check if it has a match or if it's being rendered as inline.
+                        // The reliable way in updated react-markdown is usually checking the node or specific props, but standard styling works if we just split logic.
+                        
+                        // If we are inside a 'pre', this is a block. 
+                        // But here 'code' transforms the *content* of the code.
+                        // We'll style 'pre' for the box, and 'code' just cleans up.
+                        
+                        // However, to strictly catch inline `code`, we can check if it's NOT inside a pre.
+                        // But react-markdown separates them well.
+                        
+                        const isInline = !match && !String(children).includes('\n')
+
+                        if (isInline) {
+                          return (
+                            <code 
+                              {...rest}
+                              className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-sm font-mono border border-blue-100 align-middle inline-block mx-0.5"
+                              style={{ 
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {children}
+                            </code>
+                          )
                         }
-                        return <code className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-3" {...props} />;
+
+                        // Block code content - let pre handle the container
+                        return (
+                          <code {...rest} className="bg-transparent text-inherit p-0 border-none">
+                            {children}
+                          </code>
+                        )
                       },
-                      pre: ({node, ...props}: any) => <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono my-3" {...props} />,
-                      ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 mb-3 text-gray-900" {...props} />,
-                      ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 mb-3 text-gray-900" {...props} />,
-                      li: ({node, ...props}) => <li className="text-gray-900" {...props} />,
-                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-700 my-3" {...props} />,
-                      table: ({node, ...props}) => <table className="min-w-full border-collapse border border-gray-300 my-3" {...props} />,
-                      thead: ({node, ...props}) => <thead className="bg-gray-100" {...props} />,
-                      th: ({node, ...props}) => <th className="border border-gray-300 px-4 py-2 text-left font-semibold text-gray-900" {...props} />,
-                      td: ({node, ...props}) => <td className="border border-gray-300 px-4 py-2 text-gray-900" {...props} />,
-                      a: ({node, ...props}) => <a className="text-blue-600 hover:text-blue-800 underline" {...props} />,
+                      // Style the pre container for block code
+                      pre: ({node, ...props}) => (
+                        <div className="my-4 rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm">
+                          <pre {...props} className="p-4 overflow-x-auto text-gray-800 text-sm font-mono m-0 bg-white" />
+                        </div>
+                      ),
+                      ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 mb-3 text-gray-900 pl-4" {...props} />,
+                      ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 mb-3 text-gray-900 pl-4" {...props} />,
+                      li: ({node, ...props}) => <li className="text-gray-900 mb-1" {...props} />,
+                      blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-blue-300 pl-4 italic text-gray-700 my-4 bg-blue-50/50 py-2 rounded-r" {...props} />,
+                      table: ({node, ...props}) => (
+                        <div className="overflow-x-auto my-4 border border-gray-200 rounded-lg">
+                          <table className="min-w-full divide-y divide-gray-200" {...props} />
+                        </div>
+                      ),
+                      thead: ({node, ...props}) => <thead className="bg-gray-50" {...props} />,
+                      th: ({node, ...props}) => <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" {...props} />,
+                      td: ({node, ...props}) => <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-t border-gray-100" {...props} />,
+                      a: ({node, ...props}) => <a className="text-blue-600 hover:text-blue-800 underline transition-colors" {...props} />,
                     }}
                   >
                     {question.prompt || 'No prompt provided'}

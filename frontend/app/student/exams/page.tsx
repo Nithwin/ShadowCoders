@@ -94,7 +94,7 @@ export default function StudentExamsPage() {
     }
   };
 
-  const getExamStatus = (exam: Exam): { label: string; color: string; icon: React.ReactNode; canStart: boolean; canRetake: boolean } => {
+  const getExamStatus = (exam: Exam): { label: string; color: string; icon: React.ReactNode; canStart: boolean; canRetake: boolean; canResume?: boolean } => {
     const now = new Date();
     const start = new Date(exam.startAt);
     const end = new Date(exam.endAt);

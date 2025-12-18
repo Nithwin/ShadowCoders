@@ -112,7 +112,7 @@ export default function ExamManagementPage() {
     
     // If exam has expired (endAt is in the past), show as CLOSED
     if (endAt < now) {
-      return 'CLOSED';
+      return ExamStatus.CLOSED;
     }
     
     // Otherwise, use the actual status from database
