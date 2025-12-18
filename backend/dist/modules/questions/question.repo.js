@@ -20,17 +20,19 @@ const listQuestionsForExam = (examId) => {
             testcases: true,
             starterCode: true,
             wordLimit: true,
+            config: true,
         },
     });
 };
 exports.listQuestionsForExam = listQuestionsForExam;
 const prisma_1 = require("../../lib/prisma");
-const createManyQuestions = (examId, questionsData) => {
-    return prisma_1.prisma.question.createMany({
-        data: questionsData.map(q => ({ ...q,
+const createManyQuestions = async (examId, questionsData) => {
+    return prisma_1.prisma.$transaction(questionsData.map((q) => prisma_1.prisma.question.create({
+        data: {
+            ...q,
             examId: examId,
-        }))
-    });
+        },
+    })));
 };
 exports.createManyQuestions = createManyQuestions;
 const getQuestionById = (questionId) => {

@@ -36,8 +36,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExamByIdForStudent = exports.getExamById = exports.ensureDefaultSections = exports.deleteExam = exports.updateExam = exports.listExamsForStudent = exports.listExams = exports.pubishExam = exports.deleteAssignment = exports.assignExam = exports.createExam = void 0;
 const examRepo = __importStar(require("./exam.repo"));
 const client_1 = require("@prisma/client");
-const userRepo = __importStar(require("../auth/auth.repo"));
 const prisma_1 = require("../../lib/prisma");
+const userRepo = __importStar(require("../auth/auth.repo"));
 const sectionRepo = __importStar(require("../sections/section.repo"));
 /**
  * Creates default sections for an exam: Coding, MCQ, and Essay
@@ -84,13 +84,50 @@ const createExam = async (input) => {
 };
 exports.createExam = createExam;
 const assignExam = async (examId, input) => {
+    let studentIds = null;
+    // If regNos are provided, convert them to student IDs
+    if (input.regNos && Array.isArray(input.regNos) && input.regNos.length > 0) {
+        // Normalize regNos to lowercase for case-insensitive matching
+        const normalizedRegNos = input.regNos.map(regNo => regNo.toLowerCase().trim());
+        // Use case-insensitive matching with OR conditions since PostgreSQL's 'in' operator is case-sensitive
+        // Prisma doesn't support mode: 'insensitive' with 'in', so we use OR with equals
+        const students = await prisma_1.prisma.user.findMany({
+            where: {
+                role: 'STUDENT',
+                OR: normalizedRegNos.map(regNo => ({
+                    reg_no: {
+                        equals: regNo,
+                        mode: 'insensitive',
+                    },
+                })),
+            },
+            select: {
+                id: true,
+                reg_no: true,
+            },
+        });
+        // Check for invalid reg_nos (case-insensitive comparison)
+        const foundRegNosLower = new Set(students.map(s => s.reg_no?.toLowerCase()));
+        const invalidRegNos = input.regNos.filter(regNo => !foundRegNosLower.has(regNo.toLowerCase().trim()));
+        if (invalidRegNos.length > 0) {
+            throw {
+                status: 400,
+                message: `Invalid registration numbers: ${invalidRegNos.join(', ')}. Please check the format (e.g., 22cs001).`,
+            };
+        }
+        studentIds = students.map(s => s.id);
+    }
+    else if (input.studentIds && input.studentIds.length > 0) {
+        // Use provided student IDs directly
+        studentIds = input.studentIds;
+    }
     const dataToSave = {
         assignToAll: input.assignToAll ?? false,
         cohortYear: input.cohortYear ?? null,
         cohortDepartment: input.cohortDepartment ?? null,
         cohortSection: input.cohortSection ?? null,
-        studentIds: input.studentIds
-            ? input.studentIds
+        studentIds: studentIds
+            ? studentIds
             : client_1.Prisma.JsonNull,
     };
     const assignment = await examRepo.createExamAssignment(examId, dataToSave);

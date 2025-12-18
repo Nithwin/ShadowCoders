@@ -5,7 +5,12 @@ export declare const generateQuestionsSchema: z.ZodObject<{
         language: z.ZodOptional<z.ZodString>;
         mcqCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
         codingCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        sqlCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
         essayCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        fillCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        readingCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        listeningCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+        speakingCount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
         difficulty: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
             EASY: "EASY";
             MEDIUM: "MEDIUM";

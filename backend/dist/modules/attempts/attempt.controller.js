@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.forceSubmitAttemptHandler = exports.resetAttemptsHandler = exports.getAttemptForAdminHandler = exports.listAttemptsForExamHandler = exports.getStudentAttemptsHandler = exports.getAttemptResultsHandler = exports.getQuestionHandler = exports.getAttemptDetailsHandler = exports.submitAttemptHandler = exports.runCodeHandler = exports.submitAnswerHandler = exports.startAttemptHandler = void 0;
+exports.getExamLeaderboardHandler = exports.forceSubmitAttemptHandler = exports.resumeAttemptsHandler = exports.resetAttemptsHandler = exports.getAttemptForAdminHandler = exports.listAttemptsForExamHandler = exports.getStudentAttemptsHandler = exports.getAttemptResultsHandler = exports.getQuestionHandler = exports.getAttemptDetailsHandler = exports.submitAttemptHandler = exports.runCodeHandler = exports.submitAnswerHandler = exports.startAttemptHandler = void 0;
 const attemptService = __importStar(require("./attempt.service"));
 const startAttemptHandler = async (req, res, next) => {
     try {
@@ -262,6 +262,25 @@ const resetAttemptsHandler = async (req, res, next) => {
     }
 };
 exports.resetAttemptsHandler = resetAttemptsHandler;
+const resumeAttemptsHandler = async (req, res, next) => {
+    try {
+        // Get validated body data
+        const resumeData = req.validatedData?.body || req.body;
+        if (!resumeData.examId) {
+            return next({ status: 400, message: 'Exam ID is required' });
+        }
+        if (!resumeData.resumeAll && (!resumeData.studentIds || resumeData.studentIds.length === 0)) {
+            return next({ status: 400, message: 'Either resumeAll must be true or studentIds must be provided' });
+        }
+        // Call the service to resume attempts
+        const result = await attemptService.resumeAttempts(resumeData);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.resumeAttemptsHandler = resumeAttemptsHandler;
 const forceSubmitAttemptHandler = async (req, res, next) => {
     try {
         const attemptId = req.params.attemptId;
@@ -279,4 +298,24 @@ const forceSubmitAttemptHandler = async (req, res, next) => {
     }
 };
 exports.forceSubmitAttemptHandler = forceSubmitAttemptHandler;
+const getExamLeaderboardHandler = async (req, res, next) => {
+    try {
+        const studentId = req.user?.sub;
+        const examId = req.params.examId;
+        const limit = req.query.limit ? parseInt(req.query.limit, 10) : 50;
+        if (!studentId) {
+            return next({ status: 401, message: 'Unauthorized' });
+        }
+        if (!examId) {
+            return next({ status: 400, message: 'Exam ID parameter is required' });
+        }
+        // Call the service to get the leaderboard
+        const leaderboard = await attemptService.getExamLeaderboard(examId, studentId, limit);
+        res.status(200).json(leaderboard);
+    }
+    catch (error) {
+        next(error);
+    }
+};
+exports.getExamLeaderboardHandler = getExamLeaderboardHandler;
 //# sourceMappingURL=attempt.controller.js.map

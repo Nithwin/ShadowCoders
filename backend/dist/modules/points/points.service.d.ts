@@ -19,5 +19,10 @@ export declare const getPointsHistory: (userId: string, page?: number, limit?: n
         totalPages: number;
     };
 }>;
-export declare const awardPointsForExam: (userId: string, attemptId: string, score: number, maxScore: number) => Promise<number>;
+export declare const awardPointsForExam: (userId: string, attemptId: string, score: number, maxScore: number, attemptNo?: number) => Promise<number>;
+export declare const bulkAwardPointsForExam: (examId: string) => Promise<{
+    awarded: number;
+    skipped: number;
+    errors: number;
+}>;
 //# sourceMappingURL=points.service.d.ts.map

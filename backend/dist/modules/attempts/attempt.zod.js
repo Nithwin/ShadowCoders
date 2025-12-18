@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.forceSubmitAttemptSchema = exports.submitAttemptSchema = exports.resetAttemptsSchema = exports.listAttemptsSchema = exports.runCodeSchema = exports.submitAnswerSchema = void 0;
+exports.resumeAttemptsSchema = exports.forceSubmitAttemptSchema = exports.submitAttemptSchema = exports.resetAttemptsSchema = exports.listAttemptsSchema = exports.runCodeSchema = exports.submitAnswerSchema = void 0;
 const zod_1 = __importDefault(require("zod"));
 const answerPayloadSchema = zod_1.default.record(zod_1.default.string(), zod_1.default.any()).nullable();
 exports.submitAnswerSchema = zod_1.default.object({
@@ -54,6 +54,13 @@ exports.submitAttemptSchema = zod_1.default.object({
 exports.forceSubmitAttemptSchema = zod_1.default.object({
     body: zod_1.default.object({
         submissionReason: zod_1.default.string().optional().default('Force submitted by admin'),
+    }),
+});
+exports.resumeAttemptsSchema = zod_1.default.object({
+    body: zod_1.default.object({
+        examId: zod_1.default.string().cuid({ message: 'Invalid exam ID format' }),
+        studentIds: zod_1.default.array(zod_1.default.string().cuid({ message: 'Invalid student ID format' })).optional(),
+        resumeAll: zod_1.default.boolean().optional().default(false),
     }),
 });
 //# sourceMappingURL=attempt.zod.js.map

@@ -42,6 +42,7 @@ const question_zod_1 = require("../questions/question.zod");
 const buildSystemPrompt = (input) => {
     const mcqCount = input.mcqCount || 0;
     const codingCount = input.codingCount || 0;
+    const sqlCount = input.sqlCount || 0;
     const essayCount = input.essayCount || 0;
     const difficulty = input.difficulty || 'ANY';
     const language = input.language || 'any programming language';
@@ -61,7 +62,10 @@ Generate exam questions based on the following requirements:
 **Question Types Requested:**
 - Multiple Choice Questions (MCQ): ${mcqCount}
 - Coding Questions: ${codingCount} (Language: ${language})
+- SQL Questions: ${sqlCount}
 - Essay Questions: ${essayCount}
+- Fill-in-the-Blanks: ${input.fillCount || 0}
+- Reading Comprehension: ${input.readingCount || 0}
 
 **CRITICAL REQUIREMENTS:**
 1. You MUST return ONLY a valid JSON object with this exact structure:
@@ -78,7 +82,7 @@ Generate exam questions based on the following requirements:
   "type": "MCQ",
   "order": <number starting from 1>,
   "points": ${points},
-  "prompt": "<question text>",
+  "prompt": "<question text in Markdown (.md) format - use markdown syntax for formatting, code blocks, lists, etc.>",
   "options": [
     { "id": "opt1", "text": "<option text>" },
     { "id": "opt2", "text": "<option text>" },
@@ -93,7 +97,7 @@ Generate exam questions based on the following requirements:
   "type": "CODING",
   "order": <number>,
   "points": ${points},
-  "prompt": "<problem description with clear problem statement, constraints, input/output format, and examples>",
+  "prompt": "<problem description in Markdown (.md) format with clear problem statement, constraints, input/output format, and examples - use markdown syntax for code blocks, lists, headers, etc. DO NOT include any starter code, function signatures, or code snippets in the prompt - only describe the problem>",
   "starterCode": "// write your code here",
   "testcases": [
     // EXACTLY 2 sample test cases (visible to students) - MUST be valid and executable
@@ -107,6 +111,43 @@ Generate exam questions based on the following requirements:
     { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 }
   ]
 }
+
+**For SQL questions:**
+{
+  "type": "SQL",
+  "order": <number>,
+  "points": ${points},
+  "prompt": "<SQL problem description in Markdown (.md). CRITICAL: You MUST include Markdown tables to visualize the database schema at the beginning of the prompt. For each table in the DDL, create a small markdown table showing columns and 2-3 rows of sample data. Example:\\n\\n### Schema\\n\\n**Customers**\\n| id | name |\\n|---|---|\\n| 1 | Alice |\\n| 2 | Bob |\\n\\n...Description of the query required...>",
+  "config": {
+    "ddl": "<DDL statements using SQLite syntax: CREATE TABLE...; INSERT INTO...;>"
+  },
+  "testcases": [
+    // EXACTLY 2 sample test cases
+    { "input": "<DML statements: INSERT INTO...;>", "expectedOutput": "<Expected result: e.g. 1|Alice>", "isHidden": false, "timeoutMs": 5000 },
+    { "input": "", "expectedOutput": "", "isHidden": false, "timeoutMs": 5000 },
+    // EXACTLY 3 hidden test cases
+    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
+    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
+    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 }
+  ]
+}
+
+**For FILL (Fill-in-the-Blanks) questions:**
+{
+  "type": "FILL",
+  "order": <number>,
+  "points": ${points},
+  "prompt": "<Instruction for the student, e.g. 'Complete the sentences below.'>",
+  "clozeTemplate": "<Text with blanks marked as [blank]. Example: The capital of France is [blank].>",
+  "blanks": ["Paris"],
+  "clozeConfig": {}
+}
+
+**CRITICAL SQL REQUIREMENTS:**
+- 'config' object with 'ddl' string is MANDATORY.
+- 'testcases' array is MANDATORY.
+- 'input' for testcases should be additional INSERT statements or empty string if data is already in DDL.
+- 'expectedOutput' should be the pipe-delimited result of the query (SQLite format).
 
 **CRITICAL TEST CASE REQUIREMENTS FOR CODING QUESTIONS:**
 
@@ -181,13 +222,17 @@ Example 3 - "Reverse a string":
   "type": "ESSAY",
   "order": <number>,
   "points": ${points},
-  "prompt": "<essay prompt>",
+  "prompt": "<essay prompt in Markdown (.md) format - use markdown syntax for formatting, lists, emphasis, etc.>",
   "wordLimit": <optional number>
 }
 
 **IMPORTANT RULES:**
-- Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, and ${essayCount} essay questions
+- Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, ${sqlCount} SQL questions, and ${essayCount} essay questions
 - Order numbers should be sequential starting from 1
+- **CRITICAL: All question prompts (for MCQ, CODING, and ESSAY) MUST be formatted in Markdown (.md) format**
+  - Use markdown syntax for formatting: headers (#, ##), bold (**text**), italic (*text*), code blocks (\`\`\`), lists (- or 1.), links, etc.
+  - For code examples in prompts, use markdown code blocks with language specification
+  - For structured content, use markdown lists, tables, and other formatting as appropriate
 - For MCQ: Include exactly 4 options with unique IDs (opt1, opt2, opt3, opt4), with at least one correct answer marked in correctOptionIds array
 - For CODING: You MUST include EXACTLY 7 test cases total:
   * 2 sample test cases with isHidden: false (visible to students for testing their code)
@@ -206,6 +251,10 @@ Example 3 - "Reverse a string":
     - Output format specification
     - Constraints
     - At least 2 examples showing input/output pairs
+  * **CRITICAL: DO NOT include starter code, function signatures, or any code snippets in the "prompt" field**
+    - The prompt should ONLY contain the problem description, constraints, input/output format, and examples
+    - Starter code should ONLY be in the "starterCode" field (use a simple placeholder like "// write your code here")
+    - Do NOT show code examples, function definitions, or any code in the prompt text itself
 - Points should be ${points} for all questions (based on difficulty: ${difficulty})
 - DO NOT include any markdown code blocks, explanations, or text outside the JSON object
 - Return ONLY the raw JSON object, no markdown formatting, no code blocks, no explanations
@@ -228,8 +277,8 @@ Generate the questions now and return ONLY the JSON:`;
 const generateQuestions = async (input) => {
     try {
         // Validate that at least one question type is requested
-        if ((input.mcqCount || 0) === 0 && (input.codingCount || 0) === 0 && (input.essayCount || 0) === 0) {
-            throw { status: 400, message: 'At least one question type must be requested (mcqCount, codingCount, or essayCount)' };
+        if ((input.mcqCount || 0) === 0 && (input.codingCount || 0) === 0 && (input.sqlCount || 0) === 0 && (input.essayCount || 0) === 0) {
+            throw { status: 400, message: 'At least one question type must be requested (mcqCount, codingCount, sqlCount, or essayCount)' };
         }
         // 1. Build the prompt for the AI
         const prompt = buildSystemPrompt(input);
@@ -267,10 +316,10 @@ const generateQuestions = async (input) => {
             parsedJson = JSON.parse(cleanedResponse);
         }
         catch (error) {
-            console.error('Failed to parse AI response. Raw response:', aiResponseString);
             console.error('Cleaned response:', cleanedResponse);
             throw { status: 500, message: 'AI returned malformed JSON data. Please try again.' };
         }
+        console.log('AI Generation Success. Parsed questions:', JSON.stringify(parsedJson, null, 2));
         // 4. **CRITICAL: Validate the AI's output against our *own* schema.**
         // We use the `addQuestionsSchema` from the 'questions' module for this.
         // The schema expects { questions: [...] }

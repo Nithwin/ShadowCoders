@@ -54,6 +54,88 @@ const updateUser = async (id, data) => {
         const salt = await bcrypt_1.default.genSalt(10);
         data.password = await bcrypt_1.default.hash(data.password, salt);
     }
+    // Validate points field to prevent integer overflow (INT4 max: 2,147,483,647)
+    if (data.points !== undefined) {
+        const INT4_MAX = 2147483647;
+        const INT4_MIN = -2147483648;
+        // Helper function to validate and convert points value
+        const validatePointsValue = (value) => {
+            // Convert string to number if needed
+            let numValue;
+            if (typeof value === 'string') {
+                numValue = Number(value);
+                if (isNaN(numValue)) {
+                    throw {
+                        status: 400,
+                        message: `Invalid points value: ${value}. Must be a valid number.`,
+                    };
+                }
+            }
+            else if (typeof value === 'number') {
+                numValue = value;
+            }
+            else {
+                throw {
+                    status: 400,
+                    message: `Invalid points value type. Expected number or string, got ${typeof value}.`,
+                };
+            }
+            // Check range
+            if (numValue > INT4_MAX || numValue < INT4_MIN || !Number.isInteger(numValue)) {
+                throw {
+                    status: 400,
+                    message: `Points value ${numValue} is out of range or not an integer. Maximum allowed: ${INT4_MAX}, Minimum allowed: ${INT4_MIN}`,
+                };
+            }
+            return numValue;
+        };
+        // Handle different Prisma update input types
+        if (typeof data.points === 'object' && data.points !== null) {
+            if ('set' in data.points) {
+                const value = validatePointsValue(data.points.set);
+                data.points.set = value;
+            }
+            else if ('increment' in data.points) {
+                // Check if increment would cause overflow
+                const currentUser = await prisma_1.prisma.user.findUnique({
+                    where: { id },
+                    select: { points: true },
+                });
+                const currentPoints = currentUser?.points ?? 0;
+                const incrementValue = validatePointsValue(data.points.increment);
+                const newValue = currentPoints + incrementValue;
+                if (newValue > INT4_MAX || newValue < INT4_MIN) {
+                    throw {
+                        status: 400,
+                        message: `Points increment would result in value ${newValue} which is out of range. Maximum allowed: ${INT4_MAX}, Minimum allowed: ${INT4_MIN}`,
+                    };
+                }
+                data.points.increment = incrementValue;
+            }
+            else if ('decrement' in data.points) {
+                // Check if decrement would cause underflow
+                const currentUser = await prisma_1.prisma.user.findUnique({
+                    where: { id },
+                    select: { points: true },
+                });
+                const currentPoints = currentUser?.points ?? 0;
+                const decrementValue = validatePointsValue(data.points.decrement);
+                const newValue = currentPoints - decrementValue;
+                if (newValue > INT4_MAX || newValue < INT4_MIN) {
+                    throw {
+                        status: 400,
+                        message: `Points decrement would result in value ${newValue} which is out of range. Maximum allowed: ${INT4_MAX}, Minimum allowed: ${INT4_MIN}`,
+                    };
+                }
+                data.points.decrement = decrementValue;
+            }
+        }
+        else {
+            // Direct number or string assignment
+            const validatedValue = validatePointsValue(data.points);
+            data.points = validatedValue;
+        }
+    }
     return (0, db_health_1.withDatabaseErrorHandling)(() => prisma_1.prisma.user.update({
         where: { id },
         data,

@@ -132,11 +132,120 @@ class ExamMonitoringService {
                     const roomName = `admin:exam:${data.examId}`;
                     socket.join(roomName);
                     socket.examId = data.examId;
-                    // Send current activity to admin
-                    const activities = Array.from(this.studentActivities.values())
-                        .filter(a => a.examId === data.examId);
+                    // Fetch active attempts from database (IN_PROGRESS and SUBMITTED)
+                    const attempts = await prisma_1.prisma.attempt.findMany({
+                        where: {
+                            examId: data.examId,
+                            status: {
+                                in: [client_1.AttemptStatus.IN_PROGRESS, client_1.AttemptStatus.SUBMITTED],
+                            },
+                        },
+                        select: {
+                            id: true,
+                            studentId: true,
+                            status: true,
+                            timeSpentSec: true,
+                            startedAt: true,
+                            submittedAt: true,
+                            student: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                },
+                            },
+                            responses: {
+                                select: {
+                                    id: true,
+                                    questionId: true,
+                                    updatedAt: true,
+                                },
+                                orderBy: {
+                                    updatedAt: 'desc',
+                                },
+                            },
+                            exam: {
+                                select: {
+                                    questions: {
+                                        select: {
+                                            id: true,
+                                            order: true,
+                                        },
+                                        where: {
+                                            status: 'ACTIVE',
+                                        },
+                                        orderBy: {
+                                            order: 'asc',
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    });
+                    // Build activities map from database attempts
+                    const activitiesMap = new Map();
+                    // First, add activities from database
+                    for (const attempt of attempts) {
+                        const totalQuestions = attempt.exam.questions.length;
+                        const answeredCount = attempt.responses.length;
+                        // Calculate current question index
+                        // If they've answered questions, they're likely on the next one
+                        // Use answeredCount as a proxy (they're on question answeredCount + 1, index = answeredCount)
+                        // But cap it at totalQuestions - 1
+                        const currentQuestionIndex = Math.min(answeredCount, Math.max(0, totalQuestions - 1));
+                        // Determine status
+                        let status = 'active';
+                        if (attempt.status === client_1.AttemptStatus.SUBMITTED) {
+                            status = 'submitted';
+                        }
+                        else {
+                            // For IN_PROGRESS, check last activity time
+                            // Use most recent response timestamp, or startedAt if no responses
+                            const lastResponseTime = attempt.responses.length > 0 && attempt.responses[0]?.updatedAt
+                                ? new Date(attempt.responses[0].updatedAt).getTime()
+                                : new Date(attempt.startedAt).getTime();
+                            const timeSinceActivity = Date.now() - lastResponseTime;
+                            // If no activity in last 2 minutes, mark as idle
+                            if (timeSinceActivity > 2 * 60 * 1000) {
+                                status = 'idle';
+                            }
+                        }
+                        // Get last activity timestamp
+                        const lastActivityTime = attempt.status === client_1.AttemptStatus.SUBMITTED && attempt.submittedAt
+                            ? attempt.submittedAt
+                            : attempt.responses.length > 0 && attempt.responses[0]?.updatedAt
+                                ? attempt.responses[0].updatedAt
+                                : attempt.startedAt;
+                        const activity = {
+                            examId: data.examId,
+                            attemptId: attempt.id,
+                            studentId: attempt.studentId,
+                            studentName: attempt.student.name || 'Unknown',
+                            studentEmail: attempt.student.email,
+                            currentQuestionIndex: currentQuestionIndex,
+                            totalQuestions: totalQuestions,
+                            answeredCount: answeredCount,
+                            timeSpent: attempt.timeSpentSec || 0,
+                            lastActivity: lastActivityTime,
+                            status: status,
+                        };
+                        activitiesMap.set(attempt.id, activity);
+                        // Also update the in-memory map so future updates work correctly
+                        this.studentActivities.set(attempt.id, activity);
+                    }
+                    // Then, merge with in-memory activities (these might be more recent)
+                    Array.from(this.studentActivities.values())
+                        .filter(a => a.examId === data.examId)
+                        .forEach(activity => {
+                        // Keep the most recent activity if duplicates exist
+                        const existing = activitiesMap.get(activity.attemptId);
+                        if (!existing || new Date(activity.lastActivity) > new Date(existing.lastActivity)) {
+                            activitiesMap.set(activity.attemptId, activity);
+                        }
+                    });
+                    const activities = Array.from(activitiesMap.values());
                     socket.emit('exam-activity', {
-                        totalStudents: this.examRooms.get(data.examId)?.size || 0,
+                        totalStudents: activities.length, // Use actual unique activities count
                         activities: activities,
                     });
                 }
@@ -213,28 +322,84 @@ class ExamMonitoringService {
                 });
             });
             // Admin resolves keyboard violation
-            socket.on('resolve-keyboard-violation', (data) => {
+            socket.on('resolve-keyboard-violation', async (data) => {
                 if (socket.userRole !== client_1.Role.STAFF) {
                     socket.emit('error', { message: 'Only staff can resolve violations' });
                     return;
                 }
                 const violation = this.keyboardViolations.get(data.attemptId);
+                // For force-submit, violation might not exist if attempt was already submitted via API
+                // Still emit the event to notify the student
                 if (!violation) {
-                    socket.emit('error', { message: 'Violation not found' });
+                    // If violation doesn't exist but action is force-submit, still try to notify
+                    // This can happen if the attempt was force submitted via API first
+                    if (data.action === 'force-submit') {
+                        // Query the database to get examId and studentId from the attempt
+                        try {
+                            const attempt = await prisma_1.prisma.attempt.findUnique({
+                                where: { id: data.attemptId },
+                                select: {
+                                    examId: true,
+                                    studentId: true,
+                                },
+                            });
+                            if (attempt) {
+                                const violationData = {
+                                    attemptId: data.attemptId,
+                                    action: data.action,
+                                };
+                                // Emit to the specific exam room (consistent with when violation exists)
+                                this.io?.to(`exam:${attempt.examId}`).emit('violation-resolved', violationData);
+                                // Also emit to the specific student's room for direct delivery
+                                this.io?.to(`user:${attempt.studentId}`).emit('violation-resolved', violationData);
+                                // Notify all admins monitoring this exam
+                                this.io?.to(`admin:exam:${attempt.examId}`).emit('violation-resolved', violationData);
+                            }
+                            else {
+                                // Attempt not found - fallback to global emit (shouldn't happen in normal flow)
+                                const violationData = {
+                                    attemptId: data.attemptId,
+                                    action: data.action,
+                                };
+                                this.io?.emit('violation-resolved', violationData);
+                            }
+                        }
+                        catch (error) {
+                            console.error(`[Socket] Error querying attempt ${data.attemptId}:`, error);
+                            // Fallback to global emit if query fails
+                            const violationData = {
+                                attemptId: data.attemptId,
+                                action: data.action,
+                            };
+                            this.io?.emit('violation-resolved', violationData);
+                        }
+                        // Don't log error for force-submit when violation not found - it's expected
+                        // The API call already handled the submission, we're just notifying
+                        return;
+                    }
+                    // For 'continue' action, violation should exist
+                    // Only emit error for 'continue' action - 'force-submit' is handled above
+                    // Don't emit error in production to avoid console spam
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn(`[Socket] Violation not found for attempt ${data.attemptId} with action ${data.action}`);
+                        socket.emit('error', { message: 'Violation not found' });
+                    }
+                    // In production, silently ignore missing violations for 'continue' action
                     return;
                 }
                 violation.resolved = true;
                 violation.resolution = data.action;
-                // Notify the student
-                this.io?.to(`exam:${violation.examId}`).emit('violation-resolved', {
+                // Notify the student - emit to both exam room and user-specific room for reliability
+                const violationData = {
                     attemptId: data.attemptId,
                     action: data.action,
-                });
+                };
+                // Emit to exam room (all students in the exam)
+                this.io?.to(`exam:${violation.examId}`).emit('violation-resolved', violationData);
+                // Also emit to the specific student's room for direct delivery
+                this.io?.to(`user:${violation.studentId}`).emit('violation-resolved', violationData);
                 // Notify all admins monitoring this exam
-                this.io?.to(`admin:exam:${violation.examId}`).emit('violation-resolved', {
-                    attemptId: data.attemptId,
-                    action: data.action,
-                });
+                this.io?.to(`admin:exam:${violation.examId}`).emit('violation-resolved', violationData);
             });
             // Disconnect handling
             socket.on('disconnect', () => {

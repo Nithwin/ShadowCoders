@@ -143,13 +143,29 @@ export const updateQuestion = async (
   input: UpdateQuestionInput
 ) => {
   // 1. --- Validation: Check if the question exists ---
+  // 1. --- Validation: Check if the question exists ---
   const existingQuestion = await prisma.question.findUnique({
     where: { id: questionId },
-    select: { type: true }, // We need its type
+    include: {
+      _count: {
+        select: { responses: true },
+      },
+    },
   });
 
   if (!existingQuestion) {
     throw { status: 404, message: 'Question not found' };
+  }
+
+  // Prevent modifying points if responses exist (to avoid score corruption)
+  if (input.points !== undefined && existingQuestion._count.responses > 0) {
+    // Only throw if the points value is actually different
+    if (existingQuestion.points.toNumber() !== input.points) {
+       throw { 
+        status: 400, 
+        message: 'Cannot change points for a question that has already been answered. This would corrupt existing exam scores.' 
+      };
+    }
   }
 
   // 2. --- Prepare Data (Type-Safe Update) ---

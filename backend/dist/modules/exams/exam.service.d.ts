@@ -250,6 +250,7 @@ export declare const getExamById: (examId: string) => Promise<({
 export declare const getExamByIdForStudent: (studentId: string, examId: string) => Promise<{
     hasAttempt: boolean;
     attemptId: string | null;
+    attemptStatus: import(".prisma/client").$Enums.AttemptStatus | null;
     questionTypes: import(".prisma/client").$Enums.QType[];
     hasSpeakingQuestions: boolean;
     attemptCount: number;

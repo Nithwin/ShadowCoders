@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import z from "zod";
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema } from "./attempt.zod";
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, resumeAttemptsSchema } from "./attempt.zod";
 export declare const startAttempt: (studentId: string, examId: string) => Promise<{
     id: string;
     examId: string;
@@ -129,6 +129,37 @@ export declare const getQuestionById: (questionId: string) => Prisma.Prisma__Que
 } | null, null, import("@prisma/client/runtime/library").DefaultArgs, Prisma.PrismaClientOptions>;
 export declare const getQuestionForStudent: (attemptId: string, questionId: string, studentId: string) => Promise<any>;
 export declare const getAttemptResults: (studentId: string, attemptId: string) => Promise<any>;
+/**
+ * Calculate the rank of a student for a specific exam
+ * Ranking is based on:
+ * 1. Score (descending) - higher score = better rank
+ * 2. Time spent (ascending) - faster completion = better rank (if same score)
+ * 3. Submission time (ascending) - earlier submission = better rank (if same score and time)
+ */
+export declare const calculateStudentRank: (examId: string, studentId: string) => Promise<{
+    rank: number | null;
+    totalParticipants: number;
+}>;
+/**
+ * Get leaderboard for an exam
+ * Returns top N students ranked by their best attempt
+ */
+export declare const getExamLeaderboard: (examId: string, studentId: string, limit?: number) => Promise<{
+    leaderboard: Array<{
+        rank: number;
+        studentId: string;
+        studentName: string | null;
+        studentEmail: string;
+        studentRegNo: string | null;
+        score: number;
+        maxScore: number;
+        timeSpentSec: number;
+        submittedAt: Date | null;
+        isCurrentStudent: boolean;
+    }>;
+    currentStudentRank: number | null;
+    totalParticipants: number;
+}>;
 type ListAttemptsQuery = z.infer<typeof listAttemptsSchema>['query'];
 export declare const listAttemptsForExam: (examId: string, query: ListAttemptsQuery) => Promise<{
     data: {
@@ -138,6 +169,8 @@ export declare const listAttemptsForExam: (examId: string, query: ListAttemptsQu
         startedAt: Date;
         submittedAt: Date | null;
         status: import(".prisma/client").$Enums.AttemptStatus;
+        submissionType: import(".prisma/client").$Enums.SubmissionType;
+        submissionReason: string | null;
         maxScore: Prisma.Decimal | null;
         student: {
             name: string | null;
@@ -170,6 +203,8 @@ export declare const getAttemptForAdmin: (attemptId: string) => Promise<{
     startedAt: Date;
     submittedAt: Date | null;
     status: import(".prisma/client").$Enums.AttemptStatus;
+    submissionType: import(".prisma/client").$Enums.SubmissionType;
+    submissionReason: string | null;
     score: Prisma.Decimal | null;
     maxScore: Prisma.Decimal | null;
     exam: {
@@ -224,6 +259,11 @@ export declare const getAttemptForAdmin: (attemptId: string) => Promise<{
 type ResetAttemptsInput = z.infer<typeof resetAttemptsSchema>['body'];
 export declare const resetAttempts: (input: ResetAttemptsInput) => Promise<{
     deletedCount: number;
+    message: string;
+}>;
+type ResumeAttemptsInput = z.infer<typeof resumeAttemptsSchema>['body'];
+export declare const resumeAttempts: (input: ResumeAttemptsInput) => Promise<{
+    resumedCount: number;
     message: string;
 }>;
 export declare const runCode: (studentId: string, attemptId: string, questionId: string, code: string, language: string, customInput?: string, runAllTests?: boolean) => Promise<{

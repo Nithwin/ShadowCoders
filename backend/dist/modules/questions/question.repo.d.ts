@@ -13,9 +13,37 @@ export declare const listQuestionsForExam: (examId: string) => Prisma.PrismaProm
     starterCode: string | null;
     testcases: Prisma.JsonValue;
     wordLimit: number | null;
+    config: Prisma.JsonValue;
 }[]>;
 import { Prisma } from "@prisma/client";
-export declare const createManyQuestions: (examId: string, questionsData: Prisma.QuestionCreateManyInput[]) => Prisma.PrismaPromise<Prisma.BatchPayload>;
+export declare const createManyQuestions: (examId: string, questionsData: Prisma.QuestionCreateManyInput[]) => Promise<{
+    id: string;
+    points: Prisma.Decimal;
+    createdAt: Date;
+    updatedAt: Date;
+    examId: string;
+    status: import(".prisma/client").$Enums.QuestionStatus;
+    type: import(".prisma/client").$Enums.QType;
+    order: number;
+    prompt: string | null;
+    options: Prisma.JsonValue | null;
+    correctOptionIds: Prisma.JsonValue | null;
+    starterCode: string | null;
+    testcases: Prisma.JsonValue | null;
+    languageHints: Prisma.JsonValue | null;
+    wordLimit: number | null;
+    mediaAssetId: string | null;
+    passageAssetId: string | null;
+    maxDurationSec: number | null;
+    clozeTemplate: string | null;
+    blanks: Prisma.JsonValue | null;
+    clozeConfig: Prisma.JsonValue | null;
+    config: Prisma.JsonValue | null;
+    rubricId: string | null;
+    invalidationReason: string | null;
+    invalidatedAt: Date | null;
+    invalidatedById: string | null;
+}[]>;
 export declare const getQuestionById: (questionId: string) => Prisma.Prisma__QuestionClient<{
     id: string;
     points: Prisma.Decimal;

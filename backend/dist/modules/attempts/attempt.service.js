@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.runCode = exports.resetAttempts = exports.getAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getAttemptResults = exports.getQuestionForStudent = exports.getQuestionById = exports.getAttemptDetails = exports.forceSubmitAttempt = exports.submitAttempt = exports.submitAnswer = exports.startAttempt = void 0;
+exports.runCode = exports.resumeAttempts = exports.resetAttempts = exports.getAttemptForAdmin = exports.getStudentAttempts = exports.listAttemptsForExam = exports.getExamLeaderboard = exports.calculateStudentRank = exports.getAttemptResults = exports.getQuestionForStudent = exports.getQuestionById = exports.getAttemptDetails = exports.forceSubmitAttempt = exports.submitAttempt = exports.submitAnswer = exports.startAttempt = void 0;
 const attemptRepo = __importStar(require("./attempt.repo"));
 const client_1 = require("@prisma/client");
 const utils_1 = require("../../lib/utils");
@@ -335,6 +335,15 @@ const submitAttempt = async (studentId, attemptId, submissionReason) => {
                 case client_1.QType.CODING:
                     gradingResult = await (0, grading_logic_1.gradeCoding)(response.answer, question.testcases, questionPoints);
                     break;
+                case client_1.QType.SQL:
+                    const sqlConfig = question.config;
+                    const ddl = sqlConfig?.ddl || '';
+                    const sqlTestCases = question.testcases.map((tc) => ({
+                        ...tc,
+                        input: ddl ? `${ddl}\n${tc.input}` : tc.input,
+                    }));
+                    gradingResult = await (0, grading_logic_1.gradeCoding)(response.answer, sqlTestCases, questionPoints);
+                    break;
                 case client_1.QType.ESSAY:
                 case client_1.QType.SPEAKING:
                     // Manual grading required
@@ -388,15 +397,8 @@ const submitAttempt = async (studentId, attemptId, submissionReason) => {
             timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
         },
     });
-    // Award points based on exam performance
-    try {
-        const { awardPointsForExam } = await Promise.resolve().then(() => __importStar(require('../points/points.service')));
-        await awardPointsForExam(studentId, attemptId, Number(totalScore), Number(maxScore));
-    }
-    catch (error) {
-        // Log error but don't fail the submission
-        console.error('Error awarding points for exam:', error);
-    }
+    // Points are now awarded manually by admin from the submissions page
+    // No automatic points awarding on submission
     return submittedAttempt;
 };
 exports.submitAttempt = submitAttempt;
@@ -451,6 +453,15 @@ const forceSubmitAttempt = async (attemptId, submissionReason) => {
                 case client_1.QType.CODING:
                     gradingResult = await (0, grading_logic_1.gradeCoding)(response.answer, question.testcases, questionPoints);
                     break;
+                case client_1.QType.SQL:
+                    const sqlConfigForce = question.config;
+                    const ddlForce = sqlConfigForce?.ddl || '';
+                    const sqlTestCasesForce = question.testcases.map((tc) => ({
+                        ...tc,
+                        input: ddlForce ? `${ddlForce}\n${tc.input}` : tc.input,
+                    }));
+                    gradingResult = await (0, grading_logic_1.gradeCoding)(response.answer, sqlTestCasesForce, questionPoints);
+                    break;
                 case client_1.QType.ESSAY:
                 case client_1.QType.SPEAKING:
                     gradingResult = {
@@ -497,15 +508,8 @@ const forceSubmitAttempt = async (attemptId, submissionReason) => {
             timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
         },
     });
-    // Award points based on exam performance
-    try {
-        const { awardPointsForExam } = await Promise.resolve().then(() => __importStar(require('../points/points.service')));
-        await awardPointsForExam(attempt.studentId, attemptId, Number(totalScore), Number(maxScore));
-    }
-    catch (error) {
-        // Log error but don't fail the submission
-        console.error('Error awarding points for exam:', error);
-    }
+    // Points are now awarded manually by admin from the submissions page
+    // No automatic points awarding on force submit
     return submittedAttempt;
 };
 exports.forceSubmitAttempt = forceSubmitAttempt;
@@ -682,10 +686,217 @@ const getAttemptResults = async (studentId, attemptId) => {
             return orderA - orderB;
         });
     }
-    // 7. Return the full results
-    return attemptResults;
+    // 7. Calculate and add rank information
+    const rankInfo = await (0, exports.calculateStudentRank)(attemptResults.examId, studentId);
+    // 8. Return the full results with rank
+    return {
+        ...attemptResults,
+        rank: rankInfo.rank,
+        totalParticipants: rankInfo.totalParticipants,
+    };
 };
 exports.getAttemptResults = getAttemptResults;
+/**
+ * Calculate the rank of a student for a specific exam
+ * Ranking is based on:
+ * 1. Score (descending) - higher score = better rank
+ * 2. Time spent (ascending) - faster completion = better rank (if same score)
+ * 3. Submission time (ascending) - earlier submission = better rank (if same score and time)
+ */
+const calculateStudentRank = async (examId, studentId) => {
+    // Get all submitted attempts for this exam, ordered by:
+    // 1. Score (descending)
+    // 2. Time spent (ascending) - faster is better
+    // 3. SubmittedAt (ascending) - earlier submission is better
+    const allAttempts = await prisma_1.prisma.attempt.findMany({
+        where: {
+            examId: examId,
+            status: client_1.AttemptStatus.SUBMITTED,
+            score: { not: null },
+        },
+        select: {
+            id: true,
+            studentId: true,
+            score: true,
+            timeSpentSec: true,
+            submittedAt: true,
+        },
+        orderBy: [
+            { score: 'desc' },
+            { timeSpentSec: 'asc' },
+            { submittedAt: 'asc' },
+        ],
+    });
+    if (allAttempts.length === 0) {
+        return { rank: null, totalParticipants: 0 };
+    }
+    // Get the best attempt for each student (highest score, then fastest time)
+    const studentBestAttempts = new Map();
+    for (const attempt of allAttempts) {
+        const existing = studentBestAttempts.get(attempt.studentId);
+        if (!existing) {
+            studentBestAttempts.set(attempt.studentId, attempt);
+        }
+        else {
+            // Compare: score first, then time, then submission time
+            const existingScore = Number(existing.score || 0);
+            const attemptScore = Number(attempt.score || 0);
+            if (attemptScore > existingScore) {
+                studentBestAttempts.set(attempt.studentId, attempt);
+            }
+            else if (attemptScore === existingScore) {
+                const existingTime = existing.timeSpentSec || 0;
+                const attemptTime = attempt.timeSpentSec || 0;
+                if (attemptTime < existingTime) {
+                    studentBestAttempts.set(attempt.studentId, attempt);
+                }
+                else if (attemptTime === existingTime && attempt.submittedAt && existing.submittedAt) {
+                    if (attempt.submittedAt < existing.submittedAt) {
+                        studentBestAttempts.set(attempt.studentId, attempt);
+                    }
+                }
+            }
+        }
+    }
+    // Convert to array and sort again for ranking
+    const rankedAttempts = Array.from(studentBestAttempts.values()).sort((a, b) => {
+        const scoreA = Number(a.score || 0);
+        const scoreB = Number(b.score || 0);
+        if (scoreB !== scoreA) {
+            return scoreB - scoreA; // Higher score = better
+        }
+        const timeA = a.timeSpentSec || 0;
+        const timeB = b.timeSpentSec || 0;
+        if (timeA !== timeB) {
+            return timeA - timeB; // Faster = better
+        }
+        // If same score and time, earlier submission wins
+        if (a.submittedAt && b.submittedAt) {
+            return a.submittedAt.getTime() - b.submittedAt.getTime();
+        }
+        return 0;
+    });
+    const totalParticipants = rankedAttempts.length;
+    // Find the student's rank
+    const studentRank = rankedAttempts.findIndex((attempt) => attempt.studentId === studentId);
+    if (studentRank === -1) {
+        return { rank: null, totalParticipants };
+    }
+    // Rank is 1-indexed (1st place, 2nd place, etc.)
+    return { rank: studentRank + 1, totalParticipants };
+};
+exports.calculateStudentRank = calculateStudentRank;
+/**
+ * Get leaderboard for an exam
+ * Returns top N students ranked by their best attempt
+ */
+const getExamLeaderboard = async (examId, studentId, limit = 50) => {
+    // Get all submitted attempts for this exam
+    const allAttempts = await prisma_1.prisma.attempt.findMany({
+        where: {
+            examId: examId,
+            status: client_1.AttemptStatus.SUBMITTED,
+            score: { not: null },
+        },
+        select: {
+            id: true,
+            studentId: true,
+            score: true,
+            maxScore: true,
+            timeSpentSec: true,
+            submittedAt: true,
+            student: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    reg_no: true,
+                },
+            },
+        },
+        orderBy: [
+            { score: 'desc' },
+            { timeSpentSec: 'asc' },
+            { submittedAt: 'asc' },
+        ],
+    });
+    if (allAttempts.length === 0) {
+        return {
+            leaderboard: [],
+            currentStudentRank: null,
+            totalParticipants: 0,
+        };
+    }
+    // Get the best attempt for each student
+    const studentBestAttempts = new Map();
+    for (const attempt of allAttempts) {
+        const existing = studentBestAttempts.get(attempt.studentId);
+        if (!existing) {
+            studentBestAttempts.set(attempt.studentId, attempt);
+        }
+        else {
+            const existingScore = Number(existing.score || 0);
+            const attemptScore = Number(attempt.score || 0);
+            if (attemptScore > existingScore) {
+                studentBestAttempts.set(attempt.studentId, attempt);
+            }
+            else if (attemptScore === existingScore) {
+                const existingTime = existing.timeSpentSec || 0;
+                const attemptTime = attempt.timeSpentSec || 0;
+                if (attemptTime < existingTime) {
+                    studentBestAttempts.set(attempt.studentId, attempt);
+                }
+                else if (attemptTime === existingTime && attempt.submittedAt && existing.submittedAt) {
+                    if (attempt.submittedAt < existing.submittedAt) {
+                        studentBestAttempts.set(attempt.studentId, attempt);
+                    }
+                }
+            }
+        }
+    }
+    // Sort for ranking
+    const rankedAttempts = Array.from(studentBestAttempts.values()).sort((a, b) => {
+        const scoreA = Number(a.score || 0);
+        const scoreB = Number(b.score || 0);
+        if (scoreB !== scoreA) {
+            return scoreB - scoreA;
+        }
+        const timeA = a.timeSpentSec || 0;
+        const timeB = b.timeSpentSec || 0;
+        if (timeA !== timeB) {
+            return timeA - timeB;
+        }
+        if (a.submittedAt && b.submittedAt) {
+            return a.submittedAt.getTime() - b.submittedAt.getTime();
+        }
+        return 0;
+    });
+    const totalParticipants = rankedAttempts.length;
+    // Find current student's rank
+    const currentStudentIndex = rankedAttempts.findIndex((attempt) => attempt.studentId === studentId);
+    const currentStudentRank = currentStudentIndex === -1 ? null : currentStudentIndex + 1;
+    // Get top N for leaderboard
+    const topAttempts = rankedAttempts.slice(0, limit);
+    // Build leaderboard response
+    const leaderboard = topAttempts.map((attempt, index) => ({
+        rank: index + 1,
+        studentId: attempt.studentId,
+        studentName: attempt.student.name,
+        studentEmail: attempt.student.email,
+        studentRegNo: attempt.student.reg_no,
+        score: Number(attempt.score || 0),
+        maxScore: Number(attempt.maxScore || 0),
+        timeSpentSec: attempt.timeSpentSec,
+        submittedAt: attempt.submittedAt,
+        isCurrentStudent: attempt.studentId === studentId,
+    }));
+    return {
+        leaderboard,
+        currentStudentRank,
+        totalParticipants,
+    };
+};
+exports.getExamLeaderboard = getExamLeaderboard;
 const listAttemptsForExam = async (examId, query) => {
     // Ensure page and pageSize are numbers
     const page = typeof query.page === 'string' ? parseInt(query.page, 10) : (query.page ?? 1);
@@ -747,10 +958,14 @@ const resetAttempts = async (input) => {
     if (!exam) {
         throw { status: 404, message: 'Exam not found' };
     }
-    // Build where clause for attempts to delete
+    // Build where clause for attempts to delete/reset
+    // For reattempts, we should reset both SUBMITTED and IN_PROGRESS attempts
+    // This ensures a clean slate when giving reattempts
     const whereClause = {
         examId: examId,
-        status: client_1.AttemptStatus.SUBMITTED, // Only delete submitted attempts
+        status: {
+            in: [client_1.AttemptStatus.SUBMITTED, client_1.AttemptStatus.IN_PROGRESS], // Delete both submitted and in-progress attempts for reattempts
+        },
     };
     if (!resetAll && studentIds && studentIds.length > 0) {
         whereClause.studentId = { in: studentIds };
@@ -764,7 +979,7 @@ const resetAttempts = async (input) => {
     if (attemptIds.length === 0) {
         return {
             deletedCount: 0,
-            message: 'No submitted attempts found to reset',
+            message: 'No attempts found to reset',
         };
     }
     // Get all response IDs for these attempts
@@ -818,6 +1033,58 @@ const resetAttempts = async (input) => {
     };
 };
 exports.resetAttempts = resetAttempts;
+const resumeAttempts = async (input) => {
+    const { examId, studentIds, resumeAll } = input;
+    // Verify exam exists
+    const exam = await prisma_1.prisma.exam.findUnique({
+        where: { id: examId },
+        select: { id: true, title: true },
+    });
+    if (!exam) {
+        throw { status: 404, message: 'Exam not found' };
+    }
+    // Build where clause for attempts to resume
+    const whereClause = {
+        examId: examId,
+        status: client_1.AttemptStatus.SUBMITTED,
+        submissionType: 'AUTO', // Only resume auto-submitted attempts (using Prisma enum value)
+    };
+    if (!resumeAll && studentIds && studentIds.length > 0) {
+        whereClause.studentId = { in: studentIds };
+    }
+    // Get all attempts to resume
+    const attemptsToResume = await prisma_1.prisma.attempt.findMany({
+        where: whereClause,
+        select: { id: true },
+    });
+    const attemptIds = attemptsToResume.map(a => a.id);
+    if (attemptIds.length === 0) {
+        return {
+            resumedCount: 0,
+            message: 'No auto-submitted attempts found to resume',
+        };
+    }
+    // Resume attempts: change status back to IN_PROGRESS, clear submittedAt, and update startedAt to current time
+    // This ensures the timer starts fresh for resumed attempts
+    const now = new Date();
+    const result = await prisma_1.prisma.attempt.updateMany({
+        where: {
+            id: { in: attemptIds },
+        },
+        data: {
+            status: client_1.AttemptStatus.IN_PROGRESS,
+            submittedAt: null,
+            startedAt: now, // Reset startedAt to current time so timer starts fresh
+            submissionType: 'NORMAL', // Reset to normal since it's being resumed
+            submissionReason: null, // Clear the auto-submit reason
+        },
+    });
+    return {
+        resumedCount: result.count,
+        message: `Successfully resumed ${result.count} attempt(s)`,
+    };
+};
+exports.resumeAttempts = resumeAttempts;
 const runCode = async (studentId, attemptId, questionId, code, language, customInput, runAllTests) => {
     // 1. Verify attempt
     const attempt = await prisma_1.prisma.attempt.findUnique({

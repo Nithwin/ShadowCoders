@@ -46,6 +46,8 @@ const registerPointsRoutes = (app) => {
     app.post('/api/admin/points/adjust', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(points_zod_1.adjustPointsSchema), pointsController.adjustPoints);
     // Admin route to add points by email (for testing)
     app.post('/api/admin/points/add-by-email', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), (0, validate_1.validate)(points_zod_1.addPointsByEmailSchema), pointsController.addPointsByEmail);
+    // Admin route to bulk award points for an exam
+    app.post('/api/admin/exams/:examId/award-points', auth_1.verifyAccess, (0, auth_1.requireRole)('STAFF'), pointsController.bulkAwardPointsForExam);
 };
 exports.registerPointsRoutes = registerPointsRoutes;
 //# sourceMappingURL=points.routes.js.map

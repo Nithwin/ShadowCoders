@@ -61,7 +61,7 @@ const runCode = async (studentId, attemptId, input) => {
     // 2. --- Validation: Check Question ---
     const question = await prisma_1.prisma.question.findUnique({
         where: { id: questionId },
-        select: { examId: true, type: true, testcases: true },
+        select: { examId: true, type: true, testcases: true, config: true },
     });
     if (!question) {
         throw { status: 404, message: 'Question not found' };
@@ -69,8 +69,8 @@ const runCode = async (studentId, attemptId, input) => {
     if (question.examId !== attempt.examId) {
         throw { status: 403, message: 'Question is not part of this exam' };
     }
-    if (question.type !== client_1.QType.CODING) {
-        throw { status: 400, message: 'This is not a coding question' };
+    if (question.type !== client_1.QType.CODING && question.type !== client_1.QType.SQL) {
+        throw { status: 400, message: 'This is not a coding or SQL question' };
     }
     // 3. --- Upsert Response (create if doesn't exist) ---
     // This allows students to test code before final submission
@@ -84,7 +84,7 @@ const runCode = async (studentId, attemptId, input) => {
             data: {
                 attemptId: attemptId,
                 questionId: questionId,
-                type: client_1.QType.CODING,
+                type: question.type,
                 answer: { code, language },
             },
             select: { id: true }
@@ -111,9 +111,17 @@ const runCode = async (studentId, attemptId, input) => {
     // 5. --- Execute Code (via Queue) ---
     let result;
     if (customInput !== undefined) {
-        // Run with custom input (even if empty string - user wants to test with empty input) - queued
+        // Run with custom input (even if empty string - queued
+        let payloadInput = customInput;
+        if (question.type === client_1.QType.SQL) {
+            const config = question.config;
+            if (config?.ddl) {
+                // Prepend DDL to custom input (which acts as additional DML/Inserts)
+                payloadInput = `${config.ddl}\n${customInput || ''}`;
+            }
+        }
         const executionResult = await execution_queue_1.executionQueue.enqueue(async () => {
-            return await (0, local_executor_1.executeCodeLocally)(code, language, customInput, 5000);
+            return await (0, local_executor_1.executeCodeLocally)(code, language, payloadInput, 10000);
         });
         // Format result for custom input
         // Format result for custom input
@@ -154,6 +162,13 @@ const runCode = async (studentId, attemptId, input) => {
             throw { status: 400, message: 'No test cases found for this question' };
         }
         const testCases = question.testcases;
+        // For SQL, we need to prepend DDL (Schema) to the input (DML) for each test case
+        if (question.type === client_1.QType.SQL) {
+            const config = question.config;
+            const ddl = config?.ddl || '';
+            // Mutate or map testCases to include DDL
+            // We map below anyway
+        }
         // Filter test cases: if runAllTests is true, use all test cases; otherwise only visible ones
         const testCasesToRun = runAllTests
             ? testCases
@@ -166,13 +181,23 @@ const runCode = async (studentId, attemptId, input) => {
         }
         // Test code against test cases using local executor - queued
         // Map test cases with metadata (isHidden, originalIndex) for proper display
-        const testsWithMetadata = testCasesToRun.map((tc, idx) => ({
-            input: tc.input,
-            expectedOutput: tc.expectedOutput,
-            timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
-            isHidden: tc.isHidden || false,
-            originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
-        }));
+        const testsWithMetadata = testCasesToRun.map((tc, idx) => {
+            // Prepend DDL for SQL questions
+            let input = tc.input;
+            if (question.type === client_1.QType.SQL) {
+                const config = question.config;
+                if (config?.ddl) {
+                    input = `${config.ddl}\n${tc.input}`;
+                }
+            }
+            return {
+                input: input,
+                expectedOutput: tc.expectedOutput,
+                timeoutMs: tc.timeoutMs || 10000, // Default 10 seconds for local execution
+                isHidden: tc.isHidden || false,
+                originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
+            };
+        });
         const testResults = await execution_queue_1.executionQueue.enqueue(async () => {
             return await (0, local_executor_1.testCodeWithTestCasesLocally)(code, language, testsWithMetadata);
         });

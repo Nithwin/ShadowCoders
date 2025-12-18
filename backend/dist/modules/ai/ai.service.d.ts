@@ -38,6 +38,28 @@ export declare const generateQuestions: (input: GenerateInput) => Promise<(({
     prompt: string;
     maxDurationSec?: number | undefined;
     maxReattempts?: number | undefined;
+} | {
+    type: "SQL";
+    prompt: string;
+    config: {
+        ddl: string;
+    };
+    testcases: {
+        input: string;
+        expectedOutput: string;
+        isHidden: boolean;
+        timeoutMs: number;
+    }[];
+} | {
+    type: "FILL";
+    prompt: string;
+    clozeTemplate?: string | undefined;
+    blanks?: unknown[] | undefined;
+    clozeConfig?: Record<string, unknown> | undefined;
+} | {
+    type: "READING";
+    prompt: string;
+    passageAssetId?: string | undefined;
 }) & {
     order: number;
     points: number;

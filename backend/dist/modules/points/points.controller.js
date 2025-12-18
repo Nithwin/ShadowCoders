@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addPointsByEmail = exports.adjustPoints = exports.getMyPointsHistory = exports.getMyPoints = void 0;
+exports.bulkAwardPointsForExam = exports.addPointsByEmail = exports.adjustPoints = exports.getMyPointsHistory = exports.getMyPoints = void 0;
 const pointsService = __importStar(require("./points.service"));
 const prisma_1 = require("../../lib/prisma");
 const getMyPoints = async (req, res) => {
@@ -112,4 +112,22 @@ const addPointsByEmail = async (req, res) => {
     }
 };
 exports.addPointsByEmail = addPointsByEmail;
+const bulkAwardPointsForExam = async (req, res) => {
+    try {
+        const examId = req.params.examId;
+        if (!examId) {
+            return res.status(400).json({ message: 'Exam ID is required' });
+        }
+        const result = await pointsService.bulkAwardPointsForExam(examId);
+        res.json({
+            message: `Points awarded: ${result.awarded}, Skipped: ${result.skipped}, Errors: ${result.errors}`,
+            ...result,
+        });
+    }
+    catch (error) {
+        console.error('Error bulk awarding points:', error);
+        res.status(error.status || 500).json({ message: error.message || 'Failed to award points' });
+    }
+};
+exports.bulkAwardPointsForExam = bulkAwardPointsForExam;
 //# sourceMappingURL=points.controller.js.map

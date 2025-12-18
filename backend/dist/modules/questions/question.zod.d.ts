@@ -1,7 +1,7 @@
 import z from "zod";
 export declare const addQuestionsSchema: z.ZodObject<{
     body: z.ZodObject<{
-        questions: z.ZodArray<z.ZodIntersection<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        questions: z.ZodArray<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
             type: z.ZodLiteral<"MCQ">;
             prompt: z.ZodString;
             options: z.ZodArray<z.ZodObject<{
@@ -38,7 +38,29 @@ export declare const addQuestionsSchema: z.ZodObject<{
             prompt: z.ZodString;
             maxDurationSec: z.ZodOptional<z.ZodNumber>;
             maxReattempts: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>], "type">, z.ZodObject<{
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"SQL">;
+            prompt: z.ZodString;
+            config: z.ZodObject<{
+                ddl: z.ZodString;
+            }, z.core.$strip>;
+            testcases: z.ZodArray<z.ZodObject<{
+                input: z.ZodString;
+                expectedOutput: z.ZodString;
+                isHidden: z.ZodDefault<z.ZodBoolean>;
+                timeoutMs: z.ZodDefault<z.ZodNumber>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"FILL">;
+            prompt: z.ZodString;
+            clozeTemplate: z.ZodOptional<z.ZodString>;
+            blanks: z.ZodOptional<z.ZodArray<z.ZodUnknown>>;
+            clozeConfig: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"READING">;
+            prompt: z.ZodString;
+            passageAssetId: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>]>, z.ZodObject<{
             order: z.ZodNumber;
             points: z.ZodNumber;
         }, z.core.$strip>>>;

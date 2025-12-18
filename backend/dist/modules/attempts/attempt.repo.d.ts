@@ -143,6 +143,8 @@ export declare const listAttemptsForExam: (params: {
         startedAt: Date;
         submittedAt: Date | null;
         status: import(".prisma/client").$Enums.AttemptStatus;
+        submissionType: import(".prisma/client").$Enums.SubmissionType;
+        submissionReason: string | null;
         maxScore: Prisma.Decimal | null;
         student: {
             name: string | null;
@@ -170,6 +172,8 @@ export declare const getFullAttemptForAdmin: (attemptId: string) => Prisma.Prism
     startedAt: Date;
     submittedAt: Date | null;
     status: import(".prisma/client").$Enums.AttemptStatus;
+    submissionType: import(".prisma/client").$Enums.SubmissionType;
+    submissionReason: string | null;
     score: Prisma.Decimal | null;
     maxScore: Prisma.Decimal | null;
     exam: {

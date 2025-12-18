@@ -60,15 +60,45 @@ const speakingSchema = zod_1.default.object({
     maxDurationSec: zod_1.default.number().int().positive().optional(),
     maxReattempts: zod_1.default.number().int().nonnegative().optional(),
 });
+const sqlSchema = zod_1.default.object({
+    type: zod_1.default.literal(client_1.QType.SQL),
+    prompt: zod_1.default.string().min(1, 'SQL prompt cannot be empty'),
+    config: zod_1.default.object({
+        ddl: zod_1.default.string().min(1, "DDL (Schema) is required"),
+    }),
+    testcases: zod_1.default
+        .array(zod_1.default.object({
+        input: zod_1.default.string(), // DML (Inserts)
+        expectedOutput: zod_1.default.string(),
+        isHidden: zod_1.default.boolean().default(false),
+        timeoutMs: zod_1.default.number().int().positive().default(5000),
+    }))
+        .min(1, 'SQL question must have at least 1 testcase'),
+});
+const fillSchema = zod_1.default.object({
+    type: zod_1.default.literal(client_1.QType.FILL),
+    prompt: zod_1.default.string().min(1, 'FILL prompt cannot be empty'),
+    clozeTemplate: zod_1.default.string().optional(),
+    blanks: zod_1.default.array(zod_1.default.unknown()).optional(),
+    clozeConfig: zod_1.default.record(zod_1.default.string(), zod_1.default.unknown()).optional(),
+});
+const readingSchema = zod_1.default.object({
+    type: zod_1.default.literal(client_1.QType.READING),
+    prompt: zod_1.default.string().min(1, 'READING prompt cannot be empty'),
+    passageAssetId: zod_1.default.string().cuid().optional(),
+});
 exports.addQuestionsSchema = zod_1.default.object({
     body: zod_1.default.object({
         questions: zod_1.default
-            .array(zod_1.default.discriminatedUnion('type', [
+            .array(zod_1.default.union([
             mcqSchema,
             codingSchema,
             essaySchema,
             listeningSchema,
             speakingSchema,
+            sqlSchema,
+            fillSchema,
+            readingSchema,
         ])
             .and(zod_1.default.object({
             order: zod_1.default.number().int().min(1, 'Question order must be 1 or greater'),

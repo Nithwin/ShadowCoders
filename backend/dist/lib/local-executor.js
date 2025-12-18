@@ -113,13 +113,13 @@ const LANGUAGE_CONFIGS = {
         extension: 'js',
         command: 'node',
         runCommand: (filePath) => `node "${filePath}"`,
-        timeout: 5000,
+        timeout: 10000,
     },
     python: {
         extension: 'py',
         command: getPythonCommand(),
         runCommand: (filePath) => `${getPythonCommand()} "${filePath}"`,
-        timeout: 5000,
+        timeout: 10000,
     },
     java: {
         extension: 'java',
@@ -190,7 +190,7 @@ const LANGUAGE_CONFIGS = {
 /**
  * Execute code locally with proper sandboxing and resource limits
  */
-async function executeCodeLocally(code, language, input, timeoutMs = 5000) {
+async function executeCodeLocally(code, language, input, timeoutMs = 10000) {
     const langConfig = LANGUAGE_CONFIGS[language.toLowerCase()];
     if (!langConfig) {
         return {

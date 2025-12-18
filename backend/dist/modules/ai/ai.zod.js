@@ -10,16 +10,21 @@ exports.generateQuestionsSchema = zod_1.z.object({
         // Define counts for each type
         mcqCount: zod_1.z.number().int().min(0).max(20).optional().default(0),
         codingCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
+        sqlCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
         essayCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
+        fillCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
+        readingCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
+        listeningCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
+        speakingCount: zod_1.z.number().int().min(0).max(10).optional().default(0),
         // Define difficulty
         difficulty: zod_1.z.enum(['EASY', 'MEDIUM', 'HARD', 'ANY']).optional().default('ANY'),
         points: zod_1.z.number().int().positive().optional(),
     })
         .refine((data) => {
-        const total = (data.mcqCount || 0) + (data.codingCount || 0) + (data.essayCount || 0);
+        const total = (data.mcqCount || 0) + (data.codingCount || 0) + (data.essayCount || 0) + (data.sqlCount || 0);
         return total > 0;
     }, {
-        message: 'At least one question type must be requested (mcqCount, codingCount, or essayCount must be greater than 0)',
+        message: 'At least one question type must be requested (mcqCount, codingCount, essayCount, sqlCount, etc. must be greater than 0)',
         path: ['mcqCount'],
     }),
 });

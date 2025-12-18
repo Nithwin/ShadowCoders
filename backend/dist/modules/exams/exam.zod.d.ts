@@ -31,6 +31,7 @@ export declare const assignExamSchema: z.ZodObject<{
         cohortDepartment: z.ZodOptional<z.ZodString>;
         cohortSection: z.ZodOptional<z.ZodString>;
         studentIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        regNos: z.ZodPipe<z.ZodTransform<any[] | undefined, unknown>, z.ZodOptional<z.ZodArray<z.ZodString>>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 export declare const listExamsSchema: z.ZodObject<{

@@ -199,6 +199,7 @@ export declare const findExamByIdForStudent: (params: {
 }) => Promise<{
     hasAttempt: boolean;
     attemptId: string | null;
+    attemptStatus: import(".prisma/client").$Enums.AttemptStatus | null;
     questionTypes: import(".prisma/client").$Enums.QType[];
     hasSpeakingQuestions: boolean;
     attemptCount: number;

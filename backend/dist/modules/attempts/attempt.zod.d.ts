@@ -38,4 +38,11 @@ export declare const forceSubmitAttemptSchema: z.ZodObject<{
         submissionReason: z.ZodDefault<z.ZodOptional<z.ZodString>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
+export declare const resumeAttemptsSchema: z.ZodObject<{
+    body: z.ZodObject<{
+        examId: z.ZodString;
+        studentIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
+        resumeAll: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    }, z.core.$strip>;
+}, z.core.$strip>;
 //# sourceMappingURL=attempt.zod.d.ts.map

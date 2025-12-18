@@ -78,6 +78,14 @@ const addQuestionsToExam = async (examId, questions) => {
                 baseData.maxDurationSec = q.maxDurationSec ?? null;
                 baseData.config = q.maxReattempts !== undefined ? { maxReattempts: q.maxReattempts } : client_1.Prisma.JsonNull;
                 break;
+            case client_1.QType.SQL:
+                baseData.config = q.config ? q.config : client_1.Prisma.JsonNull;
+                baseData.testcases = q.testcases ? q.testcases : client_1.Prisma.JsonNull;
+                break;
+            case client_1.QType.FILL:
+            case client_1.QType.READING:
+                // Handle other types if necessary or just break if they share base structure
+                break;
             default:
                 const exhaustiveCheck = q;
                 throw new Error(`Unsupported question type encountered: ${JSON.stringify(exhaustiveCheck)}`);
@@ -117,8 +125,8 @@ const getQuestionForStudent = async (studentId, attemptId, questionId) => {
     const scrubbedQuestion = { ...question };
     delete scrubbedQuestion.correctOptionIds;
     delete scrubbedQuestion.blanks;
-    // For coding questions, only return non-hidden test cases
-    if (question.type === client_1.QType.CODING && Array.isArray(question.testcases)) {
+    // For coding and SQL questions, only return non-hidden test cases
+    if ((question.type === client_1.QType.CODING || question.type === client_1.QType.SQL) && Array.isArray(question.testcases)) {
         scrubbedQuestion.testcases = question.testcases
             .filter((tc) => tc && tc.isHidden === false)
             .map((tc) => ({
@@ -127,7 +135,7 @@ const getQuestionForStudent = async (studentId, attemptId, questionId) => {
         }));
     }
     else {
-        // Ensure testcases are removed for non-coding questions
+        // Ensure testcases are removed for other question types
         delete scrubbedQuestion.testcases;
     }
     // For LISTENING questions, include mediaAsset but remove correctOptionIds
@@ -148,12 +156,27 @@ const getQuestionForStudent = async (studentId, attemptId, questionId) => {
 exports.getQuestionForStudent = getQuestionForStudent;
 const updateQuestion = async (questionId, input) => {
     // 1. --- Validation: Check if the question exists ---
+    // 1. --- Validation: Check if the question exists ---
     const existingQuestion = await prisma_1.prisma.question.findUnique({
         where: { id: questionId },
-        select: { type: true }, // We need its type
+        include: {
+            _count: {
+                select: { responses: true },
+            },
+        },
     });
     if (!existingQuestion) {
         throw { status: 404, message: 'Question not found' };
+    }
+    // Prevent modifying points if responses exist (to avoid score corruption)
+    if (input.points !== undefined && existingQuestion._count.responses > 0) {
+        // Only throw if the points value is actually different
+        if (existingQuestion.points.toNumber() !== input.points) {
+            throw {
+                status: 400,
+                message: 'Cannot change points for a question that has already been answered. This would corrupt existing exam scores.'
+            };
+        }
     }
     // 2. --- Prepare Data (Type-Safe Update) ---
     // Manually build the update object to ensure we only update
@@ -220,7 +243,16 @@ const updateQuestion = async (questionId, input) => {
             if (input.config !== undefined)
                 dataToUpdate.config = input.config;
             break;
-        // Add cases for FILL, READING here...
+        case client_1.QType.SQL:
+            if (input.config !== undefined)
+                dataToUpdate.config = input.config;
+            if (input.testcases !== undefined)
+                dataToUpdate.testcases = input.testcases;
+            break;
+        case client_1.QType.FILL:
+        case client_1.QType.READING:
+            // Handle other types if necessary
+            break;
     }
     // Add other optional fields (only if not already handled in switch)
     if (input.mediaAssetId !== undefined && existingQuestion.type !== client_1.QType.LISTENING && input.mediaAssetId) {

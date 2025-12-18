@@ -34,24 +34,46 @@ exports.assignExamSchema = zod_1.z.object({
         cohortYear: zod_1.z.number().int().min(1).max(6).optional(),
         cohortDepartment: zod_1.z.string().max(50).optional(),
         cohortSection: zod_1.z.string().max(10).optional(),
-        studentIds: zod_1.z.array(zod_1.z.string().cuid()).max(1000).optional(),
+        // Accept either student IDs (CUIDs) or reg_no (registration numbers)
+        studentIds: zod_1.z.array(zod_1.z.string()).max(1000).optional(),
+        // Accept reg_no list (comma-separated string or array)
+        // Transform string to array, or keep array as is
+        regNos: zod_1.z.preprocess((val) => {
+            if (!val)
+                return undefined;
+            if (Array.isArray(val))
+                return val;
+            if (typeof val === 'string') {
+                // Split comma-separated string and trim
+                const regNos = val.split(',').map((r) => r.trim()).filter((r) => r.length > 0);
+                return regNos.length > 0 ? regNos : undefined;
+            }
+            return undefined;
+        }, zod_1.z.array(zod_1.z.string()).max(1000).optional()),
     })
         .refine((data) => {
         const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
         const hasStudentIds = data.studentIds && data.studentIds.length > 0;
-        return data.assignToAll === true || hasCohort || hasStudentIds;
+        const hasRegNos = data.regNos && Array.isArray(data.regNos) && data.regNos.length > 0;
+        return data.assignToAll === true || hasCohort || hasStudentIds || hasRegNos;
     }, {
-        message: "Assignment requires setting assignToAll, providing cohort details, or a list of student IDs",
+        message: "Assignment requires setting assignToAll, providing cohort details, a list of student IDs, or registration numbers",
     })
         .refine((data) => {
         const hasCohort = data.cohortYear || data.cohortDepartment || data.cohortSection;
         const hasStudentIds = data.studentIds && data.studentIds.length > 0;
+        const hasRegNos = data.regNos && Array.isArray(data.regNos) && data.regNos.length > 0;
         if (data.assignToAll === true) {
-            return !(hasCohort || hasStudentIds);
+            return !(hasCohort || hasStudentIds || hasRegNos);
         }
-        return !(hasCohort && hasStudentIds); // Cannot have both cohort and studentIds
+        // Cannot have both cohort and studentIds/regNos, and cannot have both studentIds and regNos
+        if (hasCohort && (hasStudentIds || hasRegNos))
+            return false;
+        if (hasStudentIds && hasRegNos)
+            return false;
+        return true;
     }, {
-        message: "Cannot use assignToAll with other assignment methods, or mix cohort with specific student IDs",
+        message: "Cannot use assignToAll with other assignment methods, or mix cohort with specific student IDs/registration numbers, or mix student IDs with registration numbers",
     }),
 });
 exports.listExamsSchema = zod_1.z.object({
