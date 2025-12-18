@@ -80,6 +80,8 @@ export default function QuestionNavigation({
         currentSectionType = QType.MCQ;
       } else if (sectionTitle.includes('essay') || sectionTitle.includes('written')) {
         currentSectionType = QType.ESSAY;
+      } else if (sectionTitle.includes('sql') || sectionTitle.includes('database') || sectionTitle.includes('query')) {
+        currentSectionType = QType.SQL;
       }
     }
   }
@@ -124,6 +126,7 @@ export default function QuestionNavigation({
           <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 text-center">
             {currentSectionType === QType.MCQ ? 'MCQ Questions' : 
              currentSectionType === QType.CODING ? 'Coding Questions' :
+             currentSectionType === QType.SQL ? 'SQL Questions' :
              currentSectionType === QType.ESSAY ? 'Essay Questions' : 'Questions'}
           </h4>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 justify-items-center">
@@ -133,7 +136,7 @@ export default function QuestionNavigation({
               const answer = answers[q.id];
               const isAnswered = answer && (
                 (q.type === QType.MCQ && answer.chosenOptionIds && answer.chosenOptionIds.length > 0) ||
-                (q.type === QType.CODING && answer.code && answer.code.trim().length > 0) ||
+                ((q.type === QType.CODING || q.type === QType.SQL) && answer.code && answer.code.trim().length > 0) ||
                 (q.type === QType.ESSAY && answer.textAnswer && answer.textAnswer.trim().length > 0)
               );
               

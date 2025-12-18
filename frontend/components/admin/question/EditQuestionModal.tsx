@@ -54,6 +54,29 @@ const codingQuestionSchema = z.object({
     .min(1, 'At least one test case required'),
 });
 
+
+// Schema for SQL question
+const sqlQuestionSchema = z.object({
+  type: z.literal(QType.SQL),
+  prompt: z.string().min(1, 'Prompt is required'),
+  points: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? Number(val) : val;
+    if (isNaN(num)) throw new Error('Points must be a valid number');
+    return num;
+  }).pipe(z.number().positive('Points must be positive')),
+  ddl: z.string().optional(),
+  testcases: z
+    .array(
+      z.object({
+        input: z.string().min(1, 'Input is required'), // For SQL, input is often appended to DDL or just the query setup
+        expectedOutput: z.string().min(1, 'Expected output is required'),
+        isHidden: z.boolean().default(false),
+        timeoutMs: z.number().int().positive().default(2000),
+      })
+    )
+    .min(1, 'At least one test case required'),
+});
+
 // Schema for Essay question
 const essayQuestionSchema = z.object({
   type: z.literal(QType.ESSAY),
@@ -74,6 +97,7 @@ const essayQuestionSchema = z.object({
 const questionSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
   codingQuestionSchema,
+  sqlQuestionSchema,
   essayQuestionSchema,
 ]);
 
@@ -95,6 +119,7 @@ interface EditQuestionModalProps {
     }>;
     starterCode?: string | null;
     wordLimit?: number | null;
+    config?: any; // For SQL DDL and other question-specific config
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -121,7 +146,7 @@ export default function EditQuestionModal({
   } = useForm<QuestionFormData>({
     resolver: zodResolver(questionSchema),
     defaultValues: {
-      type: question.type as QType.MCQ | QType.CODING | QType.ESSAY,
+      type: question.type as QType.MCQ | QType.CODING | QType.SQL | QType.ESSAY,
       prompt: question.prompt || '',
       points: question.points,
       ...(question.type === QType.MCQ && {
@@ -130,6 +155,10 @@ export default function EditQuestionModal({
       }),
       ...(question.type === QType.CODING && {
         starterCode: question.starterCode || '',
+        testcases: question.testcases || [],
+      }),
+      ...(question.type === QType.SQL && {
+        ddl: question.config?.ddl || '',
         testcases: question.testcases || [],
       }),
       ...(question.type === QType.ESSAY && {
@@ -210,7 +239,7 @@ export default function EditQuestionModal({
       }
 
       reset({
-        type: question.type as QType.MCQ | QType.CODING | QType.ESSAY,
+        type: question.type as QType.MCQ | QType.CODING | QType.SQL | QType.ESSAY,
         prompt: question.prompt || '',
         points: question.points,
         // Always include these keys for MCQ to ensure form state is correct
@@ -220,6 +249,10 @@ export default function EditQuestionModal({
         }),
         ...(question.type === QType.CODING && {
           starterCode: question.starterCode || '',
+          testcases: testcases,
+        }),
+        ...(question.type === QType.SQL && {
+          ddl: question.config?.ddl || '',
           testcases: testcases,
         }),
         ...(question.type === QType.ESSAY && {
@@ -277,6 +310,23 @@ export default function EditQuestionModal({
             fullData: validatedData,
           });
           throw new Error('Coding question must have at least one test case. Please add test cases before saving.');
+        }
+      } else if (validatedData.type === QType.SQL) {
+        updateData.config = {
+          ddl: validatedData.ddl || ''
+        };
+        // Reuse similar testcase logic as coding
+        if (validatedData.testcases && Array.isArray(validatedData.testcases) && validatedData.testcases.length > 0) {
+           updateData.testcases = validatedData.testcases
+            .filter((tc) => tc && tc.expectedOutput && String(tc.expectedOutput).trim()) // Input roughly optional for SQL if DDL handles it? But schema says required.
+            .map((tc) => ({
+              input: String(tc.input || '').trim(), 
+              expectedOutput: String(tc.expectedOutput || '').trim(),
+              isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
+              timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 2000,
+            }));
+        } else {
+            throw new Error('SQL question must have at least one test case.');
         }
       } else if (validatedData.type === QType.ESSAY) {
         if (validatedData.wordLimit) {
@@ -550,6 +600,120 @@ export default function EditQuestionModal({
                 </div>
               )}
               {'testcases' in errors && errors.testcases && (
+                <p className="mt-2 text-sm text-red-500">{errors.testcases.message}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SQL Specific Fields */}
+        {questionType === QType.SQL && (
+          <div className="space-y-4">
+             <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Initial SQL / DDL (Schema Setup)
+              </label>
+              <textarea
+                {...register('ddl')}
+                rows={6}
+                className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                placeholder="CREATE TABLE users (id INT, name TEXT);&#10;INSERT INTO users VALUES (1, 'Alice');"
+              />
+              <p className="text-xs text-primary/60 mt-1">This SQL will run before every test case to set up the database state.</p>
+            </div>
+          
+            {/* Reuse Test Case UI for SQL */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-sm font-semibold text-primary">
+                  Test Cases <span className="text-red-500">*</span>
+                  <span className="ml-2 text-xs font-normal text-primary/60">
+                    ({testcaseFields.length} test case{testcaseFields.length !== 1 ? 's' : ''})
+                  </span>
+                </label>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    appendTestcase({
+                      input: '',
+                      expectedOutput: '',
+                      isHidden: false,
+                      timeoutMs: 2000,
+                    })
+                  }
+                  className="text-xs px-3 py-1.5"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Test Case
+                </Button>
+              </div>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                {testcaseFields.map((field, index) => (
+                  <div key={field.id} className="border border-primary/20 rounded-lg p-4 bg-primary/5 space-y-3 hover:border-primary/30 transition-colors">
+                     <div className="flex justify-between items-center">
+                      <span className="text-sm font-semibold text-primary">
+                        Test Case {index + 1}
+                        {watch(`testcases.${index}.isHidden`) && (
+                          <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                            Hidden
+                          </span>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeTestcase(index)}
+                        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                        title="Remove test case"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-primary/70 mb-1.5">
+                        Specific Input / Query (Optional)
+                      </label>
+                      <textarea
+                        {...register(`testcases.${index}.input`)}
+                        rows={2}
+                        className="flex w-full rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                        placeholder="Additional SQL to run (optional)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-primary/70 mb-1.5">
+                        Expected Output (Table/JSON)
+                      </label>
+                      <textarea
+                        {...register(`testcases.${index}.expectedOutput`)}
+                        rows={2}
+                        className="flex w-full rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                        placeholder="Expected result rows"
+                      />
+                    </div>
+                     <div className="flex items-center justify-between flex-wrap gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          {...register(`testcases.${index}.isHidden`)}
+                          className="h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50 cursor-pointer"
+                        />
+                        <span className="text-sm text-primary/80">Hidden test case</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-primary/70 whitespace-nowrap">Timeout (ms):</label>
+                        <Input
+                          type="number"
+                          {...register(`testcases.${index}.timeoutMs`, { valueAsNumber: true })}
+                          className="w-24 h-8 text-xs"
+                          min="1000"
+                          step="1000"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+               {'testcases' in errors && errors.testcases && (
                 <p className="mt-2 text-sm text-red-500">{errors.testcases.message}</p>
               )}
             </div>

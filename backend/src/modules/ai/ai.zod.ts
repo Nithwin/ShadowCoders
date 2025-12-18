@@ -12,6 +12,10 @@ export const generateQuestionsSchema = z.object({
       codingCount: z.number().int().min(0).max(10).optional().default(0),
       sqlCount: z.number().int().min(0).max(10).optional().default(0),
       essayCount: z.number().int().min(0).max(10).optional().default(0),
+      fillCount: z.number().int().min(0).max(10).optional().default(0),
+      readingCount: z.number().int().min(0).max(10).optional().default(0),
+      listeningCount: z.number().int().min(0).max(10).optional().default(0),
+      speakingCount: z.number().int().min(0).max(10).optional().default(0),
 
       // Define difficulty
       difficulty: z.enum(['EASY', 'MEDIUM', 'HARD', 'ANY']).optional().default('ANY'),

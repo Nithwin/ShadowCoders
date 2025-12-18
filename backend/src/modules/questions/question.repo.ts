@@ -17,6 +17,7 @@ export const listQuestionsForExam = (examId: string) => {
       testcases: true,
       starterCode: true,
       wordLimit: true,
+      config: true,
     },
   });
 };
@@ -24,16 +25,18 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 
 
-export const createManyQuestions = (examId:string, questionsData: Prisma.QuestionCreateManyInput[]) => {
-
-    return prisma.question.createMany({
-        data: questionsData.map(q => (
-            {...q,
-                examId: examId,
-            }
-        ))
-    })
-}
+export const createManyQuestions = async (examId: string, questionsData: Prisma.QuestionCreateManyInput[]) => {
+  return prisma.$transaction(
+    questionsData.map((q) =>
+      prisma.question.create({
+        data: {
+          ...q,
+          examId: examId,
+        },
+      })
+    )
+  );
+};
 
 export const getQuestionById = (questionId: string) => {
   return prisma.question.findUnique({

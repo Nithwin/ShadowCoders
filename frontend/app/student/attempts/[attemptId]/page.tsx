@@ -464,6 +464,53 @@ export default function ExamAttemptPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, attempt]);
 
+  // STRICT Malpractice Prevention (User Request)
+  // Auto-submit immediately on:
+  // 1. Tab switching / Window minimization (visibilitychange)
+  // 2. Focus loss (blur)
+  // 3. Escape key press (keydown)
+  useEffect(() => {
+    if (!attempt || attempt.status !== 'IN_PROGRESS') return;
+
+    const handleStrictViolation = (reason: string) => {
+      // Immediate auto-submit
+      handleSubmitExam(true, `Malpractice Detected: ${reason}`);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleStrictViolation('Tab switching or window minimized');
+      }
+    };
+
+    const handleBlur = () => {
+      // Check if it's an iframe (some editors use iframes) or actual window blur
+      // But for strict mode, we assume any window blur is a violation
+      handleStrictViolation('Window focus lost (switched window or tab)');
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Escape key specifically
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        handleStrictViolation('Escape key pressed');
+      }
+    };
+
+    // Attach listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+    // Use capture=true for keydown to ensure we catch it before others
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    };
+  }, [attempt, handleSubmitExam]);
+
   // Loading state
   if (isLoading) {
     return <ExamLoadingScreen />;
@@ -511,52 +558,7 @@ export default function ExamAttemptPage() {
   // Combine fullscreen warnings
   const showFullscreenWarning = fullscreenWarningState || cheatingWarning;
 
-  // STRICT Malpractice Prevention (User Request)
-  // Auto-submit immediately on:
-  // 1. Tab switching / Window minimization (visibilitychange)
-  // 2. Focus loss (blur)
-  // 3. Escape key press (keydown)
-  useEffect(() => {
-    if (!attempt || attempt.status !== 'IN_PROGRESS') return;
 
-    const handleStrictViolation = (reason: string) => {
-      // Immediate auto-submit
-      handleSubmitExam(true, `Malpractice Detected: ${reason}`);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handleStrictViolation('Tab switching or window minimized');
-      }
-    };
-
-    const handleBlur = () => {
-      // Check if it's an iframe (some editors use iframes) or actual window blur
-      // But for strict mode, we assume any window blur is a violation
-      handleStrictViolation('Window focus lost (switched window or tab)');
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Block Escape key specifically
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        handleStrictViolation('Escape key pressed');
-      }
-    };
-
-    // Attach listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    // Use capture=true for keydown to ensure we catch it before others
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    };
-  }, [attempt, handleSubmitExam]);
 
   return (
     <div ref={containerRef} className="h-screen overflow-hidden bg-gray-50 text-gray-900 flex flex-col">

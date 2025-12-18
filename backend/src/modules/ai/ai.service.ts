@@ -35,6 +35,8 @@ Generate exam questions based on the following requirements:
 - Coding Questions: ${codingCount} (Language: ${language})
 - SQL Questions: ${sqlCount}
 - Essay Questions: ${essayCount}
+- Fill-in-the-Blanks: ${input.fillCount || 0}
+- Reading Comprehension: ${input.readingCount || 0}
 
 **CRITICAL REQUIREMENTS:**
 1. You MUST return ONLY a valid JSON object with this exact structure:
@@ -86,7 +88,7 @@ Generate exam questions based on the following requirements:
   "type": "SQL",
   "order": <number>,
   "points": ${points},
-  "prompt": "<SQL problem description in Markdown (.md)...>",
+  "prompt": "<SQL problem description in Markdown (.md). CRITICAL: You MUST include Markdown tables to visualize the database schema at the beginning of the prompt. For each table in the DDL, create a small markdown table showing columns and 2-3 rows of sample data. Example:\\n\\n### Schema\\n\\n**Customers**\\n| id | name |\\n|---|---|\\n| 1 | Alice |\\n| 2 | Bob |\\n\\n...Description of the query required...>",
   "config": {
     "ddl": "<DDL statements using SQLite syntax: CREATE TABLE...; INSERT INTO...;>"
   },
@@ -99,6 +101,17 @@ Generate exam questions based on the following requirements:
     { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
     { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 }
   ]
+}
+
+**For FILL (Fill-in-the-Blanks) questions:**
+{
+  "type": "FILL",
+  "order": <number>,
+  "points": ${points},
+  "prompt": "<Instruction for the student, e.g. 'Complete the sentences below.'>",
+  "clozeTemplate": "<Text with blanks marked as [blank]. Example: The capital of France is [blank].>",
+  "blanks": ["Paris"],
+  "clozeConfig": {}
 }
 
 **CRITICAL SQL REQUIREMENTS:**
@@ -278,10 +291,11 @@ export const generateQuestions = async (input: GenerateInput) => {
     try {
       parsedJson = JSON.parse(cleanedResponse);
     } catch (error) {
-      console.error('Failed to parse AI response. Raw response:', aiResponseString);
       console.error('Cleaned response:', cleanedResponse);
       throw { status: 500, message: 'AI returned malformed JSON data. Please try again.' };
     }
+
+    console.log('AI Generation Success. Parsed questions:', JSON.stringify(parsedJson, null, 2));
 
     // 4. **CRITICAL: Validate the AI's output against our *own* schema.**
     // We use the `addQuestionsSchema` from the 'questions' module for this.

@@ -45,18 +45,19 @@ export default function ExamContentArea({
   reportButton,
 }: ExamContentAreaProps) {
   const isCodingQuestion = currentQuestion?.type === QType.CODING;
+  const isSQLQuestion = currentQuestion?.type === QType.SQL;
   const isEssayQuestion = currentQuestion?.type === QType.ESSAY;
   const isMCQQuestion = currentQuestion?.type === QType.MCQ;
   const isListeningQuestion = currentQuestion?.type === QType.LISTENING;
   const isSpeakingQuestion = currentQuestion?.type === QType.SPEAKING;
 
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isEssayQuestion || isMCQQuestion || isListeningQuestion || isSpeakingQuestion ? 'h-full' : 'overflow-y-auto'}`}>
-      {!isCodingQuestion && !isEssayQuestion && !isMCQQuestion && !isListeningQuestion && !isSpeakingQuestion && (
+    <div className={`flex-1 flex flex-col overflow-hidden ${isCodingQuestion || isSQLQuestion || isEssayQuestion || isMCQQuestion || isListeningQuestion || isSpeakingQuestion ? 'h-full' : 'overflow-y-auto'}`}>
+      {!isCodingQuestion && !isSQLQuestion && !isEssayQuestion && !isMCQQuestion && !isListeningQuestion && !isSpeakingQuestion && (
         <QuestionHeader type={currentQuestion.type} points={currentQuestion.points} />
       )}
 
-      <div className={`flex-1 ${isCodingQuestion || isEssayQuestion || isMCQQuestion || isListeningQuestion || isSpeakingQuestion ? 'flex flex-col h-full' : 'pb-24'}`}>
+      <div className={`flex-1 ${isCodingQuestion || isSQLQuestion || isEssayQuestion || isMCQQuestion || isListeningQuestion || isSpeakingQuestion ? 'flex flex-col h-full' : 'pb-24'}`}>
         {/* MCQ Question */}
         {currentQuestion.type === QType.MCQ && currentQuestion.options && (() => {
           const chosenOptionIds = answers[currentQuestion.id]?.chosenOptionIds;
@@ -125,8 +126,8 @@ export default function ExamContentArea({
           );
         })()}
 
-        {/* Coding Question */}
-        {currentQuestion.type === QType.CODING && (
+        {/* Coding & SQL Question */}
+        {(currentQuestion.type === QType.CODING || currentQuestion.type === QType.SQL) && (
           <CodingQuestion
             questionId={currentQuestion.id}
             prompt={currentQuestion.prompt || ''}
@@ -142,7 +143,7 @@ export default function ExamContentArea({
             canGoPrev={currentQuestionIndex > 0}
             isLastQuestion={currentQuestionIndex === questions.length - 1}
             onSubmit={onSubmitExam}
-            allowedLanguages={allowedLanguages}
+            allowedLanguages={currentQuestion.type === QType.SQL ? ['sql'] : allowedLanguages}
             reportButton={reportButton}
           />
         )}

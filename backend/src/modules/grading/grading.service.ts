@@ -93,9 +93,18 @@ export const runCode = async (
   let result: any;
 
   if (customInput !== undefined) {
-    // Run with custom input (even if empty string - user wants to test with empty input) - queued
+    // Run with custom input (even if empty string - queued
+    let payloadInput = customInput;
+    if (question.type === QType.SQL) {
+      const config = question.config as { ddl?: string } | null;
+      if (config?.ddl) {
+        // Prepend DDL to custom input (which acts as additional DML/Inserts)
+        payloadInput = `${config.ddl}\n${customInput || ''}`;
+      }
+    }
+
     const executionResult = await executionQueue.enqueue(async () => {
-      return await executeCodeLocally(code, language, customInput, 5000);
+      return await executeCodeLocally(code, language, payloadInput, 5000);
     });
 
     // Format result for custom input
