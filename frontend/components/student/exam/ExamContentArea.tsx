@@ -145,6 +145,7 @@ export default function ExamContentArea({
             onSubmit={onSubmitExam}
             allowedLanguages={currentQuestion.type === QType.SQL ? ['sql'] : allowedLanguages}
             reportButton={reportButton}
+            sqlDdl={currentQuestion.type === QType.SQL ? (currentQuestion as any).config?.ddl : undefined}
           />
         )}
 

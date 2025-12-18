@@ -134,6 +134,7 @@ export default function ExamHeader({
                     const sectionType = sectionQuestions.length > 0 ? sectionQuestions[0].type : null;
                     const sectionLabel = sectionType === QType.MCQ ? 'MCQ' : 
                                        sectionType === QType.CODING ? 'Coding' : 
+                                       sectionType === QType.SQL ? 'SQL' :
                                        sectionType === QType.ESSAY ? 'Essay' : section.title;
                     const isActive = currentSectionId === section.id;
                     
@@ -144,6 +145,8 @@ export default function ExamHeader({
                           return 'bg-blue-600 text-white border-blue-700 shadow-md';
                         } else if (sectionType === QType.CODING) {
                           return 'bg-green-600 text-white border-green-700 shadow-md';
+                        } else if (sectionType === QType.SQL) {
+                          return 'bg-indigo-600 text-white border-indigo-700 shadow-md';
                         } else if (sectionType === QType.ESSAY) {
                           return 'bg-purple-600 text-white border-purple-700 shadow-md';
                         }

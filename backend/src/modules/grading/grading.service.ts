@@ -104,7 +104,7 @@ export const runCode = async (
     }
 
     const executionResult = await executionQueue.enqueue(async () => {
-      return await executeCodeLocally(code, language, payloadInput, 5000);
+      return await executeCodeLocally(code, language, payloadInput, 10000);
     });
 
     // Format result for custom input
@@ -188,7 +188,7 @@ export const runCode = async (
       return {
         input: input,
         expectedOutput: tc.expectedOutput,
-        timeoutMs: tc.timeoutMs || 5000, // Default 5 seconds for local execution
+        timeoutMs: tc.timeoutMs || 10000, // Default 10 seconds for local execution
         isHidden: tc.isHidden || false,
         originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
       };

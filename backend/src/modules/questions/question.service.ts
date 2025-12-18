@@ -105,8 +105,8 @@ const question = await questionRepo.getQuestionById(questionId);
   delete scrubbedQuestion.correctOptionIds;
   delete scrubbedQuestion.blanks;
 
-  // For coding questions, only return non-hidden test cases
-  if (question.type === QType.CODING && Array.isArray(question.testcases)) {
+  // For coding and SQL questions, only return non-hidden test cases
+  if ((question.type === QType.CODING || question.type === QType.SQL) && Array.isArray(question.testcases)) {
     scrubbedQuestion.testcases = question.testcases
       .filter((tc: any) => tc && tc.isHidden === false)
       .map((tc: any) => ({
@@ -114,7 +114,7 @@ const question = await questionRepo.getQuestionById(questionId);
         expectedOutput: tc.expectedOutput,
       }));
   } else {
-    // Ensure testcases are removed for non-coding questions
+    // Ensure testcases are removed for other question types
     delete scrubbedQuestion.testcases;
   }
 

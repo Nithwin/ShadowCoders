@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2, Database } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -34,8 +34,10 @@ type CodingQuestionProps = {
   onSubmit?: () => void;
   allowedLanguages?: string[] | null;
   reportButton?: React.ReactNode;
+  sqlDdl?: string;
 };
 
+// ... (LANGUAGES array remains same)
 const LANGUAGES = [
   { value: 'javascript', label: 'JavaScript', monacoLang: 'javascript' },
   { value: 'python', label: 'Python 3', monacoLang: 'python' },
@@ -74,6 +76,7 @@ export default function CodingQuestion({
   onSubmit,
   allowedLanguages,
   reportButton,
+  sqlDdl,
 }: CodingQuestionProps) {
   // Filter available languages based on exam's allowedLanguages
   const availableLanguages = allowedLanguages && allowedLanguages.length > 0
@@ -481,10 +484,16 @@ export default function CodingQuestion({
         <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Code className="w-5 h-5 text-blue-600" />
+              <div className={`p-2 rounded-lg ${sqlDdl ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                {sqlDdl ? (
+                  <Database className="w-5 h-5 text-purple-600" />
+                ) : (
+                  <Code className="w-5 h-5 text-blue-600" />
+                )}
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Coding Question</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                {sqlDdl ? 'SQL Question' : 'Coding Question'}
+              </h2>
             </div>
             <div className="flex items-center gap-3">
               {reportButton}
@@ -558,6 +567,27 @@ export default function CodingQuestion({
             </ReactMarkdown>
           </div>
 
+
+          {/* SQL Database Schema (DDL) */}
+          {sqlDdl && (
+            <div className="mt-8 space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5 mb-5">
+                <div className="p-1.5 bg-purple-100 rounded-lg">
+                  <Database className="w-5 h-5 text-purple-600" />
+                </div>
+                Database Schema
+              </h3>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                 <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
+                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Schema Setup (SQL)</span>
+                 </div>
+                 <pre className="text-sm text-gray-800 font-mono bg-white p-4 overflow-x-auto m-0">
+                   {sqlDdl}
+                 </pre>
+              </div>
+            </div>
+          )}
+
           {/* Sample Test Cases */}
           {visibleTestCases.length > 0 && (
             <div className="mt-8 space-y-4">
@@ -602,10 +632,10 @@ export default function CodingQuestion({
               <div className="text-sm text-blue-900">
                 <p className="font-bold mb-3 text-base">💡 Important Notes:</p>
                 <ul className="list-disc list-inside space-y-2 text-sm">
-                  <li><strong>Run Code:</strong> Tests your code with sample test cases and shows detailed results</li>
+                  <li><strong>{sqlDdl ? 'Run Query' : 'Run Code'}:</strong> Tests your {sqlDdl ? 'query' : 'code'} with sample test cases and shows detailed results</li>
                   <li><strong>Submit:</strong> Runs ALL test cases (including hidden ones) and shows only pass/fail summary</li>
                   <li>Hidden test cases are included when you submit, but details are hidden</li>
-                  <li>Test thoroughly using &quot;Run Code&quot; before submitting your final answer</li>
+                  <li>Test thoroughly using &quot;{sqlDdl ? 'Run Query' : 'Run Code'}&quot; before submitting your final answer</li>
                 </ul>
               </div>
             </div>
@@ -666,7 +696,7 @@ export default function CodingQuestion({
             disabled={isRunning || isSubmitting}
             type="button"
             className="px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-gray-200 border border-gray-600 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-[#2d2d2d] flex-shrink-0 w-[85px]"
-            title="Clear code and reset to starter code"
+            title={sqlDdl ? "Clear query and reset" : "Clear code and reset to starter code"}
           >
             <RotateCcw className="w-4 h-4" />
             <span className="text-xs">Clear</span>
@@ -688,7 +718,7 @@ export default function CodingQuestion({
                 <Play className="w-4 h-4" />
               </>
             )}
-            <span className="text-xs">Run</span>
+            <span className="text-xs">{sqlDdl ? 'Run Query' : 'Run Code'}</span>
           </button>
           
           {/* Submit Button - Fixed width, larger icon */}
@@ -697,7 +727,7 @@ export default function CodingQuestion({
             disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0}
             type="button"
             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-green-600 flex-shrink-0 w-[100px]"
-            title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : 'Submit your code'}
+            title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : (sqlDdl ? 'Submit your query' : 'Submit your code')}
           >
             {isSubmitting ? (
               <>

@@ -91,13 +91,13 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     extension: 'js',
     command: 'node',
     runCommand: (filePath) => `node "${filePath}"`,
-    timeout: 5000,
+    timeout: 10000,
   },
   python: {
     extension: 'py',
     command: getPythonCommand(),
     runCommand: (filePath) => `${getPythonCommand()} "${filePath}"`,
-    timeout: 5000,
+    timeout: 10000,
   },
   java: {
     extension: 'java',
@@ -186,7 +186,7 @@ export async function executeCodeLocally(
   code: string,
   language: string,
   input?: string,
-  timeoutMs: number = 5000
+  timeoutMs: number = 10000
 ): Promise<ExecutionResult> {
   const langConfig = LANGUAGE_CONFIGS[language.toLowerCase()];
   

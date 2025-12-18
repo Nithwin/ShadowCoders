@@ -7,6 +7,13 @@ export function getFilteredQuestions(
   currentSectionType: QType | undefined
 ): Question[] {
   if (currentSectionId && currentSectionType) {
+    // Special handling for Coding questions - show both CODING and SQL
+    if (currentSectionType === QType.CODING || currentSectionType === QType.SQL) {
+      return questions.filter(q => 
+        q.sectionId === currentSectionId && 
+        (q.type === QType.CODING || q.type === QType.SQL)
+      );
+    }
     return questions.filter(q => q.sectionId === currentSectionId && q.type === currentSectionType);
   }
   return questions;

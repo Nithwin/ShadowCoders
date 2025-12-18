@@ -103,11 +103,19 @@ export default function QuestionNavigation({
     
     // Method 3: Filter by question type based on section title
     if (questionsToShow.length === 0 && currentSectionType) {
-      questionsToShow = questions.filter(q => q.type === currentSectionType);
+      if (currentSectionType === QType.CODING || currentSectionType === QType.SQL) {
+         questionsToShow = questions.filter(q => q.type === QType.CODING || q.type === QType.SQL);
+      } else {
+         questionsToShow = questions.filter(q => q.type === currentSectionType);
+      }
     }
   } else if (currentSectionType) {
     // If no section selected, filter by type only
-    questionsToShow = questions.filter(q => q.type === currentSectionType);
+     if (currentSectionType === QType.CODING || currentSectionType === QType.SQL) {
+        questionsToShow = questions.filter(q => q.type === QType.CODING || q.type === QType.SQL);
+     } else {
+        questionsToShow = questions.filter(q => q.type === currentSectionType);
+     }
   } else {
     // Show all questions if no section or type
     questionsToShow = questions;
@@ -125,8 +133,7 @@ export default function QuestionNavigation({
         <div className="flex-1 overflow-y-auto">
           <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 text-center">
             {currentSectionType === QType.MCQ ? 'MCQ Questions' : 
-             currentSectionType === QType.CODING ? 'Coding Questions' :
-             currentSectionType === QType.SQL ? 'SQL Questions' :
+             (currentSectionType === QType.CODING || currentSectionType === QType.SQL) ? 'Coding & SQL' :
              currentSectionType === QType.ESSAY ? 'Essay Questions' : 'Questions'}
           </h4>
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 justify-items-center">

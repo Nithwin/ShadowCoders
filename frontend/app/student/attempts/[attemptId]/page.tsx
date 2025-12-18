@@ -62,6 +62,7 @@ export default function ExamAttemptPage() {
   // Fullscreen management refs (for submission hook)
   const exitFullscreenRef = useRef<(() => Promise<void>) | null>(null);
   const isFullscreenRef = useRef<boolean>(false);
+  const hasEnteredFullscreenRef = useRef(false);
 
   // Socket.IO activity tracking
   const { emitActivity, socket } = useExamSocket({
@@ -511,6 +512,16 @@ export default function ExamAttemptPage() {
     };
   }, [attempt, handleSubmitExam]);
 
+  // Strict Fullscreen Enforcement: Auto-submit on exit
+  useEffect(() => {
+    if (isFullscreen) {
+      hasEnteredFullscreenRef.current = true;
+    } else if (hasEnteredFullscreenRef.current && attempt?.status === 'IN_PROGRESS' && !isSubmitting) {
+      // User exited fullscreen after entering -> Strict Violation
+      handleSubmitExam(true, 'Malpractice Detected: Exited Fullscreen (Esc key or similar)');
+    }
+  }, [isFullscreen, attempt?.status, isSubmitting, handleSubmitExam]);
+
   // Loading state
   if (isLoading) {
     return <ExamLoadingScreen />;
@@ -552,8 +563,8 @@ export default function ExamAttemptPage() {
     return acc;
   }, {} as Record<string, { textAnswer?: string }>);
 
-  // Show fullscreen requirement if exam is in progress but not in fullscreen
-  const showFullscreenRequirement = attempt?.status === 'IN_PROGRESS' && !isFullscreen;
+  // Show fullscreen requirement if exam is in progress but not in fullscreen (and not submitting)
+  const showFullscreenRequirement = attempt?.status === 'IN_PROGRESS' && !isFullscreen && !isSubmitting;
 
   // Combine fullscreen warnings
   const showFullscreenWarning = fullscreenWarningState || cheatingWarning;
@@ -651,7 +662,7 @@ export default function ExamAttemptPage() {
         />
         
         {/* Question Content Area */}
-        <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ, QType.SQL].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
           {currentQuestion && (
             <div className="relative h-full flex flex-col">
                 <ExamContentArea
