@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           try {
             // Try to get the user profile with the stored token
-            const { data: userData } = await api.get('/me');
+            const { data: userData } = await api.get('/auth/me');
             setUser(userData);
             setIsLoading(false);
             return; // We're done if this works
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           // If refresh succeeds, get the user's profile
-          const { data: userData } = await api.get('/me');
+          const { data: userData } = await api.get('/auth/me');
           setUser(userData);
         }
       } catch (error) {
@@ -112,7 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Step 3: Get user profile
-      const { data: userData } = await api.get('/me');
+      const { data: userData } = await api.get('/auth/me');
       setUser(userData);
     } catch (error: any) {
       // Log error for debugging
@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.setItem('accessToken', data.accessToken);
     }
     
-    const { data: userData } = await api.get('/me');
+    const { data: userData } = await api.get('/auth/me');
     setUser(userData);
   }, []);
 
@@ -164,7 +164,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Update User Function
   const updateUser = useCallback(async (updateData: any) => {
     try {
-      const { data } = await api.patch('/me', updateData);
+      const { data } = await api.patch('/auth/me', updateData);
       setUser(data);
     } catch (error) {
        console.error('Update user error', error);

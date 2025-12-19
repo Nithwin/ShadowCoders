@@ -15,10 +15,10 @@ export const registerAuthRoutes = (app:Express) => {
 
     app.post('/api/auth/login', authController.emailLoginHandler);
 
-    app.get('/api/me', verifyAccess, authController.getMeHandler);
-    app.patch('/api/me', verifyAccess, authController.updateMeHandler);
+    app.get('/api/auth/me', verifyAccess, authController.getMeHandler);
+    app.patch('/api/auth/me', verifyAccess, authController.updateMeHandler);
     app.post('/api/auth/change-password', verifyAccess, authController.changePasswordHandler);
-    app.post('/api/me/picture', verifyAccess, upload.single('picture'), authController.uploadProfilePictureHandler);
+    app.post('/api/auth/me/picture', verifyAccess, upload.single('picture'), authController.uploadProfilePictureHandler);
 
     app.post('/api/auth/refresh', authController.refreshAccessTokenHandler);
     
