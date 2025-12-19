@@ -3,9 +3,10 @@ import { io, Socket } from 'socket.io-client';
 // Get socket URL with proper protocol handling (ws for HTTP, wss for HTTPS)
 function getSocketUrl(): string {
   // Check environment variables first
-  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '');
+  const envUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
   if (envUrl) {
-    return envUrl;
+    // Always strip /api suffix for socket connection
+    return envUrl.replace(/\/api\/?$/, '');
   }
 
   // In browser, auto-detect from current location
