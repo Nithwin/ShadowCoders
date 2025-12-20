@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   
-  const { login, loginWithGoogle, user, isLoading: authLoading } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   // Google login removed
