@@ -92,21 +92,25 @@ export const getCookieOptions = (req: Request) => {
     // Setting domain explicitly can cause issues with localhost/LAN IP cookies
     
     // For Production/Tunnel (HTTPS), we need to set the domain to share cookies across subdomains
-    if (isSecure) {
-        // parsing domain from request host
-        // e.g. api.shadowcoders.app -> .shadowcoders.app
-        const host = req.get('host') || '';
+    // We detect this checks if the host is NOT localhost or an IP address
+    const host = req.get('host') || '';
+    const isLocalhost = host.includes('localhost') || host === '127.0.0.1' || host.startsWith('192.168.');
+    
+    // If we are NOT on localhost (e.g. tunnel or prod), OR if it's securely serving
+    if (!isLocalhost || isSecure) {
+        // Force secure to true for any public access (Cloudflare, Vercel, etc.)
+        // even if the internal node process thinks it's HTTP
+        cookieOptions.secure = true;
+        
         // If we have a COOKIE_DOMAIN env var, use it
         if (process.env.COOKIE_DOMAIN) {
             cookieOptions.domain = process.env.COOKIE_DOMAIN;
         } 
         // Auto-detect root domain for subdomains
-        else if (host.includes('.') && !host.includes('localhost') && !host.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+        else if (host.includes('.') && !host.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
             const parts = host.split('.');
             if (parts.length >= 2) {
                 // Get the last two parts (e.g. shadowcoders.app)
-                // This is a naive check, might need to be more robust for .co.uk etc if needed
-                // But for shadowcoders.app it's fine.
                 const rootDomain = parts.slice(-2).join('.');
                 cookieOptions.domain = '.' + rootDomain;
             }
