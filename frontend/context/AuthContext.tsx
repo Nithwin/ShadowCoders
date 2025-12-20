@@ -98,8 +98,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Login function
   const login = useCallback(async (email: string, pass: string) => {
     try {
+      console.log(`[AuthContext] Attempting login for: ${email}`);
       // Step 1: Login and get access token
       const { data } = await api.post('/auth/login', { email, password: pass });
+      console.log('[AuthContext] Login response:', data);
       
       if (!data || !data.accessToken) {
         throw new Error('No access token received from server');

@@ -54,9 +54,17 @@ const RETRY_DELAY = 1000; // 1 second
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Log success for debugging
+    if (process.env.NODE_ENV === 'production') {
+       console.log(`[API SUCCESS] ${response.status} ${response.config.url}`);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    // Log error for debugging
+    console.error(`[API ERROR] ${error.response?.status} ${originalRequest?.url}`, error.response?.data);
 
     // Suppress console errors for 404s on attempt endpoints (expected behavior)
     if (error.response?.status === 404 && originalRequest.url?.includes('/admin/attempts/')) {

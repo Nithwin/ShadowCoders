@@ -16,6 +16,7 @@ export const handleEmailLogin = async (input: any) => {
   try {
     // Normalize email to lowercase for consistent lookup
     const normalizedEmail = input.email?.toLowerCase().trim();
+    console.log(`[AuthService] Handling login for: ${normalizedEmail}`);
     
     if (!normalizedEmail || !input.password) {
       throw { status: 400, message: 'Email and password are required' };
