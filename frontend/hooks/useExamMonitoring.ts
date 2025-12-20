@@ -44,7 +44,7 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
     // Handle connection events
     socket.on('connect', () => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Monitoring] Socket connected');
+
       }
       setIsConnected(true);
       // Join admin monitoring room after connection is established
@@ -53,7 +53,7 @@ export const useExamMonitoring = (options: UseExamMonitoringOptions) => {
 
     socket.on('disconnect', () => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Monitoring] Socket disconnected');
+
       }
       setIsConnected(false);
     });

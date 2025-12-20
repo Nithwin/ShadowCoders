@@ -64,7 +64,7 @@ export function useAutoSave({
       if (retryCount < MAX_RETRIES) {
         const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[AutoSave] Retrying save for question ${questionId} in ${retryDelay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+
         }
         
         setTimeout(() => {
@@ -125,7 +125,7 @@ export function useAutoSave({
       failedSavesRef.current.forEach((retryCount, questionId) => {
         if (retryCount < MAX_RETRIES) {
           if (process.env.NODE_ENV === 'development') {
-            console.log(`[AutoSave] Retrying failed save for question ${questionId}`);
+
           }
           saveAnswer(questionId, retryCount);
         }

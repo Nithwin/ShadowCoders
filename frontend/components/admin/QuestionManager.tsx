@@ -178,7 +178,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
             });
             
             testcases = formattedTestcases;
-            console.log(`Formatted ${formattedTestcases.length} testcases for coding question:`, formattedTestcases);
+
           } else {
             // If no testcases, this is a problem - log error
             console.error('⚠️ CRITICAL: Coding question has no testcases!', {
@@ -235,7 +235,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
       });
 
       // Log formatted questions for debugging (especially testcases)
-      console.log('Formatted questions to save:', JSON.stringify(formattedQuestions, null, 2));
+
       
       // Validate that coding questions have testcases
       const codingQuestions = formattedQuestions.filter((q): q is typeof q & { type: QType.CODING; testcases: unknown[] } => 
@@ -245,7 +245,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
         if (!q.testcases || !Array.isArray(q.testcases) || q.testcases.length === 0) {
           console.error(`Coding question ${idx} has no testcases:`, q);
         } else {
-          console.log(`Coding question ${idx} has ${q.testcases.length} testcases:`, q.testcases);
+
         }
       });
       
@@ -264,7 +264,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
         
       if (createdSqlQuestions.length > 0) {
         try {
-          console.log('Auto-organizing SQL questions...');
+
           // 1. Fetch sections to see if "SQL Questions" exists
           const sectionsRes = await api.get(`/admin/exams/${examId}/sections`);
           const sections = sectionsRes.data;
@@ -275,7 +275,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           
           // 2. If not, create it
           if (!sqlSection) {
-            console.log('Creating new SQL Questions section...');
+
             const newSectionRes = await api.post(`/admin/exams/${examId}/sections`, {
               title: 'SQL Questions',
               order: sections.length + 1,
@@ -295,7 +295,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
           
           // 3. Add questions to the section
           if (sqlSection) {
-            console.log(`Adding ${createdSqlQuestions.length} questions to section ${sqlSection.title}...`);
+
             const questionsToAdd = createdSqlQuestions.map((q: any, idx: number) => ({
               questionId: q.id,
               order: idx + 1
@@ -313,7 +313,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
         }
       }
 
-      console.log('Save response:', saveResponse.data);
+
 
       // Refresh the list from the DB (this gets the new real IDs)
       await fetchQuestions();

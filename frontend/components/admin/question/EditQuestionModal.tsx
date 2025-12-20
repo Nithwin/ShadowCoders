@@ -230,12 +230,7 @@ export default function EditQuestionModal({
       
       // Debug log for MCQ data
       if (question.type === QType.MCQ) {
-         console.log('Loading MCQ data:', {
-           options,
-           correctOptionIds,
-           rawOptions: question.options,
-           rawCorrectOptionIds: question.correctOptionIds
-         });
+
       }
 
       reset({
@@ -300,7 +295,7 @@ export default function EditQuestionModal({
             throw new Error('Coding question must have at least one valid test case with both input and expected output');
           }
           
-          console.log('✅ Sending testcases to backend:', JSON.stringify(updateData.testcases, null, 2));
+
         } else {
           console.error('❌ No testcases found in form data or testcases array is empty!', {
             testcases: validatedData.testcases,
@@ -334,11 +329,11 @@ export default function EditQuestionModal({
         }
       }
 
-      console.log('Updating question with data:', JSON.stringify(updateData, null, 2));
+
 
       const response = await api.put(`/admin/questions/${question.id}`, updateData);
       
-      console.log('Update response:', response.data);
+
 
       onSuccess();
       onOpenChange(false);

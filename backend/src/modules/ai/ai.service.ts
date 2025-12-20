@@ -295,7 +295,7 @@ export const generateQuestions = async (input: GenerateInput) => {
       throw { status: 500, message: 'AI returned malformed JSON data. Please try again.' };
     }
 
-    console.log('AI Generation Success. Parsed questions:', JSON.stringify(parsedJson, null, 2));
+
 
     // 4. **CRITICAL: Validate the AI's output against our *own* schema.**
     // We use the `addQuestionsSchema` from the 'questions' module for this.

@@ -61,7 +61,7 @@ export default function ExamSubmissionsPage() {
 
   // Debounce the search query
   const debouncedSetSearch = useDebouncedCallback((query: string) => {
-    console.log('[Search] Debounced search triggered with query:', query);
+
     setSearchQuery(query);
     setCurrentPage(1); // Reset to page 1 on new search
   }, 500);
@@ -316,7 +316,7 @@ export default function ExamSubmissionsPage() {
               value={searchInput}
               onChange={(e) => {
                 const value = e.target.value;
-                console.log('[Search] Input changed:', value);
+
                 setSearchInput(value);
                 debouncedSetSearch(value);
               }}

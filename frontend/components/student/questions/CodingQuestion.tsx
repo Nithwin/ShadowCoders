@@ -360,17 +360,11 @@ export default function CodingQuestion({
       const result = response.data;
       
       // Debug: Log the result structure
-      console.log('🔍 Run code result:', result);
-      console.log('🔍 Test results array:', result.testResults);
-      console.log('🔍 Test results length:', result.testResults?.length);
-      if (result.testResults && result.testResults.length > 0) {
-        console.log('🔍 First test result:', result.testResults[0]);
-        console.log('🔍 Is custom input?', result.testResults[0].expectedOutput === '(Custom Input)');
-      }
+
       
       // Ensure testResults is always an array
       if (result && !Array.isArray(result.testResults)) {
-        console.warn('⚠️ testResults is not an array, fixing...', result.testResults);
+
         result.testResults = [];
       }
       

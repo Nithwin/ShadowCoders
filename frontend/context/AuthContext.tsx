@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return; // We're done if this works
           } catch (error) {
             // If the stored token is invalid/expired, clear it and fall back to refresh
-            console.log('Stored token invalid, trying refresh...');
+// Token check logic
             if (typeof window !== 'undefined') {
               localStorage.removeItem('accessToken');
             }
@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(userData);
         }
       } catch (error) {
-        console.log('No valid session found');
+        // No valid session
         // No valid session, user is not logged in
         // Clear any existing tokens
         setAccessToken(null);
@@ -98,10 +98,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Login function
   const login = useCallback(async (email: string, pass: string) => {
     try {
-      console.log(`[AuthContext] Attempting login for: ${email}`);
       // Step 1: Login and get access token
       const { data } = await api.post('/auth/login', { email, password: pass });
-      console.log('[AuthContext] Login response:', data);
       
       if (!data || !data.accessToken) {
         throw new Error('No access token received from server');

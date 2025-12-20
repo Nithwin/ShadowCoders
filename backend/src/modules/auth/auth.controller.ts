@@ -6,11 +6,11 @@ import { getCookieOptions } from '../../lib/cookie-utils';
 
 export const emailLoginHandler: RequestHandler = async (req, res, next) => {
     try{
-        console.log(`[AuthController] Login Request: ${req.body.email}`);
+
         const {accessToken, refreshToken} = await authService.handleEmailLogin(req.body);
 
         const cookieOptions = getCookieOptions(req);
-        console.log('[AuthController] Cookie Options:', JSON.stringify(cookieOptions, null, 2));
+
         
         res.cookie('refreshToken', refreshToken, {
             ...cookieOptions,

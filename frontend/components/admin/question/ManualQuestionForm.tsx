@@ -320,7 +320,7 @@ export default function ManualQuestionForm({
             isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
             timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 2000,
           }));
-          console.log('Creating coding question with testcases:', JSON.stringify(questionData.testcases, null, 2));
+
         } else {
           console.error('Coding question must have at least one testcase');
           setApiError('Coding question must have at least one test case');

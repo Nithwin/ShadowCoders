@@ -19,7 +19,7 @@ function getSocketUrl(): string {
       // Use the same hostname but port 4000 for backend
       const socketUrl = `${protocol}//${hostname}:4000`;
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[Socket] Auto-detected Socket URL: ${socketUrl}`);
+
       }
       return socketUrl;
     }
@@ -91,7 +91,7 @@ class SocketService {
 
     this.socket.on('connect', () => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[Socket] Connected to server');
+
       }
       this.reconnectAttempts = 0;
       // Notify all reconnect callbacks
@@ -103,7 +103,7 @@ class SocketService {
       const isTransportClose = reason === 'transport close';
       
       if (process.env.NODE_ENV === 'development' && !isTransportClose) {
-        console.log('[Socket] Disconnected from server:', reason);
+
       }
       // Notify disconnect callbacks
       this.disconnectCallbacks.forEach(cb => cb());
@@ -117,14 +117,14 @@ class SocketService {
 
     this.socket.on('reconnect', (attemptNumber: number) => {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[Socket] Reconnected after ${attemptNumber} attempts`);
+
       }
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('reconnect_attempt', (attemptNumber: number) => {
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[Socket] Reconnection attempt ${attemptNumber}/${this.maxReconnectAttempts}`);
+
       }
       this.reconnectAttempts = attemptNumber;
     });

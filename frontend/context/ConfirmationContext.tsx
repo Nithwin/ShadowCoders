@@ -41,17 +41,17 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
 
   const confirm = useCallback((opts: ConfirmationOptions): Promise<boolean> => {
     return new Promise((resolve) => {
-      console.log('Confirmation dialog opening with options:', opts);
+      // Dialog opening
       setOptions(opts);
       // Set flag to prevent immediate closing - use longer timeout
       justOpenedRef.current = true;
       setIsOpen(true);
       // Store the resolve function directly in ref
       resolvePromiseRef.current = resolve;
-      console.log('Dialog state set to open, resolve function stored, justOpened set to true');
+
       // Clear the flag after a longer delay to allow dialog to fully render and prevent click propagation
       setTimeout(() => {
-        console.log('Clearing justOpened flag');
+
         justOpenedRef.current = false;
       }, 300); // Increased to 300ms
     });
@@ -108,30 +108,30 @@ export function ConfirmationProvider({ children }: { children: ReactNode }) {
 
   const handleDialogClose = useCallback((open: boolean) => {
     const justOpened = justOpenedRef.current;
-    console.log('handleDialogClose called with open:', open, 'resolvePromiseRef.current:', !!resolvePromiseRef.current, 'justOpened:', justOpened);
+
     
     // Always allow opening
     if (open) {
-      console.log('Dialog opening - allowing');
+
       setIsOpen(true);
       return;
     }
     
     // Prevent closing immediately after opening (likely from button click propagation)
     if (justOpened) {
-      console.log('Dialog close prevented - just opened, likely from button click propagation. Ignoring close request.');
+
       // Don't update state - keep dialog open
       return;
     }
     
     if (resolvePromiseRef.current) {
       // Dialog was closed (via X button, ESC, or outside click) - treat as cancel
-      console.log('Dialog closed without confirm/cancel, resolving with false');
+
       const resolveFn = resolvePromiseRef.current;
       resolvePromiseRef.current = null;
       resolveFn(false);
     }
-    console.log('Setting dialog to closed');
+
     setIsOpen(false);
   }, []);
 

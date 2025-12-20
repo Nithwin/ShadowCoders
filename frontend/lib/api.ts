@@ -17,7 +17,7 @@ export function getApiBaseUrl(): string {
       // Use the same hostname but port 4000 for backend
       const apiUrl = `${protocol}//${hostname}:4000/api`;
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[API] Auto-detected API URL: ${apiUrl}`);
+
       }
       return apiUrl;
     }
@@ -57,7 +57,7 @@ api.interceptors.response.use(
   (response) => {
     // Log success for debugging
     if (process.env.NODE_ENV === 'production') {
-       console.log(`[API SUCCESS] ${response.status} ${response.config.url}`);
+
     }
     return response;
   },
@@ -143,7 +143,7 @@ api.interceptors.response.use(
       const delay = RETRY_DELAY * Math.pow(2, retryCount);
       
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[API] Retrying request (${originalRequest._retryCount}/${MAX_RETRIES}): ${originalRequest.url} after ${delay}ms`);
+        // Retrying request
       }
       
       await sleep(delay);

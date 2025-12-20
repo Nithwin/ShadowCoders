@@ -23,7 +23,7 @@ function getApiBaseUrl(): string {
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
       // Use the same hostname but port 4000 for backend
       const apiUrl = `${protocol}//${hostname}:4000`;
-      console.log(`[API Config] Auto-detected API URL: ${apiUrl}`);
+
       return apiUrl;
     }
   }

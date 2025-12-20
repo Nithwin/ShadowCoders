@@ -250,14 +250,7 @@ export async function detectBrowserExtensionsAsync(): Promise<ExtensionDetection
             : '',
         };
 
-        // Debug logging
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Extension Detection Async]', {
-            finalResult,
-            extensionIdsFound: extensionIds.length,
-            checkCount,
-          });
-        }
+
 
         resolve(finalResult);
       }
@@ -452,16 +445,7 @@ export function detectBrowserExtensions(): ExtensionDetectionResult {
     }
   }
 
-  // Debug logging in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[Extension Detection]', {
-      hasExtensions,
-      detectedExtensions,
-      chromeExists: !!window.chrome,
-      runtimeExists: !!(window.chrome && window.chrome.runtime),
-      extensionIdsFound: findExtensionIdsInChrome().length,
-    });
-  }
+
 
   // Return result
   if (hasExtensions || detectedExtensions.length > 0) {
