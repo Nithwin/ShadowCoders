@@ -10,36 +10,7 @@ import fs from 'fs';
 import path from 'path';
 
 // --- (Your GoogleProfile interface) ---
-interface GoogleProfile {
-  email: string;
-  name?: string | null;
-  pictureUrl?: string | null;
-  googleId: string;
-}
-// --- (Your PublicUser type) ---
-type PublicUser = {
-  id: string;
-  email: string;
-  name: string | null;
-  role: Role;
-  pictureUrl: string | null;
-  createdAt: Date;
-} | null;
 
-export const handleGoogleLogin = async (profile: GoogleProfile) => {
-  const user = await authRepo.findUserByEmailAndLinkGoogle(profile);
-  if (!user) {
-    throw { status: 403, message: 'Access denied. User is not registered.' };
-  }
-
-  const payload: UserPayLoad = { sub: user.id, role: user.role };
-
-  // **UPDATED:** Use new token service
-  const accessToken = tokenService.generateAccessToken(payload);
-  const refreshToken = await tokenService.generateAndSaveRefreshToken(user.id);
-
-  return { accessToken, refreshToken };
-};
 
 export const handleEmailLogin = async (input: any) => {
   try {

@@ -2,56 +2,7 @@ import { Prisma , User} from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { withDatabaseErrorHandling } from "../../lib/db-health";
 
-interface GoogleProfile {
-    email: string;
-    name?: string | null;
-    pictureUrl?: string | null;
-    googleId: string;
-}
 
-export const findUserByEmailAndLinkGoogle = async ({email, name, pictureUrl, googleId}: GoogleProfile) => {
-    return withDatabaseErrorHandling(async () => {
-        try{
-            const dataToUpdate :Prisma.UserUpdateInput = {
-                googleId:googleId,
-            }
-            if(name !== undefined){
-                dataToUpdate.name = name;
-            }
-            if(pictureUrl !== undefined){
-                dataToUpdate.pictureUrl = pictureUrl;
-            }
-            const user = await prisma.user.update({
-                where:{
-                    email:email,
-                },
-                data:dataToUpdate,
-            })
-            return user;
-            
-        } catch(error: any){
-            if(error.name === 'PrismaClientKnownRequestError' && error.code === 'P2025'){
-                try {
-                    const newUser = await prisma.user.create({
-                        data: {
-                            email: email,
-                            name: name || null,
-                            pictureUrl: pictureUrl || null,
-                            googleId: googleId,
-                            role: 'STUDENT',
-                        }
-                    });
-                    return newUser;
-                } catch (createError) {
-                    console.error('Failed to create user:', createError);
-                    return null;
-                }
-            }
-            console.error('Error in findUserByEmailAndLinkGoogle:', error);
-            throw error;
-        }
-    }, 'findUserByEmailAndLinkGoogle');
-}
 
 
 export const findUserByEmail = (email: string): Promise<User | null> => {

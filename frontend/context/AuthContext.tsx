@@ -123,21 +123,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  // Google Login function
-  const loginWithGoogle = useCallback(async (profile: { email: string; name: string; pictureUrl: string; googleId: string }) => {
-    const { data } = await api.post('/auth/google/callback', profile);
-    
-    setAccessToken(data.accessToken);
-    setAuthToken(data.accessToken);
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', data.accessToken);
-    }
-    
-    const { data: userData } = await api.get('/auth/me');
-    setUser(userData);
-  }, []);
+
 
   // Logout function
   const logout = useCallback(() => {
@@ -177,7 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     accessToken,
     isLoading,
     login,
-    loginWithGoogle,
+
     logout,
     updateUser,
   };

@@ -104,7 +104,6 @@ model User {
   year       Int?
   department String?
   section    String?
-  googleId   String? @unique
   leetcodeId String?
   leetcodeStats Json?
   settings   Json?

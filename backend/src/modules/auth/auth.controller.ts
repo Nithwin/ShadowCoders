@@ -2,24 +2,7 @@ import { RequestHandler } from "express";
 import * as authService from './auth.service';
 import { getCookieOptions } from '../../lib/cookie-utils';
 
-export const googleOAuthHandler: RequestHandler = async (req, res, next) => {
-    try{
-        const userProfile = req.body;
-        const {accessToken, refreshToken} = await authService.handleGoogleLogin(userProfile);
 
-        const cookieOptions = getCookieOptions(req);
-        
-        
-        res.cookie('refreshToken', refreshToken, {
-            ...cookieOptions,
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
-        res.json({accessToken});
-    } catch(error){
-        next(error);
-    }
-}
 
 export const emailLoginHandler: RequestHandler = async (req, res, next) => {
     try{

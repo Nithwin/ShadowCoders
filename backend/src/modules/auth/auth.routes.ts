@@ -11,7 +11,7 @@ const upload = multer({
 });
 
 export const registerAuthRoutes = (app:Express) => {
-    app.post('/api/auth/google/callback/', authController.googleOAuthHandler);
+
 
     app.post('/api/auth/login', authController.emailLoginHandler);
 

@@ -1,0 +1,9 @@
+tunnel: fd527d25-9e40-449b-93c3-5ea5ad770e45
+credentials-file: C:\Users\vmnit\.cloudflared\fd527d25-9e40-449b-93c3-5ea5ad770e45.json
+
+ingress:
+  - hostname: shadowcoders.app
+    service: http://localhost:3000
+  - hostname: api.shadowcoders.app
+    service: http://localhost:4000
+  - service: http_status:404
