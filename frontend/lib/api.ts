@@ -63,8 +63,14 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    // Log error for debugging
-    console.error(`[API ERROR] ${error.response?.status} ${originalRequest?.url}`, error.response?.data);
+    
+    // Log error for debugging, but suppress expected 401s during auth checks
+    const isAuthCheck = originalRequest?.url?.includes('/auth/refresh') || originalRequest?.url?.includes('/auth/me');
+    const isUnauthorized = error.response?.status === 401;
+
+    if (!isAuthCheck || !isUnauthorized) {
+      console.error(`[API ERROR] ${error.response?.status} ${originalRequest?.url}`, error.response?.data);
+    }
 
     // Suppress console errors for 404s on attempt endpoints (expected behavior)
     if (error.response?.status === 404 && originalRequest.url?.includes('/admin/attempts/')) {
