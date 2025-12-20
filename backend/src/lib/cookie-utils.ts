@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { env } from '../config/env';
 
 /**
  * Determines if a request is cross-origin
@@ -92,14 +93,22 @@ export const getCookieOptions = (req: Request) => {
     // Setting domain explicitly can cause issues with localhost/LAN IP cookies
     
     // For Production/Tunnel (HTTPS), we need to set the domain to share cookies across subdomains
-    // We detect this checks if the host is NOT localhost or an IP address
-    const host = req.get('host') || '';
+    
+    // 1. Prefer X-Forwarded-Host if available (Cloudflare tunnel sends this)
+    const forwardedHost = req.get('x-forwarded-host');
+    const hostHeader = req.get('host') || '';
+    const host = forwardedHost || hostHeader;
+    
+    // 2. Check environment
+    const isProduction = env.NODE_ENV === 'production';
+    
+    // 3. Check if we are conceptually on localhost
     const isLocalhost = host.includes('localhost') || host === '127.0.0.1' || host.startsWith('192.168.');
     
-    // If we are NOT on localhost (e.g. tunnel or prod), OR if it's securely serving
-    if (!isLocalhost || isSecure) {
+    // If we are in production, OR on a public host, OR securely serving:
+    // FORCE Secure=true and set Domain
+    if (isProduction || !isLocalhost || isSecure) {
         // Force secure to true for any public access (Cloudflare, Vercel, etc.)
-        // even if the internal node process thinks it's HTTP
         cookieOptions.secure = true;
         
         // If we have a COOKIE_DOMAIN env var, use it
