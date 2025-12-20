@@ -55,7 +55,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Feature Policy - suppress warnings for unsupported features */}
         <meta httpEquiv="Permissions-Policy" content="identity-credentials-get=()" />
