@@ -82,8 +82,8 @@ export const getCookieOptions = (req: Request) => {
         httpOnly: true,
         // secure=true is REQUIRED when sameSite='none'
         // For HTTP, we use sameSite='lax' so secure=false is fine
-        // For HTTPS with sameSite='none', secure=true is required
-        secure: sameSite === 'none',
+        // For HTTPS, we should always use secure=true if possible
+        secure: isSecure || sameSite === 'none',
         sameSite: sameSite,
         path: '/',
     };

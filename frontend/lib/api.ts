@@ -69,7 +69,8 @@ api.interceptors.response.use(
 
     // Don't intercept refresh or initial auth check requests
     if (originalRequest.url?.includes('/auth/refresh') || 
-        originalRequest.url?.includes('/me')) {
+        originalRequest.url?.includes('/me') ||
+        originalRequest.url?.includes('/auth/login')) {
       // If /me fails with 401, trigger logout
       if (error.response?.status === 401 && originalRequest.url?.includes('/me') && handleUnauthorized) {
         handleUnauthorized();
