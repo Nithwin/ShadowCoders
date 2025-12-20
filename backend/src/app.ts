@@ -129,6 +129,20 @@ export const createApp = () => {
     
     // Body parsing middleware
     app.use(express.json());
+    
+    // Graceful handling of JSON parsing errors (prevents server crash on malformed JSON)
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+        if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+            console.error('❌ Malformed JSON received:', err.message);
+            return res.status(400).json({ 
+                error: {
+                    code: 'INVALID_JSON',
+                    message: 'Invalid JSON format in request body'
+                } 
+            });
+        }
+        next(err);
+    });
     app.use(cookieParser());
 
     // Serve uploaded files statically
