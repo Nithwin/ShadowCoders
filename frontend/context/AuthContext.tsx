@@ -22,8 +22,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setAuthToken(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
+      // Only redirect if not already on the login page to avoid loops
+      if (window.location.pathname !== '/login') {
+        router.push('/login');
+      }
     }
-    router.push('/login');
   }, [router]);
 
   // Register the unauthorized handler

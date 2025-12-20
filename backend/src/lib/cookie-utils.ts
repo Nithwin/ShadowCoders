@@ -90,9 +90,28 @@ export const getCookieOptions = (req: Request) => {
     
     // For localhost or LAN IP (HTTP), don't set domain (browsers handle this automatically)
     // Setting domain explicitly can cause issues with localhost/LAN IP cookies
-    // Browsers will automatically use the correct domain/IP for both origins
-    // Note: For LAN IPs (e.g., 192.168.1.100), cookies work across ports on the same IP
-    // with sameSite='lax' even without setting domain
+    
+    // For Production/Tunnel (HTTPS), we need to set the domain to share cookies across subdomains
+    if (isSecure) {
+        // parsing domain from request host
+        // e.g. api.shadowcoders.app -> .shadowcoders.app
+        const host = req.get('host') || '';
+        // If we have a COOKIE_DOMAIN env var, use it
+        if (process.env.COOKIE_DOMAIN) {
+            cookieOptions.domain = process.env.COOKIE_DOMAIN;
+        } 
+        // Auto-detect root domain for subdomains
+        else if (host.includes('.') && !host.includes('localhost') && !host.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+            const parts = host.split('.');
+            if (parts.length >= 2) {
+                // Get the last two parts (e.g. shadowcoders.app)
+                // This is a naive check, might need to be more robust for .co.uk etc if needed
+                // But for shadowcoders.app it's fine.
+                const rootDomain = parts.slice(-2).join('.');
+                cookieOptions.domain = '.' + rootDomain;
+            }
+        }
+    }
     
     return cookieOptions;
 };
