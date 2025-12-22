@@ -202,25 +202,6 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
             type: QType.ESSAY,
             wordLimit: q.wordLimit ? Number(q.wordLimit) : undefined,
           };
-        } else if (questionType === QType.SQL) {
-          // Ensure testcases are properly formatted
-          let testcases = q.testcases || [];
-          
-          if (Array.isArray(testcases) && testcases.length > 0) {
-            testcases = testcases.map((tc: Record<string, unknown>) => ({
-              input: String(tc.input || ''),
-              expectedOutput: String(tc.expectedOutput || ''),
-              isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
-              timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 5000,
-            }));
-          }
-
-          return {
-            ...baseQuestion,
-            type: QType.SQL,
-            config: q.config || { ddl: '' },
-            testcases: Array.isArray(testcases) ? testcases : [],
-          };
         } else if (questionType === QType.FILL) {
           return {
             ...baseQuestion,
@@ -255,66 +236,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
         questions: formattedQuestions,
       });
       
-      const createdQuestions = saveResponse.data;
       
-      // AUTO-ORGANIZE: If SQL questions were created, assign them to a "SQL Questions" section
-      const createdSqlQuestions = Array.isArray(createdQuestions) 
-        ? createdQuestions.filter((q: any) => q.type === QType.SQL)
-        : [];
-        
-      if (createdSqlQuestions.length > 0) {
-        try {
-
-          // 1. Fetch sections to see if "SQL Questions" exists
-          const sectionsRes = await api.get(`/admin/exams/${examId}/sections`);
-          const sections = sectionsRes.data;
-          
-          let sqlSection = sections.find((s: any) => 
-            s.title.toLowerCase().includes('sql') || s.title.toLowerCase().includes('database')
-          );
-          
-          // 2. If not, create it
-          if (!sqlSection) {
-
-            const newSectionRes = await api.post(`/admin/exams/${examId}/sections`, {
-              title: 'SQL Questions',
-              order: sections.length + 1,
-              description: 'Database querying questions',
-            });
-            // The API might return the created section or just a success message. 
-            // Assuming simplified REST pattern or fetching again.
-            // If the POST returns the created object:
-            if (newSectionRes.data && newSectionRes.data.id) {
-               sqlSection = newSectionRes.data;
-            } else {
-               // Fallback: fetch again (safer)
-               const updatedSectionsRes = await api.get(`/admin/exams/${examId}/sections`);
-               sqlSection = updatedSectionsRes.data.find((s: any) => s.title === 'SQL Questions');
-            }
-          }
-          
-          // 3. Add questions to the section
-          if (sqlSection) {
-
-            const questionsToAdd = createdSqlQuestions.map((q: any, idx: number) => ({
-              questionId: q.id,
-              order: idx + 1
-            }));
-            
-            await api.post(`/admin/sections/${sqlSection.id}/questions`, {
-              questions: questionsToAdd
-            });
-            toast.success(`Automatically moved ${createdSqlQuestions.length} SQL questions to "${sqlSection.title}" section.`);
-          }
-        } catch (sectionErr) {
-          console.error('Failed to auto-assign SQL questions to section:', sectionErr);
-          // Don't block the main success flow, just warn
-          toast.error('Questions saved, but failed to auto-move to SQL section.');
-        }
-      }
-
-
-
       // Refresh the list from the DB (this gets the new real IDs)
       await fetchQuestions();
       

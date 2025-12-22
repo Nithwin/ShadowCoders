@@ -70,12 +70,11 @@ export default function GenerateAiQuestionsModal({
     setApiError(null);
     try {
       // Validate that at least one question type is requested
-      if (data.mcqCount === 0 && data.codingCount === 0 && data.essayCount === 0 && data.sqlCount === 0) {
+      if (data.mcqCount === 0 && data.codingCount === 0 && data.sqlCount === 0 && data.essayCount === 0) {
         setApiError('Please select at least one question type to generate.');
         return;
       }
 
-      // Call the AI generation API we built
       const response = await api.post('/admin/ai/generate-questions', {
         topic: data.topic,
         mcqCount: data.mcqCount || 0,
@@ -133,28 +132,28 @@ export default function GenerateAiQuestionsModal({
           )}
         </div>
 
-        {/* Counts (keep same) */}
-        <div>
-           <label className="block text-sm font-semibold text-primary mb-2">Number of Questions</label>
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-             <div>
-               <label htmlFor="mcqCount" className="block text-xs font-medium text-primary/70 mb-1">MCQs</label>
-               <Input id="mcqCount" type="number" min={0} max={20} {...register('mcqCount')} disabled={isSubmitting} placeholder="0" />
-             </div>
-             <div>
-               <label htmlFor="codingCount" className="block text-xs font-medium text-primary/70 mb-1">Coding</label>
-               <Input id="codingCount" type="number" min={0} max={10} {...register('codingCount')} disabled={isSubmitting} placeholder="0" />
-             </div>
-             <div>
-               <label htmlFor="essayCount" className="block text-xs font-medium text-primary/70 mb-1">Essay</label>
-               <Input id="essayCount" type="number" min={0} max={10} {...register('essayCount')} disabled={isSubmitting} placeholder="0" />
-             </div>
-             <div>
+         {/* Counts (keep same) */}
+         <div>
+            <label className="block text-sm font-semibold text-primary mb-2">Number of Questions</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <label htmlFor="mcqCount" className="block text-xs font-medium text-primary/70 mb-1">MCQs</label>
+                <Input id="mcqCount" type="number" min={0} max={20} {...register('mcqCount')} disabled={isSubmitting} placeholder="0" />
+              </div>
+              <div>
+                <label htmlFor="codingCount" className="block text-xs font-medium text-primary/70 mb-1">Coding</label>
+                <Input id="codingCount" type="number" min={0} max={10} {...register('codingCount')} disabled={isSubmitting} placeholder="0" />
+              </div>
+              <div>
                 <label htmlFor="sqlCount" className="block text-xs font-medium text-primary/70 mb-1">SQL</label>
                 <Input id="sqlCount" type="number" min={0} max={10} {...register('sqlCount')} disabled={isSubmitting} placeholder="0" />
-             </div>
-           </div>
-        </div>
+              </div>
+              <div>
+                <label htmlFor="essayCount" className="block text-xs font-medium text-primary/70 mb-1">Essay</label>
+                <Input id="essayCount" type="number" min={0} max={10} {...register('essayCount')} disabled={isSubmitting} placeholder="0" />
+              </div>
+            </div>
+         </div>
 
         {/* Difficulty and Points */}
         <div className="grid grid-cols-2 gap-4">

@@ -22,7 +22,11 @@ const mcqSchema = z.object({
 const codingSchema = z.object({
   type: z.literal(QType.CODING),
   prompt: z.string().min(1, 'Coding prompt cannot be empty'),
-  starterCode: z.string().optional(),
+  starterCode: z.string().nullable().optional(), // Allow null or undefined
+  language: z.string().optional(), // For SQL questions: "sql"
+  config: z.object({
+    ddl: z.string().optional(), // For SQL questions: database schema
+  }).optional(),
   testcases: z
     .array(
       z.object({
@@ -136,6 +140,10 @@ const codingUpdateSchema = z.object({
   type: z.literal(QType.CODING).optional(),
   prompt: z.string().min(1).optional(),
   starterCode: z.string().optional(),
+  language: z.string().optional(), // For SQL questions
+  config: z.object({
+    ddl: z.string().optional(),
+  }).optional(),
   testcases: z.array(z.object({
     input: z.string(),
     expectedOutput: z.string(),

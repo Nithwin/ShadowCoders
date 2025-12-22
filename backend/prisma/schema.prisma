@@ -224,6 +224,7 @@ model Question {
 
   // CODING
   starterCode   String?
+  language      String? // For SQL questions: "sql"
   testcases     Json?
   languageHints Json?
 

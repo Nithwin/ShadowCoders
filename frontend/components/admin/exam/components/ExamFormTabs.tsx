@@ -61,6 +61,7 @@ export function ExamFormTabs({ activeTab, onTabChange, errors = {}, completed = 
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => onTabChange(tab.id)}
                 className={`
                   group relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all

@@ -23,11 +23,11 @@ export const generateQuestionsSchema = z.object({
     })
     .refine(
       (data) => {
-        const total = (data.mcqCount || 0) + (data.codingCount || 0) + (data.essayCount || 0) + (data.sqlCount || 0);
+        const total = (data.mcqCount || 0) + (data.codingCount || 0) + (data.sqlCount || 0) + (data.essayCount || 0);
         return total > 0;
       },
       {
-        message: 'At least one question type must be requested (mcqCount, codingCount, essayCount, sqlCount, etc. must be greater than 0)',
+        message: 'At least one question type must be requested (mcqCount, codingCount, sqlCount, or essayCount must be greater than 0)',
         path: ['mcqCount'],
       }
     ),

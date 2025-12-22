@@ -227,20 +227,55 @@ export default function ExamForm({
         </div>
       )}
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isSubmitting || (!isDirty && !!defaultValues)} className="min-w-[150px]">
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              {submitLabel}
-            </>
-          )}
-        </Button>
+      <div className="flex justify-between">
+        {activeTab !== 'basic' && (
+          <Button 
+            type="button" 
+            onClick={() => {
+              const tabs: TabId[] = ['basic', 'timing', 'settings', 'security'];
+              const currentIndex = tabs.indexOf(activeTab);
+              if (currentIndex > 0) {
+                setActiveTab(tabs[currentIndex - 1]);
+              }
+            }}
+            variant="outline"
+            className="min-w-[120px]"
+          >
+            Previous
+          </Button>
+        )}
+        
+        <div className="flex-1" />
+        
+        {activeTab === 'security' ? (
+          <Button type="submit" disabled={isSubmitting || (!isDirty && !!defaultValues)} className="min-w-[150px]">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                {submitLabel}
+              </>
+            )}
+          </Button>
+        ) : (
+          <Button 
+            type="button" 
+            onClick={() => {
+              const tabs: TabId[] = ['basic', 'timing', 'settings', 'security'];
+              const currentIndex = tabs.indexOf(activeTab);
+              if (currentIndex < tabs.length - 1) {
+                setActiveTab(tabs[currentIndex + 1]);
+              }
+            }}
+            className="min-w-[120px]"
+          >
+            Next
+          </Button>
+        )}
       </div>
     </form>
   );

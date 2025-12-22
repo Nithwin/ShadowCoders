@@ -42,10 +42,14 @@ const codingQuestionSchema = z.object({
     return num;
   }).pipe(z.number().positive('Points must be positive')),
   starterCode: z.string().optional(),
+  language: z.string().optional(), // For SQL questions
+  config: z.object({
+    ddl: z.string().optional(), // For SQL questions - schema definition
+  }).optional(),
   testcases: z
     .array(
       z.object({
-        input: z.string().min(1, 'Input is required'),
+        input: z.string(), // For SQL: INSERT statements (can be empty for non-SQL)
         expectedOutput: z.string().min(1, 'Expected output is required'),
         isHidden: z.boolean().default(false),
         timeoutMs: z.number().int().positive().default(2000),
@@ -118,37 +122,12 @@ const speakingQuestionSchema = z.object({
   }).pipe(z.number().int().nonnegative().optional()),
 });
 
-// Schema for SQL question
-const sqlQuestionSchema = z.object({
-  type: z.literal(QType.SQL),
-  prompt: z.string().min(1, 'Prompt is required'),
-  points: z.union([z.number(), z.string()]).transform((val) => {
-    const num = typeof val === 'string' ? Number(val) : val;
-    if (isNaN(num)) throw new Error('Points must be a valid number');
-    return num;
-  }).pipe(z.number().positive('Points must be positive')),
-  config: z.object({
-    ddl: z.string().min(1, 'DDL (Schema) is required'),
-  }),
-  testcases: z
-    .array(
-      z.object({
-        input: z.string().min(1, 'DML (Inserts) is required'),
-        expectedOutput: z.string().min(1, 'Expected output is required'),
-        isHidden: z.boolean().default(false),
-        timeoutMs: z.number().int().positive().default(5000),
-      })
-    )
-    .min(1, 'At least one test case required'),
-});
-
 const questionFormSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
   codingQuestionSchema,
   essayQuestionSchema,
   listeningQuestionSchema,
   speakingQuestionSchema,
-  sqlQuestionSchema,
 ]);
 
 type QuestionFormInput = z.input<typeof questionFormSchema>;
@@ -240,10 +219,6 @@ export default function ManualQuestionForm({
         starterCode: '',
         testcases: [{ input: '', expectedOutput: '', isHidden: false, timeoutMs: 2000 }],
       }),
-      ...(newType === QType.SQL && {
-        config: { ddl: '' },
-        testcases: [{ input: '', expectedOutput: '', isHidden: false, timeoutMs: 5000 }],
-      }),
       ...(newType === QType.ESSAY && {
         wordLimit: undefined,
       }),
@@ -312,6 +287,14 @@ export default function ManualQuestionForm({
         questionData.correctOptionIds = validatedData.correctOptionIds || [];
       } else if (validatedData.type === QType.CODING) {
         questionData.starterCode = validatedData.starterCode || '';
+        // Add language if specified (for SQL questions)
+        if (validatedData.language) {
+          questionData.language = validatedData.language;
+        }
+        // Add config with DDL if specified (for SQL questions)
+        if (validatedData.config?.ddl) {
+          questionData.config = { ddl: validatedData.config.ddl };
+        }
         // Ensure testcases are properly formatted
         if (validatedData.testcases && Array.isArray(validatedData.testcases) && validatedData.testcases.length > 0) {
           questionData.testcases = validatedData.testcases.map((tc) => ({
@@ -343,17 +326,6 @@ export default function ManualQuestionForm({
         }
         if (validatedData.maxReattempts !== undefined) {
           questionData.config = { maxReattempts: validatedData.maxReattempts };
-        }
-
-      } else if (validatedData.type === QType.SQL) {
-        questionData.config = { ddl: validatedData.config.ddl };
-        if (validatedData.testcases && Array.isArray(validatedData.testcases)) {
-           questionData.testcases = validatedData.testcases.map((tc) => ({
-             input: String(tc.input || ''),
-             expectedOutput: String(tc.expectedOutput || ''),
-             isHidden: tc.isHidden !== undefined ? Boolean(tc.isHidden) : false,
-             timeoutMs: tc.timeoutMs ? Number(tc.timeoutMs) : 5000,
-           }));
         }
       }
 
@@ -400,12 +372,11 @@ export default function ManualQuestionForm({
             onChange={(e) => handleTypeChange(e.target.value as QType)}
             className="flex h-10 w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
-            <option value={QType.MCQ}>Multiple Choice (MCQ)</option>
-            <option value={QType.CODING}>Coding</option>
-            <option value={QType.SQL}>SQL</option>
-            <option value={QType.ESSAY}>Essay</option>
-            <option value={QType.LISTENING}>Listening</option>
-            <option value={QType.SPEAKING}>Speaking</option>
+          <option value={QType.MCQ}>Multiple Choice (MCQ)</option>
+          <option value={QType.CODING}>Coding</option>
+          <option value={QType.ESSAY}>Essay</option>
+          <option value={QType.LISTENING}>Listening</option>
+          <option value={QType.SPEAKING}>Speaking</option>
           </select>
         </div>
 
@@ -521,6 +492,48 @@ export default function ManualQuestionForm({
           </div>
         )}
 
+        {/* Language Selection for Coding */}
+        {questionType === QType.CODING && (
+          <div>
+            <label className="block text-sm font-semibold text-primary mb-2">
+              Language (Optional - for SQL questions)
+            </label>
+            <select
+              {...register('language')}
+              className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <option value="">General Coding (All Languages)</option>
+              <option value="sql">SQL (SQLite)</option>
+            </select>
+            <p className="text-xs text-primary/60 mt-1">
+              Select "SQL" if this is a SQL question. Leave as "General Coding" for regular coding questions.
+            </p>
+          </div>
+        )}
+
+        {/* SQL DDL Field */}
+        {questionType === QType.CODING && watch('language') === 'sql' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <label className="block text-sm font-semibold text-blue-900 mb-2">
+              Database Schema (DDL) <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              rows={8}
+              {...register('config.ddl')}
+              className="flex w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm font-mono text-gray-900 placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none"
+              placeholder="CREATE TABLE users (&#10;  id INTEGER PRIMARY KEY,&#10;  name TEXT NOT NULL&#10;);"
+            />
+            <div className="mt-2 text-xs text-blue-800">
+              <p className="font-semibold">📝 Important:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Include ONLY CREATE TABLE statements (schema definition)</li>
+                <li>Do NOT include INSERT statements here</li>
+                <li>INSERT statements go in test case inputs below</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* Coding Test Cases */}
         {questionType === QType.CODING && (
           <div className="space-y-3">
@@ -584,89 +597,6 @@ export default function ManualQuestionForm({
             {'testcases' in errors && errors.testcases && (
               <p className="text-sm text-red-500">{errors.testcases.message}</p>
             )}
-          </div>
-        )}
-
-        {/* SQL DDL and Test Cases */}
-        {questionType === QType.SQL && (
-          <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-semibold text-primary mb-2">
-                 Database Schema (DDL) <span className="text-red-500">*</span>
-               </label>
-               <textarea
-                 rows={6}
-                 {...register('config.ddl' as any)}
-                 className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
-                 placeholder="CREATE TABLE users (id INT, name TEXT);&#10;INSERT INTO users VALUES (1, 'Initial Data');"
-               />
-                {'config' in errors && (errors as any).config?.ddl && (
-                    <p className="mt-1.5 text-sm text-red-500">{(errors as any).config.ddl.message}</p>
-                )}
-             </div>
-
-             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-semibold text-primary">
-                  Test Cases <span className="text-red-500">*</span>
-                </label>
-                <Button
-                  type="button"
-                  onClick={() => appendTestcase({ input: '', expectedOutput: '', isHidden: false, timeoutMs: 5000 })}
-                  className="h-8 px-3 text-xs"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Test Case
-                </Button>
-              </div>
-              {testcaseFields.map((field, index) => (
-                <div key={field.id} className="p-3 border border-primary/20 rounded-md space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-primary">Test Case {index + 1}</span>
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-1 text-xs text-primary/70">
-                        <input
-                          type="checkbox"
-                          {...register(`testcases.${index}.isHidden`)}
-                          className="h-3 w-3"
-                        />
-                        Hidden
-                      </label>
-                      {testcaseFields.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeTestcase(index)}
-                          className="p-1 text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <textarea
-                    rows={3}
-                    {...register(`testcases.${index}.input`)}
-                    placeholder="DML / Inserts (e.g. INSERT INTO users VALUES (2, 'Test');)"
-                    className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  />
-                  <textarea
-                    rows={3}
-                    {...register(`testcases.${index}.expectedOutput`)}
-                    placeholder="Expected Result (e.g. 1|Alice)"
-                    className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-                  />
-                  <Input
-                    type="number"
-                    {...register(`testcases.${index}.timeoutMs`, { valueAsNumber: true })}
-                    placeholder="Timeout (ms)"
-                    className="w-full"
-                  />
-                </div>
-              ))}
-              {'testcases' in errors && errors.testcases && (
-                <p className="text-sm text-red-500">{errors.testcases.message}</p>
-              )}
-            </div>
           </div>
         )}
         

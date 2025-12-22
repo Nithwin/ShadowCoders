@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import SchemaVisualization from '@/components/student/SchemaVisualization';
 
 // Dynamically import Monaco Editor to avoid SSR issues
 const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
@@ -562,23 +563,10 @@ export default function CodingQuestion({
           </div>
 
 
-          {/* SQL Database Schema (DDL) */}
+          {/* SQL Database Schema - Structured Table Visualization */}
           {sqlDdl && (
-            <div className="mt-8 space-y-4">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5 mb-5">
-                <div className="p-1.5 bg-purple-100 rounded-lg">
-                  <Database className="w-5 h-5 text-purple-600" />
-                </div>
-                Database Schema
-              </h3>
-              <div className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                 <div className="bg-gray-100 px-4 py-2 border-b border-gray-200">
-                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">Schema Setup (SQL)</span>
-                 </div>
-                 <pre className="text-sm text-gray-800 font-mono bg-white p-4 overflow-x-auto m-0">
-                   {sqlDdl}
-                 </pre>
-              </div>
+            <div className="mt-8">
+              <SchemaVisualization ddl={sqlDdl} />
             </div>
           )}
 
