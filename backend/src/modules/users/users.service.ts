@@ -51,6 +51,21 @@ export const getUserById = async (id: string) => {
   return withDatabaseErrorHandling(
     () => prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        pictureUrl: true,
+        reg_no: true,
+        department: true,
+        year: true,
+        section: true,
+        leetcodeId: true,
+        leetcodeStats: true, 
+        createdAt: true,
+        // Explicitly excluding pictureData and pictureMimeType for performance
+      }
     }),
     'getUserById'
   );

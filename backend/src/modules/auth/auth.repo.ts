@@ -5,12 +5,26 @@ import { withDatabaseErrorHandling } from "../../lib/db-health";
 
 
 
-export const findUserByEmail = (email: string): Promise<User | null> => {
+export const findUserByEmail = (email: string) => {
     return withDatabaseErrorHandling(
         () => prisma.user.findUnique({
             where:{
                 email
             },
+            select: {
+                id: true,
+                email: true,
+                password: true,
+                role: true,
+                name: true,
+                pictureUrl: true,
+                reg_no: true,
+                department: true, 
+                year: true,
+                section: true,
+                leetcodeId: true,
+                // Excluding pictureData
+            }
         }),
         'findUserByEmail'
     );
@@ -20,6 +34,20 @@ export const findUserById = (id: string) => {
     return withDatabaseErrorHandling(
         () => prisma.user.findUnique({
             where:{id},
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                pictureUrl: true,
+                reg_no: true,
+                department: true,
+                year: true,
+                section: true,
+                leetcodeId: true,
+                createdAt: true,
+                // Explicitly excluding pictureData and pictureMimeType for performance
+            }
         }),
         'findUserById'
     );

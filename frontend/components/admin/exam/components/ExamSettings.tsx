@@ -1,6 +1,7 @@
 import { UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 import { Input } from '@/components/ui/Input';
 import { ExamFormInput, AVAILABLE_LANGUAGES } from '../ExamForm';
+import { Settings, Info } from 'lucide-react';
 
 interface ExamSettingsProps {
   register: UseFormRegister<ExamFormInput>;
@@ -31,10 +32,21 @@ export function ExamSettings({
   };
 
   return (
-    <>
+    <div className="space-y-6">
+      {/* Section Header */}
+      <div className="flex items-center gap-3 pb-4 border-b border-primary/10">
+        <div className="p-2 bg-primary/10 rounded-lg">
+          <Settings className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-primary">Exam Settings</h3>
+          <p className="text-sm text-primary/60">Configure randomization, languages, and marking</p>
+        </div>
+      </div>
+
       {/* Additional Options */}
       {(showRandomize || showNegativeMarking) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-primary/10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {showRandomize && (
             <div className="flex items-center gap-3">
               <input
@@ -112,6 +124,6 @@ export function ExamSettings({
         </div>
         <input type="hidden" {...register('allowedLanguages')} />
       </div>
-    </>
+    </div>
   );
 }

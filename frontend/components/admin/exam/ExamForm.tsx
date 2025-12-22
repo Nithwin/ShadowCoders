@@ -89,6 +89,7 @@ import { ExamBasicInfo } from './components/ExamBasicInfo';
 import { ExamTiming } from './components/ExamTiming';
 import { ExamSecurity } from './components/ExamSecurity';
 import { ExamSettings } from './components/ExamSettings';
+import { ExamFormTabs, type TabId } from './components/ExamFormTabs';
 
 export default function ExamForm({
   defaultValues,
@@ -101,6 +102,7 @@ export default function ExamForm({
 }: ExamFormProps) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>('basic');
   
   // Use external error if provided, otherwise use internal
   const displayError = externalApiError || apiError;
@@ -153,23 +155,55 @@ export default function ExamForm({
     }
   };
 
+  // Determine tab errors and completion status
+  const tabErrors = {
+    basic: !!(errors.title || errors.description),
+    timing: !!(errors.startAt || errors.endAt || errors.durationMins || errors.timingMode || errors.sectionLockPolicy),
+    settings: !!(errors.randomizeQuestions || errors.negativeMarkPerWrong || errors.allowedLanguages || errors.releaseResults),
+    security: !!(errors.maxAttempts || errors.maxTabSwitches),
+  };
+
+  const tabCompleted = {
+    basic: !!watch('title') && !tabErrors.basic,
+    timing: !!watch('startAt') && !!watch('endAt') && !tabErrors.timing,
+    settings: !tabErrors.settings,
+    security: !tabErrors.security,
+  };
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      {/* Tabbed Navigation */}
+      <ExamFormTabs 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        errors={tabErrors}
+        completed={tabCompleted}
+      />
+
+      {/* Tab Content */}
       <div className="p-6 bg-secondary border border-primary/10 rounded-lg shadow-md space-y-6">
-        <ExamBasicInfo register={register} errors={errors} />
+        {activeTab === 'basic' && (
+          <ExamBasicInfo register={register} errors={errors} />
+        )}
         
-        <ExamTiming register={register} errors={errors} watch={watch} />
+        {activeTab === 'timing' && (
+          <ExamTiming register={register} errors={errors} watch={watch} />
+        )}
         
-        <ExamSettings 
-          register={register} 
-          errors={errors} 
-          watch={watch} 
-          setValue={setValue}
-          showRandomize={showRandomize}
-          showNegativeMarking={showNegativeMarking}
-        />
+        {activeTab === 'settings' && (
+          <ExamSettings 
+            register={register} 
+            errors={errors} 
+            watch={watch} 
+            setValue={setValue}
+            showRandomize={showRandomize}
+            showNegativeMarking={showNegativeMarking}
+          />
+        )}
         
-        <ExamSecurity register={register} errors={errors} />
+        {activeTab === 'security' && (
+          <ExamSecurity register={register} errors={errors} />
+        )}
       </div>
 
       {successMessage && (

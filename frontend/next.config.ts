@@ -33,7 +33,8 @@ const nextConfig: NextConfig = {
   // Allow all origins in development mode only
   // This fixes the warning: "Cross origin request detected from 10.11.16.132 to /_next/* resource"
   // ⚠️ WARNING: Only use this in development! Never in production.
-  ...(process.env.NODE_ENV === 'development' ? {} : { allowedDevOrigins: [] }),
+  // Configure allowed origins for development (Cloudflare Tunnel)
+  allowedDevOrigins: ['localhost:3000', 'shadowcoders.app'],
 
   // In production, export static files for serving via Express (if needed)
   // Uncomment if you want to serve static export
