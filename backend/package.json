@@ -7,9 +7,9 @@
   "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "npx prisma db push && ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "npx prisma db push && node dist/index.js",
     "build:prod": "node scripts/build-with-frontend.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
