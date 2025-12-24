@@ -62,7 +62,7 @@ export const generateAndSaveRefreshToken = async (userId: string): Promise<strin
  */
 export const verifyAndFindUser = async (
   rawToken: string
-): Promise<User | null> => {
+) => {
   let payload: UserPayLoad;
   try {
     // 1. Verify the token's signature and that it's not expired

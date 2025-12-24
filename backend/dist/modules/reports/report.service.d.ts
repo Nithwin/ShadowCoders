@@ -27,6 +27,7 @@ export declare const reportService: {
             options: import("@prisma/client/runtime/library").JsonValue | null;
             correctOptionIds: import("@prisma/client/runtime/library").JsonValue | null;
             starterCode: string | null;
+            language: string | null;
             testcases: import("@prisma/client/runtime/library").JsonValue | null;
             languageHints: import("@prisma/client/runtime/library").JsonValue | null;
             wordLimit: number | null;

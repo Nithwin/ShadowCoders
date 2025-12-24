@@ -5,6 +5,7 @@ import { env } from '../config/env';
 import { prisma } from './prisma';
 import { Role, AttemptStatus } from '@prisma/client';
 
+
 export interface AuthenticatedSocket extends Socket {
   userId?: string;
   userRole?: Role;
@@ -54,6 +55,8 @@ class ExamMonitoringService {
       },
       transports: ['websocket', 'polling'],
     });
+
+
 
     // Authentication middleware
     this.io.use(async (socket: AuthenticatedSocket, next) => {
@@ -514,6 +517,8 @@ class ExamMonitoringService {
           this.socketToAttempt.delete(socket.id);
         }
       });
+
+
     });
 
     // Periodic cleanup of idle students (mark as idle if no activity for 2 minutes)

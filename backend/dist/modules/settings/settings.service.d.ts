@@ -1,4 +1,4 @@
-export declare const getSettings: (userId: string) => Promise<string | number | true | import("@prisma/client/runtime/library").JsonObject | import("@prisma/client/runtime/library").JsonArray>;
+export declare const getSettings: (userId: string) => Promise<any>;
 export declare const updateSettings: (userId: string, settings: any) => Promise<{
     name: string | null;
     id: string;
@@ -12,7 +12,6 @@ export declare const updateSettings: (userId: string, settings: any) => Promise<
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
     leetcodeStats: import("@prisma/client/runtime/library").JsonValue | null;
     settings: import("@prisma/client/runtime/library").JsonValue | null;

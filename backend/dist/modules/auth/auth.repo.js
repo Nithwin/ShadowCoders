@@ -1,64 +1,47 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updatePassword = exports.deleteRefreshToken = exports.findRefreshToken = exports.saveRefreshToken = exports.updateUser = exports.findStudentWithCohortInfo = exports.findUserById = exports.findUserByEmail = exports.findUserByEmailAndLinkGoogle = void 0;
+exports.updatePassword = exports.deleteRefreshToken = exports.findRefreshToken = exports.saveRefreshToken = exports.updateUser = exports.findStudentWithCohortInfo = exports.findUserById = exports.findUserByEmail = void 0;
 const prisma_1 = require("../../lib/prisma");
 const db_health_1 = require("../../lib/db-health");
-const findUserByEmailAndLinkGoogle = async ({ email, name, pictureUrl, googleId }) => {
-    return (0, db_health_1.withDatabaseErrorHandling)(async () => {
-        try {
-            const dataToUpdate = {
-                googleId: googleId,
-            };
-            if (name !== undefined) {
-                dataToUpdate.name = name;
-            }
-            if (pictureUrl !== undefined) {
-                dataToUpdate.pictureUrl = pictureUrl;
-            }
-            const user = await prisma_1.prisma.user.update({
-                where: {
-                    email: email,
-                },
-                data: dataToUpdate,
-            });
-            return user;
-        }
-        catch (error) {
-            if (error.name === 'PrismaClientKnownRequestError' && error.code === 'P2025') {
-                try {
-                    const newUser = await prisma_1.prisma.user.create({
-                        data: {
-                            email: email,
-                            name: name || null,
-                            pictureUrl: pictureUrl || null,
-                            googleId: googleId,
-                            role: 'STUDENT',
-                        }
-                    });
-                    return newUser;
-                }
-                catch (createError) {
-                    console.error('Failed to create user:', createError);
-                    return null;
-                }
-            }
-            console.error('Error in findUserByEmailAndLinkGoogle:', error);
-            throw error;
-        }
-    }, 'findUserByEmailAndLinkGoogle');
-};
-exports.findUserByEmailAndLinkGoogle = findUserByEmailAndLinkGoogle;
 const findUserByEmail = (email) => {
     return (0, db_health_1.withDatabaseErrorHandling)(() => prisma_1.prisma.user.findUnique({
         where: {
             email
         },
+        select: {
+            id: true,
+            email: true,
+            password: true,
+            role: true,
+            name: true,
+            pictureUrl: true,
+            reg_no: true,
+            department: true,
+            year: true,
+            section: true,
+            leetcodeId: true,
+            // Excluding pictureData
+        }
     }), 'findUserByEmail');
 };
 exports.findUserByEmail = findUserByEmail;
 const findUserById = (id) => {
     return (0, db_health_1.withDatabaseErrorHandling)(() => prisma_1.prisma.user.findUnique({
         where: { id },
+        select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            pictureUrl: true,
+            reg_no: true,
+            department: true,
+            year: true,
+            section: true,
+            leetcodeId: true,
+            createdAt: true,
+            // Explicitly excluding pictureData and pictureMimeType for performance
+        }
     }), 'findUserById');
 };
 exports.findUserById = findUserById;

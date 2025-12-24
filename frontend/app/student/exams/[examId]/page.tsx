@@ -302,128 +302,123 @@ export default function ExamDetailPage() {
         </div>
       )}
 
-      <div className="bg-secondary rounded-lg shadow-md p-6 space-y-6">
-        {/* Exam Information */}
-        <div>
-          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-            <FileText className="w-6 h-6" />
-            Exam Information
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
-              <Calendar className="w-5 h-5 text-primary/60 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-primary/70">Start Time</p>
-                <p className="text-primary font-semibold">{formatDate(exam.startAt)}</p>
+      <div className="bg-secondary rounded-lg shadow-md p-4 space-y-4">
+        {/* Exam Information & Instructions Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left Column: Info & Instructions */}
+          <div className="space-y-4">
+            {/* Exam Information */}
+            <div>
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Exam Information
+              </h2>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-start gap-2 p-2.5 bg-primary/5 rounded-lg">
+                  <Calendar className="w-4 h-4 text-primary/60 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium text-primary/70">Start Time</p>
+                    <p className="text-sm text-primary font-semibold">{formatDate(exam.startAt)}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 p-2.5 bg-primary/5 rounded-lg">
+                  <Calendar className="w-4 h-4 text-primary/60 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium text-primary/70">End Time</p>
+                    <p className="text-sm text-primary font-semibold">{formatDate(exam.endAt)}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 p-2.5 bg-primary/5 rounded-lg">
+                  <Clock className="w-4 h-4 text-primary/60 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium text-primary/70">Duration</p>
+                    <p className="text-sm text-primary font-semibold">{exam.durationMins} minutes</p>
+                  </div>
+                </div>
+                {exam.maxAttempts && (
+                  <div className="flex items-start gap-2 p-2.5 bg-primary/5 rounded-lg">
+                    <Award className="w-4 h-4 text-primary/60 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-medium text-primary/70">Attempts</p>
+                      <p className="text-sm text-primary font-semibold">
+                        {exam.attemptCount || 0} / {exam.maxAttempts}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
-              <Calendar className="w-5 h-5 text-primary/60 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-primary/70">End Time</p>
-                <p className="text-primary font-semibold">{formatDate(exam.endAt)}</p>
+
+            {/* Instructions */}
+            <div className="border-t border-primary/10 pt-4">
+              <h2 className="text-lg font-semibold mb-2">Instructions</h2>
+              <ul className="space-y-1.5 text-sm text-primary/80 list-disc list-inside">
+                <li>Read questions carefully.</li>
+                <li>Duration: <strong>{exam.durationMins} mins</strong>. Timer cannot be paused.</li>
+                <li>Submit before time runs out.</li>
+                <li>Review answers before final submission.</li>
+                {exam.hasSpeakingQuestions && (
+                  <li className="text-amber-600 font-medium">Microphone access required for speaking Qs.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+
+          {/* Right Column: Warnings & Status - Consolidated */}
+          <div className="space-y-4">
+             {/* Important Warnings */}
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-amber-900 mb-2">⚠️ Security & Restrictions</h3>
+                  <div className="space-y-2 text-amber-900 text-xs">
+                    <div>
+                      <p className="font-semibold mb-0.5">📋 Copy/Paste:</p>
+                      <ul className="list-disc list-inside ml-1 space-y-0.5">
+                        <li>Allowed: Editor shortcuts inside editors.</li>
+                        <li>Blocked: Copying from outside / exam content.</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-0.5">⌨️ Blocked Shortcuts:</p>
+                      <ul className="list-disc list-inside ml-1 space-y-0.5">
+                        <li>Dev Tools, Tab Switching, Print, Save.</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-0.5">🖥️ Restrictions:</p>
+                      <ul className="list-disc list-inside ml-1 space-y-0.5">
+                        <li>Tab switching triggers auto-submit (3 warnings).</li>
+                        <li>Fullscreen mode required.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
-              <Clock className="w-5 h-5 text-primary/60 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-primary/70">Duration</p>
-                <p className="text-primary font-semibold">{exam.durationMins} minutes</p>
-              </div>
-            </div>
-            {exam.maxAttempts && (
-              <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg">
-                <Award className="w-5 h-5 text-primary/60 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-primary/70">Max Attempts</p>
-                  <p className="text-primary font-semibold">
-                    {exam.attemptCount || 0} / {exam.maxAttempts}
-                  </p>
+
+            {/* Status Message */}
+            {status.message && (
+              <div className={`p-3 rounded-lg text-sm ${
+                status.canStart ? 'bg-green-50 border border-green-200 text-green-800' :
+                'bg-blue-50 border border-blue-200 text-blue-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <p className="font-medium">{status.message}</p>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Instructions */}
-        <div className="border-t border-primary/10 pt-6">
-          <h2 className="text-xl font-semibold mb-3">Instructions</h2>
-          <ul className="space-y-2 text-primary/80 list-disc list-inside">
-            <li>Read each question carefully before answering</li>
-            <li>You have {exam.durationMins} minutes to complete this exam</li>
-            <li>Once you start, the timer will begin and cannot be paused</li>
-            <li>Make sure to submit your answers before the time runs out</li>
-            <li>You can review and change your answers before final submission</li>
-            {exam.hasSpeakingQuestions && (
-              <li className="text-amber-600 font-medium">This exam contains speaking questions. Microphone access will be requested when you start the exam.</li>
-            )}
-          </ul>
-        </div>
-
-        {/* Important Warnings */}
-        <div className="border-t border-primary/10 pt-6">
-          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg mb-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-amber-900 mb-3">⚠️ Important Security & Browser Restrictions</h3>
-                <div className="space-y-3 text-amber-900">
-                  <div>
-                    <p className="font-semibold mb-1">📋 Copy/Paste Restrictions:</p>
-                    <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                      <li><strong>Allowed:</strong> Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z, Ctrl+Y) work <strong>inside code and essay editors only</strong></li>
-                      <li><strong>Blocked:</strong> Copy/paste from outside the exam window will be prevented</li>
-                      <li><strong>Blocked:</strong> Copying text from question prompts or other exam content is restricted</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-semibold mb-1">⌨️ Blocked Keyboard Shortcuts:</p>
-                    <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                      <li>Developer tools (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C)</li>
-                      <li>Tab/window switching (Ctrl+T, Ctrl+N, Ctrl+W, Alt+Tab)</li>
-                      <li>Print shortcuts (Ctrl+P, Print Screen)</li>
-                      <li>View source (Ctrl+U)</li>
-                      <li>Save page (Ctrl+S)</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-semibold mb-1">🖥️ Browser Restrictions:</p>
-                    <ul className="list-disc list-inside ml-2 space-y-1 text-sm">
-                      <li>Switching tabs or windows may trigger warnings and auto-submit after 3 warnings</li>
-                      <li>Right-click context menu is disabled</li>
-                      <li>Opening developer tools is blocked and monitored</li>
-                      <li>You must stay in fullscreen mode during the exam</li>
-                    </ul>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-300 rounded p-3 mt-3">
-                    <p className="text-sm font-semibold text-blue-900">ℹ️ Note:</p>
-                    <p className="text-sm text-blue-800 mt-1">Editor shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z, Ctrl+Y) are <strong>allowed inside code and essay editors</strong> to help you write and edit your answers. However, copying from outside the exam window is blocked.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Status Message */}
-        {status.message && (
-          <div className={`p-4 rounded-lg ${
-            status.canStart ? 'bg-green-50 border border-green-200 text-green-800' :
-            'bg-blue-50 border border-blue-200 text-blue-800'
-          }`}>
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              <p className="font-medium">{status.message}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Start Button */}
-        <div className="flex justify-end pt-4 border-t border-primary/10 gap-3">
+        {/* Start Button - At Bottom Full Width */}
+        <div className="flex justify-end pt-3 border-t border-primary/10 gap-3">
           {/* View Results Button (Only show for submitted attempts, not IN_PROGRESS) */}
           {exam?.hasAttempt && exam?.attemptId && exam?.attemptStatus === 'SUBMITTED' && (
             <Link href={`/student/attempts/${exam.attemptId}/results`}>
-              <Button className="min-w-[200px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
+              <Button className="min-w-[150px] bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20">
                 <CheckCircle2 className="w-4 h-4 mr-2" />
                 View Results
               </Button>
@@ -435,22 +430,22 @@ export default function ExamDetailPage() {
             <Button
               onClick={handleStartExam}
               disabled={isStarting}
-              className="bg-green-600 hover:bg-green-700 text-white border-0 min-w-[200px]"
+              className="bg-green-600 hover:bg-green-700 text-white border-0 min-w-[200px] h-11 text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
             >
               {isStarting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   {status.canResume ? 'Resuming...' : 'Starting...'}
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4 mr-2" />
+                  <Play className="w-5 h-5 mr-2" />
                   {status.canResume ? 'Resume Exam' : status.canRetake ? 'Retake Exam' : 'Start Exam'}
                 </>
               )}
             </Button>
           ) : !exam?.hasAttempt && (
-            <Button disabled className="bg-primary/10 text-primary/50 border-0">
+            <Button disabled className="bg-primary/10 text-primary/50 border-0 h-11">
               Exam Not Available
             </Button>
           )}

@@ -1,0 +1,12 @@
+﻿app/student/attempts/[attemptId]/page.tsx(665,110): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/ExamHeader.tsx(137,62): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/ExamHeader.tsx(148,58): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(84,36): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(106,79): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(107,94): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(114,78): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(115,93): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(136,83): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+components/student/exam/QuestionNavigation.tsx(146,63): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+utils/examQuestionUtils.ts(11,77): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.
+utils/examQuestionUtils.ts(14,54): error TS2339: Property 'SQL' does not exist on type 'typeof QType'.

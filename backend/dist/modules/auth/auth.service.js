@@ -36,23 +36,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateProfilePicture = exports.changePassword = exports.updateUserProfile = exports.handleLogout = exports.handleRefreshToken = exports.findUserById = exports.handleEmailLogin = exports.handleGoogleLogin = void 0;
+exports.updateProfilePicture = exports.changePassword = exports.updateUserProfile = exports.handleLogout = exports.handleRefreshToken = exports.findUserById = exports.handleEmailLogin = void 0;
 const authRepo = __importStar(require("./auth.repo"));
 const tokenService = __importStar(require("./token.service"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const prisma_1 = require("../../lib/prisma");
-const handleGoogleLogin = async (profile) => {
-    const user = await authRepo.findUserByEmailAndLinkGoogle(profile);
-    if (!user) {
-        throw { status: 403, message: 'Access denied. User is not registered.' };
-    }
-    const payload = { sub: user.id, role: user.role };
-    // **UPDATED:** Use new token service
-    const accessToken = tokenService.generateAccessToken(payload);
-    const refreshToken = await tokenService.generateAndSaveRefreshToken(user.id);
-    return { accessToken, refreshToken };
-};
-exports.handleGoogleLogin = handleGoogleLogin;
+// --- (Your GoogleProfile interface) ---
 const handleEmailLogin = async (input) => {
     try {
         // Normalize email to lowercase for consistent lookup

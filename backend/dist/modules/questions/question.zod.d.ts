@@ -12,7 +12,11 @@ export declare const addQuestionsSchema: z.ZodObject<{
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"CODING">;
             prompt: z.ZodString;
-            starterCode: z.ZodOptional<z.ZodString>;
+            starterCode: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            language: z.ZodOptional<z.ZodString>;
+            config: z.ZodOptional<z.ZodObject<{
+                ddl: z.ZodOptional<z.ZodString>;
+            }, z.core.$strip>>;
             testcases: z.ZodArray<z.ZodObject<{
                 input: z.ZodString;
                 expectedOutput: z.ZodString;

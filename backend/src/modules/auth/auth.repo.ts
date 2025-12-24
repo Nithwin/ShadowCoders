@@ -23,6 +23,7 @@ export const findUserByEmail = (email: string) => {
                 year: true,
                 section: true,
                 leetcodeId: true,
+                settings: true,
                 // Excluding pictureData
             }
         }),
@@ -45,7 +46,11 @@ export const findUserById = (id: string) => {
                 year: true,
                 section: true,
                 leetcodeId: true,
+                leetcodeStats: true,
+                password: true,
+                settings: true,
                 createdAt: true,
+                updatedAt: true,
                 // Explicitly excluding pictureData and pictureMimeType for performance
             }
         }),

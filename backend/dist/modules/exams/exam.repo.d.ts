@@ -71,6 +71,7 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
                 options: Prisma.JsonValue | null;
                 correctOptionIds: Prisma.JsonValue | null;
                 starterCode: string | null;
+                language: string | null;
                 testcases: Prisma.JsonValue | null;
                 languageHints: Prisma.JsonValue | null;
                 wordLimit: number | null;
@@ -122,6 +123,7 @@ export declare const findExamById: (examId: string) => Prisma.Prisma__ExamClient
         options: Prisma.JsonValue | null;
         correctOptionIds: Prisma.JsonValue | null;
         starterCode: string | null;
+        language: string | null;
         testcases: Prisma.JsonValue | null;
         languageHints: Prisma.JsonValue | null;
         wordLimit: number | null;

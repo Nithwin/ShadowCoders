@@ -1,5 +1,4 @@
 import { RequestHandler } from "express";
-export declare const googleOAuthHandler: RequestHandler;
 export declare const emailLoginHandler: RequestHandler;
 export declare const getMeHandler: RequestHandler;
 export declare const refreshAccessTokenHandler: RequestHandler;

@@ -23,7 +23,11 @@ const mcqSchema = zod_1.default.object({
 const codingSchema = zod_1.default.object({
     type: zod_1.default.literal(client_1.QType.CODING),
     prompt: zod_1.default.string().min(1, 'Coding prompt cannot be empty'),
-    starterCode: zod_1.default.string().optional(),
+    starterCode: zod_1.default.string().nullable().optional(), // Allow null or undefined
+    language: zod_1.default.string().optional(), // For SQL questions: "sql"
+    config: zod_1.default.object({
+        ddl: zod_1.default.string().optional(), // For SQL questions: database schema
+    }).optional(),
     testcases: zod_1.default
         .array(zod_1.default.object({
         input: zod_1.default.string(),
@@ -117,6 +121,10 @@ const codingUpdateSchema = zod_1.default.object({
     type: zod_1.default.literal(client_1.QType.CODING).optional(),
     prompt: zod_1.default.string().min(1).optional(),
     starterCode: zod_1.default.string().optional(),
+    language: zod_1.default.string().optional(), // For SQL questions
+    config: zod_1.default.object({
+        ddl: zod_1.default.string().optional(),
+    }).optional(),
     testcases: zod_1.default.array(zod_1.default.object({
         input: zod_1.default.string(),
         expectedOutput: zod_1.default.string(),

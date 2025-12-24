@@ -127,16 +127,16 @@ export default function QuestionNavigation({
   };
   
   return (
-    <div className="w-36 bg-white border-r border-gray-300 p-3 flex flex-col flex-shrink-0 shadow-lg">
+    <div className="w-28 bg-white border-r border-gray-300 p-2 flex flex-col flex-shrink-0 shadow-lg">
       {/* Question Number Navigation - Show only questions of current section type */}
       {showQuestionNumbers && questionsToShow.length > 0 && (
         <div className="flex-1 overflow-y-auto">
-          <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3 text-center">
-            {currentSectionType === QType.MCQ ? 'MCQ Questions' : 
-             (currentSectionType === QType.CODING || currentSectionType === QType.SQL) ? 'Coding & SQL' :
-             currentSectionType === QType.ESSAY ? 'Essay Questions' : 'Questions'}
+          <h4 className="text-[10px] font-bold text-gray-700 uppercase tracking-wide mb-2 text-center">
+            {currentSectionType === QType.MCQ ? 'MCQ Qs' : 
+             (currentSectionType === QType.CODING || currentSectionType === QType.SQL) ? 'Code Qs' :
+             currentSectionType === QType.ESSAY ? 'Essay Qs' : 'Questions'}
           </h4>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 justify-items-center">
+          <div className="grid grid-cols-2 gap-x-1.5 gap-y-1.5 justify-items-center">
             {questionsToShow.map((q, localIndex) => {
               const originalIndex = getOriginalIndex(q);
               const isCurrent = originalIndex === currentQuestionIndex;
@@ -155,13 +155,13 @@ export default function QuestionNavigation({
                   key={q.id}
                   onClick={() => onQuestionClick(originalIndex)}
                   className={`
-                    w-10 h-10 rounded-full font-bold text-sm transition-all duration-200 shadow-sm
+                    w-8 h-8 rounded-full font-bold text-xs transition-all duration-200 shadow-sm
                     flex items-center justify-center flex-shrink-0
                     ${isCurrent
-                      ? 'bg-blue-600 text-white border-2 border-blue-700 scale-110 shadow-lg ring-2 ring-blue-300'
+                      ? 'bg-blue-600 text-white border-2 border-blue-700 scale-110 shadow-md ring-1 ring-blue-300'
                       : isAnswered
-                        ? 'bg-green-500 text-white border-2 border-green-600 hover:bg-green-600 hover:scale-105 hover:shadow-md'
-                        : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:scale-105'
+                        ? 'bg-green-500 text-white border-2 border-green-600 hover:bg-green-600 hover:scale-105 hover:shadow-sm'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:scale-105'
                     }
                   `}
                   title={`Question ${displayNumber}: ${q.type === QType.MCQ ? 'MCQ' : q.type === QType.CODING ? 'Coding' : 'Essay'}`}

@@ -24,21 +24,14 @@ export declare const getUserById: (id: string) => Promise<{
     id: string;
     reg_no: string | null;
     email: string;
-    password: string | null;
     pictureUrl: string | null;
-    pictureData: Uint8Array | null;
-    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
-    leetcodeStats: Prisma.JsonValue | null;
-    settings: Prisma.JsonValue | null;
-    points: number;
+    leetcodeStats: Prisma.JsonValue;
     createdAt: Date;
-    updatedAt: Date;
 } | null>;
 export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => Promise<{
     name: string | null;
@@ -53,7 +46,6 @@ export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => P
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
@@ -74,7 +66,6 @@ export declare const deleteUser: (id: string) => Promise<{
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
@@ -95,7 +86,6 @@ export declare const createUser: (data: Prisma.UserCreateInput) => Promise<{
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;

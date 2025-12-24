@@ -1,0 +1,1 @@
+﻿components/admin/exam/components/ExamFormProgress.tsx(7,28): error TS1005: '=>' expected.

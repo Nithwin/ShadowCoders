@@ -29,6 +29,7 @@ export declare const createManyQuestions: (examId: string, questionsData: Prisma
     options: Prisma.JsonValue | null;
     correctOptionIds: Prisma.JsonValue | null;
     starterCode: string | null;
+    language: string | null;
     testcases: Prisma.JsonValue | null;
     languageHints: Prisma.JsonValue | null;
     wordLimit: number | null;
@@ -97,6 +98,7 @@ export declare const deleteQuestion: (questionId: string) => Promise<{
     options: Prisma.JsonValue | null;
     correctOptionIds: Prisma.JsonValue | null;
     starterCode: string | null;
+    language: string | null;
     testcases: Prisma.JsonValue | null;
     languageHints: Prisma.JsonValue | null;
     wordLimit: number | null;

@@ -92,33 +92,35 @@ enum SectionAttemptStatus {
 }
 
 model User {
-  id         String  @id @default(cuid())
-  reg_no     String? @unique
-  email      String  @unique
-  name       String?
-  password   String?
-  pictureUrl String?
-  pictureData Bytes?
+  id              String  @id @default(cuid())
+  reg_no          String? @unique
+  email           String  @unique
+  name            String?
+  password        String?
+  pictureUrl      String?
+  pictureData     Bytes?
   pictureMimeType String?
-  role       Role    @default(STUDENT)
-  year       Int?
-  department String?
-  section    String?
-  leetcodeId String?
-  leetcodeStats Json?
-  settings   Json?
-  points     Int      @default(0)
+  role            Role    @default(STUDENT)
+  year            Int?
+  department      String?
+  section         String?
+  leetcodeId      String?
+  leetcodeStats   Json?
+  settings        Json?
+  points          Int     @default(0)
 
-  attempts Attempt[]
+  attempts      Attempt[]
   pointsHistory PointsHistory[]
-  redeemOrders RedeemOrder[]
+  redeemOrders  RedeemOrder[]
   notifications Notification[]
 
   // back-relations with explicit names
-  invalidatedQuestions Question[]   @relation("QuestionInvalidator")
+  invalidatedQuestions Question[]       @relation("QuestionInvalidator")
   reportedQuestions    QuestionReport[]
-  assessments          Evaluation[] @relation("EvaluationAssessor")
+  assessments          Evaluation[]     @relation("EvaluationAssessor")
   createdTemplates     ExamTemplate[]
+
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -142,9 +144,9 @@ model Exam {
   negativeMarkPerWrong Decimal?   @db.Decimal(5, 2)
   status               ExamStatus @default(DRAFT)
   releaseResults       Boolean    @default(true)
-  maxAttempts          Int?       // null means unlimited attempts
-  maxTabSwitches       Int?       // null means unlimited tab switches
-  allowedLanguages     Json?      // Array of allowed programming languages for coding questions
+  maxAttempts          Int? // null means unlimited attempts
+  maxTabSwitches       Int? // null means unlimited tab switches
+  allowedLanguages     Json? // Array of allowed programming languages for coding questions
 
   questions   Question[]
   assignments ExamAssignment[]
@@ -280,14 +282,14 @@ model Attempt {
 
   attemptNo Int @default(1)
 
-  startedAt    DateTime      @default(now())
-  submittedAt  DateTime?
-  status       AttemptStatus @default(IN_PROGRESS)
-  submissionType SubmissionType @default(NORMAL)
+  startedAt        DateTime       @default(now())
+  submittedAt      DateTime?
+  status           AttemptStatus  @default(IN_PROGRESS)
+  submissionType   SubmissionType @default(NORMAL)
   submissionReason String?
-  score        Decimal?      @db.Decimal(8, 2)
-  maxScore     Decimal?      @db.Decimal(8, 2)
-  timeSpentSec Int           @default(0)
+  score            Decimal?       @db.Decimal(8, 2)
+  maxScore         Decimal?       @db.Decimal(8, 2)
+  timeSpentSec     Int            @default(0)
 
   orderMap Json?
 
@@ -451,37 +453,37 @@ model RefreshToken {
 }
 
 model ExamTemplate {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   title       String
   description String?
-  
+
   // JSON structure of the exam (sections, questions, settings)
-  structure   Json
-  
+  structure Json
+
   // Metadata
-  isPublic    Boolean  @default(false)
-  createdBy   String
-  creator     User     @relation(fields: [createdBy], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPublic  Boolean @default(false)
+  createdBy String
+  creator   User    @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isPublic])
   @@index([createdBy])
 }
 
 model QuestionReport {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  studentId String
-  student   User     @relation(fields: [studentId], references: [id])
-  examId    String
-  exam      Exam     @relation(fields: [examId], references: [id])
-  
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id])
+  examId     String
+  exam       Exam     @relation(fields: [examId], references: [id])
+
   description String?
   status      ReportStatus @default(OPEN)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -491,61 +493,61 @@ model QuestionReport {
 }
 
 model RedeemItem {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
   pointsCost  Int
-  isActive    Boolean  @default(true)
-  itemType    String   // e.g., "LEAVE_1_DAY", "LEAVE_1_WEEK"
-  metadata    Json?    // Additional data like leave duration, etc.
-  
-  orders      RedeemOrder[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  isActive    Boolean @default(true)
+  itemType    String // e.g., "LEAVE_1_DAY", "LEAVE_1_WEEK"
+  metadata    Json? // Additional data like leave duration, etc.
+
+  orders RedeemOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([isActive])
   @@index([itemType])
 }
 
 model RedeemOrder {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  itemId      String
-  item        RedeemItem @relation(fields: [itemId], references: [id])
-  pointsCost  Int
-  status      RedeemOrderStatus @default(PENDING)
-  leaveDate   DateTime?  // Date when the student wants to take leave
-  message     String?     // Optional reason/message from student
-  adminNotes  String?
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id])
+  itemId          String
+  item            RedeemItem        @relation(fields: [itemId], references: [id])
+  pointsCost      Int
+  status          RedeemOrderStatus @default(PENDING)
+  leaveDate       DateTime? // Date when the student wants to take leave
+  message         String? // Optional reason/message from student
+  adminNotes      String?
   rejectionReason String?
-  reportUrl   String?  // URL to generated report/document
-  
-  processedById String?  // Admin who processed the order
+  reportUrl       String? // URL to generated report/document
+
+  processedById String? // Admin who processed the order
   processedAt   DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([status])
   @@index([itemId])
 }
 
 model PointsHistory {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  points      Int      // Positive for earned, negative for spent
-  balance     Int      // User's balance after this transaction
-  type        String   // "EARNED", "SPENT", "REFUND", "ADJUSTMENT"
+  user        User    @relation(fields: [userId], references: [id])
+  points      Int // Positive for earned, negative for spent
+  balance     Int // User's balance after this transaction
+  type        String // "EARNED", "SPENT", "REFUND", "ADJUSTMENT"
   description String?
-  relatedId   String?  // ID of related entity (e.g., attemptId, orderId)
-  relatedType String?  // Type of related entity (e.g., "ATTEMPT", "ORDER")
-  
-  createdAt   DateTime @default(now())
-  
+  relatedId   String? // ID of related entity (e.g., attemptId, orderId)
+  relatedType String? // Type of related entity (e.g., "ATTEMPT", "ORDER")
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([type])
   @@index([createdAt])
@@ -557,12 +559,16 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   title     String
   message   String
-  type      String   // "REDEEM", "INFO", "ALERT"
+  type      String // "REDEEM", "INFO", "ALERT"
   isRead    Boolean  @default(false)
-  link      String?  // Optional link to redirect to
-  metadata  Json?    // Any extra data needed
+  link      String? // Optional link to redirect to
+  metadata  Json? // Any extra data needed
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([isRead])
 }
+
+// ============================================
+// Clash of Codes Models - REMOVED
+// ============================================

@@ -17,11 +17,11 @@ export declare const overrideResponseGrade: (responseId: string, score: number, 
     createdAt: Date;
     updatedAt: Date;
     type: import(".prisma/client").$Enums.QType;
+    language: string | null;
     questionId: string;
     attemptId: string;
     answer: Prisma.JsonValue | null;
     chosenOptionIds: Prisma.JsonValue | null;
-    language: string | null;
     textAnswer: string | null;
     audioAssetId: string | null;
     gradingMode: import(".prisma/client").$Enums.GradingMode | null;

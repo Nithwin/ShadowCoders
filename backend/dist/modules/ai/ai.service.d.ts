@@ -18,7 +18,11 @@ export declare const generateQuestions: (input: GenerateInput) => Promise<(({
         isHidden: boolean;
         timeoutMs: number;
     }[];
-    starterCode?: string | undefined;
+    starterCode?: string | null | undefined;
+    language?: string | undefined;
+    config?: {
+        ddl?: string | undefined;
+    } | undefined;
 } | {
     type: "ESSAY";
     prompt: string;

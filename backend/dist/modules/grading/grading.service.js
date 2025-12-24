@@ -111,15 +111,9 @@ const runCode = async (studentId, attemptId, input) => {
     // 5. --- Execute Code (via Queue) ---
     let result;
     if (customInput !== undefined) {
-        // Run with custom input (even if empty string - queued
-        let payloadInput = customInput;
-        if (question.type === client_1.QType.SQL) {
-            const config = question.config;
-            if (config?.ddl) {
-                // Prepend DDL to custom input (which acts as additional DML/Inserts)
-                payloadInput = `${config.ddl}\n${customInput || ''}`;
-            }
-        }
+        // For SQL questions, test case input already contains CREATE TABLE + INSERT
+        // No need to prepend DDL anymore
+        const payloadInput = customInput;
         const executionResult = await execution_queue_1.executionQueue.enqueue(async () => {
             return await (0, local_executor_1.executeCodeLocally)(code, language, payloadInput, 10000);
         });
@@ -182,9 +176,10 @@ const runCode = async (studentId, attemptId, input) => {
         // Test code against test cases using local executor - queued
         // Map test cases with metadata (isHidden, originalIndex) for proper display
         const testsWithMetadata = testCasesToRun.map((tc, idx) => {
-            // Prepend DDL for SQL questions
+            // Prepend DDL for SQL questions (both QType.SQL and CODING with language="sql")
             let input = tc.input;
-            if (question.type === client_1.QType.SQL) {
+            const isSQLQuestion = question.type === client_1.QType.SQL || (question.type === client_1.QType.CODING && language === 'sql');
+            if (isSQLQuestion) {
                 const config = question.config;
                 if (config?.ddl) {
                     input = `${config.ddl}\n${tc.input}`;

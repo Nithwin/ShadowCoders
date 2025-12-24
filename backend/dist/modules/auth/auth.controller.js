@@ -33,25 +33,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadProfilePictureHandler = exports.changePasswordHandler = exports.updateMeHandler = exports.logoutHandler = exports.refreshAccessTokenHandler = exports.getMeHandler = exports.emailLoginHandler = exports.googleOAuthHandler = void 0;
+exports.uploadProfilePictureHandler = exports.changePasswordHandler = exports.updateMeHandler = exports.logoutHandler = exports.refreshAccessTokenHandler = exports.getMeHandler = exports.emailLoginHandler = void 0;
 const authService = __importStar(require("./auth.service"));
 const cookie_utils_1 = require("../../lib/cookie-utils");
-const googleOAuthHandler = async (req, res, next) => {
-    try {
-        const userProfile = req.body;
-        const { accessToken, refreshToken } = await authService.handleGoogleLogin(userProfile);
-        const cookieOptions = (0, cookie_utils_1.getCookieOptions)(req);
-        res.cookie('refreshToken', refreshToken, {
-            ...cookieOptions,
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-        res.json({ accessToken });
-    }
-    catch (error) {
-        next(error);
-    }
-};
-exports.googleOAuthHandler = googleOAuthHandler;
 const emailLoginHandler = async (req, res, next) => {
     try {
         const { accessToken, refreshToken } = await authService.handleEmailLogin(req.body);

@@ -152,6 +152,19 @@ const createApp = () => {
     });
     // Body parsing middleware
     app.use(express_1.default.json());
+    // Graceful handling of JSON parsing errors (prevents server crash on malformed JSON)
+    app.use((err, req, res, next) => {
+        if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+            console.error('❌ Malformed JSON received:', err.message);
+            return res.status(400).json({
+                error: {
+                    code: 'INVALID_JSON',
+                    message: 'Invalid JSON format in request body'
+                }
+            });
+        }
+        next(err);
+    });
     app.use((0, cookie_parser_1.default)());
     // Serve uploaded files statically
     // Files are stored in: uploads/{year}/{month}/{filename}

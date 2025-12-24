@@ -47,12 +47,11 @@ const upload = (0, multer_1.default)({
     },
 });
 const registerAuthRoutes = (app) => {
-    app.post('/api/auth/google/callback/', authController.googleOAuthHandler);
     app.post('/api/auth/login', authController.emailLoginHandler);
-    app.get('/api/me', auth_1.verifyAccess, authController.getMeHandler);
-    app.patch('/api/me', auth_1.verifyAccess, authController.updateMeHandler);
+    app.get('/api/auth/me', auth_1.verifyAccess, authController.getMeHandler);
+    app.patch('/api/auth/me', auth_1.verifyAccess, authController.updateMeHandler);
     app.post('/api/auth/change-password', auth_1.verifyAccess, authController.changePasswordHandler);
-    app.post('/api/me/picture', auth_1.verifyAccess, upload.single('picture'), authController.uploadProfilePictureHandler);
+    app.post('/api/auth/me/picture', auth_1.verifyAccess, upload.single('picture'), authController.uploadProfilePictureHandler);
     app.post('/api/auth/refresh', authController.refreshAccessTokenHandler);
     app.post('/api/auth/logout', authController.logoutHandler);
 };

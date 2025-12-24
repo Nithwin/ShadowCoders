@@ -4,7 +4,7 @@ import { type TabId } from './ExamFormTabs';
 
 interface ExamFormProgressProps {
   activeTab: TabId;
-  onTabChange: (tab: TabId);
+  onTabChange: (tab: TabId) => void;
   completionPercentage: number;
   canGoNext: boolean;
   canGoPrevious: boolean;

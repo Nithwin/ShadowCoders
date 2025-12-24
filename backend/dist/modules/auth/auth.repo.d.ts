@@ -1,52 +1,29 @@
-import { Prisma, User } from "@prisma/client";
-interface GoogleProfile {
-    email: string;
-    name?: string | null;
-    pictureUrl?: string | null;
-    googleId: string;
-}
-export declare const findUserByEmailAndLinkGoogle: ({ email, name, pictureUrl, googleId }: GoogleProfile) => Promise<{
+import { Prisma } from "@prisma/client";
+export declare const findUserByEmail: (email: string) => Promise<{
     name: string | null;
     id: string;
     reg_no: string | null;
     email: string;
     password: string | null;
     pictureUrl: string | null;
-    pictureData: Uint8Array | null;
-    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
-    leetcodeStats: Prisma.JsonValue | null;
-    settings: Prisma.JsonValue | null;
-    points: number;
-    createdAt: Date;
-    updatedAt: Date;
 } | null>;
-export declare const findUserByEmail: (email: string) => Promise<User | null>;
 export declare const findUserById: (id: string) => Promise<{
     name: string | null;
     id: string;
     reg_no: string | null;
     email: string;
-    password: string | null;
     pictureUrl: string | null;
-    pictureData: Uint8Array | null;
-    pictureMimeType: string | null;
     role: import(".prisma/client").$Enums.Role;
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
-    leetcodeStats: Prisma.JsonValue | null;
-    settings: Prisma.JsonValue | null;
-    points: number;
     createdAt: Date;
-    updatedAt: Date;
 } | null>;
 export declare const findStudentWithCohortInfo: (id: string) => Promise<{
     id: string;
@@ -67,7 +44,6 @@ export declare const updateUser: (id: string, data: Prisma.UserUpdateInput) => P
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
@@ -115,7 +91,6 @@ export declare const updatePassword: (id: string, passwordHash: string) => Promi
     year: number | null;
     department: string | null;
     section: string | null;
-    googleId: string | null;
     leetcodeId: string | null;
     leetcodeStats: Prisma.JsonValue | null;
     settings: Prisma.JsonValue | null;
@@ -123,5 +98,4 @@ export declare const updatePassword: (id: string, passwordHash: string) => Promi
     createdAt: Date;
     updatedAt: Date;
 }>;
-export {};
 //# sourceMappingURL=auth.repo.d.ts.map

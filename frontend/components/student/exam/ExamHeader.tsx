@@ -81,36 +81,36 @@ export default function ExamHeader({
 
   return (
     <div className={`bg-white border-b border-gray-200 shadow-md sticky top-0 flex-shrink-0 ${isFullscreen ? 'z-[100]' : 'z-40'}`}>
-      {/* Progress Bar at Top */}
+      {/* Progress Bar at Top - Make it thinner */}
       <div className="bg-gray-100 border-b border-gray-200">
-        <div className="max-w-[1920px] mx-auto px-6 py-2">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+        <div className="max-w-[1920px] mx-auto px-4 py-1">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-blue-600 transition-all duration-300 rounded-full"
                 style={{ width: `${(answeredCount / totalQuestions) * 100}%` }}
               />
             </div>
-            <span className="text-xs font-bold text-gray-700 bg-white px-3 py-1 rounded-full border border-gray-300 whitespace-nowrap">
-              {answeredCount}/{totalQuestions} answered
+            <span className="text-[10px] font-bold text-gray-700 bg-white px-2 py-0.5 rounded-full border border-gray-300 whitespace-nowrap">
+              {answeredCount}/{totalQuestions}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Main Header Content */}
-      <div className="max-w-[1920px] mx-auto px-6 py-4">
-        <div className="flex flex-col gap-4">
+      {/* Main Header Content - Reduced/Compact */}
+      <div className="max-w-[1920px] mx-auto px-4 py-2">
+        <div className="flex flex-col gap-2">
           {/* Top Row: Title and Question Info */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-4 flex-wrap">
-              <h1 className="text-xl md:text-2xl font-bold text-gray-900">{examTitle}</h1>
-              <div className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-semibold border border-blue-200">
-                Question {currentQuestionIndex + 1} of {totalQuestions}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-lg md:text-xl font-bold text-gray-900">{examTitle}</h1>
+              <div className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold border border-blue-200">
+                Q {currentQuestionIndex + 1} / {totalQuestions}
               </div>
               {/* Section Navigation Buttons */}
               {sections.length > 0 && onSectionChange && (
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {sortedSections
                     .filter((section) => {
                       // Only show sections that have at least one question
@@ -142,15 +142,15 @@ export default function ExamHeader({
                     const getButtonStyles = () => {
                       if (isActive) {
                         if (sectionType === QType.MCQ) {
-                          return 'bg-blue-600 text-white border-blue-700 shadow-md';
+                          return 'bg-blue-600 text-white border-blue-700 shadow-sm';
                         } else if (sectionType === QType.CODING) {
-                          return 'bg-green-600 text-white border-green-700 shadow-md';
+                          return 'bg-green-600 text-white border-green-700 shadow-sm';
                         } else if (sectionType === QType.SQL) {
-                          return 'bg-indigo-600 text-white border-indigo-700 shadow-md';
+                          return 'bg-indigo-600 text-white border-indigo-700 shadow-sm';
                         } else if (sectionType === QType.ESSAY) {
-                          return 'bg-purple-600 text-white border-purple-700 shadow-md';
+                          return 'bg-purple-600 text-white border-purple-700 shadow-sm';
                         }
-                        return 'bg-gray-600 text-white border-gray-700 shadow-md';
+                        return 'bg-gray-600 text-white border-gray-700 shadow-sm';
                       } else {
                         return 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50';
                       }
@@ -166,7 +166,7 @@ export default function ExamHeader({
                             onSectionChange(section.id);
                           }
                         }}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-bold border-2 transition-all shadow-sm hover:shadow-md cursor-pointer ${getButtonStyles()}`}
+                        className={`px-3 py-1 rounded text-xs font-bold border transition-all shadow-sm hover:shadow cursor-pointer ${getButtonStyles()}`}
                         type="button"
                       >
                         {sectionLabel}
@@ -177,27 +177,32 @@ export default function ExamHeader({
               )}
             </div>
             
-            {/* Center: Timer */}
+            {/* Center: Timer - Make it tighter if needed, but ExamTimer component handles its own size mostly. 
+                We can constrain its container or pass props if ExamTimer accepts size props. 
+                Assuming ExamTimer is reasonably sized or we'll adjust it separately. 
+            */}
             <div className="flex-1 flex justify-center">
-              <ExamTimer
-                durationMins={durationMins}
-                startedAt={startedAt}
-                onTimeUp={onTimeUp}
-                status={status}
-                isFullscreen={isFullscreen}
-              />
+              <div className="scale-90 origin-center">
+                <ExamTimer
+                    durationMins={durationMins}
+                    startedAt={startedAt}
+                    onTimeUp={onTimeUp}
+                    status={status}
+                    isFullscreen={isFullscreen}
+                />
+              </div>
             </div>
             
             {/* Right: Actions */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {!isFullscreen && (
                 <button
                   onClick={onEnterFullscreen}
                   type="button"
-                  className="border-2 border-gray-400 bg-white text-gray-800 hover:bg-gray-100 hover:border-gray-500 px-6 py-3 rounded-lg font-semibold transition-all shadow-md flex items-center justify-center"
+                  className="border border-gray-400 bg-white text-gray-800 hover:bg-gray-100 hover:border-gray-500 px-3 py-1.5 rounded font-semibold transition-all shadow-sm flex items-center justify-center text-sm"
                   style={{ color: '#1f2937', backgroundColor: '#ffffff', borderColor: '#9ca3af' }}
                 >
-                  <Maximize className="w-4 h-4 mr-2" />
+                  <Maximize className="w-3.5 h-3.5 mr-1.5" />
                   Fullscreen
                 </button>
               )}
@@ -210,7 +215,7 @@ export default function ExamHeader({
                 }}
                 disabled={isSubmitting}
                 type="button"
-                className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold px-6 py-3 rounded-lg flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed min-w-[140px] relative"
+                className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-sm hover:shadow transition-all font-semibold px-3 py-1.5 rounded flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed min-w-[120px] relative text-sm"
                 style={{ 
                   visibility: isSubmitting ? 'visible' : 'visible',
                   pointerEvents: isSubmitting ? 'none' : 'auto'
@@ -218,13 +223,13 @@ export default function ExamHeader({
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                     Submitting...
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Submit Exam
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    Submit
                   </>
                 )}
               </button>

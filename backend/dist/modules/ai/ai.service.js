@@ -112,25 +112,65 @@ Generate exam questions based on the following requirements:
   ]
 }
 
-**For SQL questions:**
+**For SQL questions - FOLLOW THIS STRUCTURE EXACTLY:**
+
+MANDATORY STRUCTURE (DO NOT SKIP ANY FIELD):
 {
-  "type": "SQL",
+  "type": "CODING",
+  "language": "sql",
   "order": <number>,
   "points": ${points},
-  "prompt": "<SQL problem description in Markdown (.md). CRITICAL: You MUST include Markdown tables to visualize the database schema at the beginning of the prompt. For each table in the DDL, create a small markdown table showing columns and 2-3 rows of sample data. Example:\\n\\n### Schema\\n\\n**Customers**\\n| id | name |\\n|---|---|\\n| 1 | Alice |\\n| 2 | Bob |\\n\\n...Description of the query required...>",
+  "starterCode": null,
+  "prompt": "<SQL problem description with markdown tables showing schema>",
   "config": {
-    "ddl": "<DDL statements using SQLite syntax: CREATE TABLE...; INSERT INTO...;>"
+    "ddl": "CREATE TABLE Departments (department_id INTEGER PRIMARY KEY, department_name TEXT); CREATE TABLE Employees (employee_id INTEGER PRIMARY KEY, employee_name TEXT, department_id INTEGER, salary REAL);"
   },
   "testcases": [
-    // EXACTLY 2 sample test cases
-    { "input": "<DML statements: INSERT INTO...;>", "expectedOutput": "<Expected result: e.g. 1|Alice>", "isHidden": false, "timeoutMs": 5000 },
-    { "input": "", "expectedOutput": "", "isHidden": false, "timeoutMs": 5000 },
-    // EXACTLY 3 hidden test cases
-    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
-    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 },
-    { "input": "", "expectedOutput": "", "isHidden": true, "timeoutMs": 5000 }
+    {
+      "input": "CREATE TABLE Departments (department_id INTEGER PRIMARY KEY, department_name TEXT);\nCREATE TABLE Employees (employee_id INTEGER PRIMARY KEY, employee_name TEXT, department_id INTEGER, salary REAL);\nINSERT INTO Departments VALUES (1, 'Engineering'), (2, 'Sales');\nINSERT INTO Employees VALUES (101, 'Alice', 1, 65000), (102, 'Bob', 1, 50000);",
+      "expectedOutput": "Alice|65000\nBob|50000",
+      "isHidden": false,
+      "timeoutMs": 5000
+    },
+    {
+      "input": "CREATE TABLE Departments (department_id INTEGER PRIMARY KEY, department_name TEXT);\nCREATE TABLE Employees (employee_id INTEGER PRIMARY KEY, employee_name TEXT, department_id INTEGER, salary REAL);\nINSERT INTO Departments VALUES (1, 'HR');\nINSERT INTO Employees VALUES (201, 'Charlie', 1, 70000);",
+      "expectedOutput": "Charlie|70000",
+      "isHidden": false,
+      "timeoutMs": 5000
+    },
+    {
+      "input": "CREATE TABLE Departments (department_id INTEGER PRIMARY KEY, department_name TEXT);\nCREATE TABLE Employees (employee_id INTEGER PRIMARY KEY, employee_name TEXT, department_id INTEGER, salary REAL);\nINSERT INTO Departments VALUES (1, 'Marketing');\nINSERT INTO Employees VALUES (301, 'David', 1, 80000), (302, 'Eve', 1, 90000);",
+      "expectedOutput": "David|80000\nEve|90000",
+      "isHidden": true,
+      "timeoutMs": 5000
+    },
+    {
+      "input": "CREATE TABLE Departments (department_id INTEGER PRIMARY KEY, department_name TEXT);\nCREATE TABLE Employees (employee_id INTEGER PRIMARY KEY, employee_name TEXT, department_id INTEGER, salary REAL);\nINSERT INTO Departments VALUES (1, 'Finance');\nINSERT INTO Employees VALUES (401, 'Frank', 1, 60000);",
+      "expectedOutput": "Frank|60000",
+      "isHidden": true,
+      "timeoutMs": 5000
+    },
+    {
+      "input": "CREATE TABLE Departments (department_id INTEGER PRIMARY KEY, department_name TEXT);\nCREATE TABLE Employees (employee_id INTEGER PRIMARY KEY, employee_name TEXT, department_id INTEGER, salary REAL);\nINSERT INTO Departments VALUES (1, 'IT'), (2, 'Support');\nINSERT INTO Employees VALUES (501, 'Grace', 1, 75000), (502, 'Heidi', 2, 55000);",
+      "expectedOutput": "Grace|75000\nHeidi|55000",
+      "isHidden": true,
+      "timeoutMs": 5000
+    }
   ]
 }
+
+CRITICAL REQUIREMENTS - SQL QUESTIONS WILL BE REJECTED IF:
+1. "language" field is missing or not "sql"
+2. "config" object is missing
+3. Less than 5 test cases (MUST have exactly 2 visible + 3 hidden = 5 total)
+4. Test case inputs missing CREATE TABLE statements
+
+STRUCTURE RULES:
+- config.ddl: ALL CREATE TABLE statements (for schema visualization)
+- testcases[].input: CREATE TABLE + INSERT statements (complete setup for each test)
+- Each test case is self-contained with its own schema and data
+- expectedOutput: Pipe-delimited format (column1|column2\nrow2col1|row2col2)
+
 
 **For FILL (Fill-in-the-Blanks) questions:**
 {
@@ -143,11 +183,6 @@ Generate exam questions based on the following requirements:
   "clozeConfig": {}
 }
 
-**CRITICAL SQL REQUIREMENTS:**
-- 'config' object with 'ddl' string is MANDATORY.
-- 'testcases' array is MANDATORY.
-- 'input' for testcases should be additional INSERT statements or empty string if data is already in DDL.
-- 'expectedOutput' should be the pipe-delimited result of the query (SQLite format).
 
 **CRITICAL TEST CASE REQUIREMENTS FOR CODING QUESTIONS:**
 
@@ -227,7 +262,7 @@ Example 3 - "Reverse a string":
 }
 
 **IMPORTANT RULES:**
-- Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, ${sqlCount} SQL questions, and ${essayCount} essay questions
+- Generate exactly ${mcqCount} MCQ questions, ${codingCount} coding questions, ${sqlCount} SQL questions (as CODING type), and ${essayCount} essay questions
 - Order numbers should be sequential starting from 1
 - **CRITICAL: All question prompts (for MCQ, CODING, and ESSAY) MUST be formatted in Markdown (.md) format**
   - Use markdown syntax for formatting: headers (#, ##), bold (**text**), italic (*text*), code blocks (\`\`\`), lists (- or 1.), links, etc.
@@ -315,12 +350,30 @@ const generateQuestions = async (input) => {
         try {
             parsedJson = JSON.parse(cleanedResponse);
         }
-        catch (error) {
-            console.error('Cleaned response:', cleanedResponse);
-            throw { status: 500, message: 'AI returned malformed JSON data. Please try again.' };
+        catch (parseError) {
+            console.error('Failed to parse AI response as JSON:', parseError);
+            console.error('AI response was:', cleanedResponse.substring(0, 500));
+            throw { status: 500, message: 'AI returned invalid JSON format' };
         }
-        console.log('AI Generation Success. Parsed questions:', JSON.stringify(parsedJson, null, 2));
-        // 4. **CRITICAL: Validate the AI's output against our *own* schema.**
+        // 4. Validate the response structure (ensure it has a 'questions' array)
+        if (!parsedJson || !Array.isArray(parsedJson.questions)) {
+            console.error('AI response missing questions array or malformed:', parsedJson);
+            throw { status: 500, message: 'AI response missing questions array' };
+        }
+        // 5. CRITICAL: Validate SQL questions have DDL
+        for (const question of parsedJson.questions) {
+            if (question.type === 'CODING' && question.language === 'sql') {
+                if (!question.config || !question.config.ddl) {
+                    console.error('❌ SQL question missing DDL:', question);
+                    throw {
+                        status: 500,
+                        message: 'AI generated SQL question without DDL in config. This is a critical error. Please try again.'
+                    };
+                }
+                console.log('✅ SQL question has DDL:', question.config.ddl.substring(0, 100) + '...');
+            }
+        }
+        // 6. **CRITICAL: Validate the AI's output against our *own* schema.**
         // We use the `addQuestionsSchema` from the 'questions' module for this.
         // The schema expects { questions: [...] }
         const validationResult = question_zod_1.addQuestionsSchema.shape.body.safeParse(parsedJson);

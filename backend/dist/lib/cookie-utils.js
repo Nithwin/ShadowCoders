@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCookieOptions = exports.isSecureRequest = exports.isCrossOriginRequest = void 0;
+const env_1 = require("../config/env");
 /**
  * Determines if a request is cross-origin
  * Cross-origin means frontend and backend are on different domains
@@ -70,16 +71,41 @@ const getCookieOptions = (req) => {
         httpOnly: true,
         // secure=true is REQUIRED when sameSite='none'
         // For HTTP, we use sameSite='lax' so secure=false is fine
-        // For HTTPS with sameSite='none', secure=true is required
-        secure: sameSite === 'none',
+        // For HTTPS, we should always use secure=true if possible
+        secure: isSecure || sameSite === 'none',
         sameSite: sameSite,
         path: '/',
     };
     // For localhost or LAN IP (HTTP), don't set domain (browsers handle this automatically)
     // Setting domain explicitly can cause issues with localhost/LAN IP cookies
-    // Browsers will automatically use the correct domain/IP for both origins
-    // Note: For LAN IPs (e.g., 192.168.1.100), cookies work across ports on the same IP
-    // with sameSite='lax' even without setting domain
+    // For Production/Tunnel (HTTPS), we need to set the domain to share cookies across subdomains
+    // 1. Prefer X-Forwarded-Host if available (Cloudflare tunnel sends this)
+    const forwardedHost = req.get('x-forwarded-host');
+    const hostHeader = req.get('host') || '';
+    const host = forwardedHost || hostHeader;
+    // 2. Check environment
+    const isProduction = env_1.env.NODE_ENV === 'production';
+    // 3. Check if we are conceptually on localhost
+    const isLocalhost = host.includes('localhost') || host === '127.0.0.1' || host.startsWith('192.168.');
+    // If we are in production, OR on a public host, OR securely serving:
+    // FORCE Secure=true and set Domain
+    if (isProduction || !isLocalhost || isSecure) {
+        // Force secure to true for any public access (Cloudflare, Vercel, etc.)
+        cookieOptions.secure = true;
+        // If we have a COOKIE_DOMAIN env var, use it
+        if (process.env.COOKIE_DOMAIN) {
+            cookieOptions.domain = process.env.COOKIE_DOMAIN;
+        }
+        // Auto-detect root domain for subdomains
+        else if (host.includes('.') && !host.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+            const parts = host.split('.');
+            if (parts.length >= 2) {
+                // Get the last two parts (e.g. shadowcoders.app)
+                const rootDomain = parts.slice(-2).join('.');
+                cookieOptions.domain = '.' + rootDomain;
+            }
+        }
+    }
     return cookieOptions;
 };
 exports.getCookieOptions = getCookieOptions;

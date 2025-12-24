@@ -31,6 +31,7 @@ export declare const addQuestionsToExam: (examId: string, questions: AddQuestion
     options: Prisma.JsonValue | null;
     correctOptionIds: Prisma.JsonValue | null;
     starterCode: string | null;
+    language: string | null;
     testcases: Prisma.JsonValue | null;
     languageHints: Prisma.JsonValue | null;
     wordLimit: number | null;
