@@ -120,10 +120,13 @@ api.interceptors.response.use(
         if (handleUnauthorized) {
           handleUnauthorized();
         } else if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          // Force redirect to login
           window.location.href = '/login';
         }
         
-        return Promise.reject(refreshError);
+        // Return null/empty promise to prevent downstream errors/warnings
+        // We are redirecting anyway, so the component doesn't need to know it failed violently
+        return new Promise(() => {}); 
       }
     }
 

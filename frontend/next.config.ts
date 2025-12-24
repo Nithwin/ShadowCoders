@@ -27,8 +27,15 @@ const backendUrl = getBackendUrl();
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Hide Next.js dev indicator/icon completely
-  devIndicators: false,
+  reactStrictMode: false, // Strict mode can cause double-renders in dev
+  transpilePackages: ['lucide-react', 'recharts'], // Ensure these are transpiled
+  
+  // Compiler options for production
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
   
   // Allow all origins in development mode only
   // This fixes the warning: "Cross origin request detected from 10.11.16.132 to /_next/* resource"

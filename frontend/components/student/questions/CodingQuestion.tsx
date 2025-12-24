@@ -115,6 +115,7 @@ export default function CodingQuestion({
   const [customInput, setCustomInput] = useState('');
   const [submitCooldown, setSubmitCooldown] = useState(0); // Cooldown in seconds
   const [showTestResults, setShowTestResults] = useState(true); // Toggle to show/hide test results
+  const [isTestCasesExpanded, setIsTestCasesExpanded] = useState(false); // Toggle maximize/minimize test cases view
   const isInitialMount = useRef(true);
   const editorRef = useRef<{ updateOptions: (options: Record<string, unknown>) => void } | null>(null);
   const previousQuestionIdRef = useRef<string>(questionId);
@@ -573,34 +574,129 @@ export default function CodingQuestion({
           {/* Sample Test Cases */}
           {visibleTestCases.length > 0 && (
             <div className="mt-8 space-y-4">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5 mb-5">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                </div>
-                Sample Test Cases
-              </h3>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+                  <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                  Sample Test Cases
+                </h3>
+                <button 
+                  onClick={() => setIsTestCasesExpanded(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  Expand View
+                </button>
+              </div>
+              
               <div className="space-y-4">
                 {visibleTestCases.map((testCase, index) => (
-                  <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                      <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-xs">Example {index + 1}</span>
+                  <div key={index} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                    <div className="bg-gray-50/80 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] border border-blue-200">
+                          {index + 1}
+                        </span>
+                        Test Case {index + 1}
+                      </span>
                     </div>
-                    <div className="space-y-4">
+                    <div className="p-4 grid grid-cols-1 gap-4">
                       <div>
-                        <div className="text-xs font-bold text-gray-600 mb-2.5 uppercase tracking-wide">Input:</div>
-                        <pre className="text-sm text-gray-800 font-mono bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
-                          {testCase.input || '(empty)'}
-                        </pre>
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Input</div>
+                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 overflow-x-auto">
+                          {testCase.input || <span className="text-gray-400 italic">(empty)</span>}
+                        </div>
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-gray-600 mb-2.5 uppercase tracking-wide">Expected Output:</div>
-                        <pre className="text-sm text-gray-800 font-mono bg-white p-4 rounded-lg border border-gray-200 overflow-x-auto">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Expected Output</div>
+                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 overflow-x-auto">
                           {testCase.expectedOutput}
-                        </pre>
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Expanded Test Cases Modal */}
+          {isTestCasesExpanded && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <FileText className="w-6 h-6 text-blue-600" />
+                    </div>
+                    Sample Test Cases
+                    <span className="text-sm font-normal text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full ml-2">
+                      {visibleTestCases.length} cases
+                    </span>
+                  </h3>
+                  <button 
+                    onClick={() => setIsTestCasesExpanded(false)}
+                    className="p-2 hover:bg-gray-200 rounded-full text-gray-500 hover:text-gray-800 transition-colors"
+                    title="Close (Esc)"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+                
+                {/* Modal Content - Scrollable */}
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 custom-scrollbar">
+                  <div className="grid grid-cols-1 gap-6">
+                    {visibleTestCases.map((testCase, index) => (
+                      <div key={index} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                        <div className="px-5 py-3 border-b border-gray-100 bg-white flex items-center gap-3">
+                          <span className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-blue-100">
+                            {index + 1}
+                          </span>
+                          <span className="text-sm font-bold text-gray-800">Test Case {index + 1}</span>
+                        </div>
+                        <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Input</span>
+                              <button 
+                                className="text-[10px] text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(testCase.input);
+                                  // Could add toast here
+                                }}
+                              >
+                                Copy
+                              </button>
+                            </div>
+                            <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm text-gray-200 overflow-x-auto min-h-[80px] border border-slate-700 shadow-inner">
+                              {testCase.input || <span className="text-gray-500 italic">(empty)</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                               <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Expected Output</span>
+                            </div>
+                            <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm text-green-400 overflow-x-auto min-h-[80px] border border-slate-700 shadow-inner">
+                              {testCase.expectedOutput}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Modal Footer */}
+                <div className="px-6 py-4 border-t border-gray-200 bg-white flex justify-end">
+                  <button 
+                    onClick={() => setIsTestCasesExpanded(false)}
+                    className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold rounded-lg transition-colors border border-gray-200"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -874,47 +970,46 @@ export default function CodingQuestion({
             )}
             {testResults && (
               <div className="space-y-5">
-                {/* Summary Card - Dark Theme */}
+                {/* Summary Card - Compact Version */}
                 {(() => {
-                  // Check if this is a custom input result
                   const isCustomInputResult = testResults.testResults && testResults.testResults.length > 0 && 
                     testResults.testResults.some((r: any) => r.expectedOutput === '(Custom Input)');
                   
                   return (
-                    <div className={`p-6 rounded-xl border-2 ${
+                    <div className={`p-3 rounded-lg border ${
                       testResults.passed === testResults.total
                         ? 'bg-emerald-900/20 border-emerald-600/50'
                         : 'bg-amber-900/20 border-amber-600/50'
                     }`}>
-                      <div className={`flex items-center gap-4 text-xl font-bold ${
+                      <div className={`flex items-center gap-3 text-base font-bold ${
                         testResults.passed === testResults.total ? 'text-emerald-400' : 'text-amber-400'
                       }`}>
                         {testResults.passed === testResults.total ? (
                           <>
-                            <div className="p-2 bg-emerald-600 rounded-full">
-                              <CheckCircle2 className="w-6 h-6 text-white" />
+                            <div className="p-1.5 bg-emerald-600 rounded-full">
+                              <CheckCircle2 className="w-4 h-4 text-white" />
                             </div>
                             <span>
                               {isCustomInputResult 
-                                ? 'Custom Input Execution Successful! ✅'
-                                : `All ${testResults.total} test case${testResults.total !== 1 ? 's' : ''} passed! 🎉`}
+                                ? 'Custom Input: Success ✅'
+                                : `All ${testResults.total} Passed! 🎉`}
                             </span>
                           </>
                         ) : (
                           <>
-                            <div className="p-2 bg-amber-600 rounded-full">
-                              <XCircle className="w-6 h-6 text-white" />
+                            <div className="p-1.5 bg-amber-600 rounded-full">
+                              <XCircle className="w-4 h-4 text-white" />
                             </div>
                             <span>
                               {isCustomInputResult
-                                ? 'Custom Input Execution Failed'
-                                : `${testResults.passed} passed, ${testResults.total - testResults.passed} failed out of ${testResults.total} test case${testResults.total !== 1 ? 's' : ''}`}
+                                ? 'Custom Input: Failed'
+                                : `${testResults.passed} passed, ${testResults.total - testResults.passed} failed`}
                             </span>
                           </>
                         )}
                       </div>
                       {!isSubmitMode && (
-                        <p className="text-sm mt-4 text-gray-300 font-medium bg-[#2d2d2d] rounded-lg p-3 border border-gray-700">
+                        <p className="text-xs mt-2 text-gray-300 font-medium bg-[#2d2d2d] rounded px-2 py-1.5 border border-gray-700">
                           {testResults.message}
                         </p>
                       )}
@@ -922,219 +1017,204 @@ export default function CodingQuestion({
                   );
                 })()}
 
-                {/* Detailed Results - Show all test cases, including hidden ones */}
+                {/* Detailed Results */}
                 {(() => {
-                  // Check if this is a custom input result by checking the message or testResults
                   const isCustomInputResult = testResults.testResults && testResults.testResults.length > 0 && 
                     testResults.testResults.some((r: any) => r.expectedOutput === '(Custom Input)');
                   
-                  // Always show detailed results if testResults exist OR if it's a custom input
                   const shouldShowDetails = (testResults.testResults && testResults.testResults.length > 0) || isCustomInputResult;
                   
                   if (!shouldShowDetails) return null;
                   
-                  // Ensure testResults.testResults exists and is an array
                   const resultsArray = Array.isArray(testResults.testResults) ? testResults.testResults : [];
                   
-                  // If no results but it's custom input, create a placeholder
                   if (resultsArray.length === 0 && isCustomInputResult) {
                     return (
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                          <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                          <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
                           Custom Input Results
                         </h4>
-                        <div className="p-5 rounded-xl border-2 bg-amber-900/10 border-amber-600/30">
-                          <p className="text-gray-300">No detailed results available. Check console for debug info.</p>
+                        <div className="p-3 rounded-lg border border-amber-600/30 bg-amber-900/10">
+                          <p className="text-gray-300 text-xs">No detailed results available. Check console for debug info.</p>
                         </div>
                       </div>
                     );
                   }
                   
                   return (
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                        <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
                         {isSubmitMode ? 'Test Case Results' : 'Detailed Results'}
                       </h4>
                       {(() => {
-                        // Sort test results by testCaseIndex if available, otherwise use array index
                         const sortedResults = [...resultsArray].sort((a, b) => {
                           const aIdx = (a as any).testCaseIndex !== undefined ? (a as any).testCaseIndex : 999;
                           const bIdx = (b as any).testCaseIndex !== undefined ? (b as any).testCaseIndex : 999;
                           return aIdx - bIdx;
                         });
                     
-                    return sortedResults.map((result, index) => {
-                      const testCaseNum = (result as any).testCaseIndex !== undefined 
-                        ? (result as any).testCaseIndex + 1 
-                        : index + 1;
-                      const isHidden = (result as any).isHidden || false;
-                      const errorType = (result as any).errorType || result.status;
-                      // Check if this is a custom input result
-                      const isCustomInput = result.expectedOutput === '(Custom Input)';
-                      
-                      // Determine error type color and label
-                      let errorTypeColor = 'bg-gray-600';
-                      let errorTypeLabel = result.status;
-                      if (errorType === 'TLE' || errorType === 'Time Limit Exceeded') {
-                        errorTypeColor = 'bg-orange-600';
-                        errorTypeLabel = 'TLE';
-                      } else if (errorType === 'Runtime Error') {
-                        errorTypeColor = 'bg-red-600';
-                        errorTypeLabel = 'Runtime Error';
-                      } else if (errorType === 'Compilation Error') {
-                        errorTypeColor = 'bg-purple-600';
-                        errorTypeLabel = 'Compilation Error';
-                      } else if (errorType === 'Wrong Answer') {
-                        errorTypeColor = 'bg-yellow-600';
-                        errorTypeLabel = 'Wrong Answer';
-                      } else if (errorType === 'Accepted' && result.passed) {
-                        errorTypeColor = 'bg-emerald-600';
-                        errorTypeLabel = 'Accepted';
-                      }
-                      
-                      return (
-                        <div
-                          key={index}
-                          className={`p-5 rounded-xl border-2 ${
-                            result.passed
-                              ? 'bg-emerald-900/10 border-emerald-600/30'
-                              : 'bg-red-900/10 border-red-600/30'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 mb-4 flex-wrap">
-                            {result.passed ? (
-                              <div className="p-2 bg-emerald-600 rounded-lg">
-                                <CheckCircle2 className="w-5 h-5 text-white flex-shrink-0" />
-                              </div>
-                            ) : (
-                              <div className="p-2 bg-red-600 rounded-lg">
-                                <XCircle className="w-5 h-5 text-white flex-shrink-0" />
-                              </div>
-                            )}
-                            <span className="font-bold text-base text-gray-200">
-                              {isCustomInput ? 'Custom Input Test' : `Test Case ${testCaseNum}`}: {result.passed ? '✅ Passed' : '❌ Failed'}
-                            </span>
-                            {isHidden && (
-                              <span className="text-xs font-bold text-amber-300 bg-amber-900/30 px-2.5 py-1 rounded-full border border-amber-600/50">
-                                🔒 Hidden
-                              </span>
-                            )}
-                            <span className={`ml-auto text-xs font-bold text-white ${errorTypeColor} px-3 py-1.5 rounded-full border border-opacity-50`}>
-                              {errorTypeLabel}
-                            </span>
-                          </div>
-                        {(() => {
-                          // Check if this is a custom input result
+                        return sortedResults.map((result, index) => {
+                          const testCaseNum = (result as any).testCaseIndex !== undefined 
+                            ? (result as any).testCaseIndex + 1 
+                            : index + 1;
+                          const isHidden = (result as any).isHidden || false;
+                          const errorType = (result as any).errorType || result.status;
                           const isCustomInput = result.expectedOutput === '(Custom Input)';
-                          // Check if we should hide details for hidden test cases in submit mode
-                          const shouldHideDetails = isSubmitMode && isHidden && !isCustomInput;
+                          
+                          let errorTypeColor = 'bg-gray-600';
+                          let errorTypeLabel = result.status;
+                          if (errorType === 'TLE' || errorType === 'Time Limit Exceeded') {
+                            errorTypeColor = 'bg-orange-600';
+                            errorTypeLabel = 'TLE';
+                          } else if (errorType === 'Runtime Error') {
+                            errorTypeColor = 'bg-red-600';
+                            errorTypeLabel = 'Runtime Error';
+                          } else if (errorType === 'Compilation Error') {
+                            errorTypeColor = 'bg-purple-600';
+                            errorTypeLabel = 'Compilation Error';
+                          } else if (errorType === 'Wrong Answer') {
+                            errorTypeColor = 'bg-yellow-600';
+                            errorTypeLabel = 'Wrong Answer';
+                          } else if (errorType === 'Accepted' && result.passed) {
+                            errorTypeColor = 'bg-emerald-600';
+                            errorTypeLabel = 'Accepted';
+                          }
                           
                           return (
-                            <div className="space-y-3">
-                              {shouldHideDetails ? (
-                                /* For hidden test cases in submit mode, show locked message */
-                                <div className="p-4 bg-gray-900/50 border-2 border-gray-700 rounded-lg">
-                                  <div className="flex items-center gap-2 text-gray-400">
-                                    <span className="text-sm font-medium">🔒 Test case is hidden</span>
+                            <div
+                              key={index}
+                              className={`p-3 rounded-lg border ${
+                                result.passed
+                                  ? 'bg-emerald-900/10 border-emerald-600/30'
+                                  : 'bg-red-900/10 border-red-600/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                {result.passed ? (
+                                  <div className="p-1.5 bg-emerald-600 rounded">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-white flex-shrink-0" />
                                   </div>
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    Input and output are hidden. Only pass/fail status is shown.
-                                  </p>
+                                ) : (
+                                  <div className="p-1.5 bg-red-600 rounded">
+                                    <XCircle className="w-3.5 h-3.5 text-white flex-shrink-0" />
+                                  </div>
+                                )}
+                                <span className="font-bold text-sm text-gray-200">
+                                  {isCustomInput ? 'Custom Input' : `Test Case ${testCaseNum}`}: {result.passed ? 'Passed' : 'Failed'}
+                                </span>
+                                {isHidden && (
+                                  <span className="text-[10px] font-bold text-amber-300 bg-amber-900/30 px-2 py-0.5 rounded-full border border-amber-600/50">
+                                    Hidden
+                                  </span>
+                                )}
+                                <span className={`ml-auto text-[10px] font-bold text-white ${errorTypeColor} px-2 py-0.5 rounded-full border border-opacity-50`}>
+                                  {errorTypeLabel}
+                                </span>
+                              </div>
+                              {(() => {
+                                const shouldHideDetails = isSubmitMode && isHidden && !isCustomInput;
+                                
+                                return (
+                                  <div className="space-y-2">
+                                    {shouldHideDetails ? (
+                                      <div className="p-2 bg-gray-900/50 border border-gray-700 rounded-lg">
+                                        <div className="flex items-center gap-2 text-gray-400">
+                                          <span className="text-xs font-medium">🔒 Hidden Test Case</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                          Input and output are hidden. Only pass/fail status is shown.
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {isCustomInput ? (
+                                          <div>
+                                            <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                              <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                                              Custom Input:
+                                            </span>
+                                            <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
+                                              {result.input !== undefined && result.input !== null ? result.input : '(empty)'}
+                                            </pre>
+                                          </div>
+                                        ) : (
+                                          result.input && (
+                                            <div>
+                                              <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                                                Input:
+                                              </span>
+                                              <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
+                                                {result.input}
+                                              </pre>
+                                            </div>
+                                          )
+                                        )}
+                                        
+                                        {isCustomInput ? (
+                                          <div>
+                                            <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                              Your Output:
+                                            </span>
+                                            <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                              {result.actualOutput !== undefined && result.actualOutput !== null && result.actualOutput !== '' 
+                                                ? result.actualOutput 
+                                                : '(no output)'}
+                                            </pre>
+                                          </div>
+                                        ) : (
+                                          result.actualOutput !== null && result.actualOutput !== undefined && (
+                                            <div>
+                                              <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                                Your Output:
+                                              </span>
+                                              <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
+                                                {result.actualOutput || '(empty)'}
+                                              </pre>
+                                            </div>
+                                          )
+                                        )}
+                                        
+                                        {!isCustomInput && !result.passed && result.expectedOutput && (
+                                          <div>
+                                            <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
+                                              <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                                              Expected Output:
+                                            </span>
+                                            <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
+                                              {result.expectedOutput}
+                                            </pre>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              
+                              {result.error && (
+                                <div className="mt-3 p-4 bg-red-900/20 rounded-xl border-2 border-red-600/30">
+                                  <span className="font-bold text-red-400 text-sm block mb-2 flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    {errorType === 'TLE' || errorType === 'Time Limit Exceeded' 
+                                      ? 'Time Limit Exceeded' 
+                                      : errorType === 'Compilation Error'
+                                      ? 'Compilation Error'
+                                      : 'Runtime Error'}:
+                                  </span>
+                                  <pre className="mt-2 text-red-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap bg-[#0d0d0d] p-3 rounded border border-red-800/50">
+                                    {result.error}
+                                  </pre>
                                 </div>
-                              ) : (
-                                <>
-                                  {/* For custom input, ALWAYS show input section */}
-                                  {isCustomInput ? (
-                                    <div>
-                                      <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                                        Custom Input:
-                                      </span>
-                                      <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
-                                        {result.input !== undefined && result.input !== null ? result.input : '(empty)'}
-                                      </pre>
-                                    </div>
-                                  ) : (
-                                    /* For regular test cases, show input if it exists */
-                                    result.input && (
-                                      <div>
-                                        <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                          <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                                          Input:
-                                        </span>
-                                        <pre className="mt-2 p-4 bg-[#0d0d0d] text-cyan-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-cyan-800/50">
-                                          {result.input}
-                                        </pre>
-                                      </div>
-                                    )
-                                  )}
-                                  
-                                  {/* For custom input, ALWAYS show output section */}
-                                  {isCustomInput ? (
-                                    <div>
-                                      <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                        Your Output:
-                                      </span>
-                                      <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
-                                        {result.actualOutput !== undefined && result.actualOutput !== null && result.actualOutput !== '' 
-                                          ? result.actualOutput 
-                                          : '(no output)'}
-                                      </pre>
-                                    </div>
-                                  ) : (
-                                    /* For regular test cases, show output if available */
-                                    result.actualOutput !== null && result.actualOutput !== undefined && (
-                                      <div>
-                                        <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                          Your Output:
-                                        </span>
-                                        <pre className="mt-2 p-4 bg-[#0d0d0d] text-green-400 rounded-lg font-mono text-sm overflow-x-auto border-2 border-gray-800">
-                                          {result.actualOutput || '(empty)'}
-                                        </pre>
-                                      </div>
-                                    )
-                                  )}
-                                  
-                                  {/* Show expected output for test cases (not custom input) when failed */}
-                                  {!isCustomInput && !result.passed && result.expectedOutput && (
-                                    <div>
-                                      <span className="font-bold text-sm text-gray-300 mb-2 block flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
-                                        Expected Output:
-                                      </span>
-                                      <pre className="mt-2 p-4 bg-indigo-900/20 text-indigo-300 rounded-lg font-mono text-sm overflow-x-auto border-2 border-indigo-700/50">
-                                        {result.expectedOutput}
-                                      </pre>
-                                    </div>
-                                  )}
-                                </>
                               )}
                             </div>
                           );
-                        })()}
-                          {result.error && (
-                            <div className="mt-3 p-4 bg-red-900/20 rounded-xl border-2 border-red-600/30">
-                              <span className="font-bold text-red-400 text-sm block mb-2 flex items-center gap-2">
-                                <AlertCircle className="w-4 h-4" />
-                                {errorType === 'TLE' || errorType === 'Time Limit Exceeded' 
-                                  ? 'Time Limit Exceeded' 
-                                  : errorType === 'Compilation Error'
-                                  ? 'Compilation Error'
-                                  : 'Runtime Error'}:
-                              </span>
-                              <pre className="mt-2 text-red-300 font-mono text-xs overflow-x-auto whitespace-pre-wrap bg-[#0d0d0d] p-3 rounded border border-red-800/50">
-                                {result.error}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    });
-                    })()}
+                        });
+                      })()}
                     </div>
                   );
                 })()}
