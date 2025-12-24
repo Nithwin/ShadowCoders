@@ -156,6 +156,7 @@ export default function ExamContentArea({
                 ? (currentQuestion as any).config.ddl
                 : undefined
             }
+            config={(currentQuestion as any).config}
           />
         )}
 

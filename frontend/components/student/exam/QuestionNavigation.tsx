@@ -141,15 +141,36 @@ export default function QuestionNavigation({
               const originalIndex = getOriginalIndex(q);
               const isCurrent = originalIndex === currentQuestionIndex;
               const answer = answers[q.id];
-              const isAnswered = answer && (
-                (q.type === QType.MCQ && answer.chosenOptionIds && answer.chosenOptionIds.length > 0) ||
-                ((q.type === QType.CODING || q.type === QType.SQL) && answer.code && answer.code.trim().length > 0) ||
-                (q.type === QType.ESSAY && answer.textAnswer && answer.textAnswer.trim().length > 0)
-              );
-              
-              // Show question number within the filtered list (1, 2, 3...)
               const displayNumber = localIndex + 1;
+
+              const isMCQ = q.type === QType.MCQ;
+              const isCoding = q.type === QType.CODING || q.type === QType.SQL;
               
+              // Check completion status
+              let isCompleted = false;
+              let isPartiallyCompleted = false;
+
+              if (isMCQ) {
+                isCompleted = !!(answer && answer.chosenOptionIds && answer.chosenOptionIds.length > 0);
+              } else if (isCoding) {
+                // Coding question logic:
+                // Green (Completed) ONLY if all test cases passed
+                // Orange (Partially Completed) if code exists but not all passed
+                const hasCode = !!(answer && answer.code && answer.code.trim().length > 0);
+                const passed = (answer as any)?.passed;
+                const total = (answer as any)?.total;
+                
+                if (hasCode) {
+                   if (passed !== undefined && total !== undefined && total > 0 && passed === total) {
+                     isCompleted = true;
+                   } else {
+                     isPartiallyCompleted = true; // Code written but not 100% passed
+                   }
+                }
+              } else if (q.type === QType.ESSAY) {
+                 isCompleted = !!(answer && answer.textAnswer && answer.textAnswer.trim().length > 0);
+              }
+
               return (
                 <button
                   key={q.id}
@@ -159,9 +180,11 @@ export default function QuestionNavigation({
                     flex items-center justify-center flex-shrink-0
                     ${isCurrent
                       ? 'bg-blue-600 text-white border-2 border-blue-700 scale-110 shadow-md ring-1 ring-blue-300'
-                      : isAnswered
+                      : isCompleted
                         ? 'bg-green-500 text-white border-2 border-green-600 hover:bg-green-600 hover:scale-105 hover:shadow-sm'
-                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:scale-105'
+                        : isPartiallyCompleted
+                          ? 'bg-orange-100 text-orange-600 border-2 border-orange-300 hover:bg-orange-200 hover:scale-105'
+                          : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400 hover:scale-105'
                     }
                   `}
                   title={`Question ${displayNumber}: ${q.type === QType.MCQ ? 'MCQ' : q.type === QType.CODING ? 'Coding' : 'Essay'}`}

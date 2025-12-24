@@ -45,6 +45,7 @@ const codingQuestionSchema = z.object({
   language: z.string().optional(), // For SQL questions
   config: z.object({
     ddl: z.string().optional(), // For SQL questions - schema definition
+    forbiddenKeywords: z.string().optional(), // Comma-separated list of forbidden keywords
   }).optional(),
   testcases: z
     .array(
@@ -479,16 +480,33 @@ export default function ManualQuestionForm({
 
         {/* Coding Starter Code */}
         {questionType === QType.CODING && (
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-2">
-              Starter Code (Optional)
-            </label>
-            <textarea
-              rows={6}
-              {...register('starterCode')}
-              className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
-              placeholder="function solution() {&#10;  // Your code here&#10;}"
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Starter Code (Optional)
+              </label>
+              <textarea
+                rows={6}
+                {...register('starterCode')}
+                className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                placeholder="function solution() {&#10;  // Your code here&#10;}"
+              />
+            </div>
+            
+            {/* Forbidden Keywords */}
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Forbidden Keywords (Optional)
+              </label>
+              <Input
+                {...register('config.forbiddenKeywords')}
+                placeholder="e.g. sort, reverse, split (comma separated)"
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-primary/60">
+                Students will be blocked from running or submitting code containing these words.
+              </p>
+            </div>
           </div>
         )}
 

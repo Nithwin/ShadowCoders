@@ -26,7 +26,7 @@ type CodingQuestionProps = {
   points: number;
   attemptId: string;
   answer?: { code?: string; language?: string };
-  onChange: (answer: { code: string; language: string }) => void;
+  onChange: (answer: { code: string; language: string; passed?: number; total?: number }) => void;
   onNext?: () => void;
   onPrev?: () => void;
   canGoNext?: boolean;
@@ -36,6 +36,7 @@ type CodingQuestionProps = {
   allowedLanguages?: string[] | null;
   reportButton?: React.ReactNode;
   sqlDdl?: string;
+  config?: { forbiddenKeywords?: string; ddl?: string };
 };
 
 // ... (LANGUAGES array remains same)
@@ -78,6 +79,7 @@ export default function CodingQuestion({
   allowedLanguages,
   reportButton,
   sqlDdl,
+  config,
 }: CodingQuestionProps) {
   // Filter available languages based on exam's allowedLanguages
   const availableLanguages = allowedLanguages && allowedLanguages.length > 0
@@ -338,10 +340,30 @@ export default function CodingQuestion({
     onChange({ code: newCode, language });
   }, [starterCode, language, onChange]);
 
+  // Check for forbidden keywords logic
+  const checkForbiddenKeywords = (codeToCheck: string): string | null => {
+    if (!config?.forbiddenKeywords) return null;
+    
+    // Split by comma and trim
+    const keywords = config.forbiddenKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    if (keywords.length === 0) return null;
+
+    // Check if any keyword exists in code
+    const found = keywords.find(keyword => codeToCheck.includes(keyword));
+    return found || null;
+  };
+
   // Run code with visible test cases only (for testing) - memoized to prevent flicker
   const handleRunCode = useCallback(async () => {
     if (!code.trim()) {
       setError('Please write some code before running.');
+      return;
+    }
+
+    // Check for forbidden keywords
+    const forbiddenWord = checkForbiddenKeywords(code);
+    if (forbiddenWord) {
+      setError(`Your code contains a forbidden keyword: "${forbiddenWord}". Please remove it to run your code.`);
       return;
     }
 
@@ -381,12 +403,19 @@ export default function CodingQuestion({
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, questionId, attemptId, showCustomInput, customInput]);
+  }, [code, language, questionId, attemptId, showCustomInput, customInput, config]);
 
   // Submit code (runs ALL test cases including hidden ones, then saves) - memoized to prevent flicker
   const handleSubmitCode = useCallback(async () => {
     if (!code.trim()) {
       setError('Please write some code before submitting.');
+      return;
+    }
+
+    // Check for forbidden keywords
+    const forbiddenWord = checkForbiddenKeywords(code);
+    if (forbiddenWord) {
+      setError(`Your code contains a forbidden keyword: "${forbiddenWord}". Please remove it to submit.`);
       return;
     }
 
@@ -427,7 +456,7 @@ export default function CodingQuestion({
       }
       
       // Then save the answer to the parent component and server
-      onChange({ code, language });
+      onChange({ code, language, passed, total });
       
       // Save to server via API
       await api.post(`/student/attempts/${attemptId}/responses`, {
@@ -435,6 +464,8 @@ export default function CodingQuestion({
         answer: {
           code: code.trim(),
           language: language,
+          passed,
+          total
         },
       });
     } catch (err: unknown) {
@@ -462,7 +493,7 @@ export default function CodingQuestion({
       // Start 30-second cooldown after submission
       setSubmitCooldown(30);
     }
-  }, [code, language, questionId, attemptId, onChange, submitCooldown]);
+  }, [code, language, questionId, attemptId, onChange, submitCooldown, config]);
 
   // Calculate widths based on fullscreen state
   const editorWidth = isEditorFullscreen ? 100 : 50;
@@ -785,7 +816,7 @@ export default function CodingQuestion({
             onClick={handleRunCode}
             disabled={isRunning || isSubmitting || !code.trim()}
             type="button"
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-blue-600 flex-shrink-0 w-[90px]"
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-blue-600 flex-shrink-0 w-auto whitespace-nowrap min-w-[90px]"
           >
             {isRunning ? (
               <>
