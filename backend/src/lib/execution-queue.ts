@@ -25,17 +25,24 @@ class ExecutionQueue {
   private queue: QueueJob[] = [];
   private running: Set<string> = new Set();
   private maxConcurrent: number;
+  private maxQueueSize: number;
   private stats = {
     total: 0,
     running: 0,
     queued: 0,
     completed: 0,
     failed: 0,
+    rejected: 0
   };
 
-  constructor(maxConcurrent: number = 5) {
+  /**
+   * @param maxConcurrent Maximum number of tasks running in parallel
+   * @param maxQueueSize Maximum number of tasks waiting in queue (default 50)
+   */
+  constructor(maxConcurrent: number = 3, maxQueueSize: number = 50) {
     this.maxConcurrent = maxConcurrent;
-    // console.log(`[ExecutionQueue] Initialized with max concurrent: ${maxConcurrent}`);
+    this.maxQueueSize = maxQueueSize;
+    // console.log(`[ExecutionQueue] Initialized: Concurrency=${maxConcurrent}, MaxQueue=${maxQueueSize}`);
   }
 
   /**
@@ -62,6 +69,7 @@ class ExecutionQueue {
       queued: this.queue.length,
       completed: this.stats.completed,
       failed: this.stats.failed,
+      // rejected: this.stats.rejected // Add to interface if needed
     };
   }
 
@@ -77,6 +85,15 @@ class ExecutionQueue {
   ): Promise<T> {
     const jobId = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     this.stats.total++;
+
+    // Fail Fast: Reject if queue is full
+    if (this.queue.length >= this.maxQueueSize) {
+      this.stats.rejected++;
+      const error = new Error(`Server is busy (Queue full: ${this.queue.length}/${this.maxQueueSize}). Please try again in moments.`);
+      (error as any).status = 503; // Service Unavailable
+      console.warn(`[ExecutionQueue] Rejected job ${jobId}. Queue full.`);
+      throw error;
+    }
 
     return new Promise<T>((resolve, reject) => {
       const job: QueueJob = {
@@ -132,6 +149,7 @@ class ExecutionQueue {
     // console.log(`[ExecutionQueue] Starting job ${job.id}. Running: ${this.running.size}/${this.maxConcurrent}, Queued: ${this.queue.length}`);
 
     // Execute job asynchronously
+    // We do NOT await here to allow concurrent processing
     this.executeJob(job).finally(() => {
       // Remove from running set
       this.running.delete(job.id);
@@ -207,14 +225,26 @@ const getMaxConcurrent = (): number => {
     }
   }
   
-  // Default based on system resources
-  // For production, recommend 5-10 for moderate systems, 10-20 for powerful systems
-  const defaultConcurrent = 5;
-  // console.log(`[ExecutionQueue] Using default max concurrent: ${defaultConcurrent} (set MAX_CONCURRENT_EXECUTIONS env var to customize)`);
+  // Default based on stability
+  // Lowered default to 3 from 5 to prevent CPU locking on smaller instances
+  const defaultConcurrent = 3;
   return defaultConcurrent;
 };
 
-export const executionQueue = new ExecutionQueue(getMaxConcurrent());
+const getMaxQueueSize = (): number => {
+  const envValue = process.env.MAX_QUEUE_SIZE;
+  if (envValue) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  
+  // Default max queue size
+  return 50; 
+};
+
+export const executionQueue = new ExecutionQueue(getMaxConcurrent(), getMaxQueueSize());
 
 // Export for testing or manual configuration
 export { ExecutionQueue };

@@ -74,7 +74,10 @@ export const env = {
     // When false: enforces CORS restrictions based on allowed origins list
     ALLOW_ALL_ORIGINS: process.env.ALLOW_ALL_ORIGINS === 'true',
     // Maximum concurrent code executions (default: 5, recommended: 5-10 for moderate systems, 10-20 for powerful systems)
-    MAX_CONCURRENT_EXECUTIONS: process.env.MAX_CONCURRENT_EXECUTIONS || '5',
+    // Maximum concurrent code executions (default: 3)
+    MAX_CONCURRENT_EXECUTIONS: process.env.MAX_CONCURRENT_EXECUTIONS || '3',
+    // Maximum queue size before rejecting new requests (default: 50)
+    MAX_QUEUE_SIZE: process.env.MAX_QUEUE_SIZE || '50',
     // File uploads directory (optional - defaults to 'uploads' in project root)
     // Used for storing LISTENING audio files and SPEAKING recordings
     UPLOADS_DIR: process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads'),

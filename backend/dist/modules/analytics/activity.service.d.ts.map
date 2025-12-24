@@ -1,1 +1,0 @@
-{"version":3,"file":"activity.service.d.ts","sourceRoot":"","sources":["../../../src/modules/analytics/activity.service.ts"],"names":[],"mappings":"AAGA,MAAM,WAAW,YAAY;IAC3B,IAAI,EAAE,MAAM,CAAC;IACb,KAAK,EAAE,MAAM,CAAC;CACf;AAED,eAAO,MAAM,mBAAmB,GAAU,QAAQ,MAAM,EAAE,OAAO,MAAM,KAAG,OAAO,CAAC,YAAY,EAAE,CAgD/F,CAAC;AAEF,eAAO,MAAM,YAAY,GAAU,QAAQ,MAAM;;;;;;;EAuFhD,CAAC"}

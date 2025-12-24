@@ -396,7 +396,8 @@ export const deleteExam = async (examId: string, force: boolean = false) => {
  * Ensures default sections exist for an exam (creates them if missing)
  */
 export const ensureDefaultSections = async (examId: string) => {
-  const exam = await examRepo.findExamById(examId);
+  // Optimization: Don't fetch the full heavy exam object, just check existence
+  const exam = await prisma.exam.findUnique({ where: { id: examId }, select: { id: true } });
   if (!exam) {
     throw { status: 404, message: 'Exam not found' };
   }
@@ -417,12 +418,17 @@ export const ensureDefaultSections = async (examId: string) => {
   // Create missing sections
   for (const section of defaultSections) {
     if (!existingTitles.has(section.title)) {
-      await sectionRepo.createSection(examId, {
-        title: section.title,
-        order: section.order,
-        description: section.description,
-        durationMins: null,
-      });
+      try {
+        await sectionRepo.createSection(examId, {
+          title: section.title,
+          order: section.order,
+          description: section.description,
+          durationMins: null,
+        });
+      } catch (err) {
+        console.error(`Failed to create default section ${section.title} for exam ${examId}:`, err);
+        // Swallow error to avoid crashing the request
+      }
     }
   }
 };
@@ -432,16 +438,33 @@ export const ensureDefaultSections = async (examId: string) => {
  * Ensures default sections exist before returning.
  */
 export const getExamById = async (examId: string) => {
-  const exam = await examRepo.findExamById(examId);
-  if (!exam) {
-    throw { status: 404, message: 'Exam not found' };
+  try {
+    // Ensure default sections exist (swallow errors to prevent blocking read)
+    try {
+      await ensureDefaultSections(examId);
+    } catch (e) {
+      console.error('ensureDefaultSections failed:', e);
+    }
+    
+    const exam = await examRepo.findExamById(examId);
+    if (!exam) {
+      throw { status: 404, message: 'Exam not found' };
+    }
+    
+    return exam;
+  } catch (error) {
+    // Log fatal errors to file for debugging
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const logPath = path.join(process.cwd(), 'error_log.txt');
+      const logs = `\n[${new Date().toISOString()}] FATAL Error in getExamById: ${error instanceof Error ? error.stack : JSON.stringify(error)}`;
+      fs.appendFileSync(logPath, logs);
+    } catch (logErr) {
+       console.error('Failed to write to log file:', logErr);
+    }
+    throw error;
   }
-  
-  // Ensure default sections exist
-  await ensureDefaultSections(examId);
-  
-  // Fetch again to get the sections
-  return await examRepo.findExamById(examId);
 };
 
 /**

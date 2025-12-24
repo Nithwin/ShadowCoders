@@ -211,8 +211,8 @@ model SectionQuestion {
 
 model Question {
   id     String @id @default(cuid())
-  examId String
-  exam   Exam   @relation(fields: [examId], references: [id])
+  examId String?
+  exam   Exam?   @relation(fields: [examId], references: [id])
 
   // If not using sections, use this order; otherwise SectionQuestion.order applies
   order  Int
