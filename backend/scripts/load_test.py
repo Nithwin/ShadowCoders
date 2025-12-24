@@ -56,8 +56,12 @@ async def main():
     print("✅ Load Test Complete")
 
 if __name__ == "__main__":
-    # You might need to install: pip install aiohttp
+    print("To run this test, ensure you have python and aiohttp installed:")
+    print("pip install aiohttp")
     try:
+        import aiohttp
         asyncio.run(main())
+    except ImportError:
+        print("Error: aiohttp not installed. skipping execution.")
     except KeyboardInterrupt:
         print("\nTest stopped by user.")

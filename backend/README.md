@@ -70,11 +70,9 @@ backend/
 │   ├── schema.prisma        # Database schema
 │   └── migrations/          # Database migrations
 ├── scripts/                 # Utility scripts
-│   ├── setup-env.js         # Environment setup
-│   ├── create-admin-user.js # Create admin user
-│   ├── setup-admin-auto.js  # Auto-setup admin
-│   ├── test-db-connection.ts # Test database
-│   └── check-rls-status.ts  # Check RLS status
+│   ├── create-user.js       # Create user/admin
+│   ├── add-students.js      # Add students
+│   ├── list-users.js        # List users
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -167,7 +165,7 @@ This will:
 4. Update .env file
 5. Generate Prisma Client
 
-**See [Local Database Setup Guide](./docs/LOCAL_DATABASE_SETUP.md) for detailed instructions.**
+**See [Prisma Documentation](https://www.prisma.io/docs) for detailed instructions.**
 
 ## 📚 API Documentation
 
@@ -286,12 +284,9 @@ npm run prisma:migrate   # Run database migrations
 npm run prisma:studio    # Open Prisma Studio (database GUI)
 
 # Utilities
-npm run setup:env        # Interactive environment setup
-npm run setup:local-db   # Setup local PostgreSQL database
-npm run create:admin     # Create admin user
-npm run setup:admin      # Auto-setup admin (with error handling)
-npm run test:db          # Test database connection
-npm run check:rls        # Check Row Level Security (RLS) status (Supabase only)
+npm run setup:env        # Interactive environment setup (if available)
+npm run create:user      # Create admin user
+npm run add:students     # Add students
 ```
 
 ## 🏗️ Architecture
@@ -436,7 +431,7 @@ npm run setup:local-db
 # 4. Generate Prisma Client
 ```
 
-**See [Local Database Setup Guide](./docs/LOCAL_DATABASE_SETUP.md) for detailed instructions.**
+**See [Prisma Documentation](https://www.prisma.io/docs) for detailed instructions.**
 
 ### CORS Errors
 

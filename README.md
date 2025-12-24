@@ -25,7 +25,7 @@ A comprehensive online examination platform built with Next.js 16 and Express.js
    npm run setup:env
    npm run prisma:migrate
    npm run prisma:generate
-   npm run setup:admin
+   npm run create:user
    npm run dev
    ```
 
@@ -399,8 +399,8 @@ npm run start             # Start production server
 npm run prisma:generate   # Generate Prisma client
 npm run prisma:migrate    # Run migrations
 npm run prisma:studio     # Open Prisma Studio
-npm run setup:admin       # Create admin user
-npm run add:students      # Add students from CSV
+npm run create:user      # Create admin user
+npm run add:students     # Add students from CSV
 ```
 
 ### Frontend Scripts
