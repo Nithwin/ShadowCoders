@@ -50,6 +50,17 @@ export const runCode = async (
   if (question.type !== QType.CODING && question.type !== QType.SQL) {
     throw { status: 400, message: 'This is not a coding or SQL question' };
   }
+
+  // --- Validation: Forbidden Keywords ---
+  const config = question.config as { forbiddenKeywords?: string } | null;
+  if (config?.forbiddenKeywords) {
+    const keywords = config.forbiddenKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
+    for (const keyword of keywords) {
+      if (code.includes(keyword)) {
+        throw { status: 400, message: `Forbidden keyword used: "${keyword}"` };
+      }
+    }
+  }
   
   // 3. --- Upsert Response (create if doesn't exist) ---
   // This allows students to test code before final submission

@@ -42,6 +42,10 @@ const codingQuestionSchema = z.object({
     return num;
   }).pipe(z.number().positive('Points must be positive')),
   starterCode: z.string().optional(),
+  config: z.object({
+    ddl: z.string().optional(),
+    forbiddenKeywords: z.string().optional(),
+  }).optional(),
   testcases: z
     .array(
       z.object({
@@ -132,6 +136,7 @@ export default function EditQuestionModal({
       ...(question.type === QType.CODING && {
         starterCode: question.starterCode || '',
         testcases: question.testcases || [],
+        config: question.config || {},
       }),
       ...(question.type === QType.ESSAY && {
         wordLimit: question.wordLimit || undefined,
@@ -216,7 +221,9 @@ export default function EditQuestionModal({
         }),
         ...(question.type === QType.CODING && {
           starterCode: question.starterCode || '',
+
           testcases: testcases,
+          config: question.config || {},
         }),
         ...(question.type === QType.ESSAY && {
           wordLimit: question.wordLimit || undefined,
@@ -246,6 +253,19 @@ export default function EditQuestionModal({
         updateData.correctOptionIds = validatedData.correctOptionIds || [];
       } else if (validatedData.type === QType.CODING) {
         updateData.starterCode = validatedData.starterCode || null;
+        
+        // Handle config (DDL and Forbidden Keywords)
+        const config: any = {};
+        if (validatedData.config?.ddl) {
+          config.ddl = validatedData.config.ddl;
+        }
+        if (validatedData.config?.forbiddenKeywords) {
+          config.forbiddenKeywords = validatedData.config.forbiddenKeywords;
+        }
+        if (Object.keys(config).length > 0) {
+          updateData.config = config;
+        }
+
         // Ensure testcases are properly formatted
         if (validatedData.testcases && Array.isArray(validatedData.testcases) && validatedData.testcases.length > 0) {
           // Filter out empty testcases and format them
@@ -449,6 +469,21 @@ export default function EditQuestionModal({
                 className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
                 placeholder="function solution() {&#10;  // Your code here&#10;}"
               />
+            </div>
+
+            {/* Forbidden Keywords */}
+            <div>
+              <label className="block text-sm font-semibold text-primary mb-2">
+                Forbidden Keywords (Optional)
+              </label>
+              <Input
+                {...register('config.forbiddenKeywords')}
+                placeholder="e.g. sort, reverse, split (comma separated)"
+                className="w-full"
+              />
+              <p className="mt-1 text-xs text-primary/60">
+                Students will be blocked from running or submitting code containing these words.
+              </p>
             </div>
             <div>
               <div className="flex justify-between items-center mb-3">

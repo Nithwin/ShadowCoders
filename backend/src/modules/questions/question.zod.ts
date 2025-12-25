@@ -26,6 +26,7 @@ const codingSchema = z.object({
   language: z.string().optional(), // For SQL questions: "sql"
   config: z.object({
     ddl: z.string().optional(), // For SQL questions: database schema
+    forbiddenKeywords: z.string().optional(),
   }).optional(),
   testcases: z
     .array(

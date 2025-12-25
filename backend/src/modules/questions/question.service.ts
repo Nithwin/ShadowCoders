@@ -264,7 +264,7 @@ export const updateQuestion = async (
   const verifiedQuestion = await questionRepo.getQuestionById(questionId);
 
   // Notify students via socket
-  if (verifiedQuestion) {
+  if (verifiedQuestion && verifiedQuestion.examId) {
       const { examMonitoring } = await import('../../lib/socket');
       examMonitoring.notifyQuestionUpdate(verifiedQuestion.examId, questionId, verifiedQuestion);
   }
