@@ -701,6 +701,7 @@ export const getQuestionForStudent = async (
       testcases: question.type === QType.CODING && Array.isArray(question.testcases)
         ? (question.testcases as any[]).filter((tc: any) => !tc.isHidden)
         : undefined,
+      config: question.config,
     };
 
     return scrubbedQuestion;

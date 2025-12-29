@@ -531,6 +531,20 @@ export default function CodingQuestion({
           </div>
         </div>
 
+        {/* Forbidden Keywords Warning - Top of UI */}
+        {config?.forbiddenKeywords && (
+          <div className="px-6 py-3 bg-red-50 border-b border-red-100 flex items-start gap-3">
+             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+             <div className="text-sm text-red-800">
+               <span className="font-bold">Restricted: </span>
+               The following keywords are forbidden in your code:
+               <span className="font-mono font-bold ml-1 bg-red-100 px-1.5 py-0.5 rounded text-red-700">
+                 {config.forbiddenKeywords.split(',').map(k => k.trim()).join(', ')}
+               </span>
+             </div>
+          </div>
+        )}
+
         {/* Question Prompt - Scrollable with Markdown */}
         <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
           <div className="text-gray-900 leading-relaxed text-base">
@@ -743,6 +757,7 @@ export default function CodingQuestion({
                 <ul className="list-disc list-inside space-y-2 text-sm">
                   <li><strong>{sqlDdl ? 'Run Query' : 'Run Code'}:</strong> Tests your {sqlDdl ? 'query' : 'code'} with sample test cases and shows detailed results</li>
                   <li><strong>Submit:</strong> Runs ALL test cases (including hidden ones) and shows only pass/fail summary</li>
+
                   <li>Hidden test cases are included when you submit, but details are hidden</li>
                   <li>Test thoroughly using &quot;{sqlDdl ? 'Run Query' : 'Run Code'}&quot; before submitting your final answer</li>
                 </ul>

@@ -68,7 +68,9 @@ api.interceptors.response.use(
     const isAuthCheck = originalRequest?.url?.includes('/auth/refresh') || originalRequest?.url?.includes('/auth/me');
     const isUnauthorized = error.response?.status === 401;
 
-    if (!isAuthCheck || !isUnauthorized) {
+    // Suppress logging for all 401s as they are handled by retry/logout logic
+    // Also suppress auth checks
+    if (!isAuthCheck && !isUnauthorized) {
       console.error(`[API ERROR] ${error.response?.status} ${originalRequest?.url}`, error.response?.data);
     }
 

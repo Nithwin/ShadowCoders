@@ -155,6 +155,13 @@ export const pubishExam = async (examId: string) => {
     };
   }
 
+  if (!exam.assignments || exam.assignments.length === 0) {
+    throw {
+      status: 400,
+      message: "Exam cannot be published. You must assign it to at least one student or cohort first.",
+    };
+  }
+
   const updatedExam = await examRepo.updateExamStatus(
     examId,
     ExamStatus.PUBLISHED

@@ -38,8 +38,8 @@ export default function EditExamPage() {
   const [isTemplatePublic, setIsTemplatePublic] = useState(false);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
 
-  const fetchExamData = async () => {
-    setIsLoadingExam(true);
+  const fetchExamData = async (showLoading = true) => {
+    if (showLoading) setIsLoadingExam(true);
     setApiError(null);
     try {
       const response = await api.get(`/admin/exams/${examId}`);
@@ -54,7 +54,7 @@ export default function EditExamPage() {
       console.error(err);
       setApiError(error.response?.data?.error?.message || 'Failed to load exam data. Please refresh the page.');
     } finally {
-      setIsLoadingExam(false);
+      if (showLoading) setIsLoadingExam(false);
     }
   };
 
@@ -93,7 +93,7 @@ export default function EditExamPage() {
       setSuccessMessage('Exam settings updated successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
       // Refresh exam data
-      await fetchExamData();
+      await fetchExamData(false);
     } catch (err: unknown) {
       // Check if this is a cancellation error
       if (err instanceof Error && (err as any).isCancellation) {
@@ -126,6 +126,13 @@ export default function EditExamPage() {
     if (!confirmed) {
       return;
     }
+
+    if (!examData?.assignments || examData.assignments.length === 0) {
+      toast.error('You must assign this exam to students before publishing.');
+      // Switch to assignments tab to help the user
+      setActiveTab('assignments');
+      return;
+    }
     
     setIsPublishing(true);
     setApiError(null);
@@ -135,7 +142,7 @@ export default function EditExamPage() {
       setSuccessMessage('Exam published successfully!');
       toast.success('Exam published successfully!');
       // Refresh exam data to get updated status
-      await fetchExamData();
+      await fetchExamData(false);
       // Redirect to exams list after a short delay to show success message
       setTimeout(() => {
         router.push('/admin/exams');
@@ -298,8 +305,8 @@ export default function EditExamPage() {
             sectionLockPolicy: examData.sectionLockPolicy,
             randomizeQuestions: examData.randomizeQuestions,
             negativeMarkPerWrong: examData.negativeMarkPerWrong?.toString(),
-            maxAttempts: examData.maxAttempts ?? undefined,
-            maxTabSwitches: examData.maxTabSwitches ?? undefined,
+            maxAttempts: examData.maxAttempts ?? 1,
+            maxTabSwitches: examData.maxTabSwitches ?? 1,
             allowedLanguages: Array.isArray(examData.allowedLanguages) ? examData.allowedLanguages : [],
           }}
           onSubmit={handleFormSubmit}
@@ -316,7 +323,11 @@ export default function EditExamPage() {
       )}
 
       {activeTab === 'assignments' && examData && (
-        <AssignmentManager examId={examId} examStatus={examData.status} />
+        <AssignmentManager 
+          examId={examId} 
+          examStatus={examData.status} 
+          onUpdate={() => fetchExamData(false)}
+        />
       )}
 
       {/* Template Creation Modal */}

@@ -333,295 +333,306 @@ export default function EditQuestionModal({
       open={open} 
       onOpenChange={onOpenChange} 
       title="Edit Question"
-      size="xl"
-      maxHeight="85vh"
+      size="full"
+      maxHeight="90vh"
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-4">
-        {/* Question Type (read-only) */}
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-2">
-            Question Type
-          </label>
-          <div className="px-3 py-2 bg-primary/10 rounded-md text-primary font-medium">
-            {questionType}
-          </div>
-        </div>
-
-        {/* Prompt */}
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-2">
-            Question Prompt <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            {...register('prompt')}
-            rows={4}
-            className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
-            placeholder="Enter the question prompt..."
-          />
-          {errors.prompt && (
-            <p className="mt-1 text-sm text-red-500">{errors.prompt.message}</p>
-          )}
-        </div>
-
-        {/* Points */}
-        <div>
-          <label className="block text-sm font-semibold text-primary mb-2">
-            Points <span className="text-red-500">*</span>
-          </label>
-          <Input
-            type="number"
-            min="1"
-            {...register('points')}
-            placeholder="10"
-          />
-          {errors.points && (
-            <p className="mt-1 text-sm text-red-500">{errors.points.message}</p>
-          )}
-        </div>
-
-        {/* MCQ Specific Fields */}
-        {questionType === QType.MCQ && (
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-semibold text-primary">
-                  Options <span className="text-red-500">*</span>
-                  <span className="ml-2 text-xs font-normal text-primary/60">
-                    ({optionFields.length} option{optionFields.length !== 1 ? 's' : ''})
-                  </span>
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full">
+        <div className="flex-1 overflow-y-auto pr-2 pb-20">
+          <div className="space-y-6">
+            {/* Top Row: Type & Points */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-3">
+                <label className="block text-sm font-semibold text-primary mb-2">
+                  Question Type
                 </label>
-                <Button
-                  type="button"
-                  onClick={() =>
-                    appendOption({
-                      id: `opt${Date.now()}`,
-                      text: '',
-                    })
-                  }
-                  disabled={optionFields.length >= 8}
-                  className="text-xs px-3 py-1.5"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Option
-                </Button>
+                <div className="px-3 py-2 bg-primary/10 rounded-md text-primary font-medium w-full">
+                  {questionType}
+                </div>
               </div>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                {optionFields.map((field, index) => {
-                  // RHF overwrites 'id' in field object, so we must grab the actual value from form state
-                  const currentOption = watch(`options.${index}`);
-                  const optionId = currentOption?.id || field.id;
-                  
-                  return (
-                  <div key={field.id} className="flex gap-2 items-start p-3 border border-primary/20 rounded-lg bg-primary/5 hover:border-primary/30 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <Input
-                        {...register(`options.${index}.text`)}
-                        placeholder={`Option ${index + 1}`}
-                        className="w-full"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleCorrectOption(optionId)}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
-                        correctOptionIds.includes(optionId)
-                          ? 'bg-green-600 text-white hover:bg-green-700'
-                          : 'bg-primary/10 text-primary hover:bg-primary/20'
-                      }`}
-                    >
-                      {correctOptionIds.includes(optionId) ? '✓ Correct' : 'Mark Correct'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeOption(index)}
-                      disabled={optionFields.length <= 2}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                      title={optionFields.length <= 2 ? 'Minimum 2 options required' : 'Remove option'}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  );
-                })}
+              <div>
+                <label className="block text-sm font-semibold text-primary mb-2">
+                  Points <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  {...register('points')}
+                  placeholder="10"
+                />
+                {errors.points && (
+                  <p className="mt-1 text-sm text-red-500">{errors.points.message}</p>
+                )}
               </div>
-              {'options' in errors && errors.options && (
-                <p className="mt-2 text-sm text-red-500">{errors.options.message}</p>
-              )}
-              {'correctOptionIds' in errors && errors.correctOptionIds && (
-                <p className="mt-2 text-sm text-red-500">
-                  {errors.correctOptionIds.message}
-                </p>
-              )}
             </div>
-          </div>
-        )}
 
-        {/* Coding Specific Fields */}
-        {questionType === QType.CODING && (
-          <div className="space-y-4">
+            {/* Prompt */}
             <div>
               <label className="block text-sm font-semibold text-primary mb-2">
-                Starter Code (Optional)
+                Question Prompt <span className="text-red-500">*</span>
               </label>
               <textarea
-                {...register('starterCode')}
+                {...register('prompt')}
                 rows={4}
-                className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
-                placeholder="function solution() {&#10;  // Your code here&#10;}"
+                className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-y min-h-[100px]"
+                placeholder="Enter the question prompt..."
               />
+              {errors.prompt && (
+                <p className="mt-1 text-sm text-red-500">{errors.prompt.message}</p>
+              )}
             </div>
 
-            {/* Forbidden Keywords */}
-            <div>
-              <label className="block text-sm font-semibold text-primary mb-2">
-                Forbidden Keywords (Optional)
-              </label>
-              <Input
-                {...register('config.forbiddenKeywords')}
-                placeholder="e.g. sort, reverse, split (comma separated)"
-                className="w-full"
-              />
-              <p className="mt-1 text-xs text-primary/60">
-                Students will be blocked from running or submitting code containing these words.
-              </p>
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-semibold text-primary">
-                  Test Cases <span className="text-red-500">*</span>
-                  <span className="ml-2 text-xs font-normal text-primary/60">
-                    ({testcaseFields.length} test case{testcaseFields.length !== 1 ? 's' : ''})
-                  </span>
-                </label>
-                <Button
-                  type="button"
-                  onClick={() =>
-                    appendTestcase({
-                      input: '',
-                      expectedOutput: '',
-                      isHidden: false,
-                      timeoutMs: 2000,
-                    })
-                  }
-                  className="text-xs px-3 py-1.5"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  Add Test Case
-                </Button>
-              </div>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                {testcaseFields.map((field, index) => (
-                  <div key={field.id} className="border border-primary/20 rounded-lg p-4 bg-primary/5 space-y-3 hover:border-primary/30 transition-colors">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-primary">
-                        Test Case {index + 1}
-                        {watch(`testcases.${index}.isHidden`) && (
-                          <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                            Hidden
-                          </span>
-                        )}
+            {/* MCQ Specific Fields */}
+            {questionType === QType.MCQ && (
+              <div className="space-y-4 border rounded-lg p-4 border-primary/10 bg-primary/5">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-semibold text-primary">
+                      Options <span className="text-red-500">*</span>
+                      <span className="ml-2 text-xs font-normal text-primary/60">
+                        ({optionFields.length} option{optionFields.length !== 1 ? 's' : ''})
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => removeTestcase(index)}
-                        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                        title="Remove test case"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-primary/70 mb-1.5">
-                        Input
-                      </label>
-                      <textarea
-                        {...register(`testcases.${index}.input`)}
-                        rows={2}
-                        className="flex w-full rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
-                        placeholder="Enter input (e.g., '5\n10' for two numbers)"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-primary/70 mb-1.5">
-                        Expected Output
-                      </label>
-                      <textarea
-                        {...register(`testcases.${index}.expectedOutput`)}
-                        rows={2}
-                        className="flex w-full rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
-                        placeholder="Enter expected output (e.g., '15')"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          {...register(`testcases.${index}.isHidden`)}
-                          className="h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50 cursor-pointer"
-                        />
-                        <span className="text-sm text-primary/80">Hidden test case</span>
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-primary/70 whitespace-nowrap">Timeout (ms):</label>
-                        <Input
-                          type="number"
-                          {...register(`testcases.${index}.timeoutMs`, { valueAsNumber: true })}
-                          className="w-24 h-8 text-xs"
-                          min="1000"
-                          step="1000"
-                        />
-                      </div>
-                    </div>
+                    </label>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        appendOption({
+                          id: `opt${Date.now()}`,
+                          text: '',
+                        })
+                      }
+                      disabled={optionFields.length >= 8}
+                      className="text-xs px-3 py-1.5"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Option
+                    </Button>
                   </div>
-                ))}
-              </div>
-              {testcaseFields.length === 0 && (
-                <div className="text-center py-8 border-2 border-dashed border-primary/20 rounded-lg text-primary/60 text-sm">
-                  No test cases yet. Click &quot;Add Test Case&quot; to add one.
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {optionFields.map((field, index) => {
+                      const currentOption = watch(`options.${index}`);
+                      const optionId = currentOption?.id || field.id;
+                      
+                      return (
+                      <div key={field.id} className="flex gap-2 items-start p-3 border border-primary/20 rounded-lg bg-white/50 hover:border-primary/30 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            {...register(`options.${index}.text`)}
+                            placeholder={`Option ${index + 1}`}
+                            className="w-full"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleCorrectOption(optionId)}
+                          className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
+                            correctOptionIds.includes(optionId)
+                              ? 'bg-green-600 text-white hover:bg-green-700'
+                              : 'bg-primary/10 text-primary hover:bg-primary/20'
+                          }`}
+                        >
+                          {correctOptionIds.includes(optionId) ? '✓ Correct' : 'Mark Correct'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeOption(index)}
+                          disabled={optionFields.length <= 2}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                          title={optionFields.length <= 2 ? 'Minimum 2 options required' : 'Remove option'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      );
+                    })}
+                  </div>
+                  {'options' in errors && errors.options && (
+                    <p className="mt-2 text-sm text-red-500">{errors.options.message}</p>
+                  )}
+                  {'correctOptionIds' in errors && errors.correctOptionIds && (
+                    <p className="mt-2 text-sm text-red-500">
+                      {errors.correctOptionIds.message}
+                    </p>
+                  )}
                 </div>
-              )}
-              {'testcases' in errors && errors.testcases && (
-                <p className="mt-2 text-sm text-red-500">{errors.testcases.message}</p>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {/* Essay Specific Fields */}
-        {questionType === QType.ESSAY && (
-          <div>
-            <label className="block text-sm font-semibold text-primary mb-2">
-              Word Limit (Optional)
-            </label>
-            <Input
-              type="number"
-              min="1"
-              {...register('wordLimit')}
-              placeholder="e.g. 500"
-            />
-            {'wordLimit' in errors && errors.wordLimit && (
-              <p className="mt-1 text-sm text-red-500">{errors.wordLimit.message}</p>
+            {/* Coding Specific Fields - SPLIT LAYOUT */}
+            {questionType === QType.CODING && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 border-t border-primary/10 pt-6">
+                {/* Left Column: Code Config */}
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-primary mb-2">
+                      Starter Code (Optional)
+                    </label>
+                    <textarea
+                      {...register('starterCode')}
+                      rows={12}
+                      className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-y min-h-[250px]"
+                      placeholder="function solution() {&#10;  // Your code here&#10;}"
+                    />
+                  </div>
+
+                  {/* Forbidden Keywords */}
+                  <div>
+                    <label className="block text-sm font-semibold text-primary mb-2">
+                      Forbidden Keywords (Optional)
+                    </label>
+                    <Input
+                      {...register('config.forbiddenKeywords')}
+                      placeholder="e.g. sort, reverse, split (comma separated)"
+                      className="w-full"
+                    />
+                    <p className="mt-1 text-xs text-primary/60">
+                      Students will be blocked from running or submitting code containing these words.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Column: Test Cases */}
+                <div className="space-y-4 flex flex-col h-full">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-sm font-semibold text-primary">
+                      Test Cases <span className="text-red-500">*</span>
+                      <span className="ml-2 text-xs font-normal text-primary/60">
+                        ({testcaseFields.length} test case{testcaseFields.length !== 1 ? 's' : ''})
+                      </span>
+                    </label>
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        appendTestcase({
+                          input: '',
+                          expectedOutput: '',
+                          isHidden: false,
+                          timeoutMs: 2000,
+                        })
+                      }
+                      className="text-xs px-3 py-1.5"
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Add Test Case
+                    </Button>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto max-h-[600px] custom-scrollbar pr-2 space-y-4 bg-primary/5 p-4 rounded-lg border border-primary/10">
+                    {testcaseFields.map((field, index) => (
+                      <div key={field.id} className="border border-primary/20 rounded-lg p-4 bg-white shadow-sm space-y-3 hover:border-primary/30 transition-colors">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-primary">
+                            Test Case {index + 1}
+                            {watch(`testcases.${index}.isHidden`) && (
+                              <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                                Hidden
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeTestcase(index)}
+                            className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                            title="Remove test case"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-primary/70 mb-1.5">
+                              Input
+                            </label>
+                            <textarea
+                              {...register(`testcases.${index}.input`)}
+                              rows={3}
+                              className="flex w-full rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                              placeholder="Enter input (e.g., '5\n10')"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-primary/70 mb-1.5">
+                              Expected Output
+                            </label>
+                            <textarea
+                              {...register(`testcases.${index}.expectedOutput`)}
+                              rows={3}
+                              className="flex w-full rounded-md border border-primary/20 bg-secondary px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-none"
+                              placeholder="Enter expected output"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-primary/5">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              {...register(`testcases.${index}.isHidden`)}
+                              className="h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50 cursor-pointer"
+                            />
+                            <span className="text-sm text-primary/80">Hidden test case</span>
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-primary/70 whitespace-nowrap">Timeout (ms):</label>
+                            <Input
+                              type="number"
+                              {...register(`testcases.${index}.timeoutMs`, { valueAsNumber: true })}
+                              className="w-24 h-8 text-xs"
+                              min="1000"
+                              step="1000"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {testcaseFields.length === 0 && (
+                      <div className="text-center py-12 border-2 border-dashed border-primary/20 rounded-lg text-primary/60 text-sm">
+                        No test cases yet. Click &quot;Add Test Case&quot; to add one.
+                      </div>
+                    )}
+                  </div>
+                  {'testcases' in errors && errors.testcases && (
+                    <p className="mt-2 text-sm text-red-500">{errors.testcases.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Essay Specific Fields */}
+            {questionType === QType.ESSAY && (
+              <div>
+                <label className="block text-sm font-semibold text-primary mb-2">
+                  Word Limit (Optional)
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  {...register('wordLimit')}
+                  placeholder="e.g. 500"
+                />
+                {'wordLimit' in errors && errors.wordLimit && (
+                  <p className="mt-1 text-sm text-red-500">{errors.wordLimit.message}</p>
+                )}
+              </div>
+            )}
+
+            {apiError && (
+              <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
+                <strong>Error:</strong> {apiError}
+              </div>
             )}
           </div>
-        )}
+        </div>
 
-        {apiError && (
-          <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-sm">
-            <strong>Error:</strong> {apiError}
-          </div>
-        )}
-
-        {/* Footer Actions - Sticky at bottom of scrollable area */}
-        <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-primary/10 sticky bottom-0 bg-secondary -mb-4 pb-4">
+        {/* Footer Actions - Fixed at bottom */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-primary/10 bg-secondary flex-shrink-0 z-10">
           <Button
             type="button"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+            className="px-6 py-2 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting} className="min-w-[120px]">
+          <Button type="submit" disabled={isSubmitting} className="min-w-[140px]">
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -116,11 +116,15 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     extension: 'cpp',
     command: 'g++',
     compileCommand: (filePath) => {
-      const outputFile = filePath.replace('.cpp', '.out');
+      const isWindows = process.platform === 'win32';
+      const outExt = isWindows ? '.exe' : '.out';
+      const outputFile = filePath.replace('.cpp', outExt);
       return `g++ "${filePath}" -o "${outputFile}" -std=c++17 -O2`;
     },
     runCommand: (filePath) => {
-      const outputFile = filePath.replace('.cpp', '.out');
+      const isWindows = process.platform === 'win32';
+      const outExt = isWindows ? '.exe' : '.out';
+      const outputFile = filePath.replace('.cpp', outExt);
       return `"${outputFile}"`;
     },
     timeout: 10000,
@@ -129,11 +133,15 @@ const LANGUAGE_CONFIGS: Record<string, LanguageConfig> = {
     extension: 'c',
     command: 'gcc',
     compileCommand: (filePath) => {
-      const outputFile = filePath.replace('.c', '.out');
+      const isWindows = process.platform === 'win32';
+      const outExt = isWindows ? '.exe' : '.out';
+      const outputFile = filePath.replace('.c', outExt);
       return `gcc "${filePath}" -o "${outputFile}" -O2`;
     },
     runCommand: (filePath) => {
-      const outputFile = filePath.replace('.c', '.out');
+      const isWindows = process.platform === 'win32';
+      const outExt = isWindows ? '.exe' : '.out';
+      const outputFile = filePath.replace('.c', outExt);
       return `"${outputFile}"`;
     },
     timeout: 10000,

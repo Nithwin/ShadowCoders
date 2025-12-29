@@ -321,6 +321,15 @@ export const generateQuestions = async (input: GenerateInput) => {
       }
       cleanedResponse = lines.join('\n').trim();
     }
+    
+    // Fallback: If not starting with {, try to find the first { and last }
+    if (!cleanedResponse.startsWith('{') && cleanedResponse.includes('{')) {
+      const start = cleanedResponse.indexOf('{');
+      const end = cleanedResponse.lastIndexOf('}');
+      if (end > start) {
+        cleanedResponse = cleanedResponse.substring(start, end + 1);
+      }
+    }
 
     let parsedJson: any;
     try {

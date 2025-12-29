@@ -143,4 +143,5 @@ export interface Exam {
   allowedLanguages?: string[] | null;
   createdAt: string;
   updatedAt: string;
+  assignments?: any[]; // We can refine this type if needed, but array existence check is enough for now
 }

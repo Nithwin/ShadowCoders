@@ -25,6 +25,7 @@ type Assignment = {
 interface AssignmentManagerProps {
   examId: string;
   examStatus: string;
+  onUpdate?: () => void;
 }
 
 const assignExamSchema = z
@@ -71,6 +72,7 @@ type AssignmentFormData = z.input<typeof assignExamSchema>;
 export default function AssignmentManager({
   examId,
   examStatus,
+  onUpdate,
 }: AssignmentManagerProps) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +119,7 @@ export default function AssignmentManager({
       await api.delete(`/admin/exams/${examId}/assignments/${assignment.id}`);
       setSuccessMessage('Assignment removed successfully');
       fetchAssignments();
+      if (onUpdate) onUpdate();
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
@@ -238,6 +241,7 @@ export default function AssignmentManager({
         onOpenChange={setIsCreateModalOpen}
         onSuccess={() => {
           fetchAssignments();
+          if (onUpdate) onUpdate();
           setSuccessMessage('Assignment created successfully!');
           setTimeout(() => setSuccessMessage(null), 3000);
         }}
@@ -462,4 +466,3 @@ function CreateAssignmentModal({
     </Modal>
   );
 }
-

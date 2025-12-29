@@ -140,9 +140,15 @@ export const generateJsonFromAi = async (prompt: string): Promise<string> => {
       
       // If it's not a 404, it's a different error (safety, quota, etc.)
       
-      // Check for 503 Service Unavailable - this should be retried
-      if (error?.status === 503 || error?.code === 503 || error?.message?.includes('503') || error?.message?.includes('overloaded')) {
-        console.warn(`[Gemini] Model ${modelName} overloaded (503), trying next model...`);
+      // Check for 503 Service Unavailable, 500 Internal Server Error, 502 Bad Gateway, 504 Gateway Timeout
+      // These should be retried
+      const statusCode = error?.status || error?.code;
+      if (
+        statusCode === 503 || statusCode === 500 || statusCode === 502 || statusCode === 504 ||
+        error?.message?.includes('503') || error?.message?.includes('overloaded') ||
+        error?.message?.includes('500') || error?.message?.includes('internal server error')
+      ) {
+        console.warn(`[Gemini] Model ${modelName} encountered server error (${statusCode}), trying next model...`);
         continue; // Try next model
       }
 

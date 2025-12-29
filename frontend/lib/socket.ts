@@ -170,6 +170,7 @@ class SocketService {
                                 error.message.includes('transport') ||
                                 error.message.includes('connection') ||
                                 error.message.includes('ECONNREFUSED') ||
+                                error.message.includes('Authentication failed') ||
                                 error.message.includes('ENOTFOUND');
       if (!isConnectionError && process.env.NODE_ENV === 'development') {
         console.warn('[Socket] Connection error (will retry):', error.message);
