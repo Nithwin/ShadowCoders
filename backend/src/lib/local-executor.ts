@@ -564,11 +564,11 @@ export async function testCodeWithTestCasesLocally(
     errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
   }>;
 }> {
-  const langConfig = LANGUAGE_CONFIGS[language.toLowerCase()];
-  
-  // For compiled languages, compile once and reuse
-  if (langConfig?.compileCommand) {
-    return await testCompiledCodeWithTestCases(code, language, testCases);
+  // Use the optimized shared-environment executor for all languages except SQL.
+  // This drastically reduces I/O by reusing the temp directory and file for all test cases.
+  // SQL is excluded because it may require fresh database state per test case.
+  if (language.toLowerCase() !== 'sql') {
+    return await testCodeWithSharedEnv(code, language, testCases);
   }
   
   // For interpreted languages, execute SEQUENTIALLY to ensure deterministic order
@@ -706,10 +706,14 @@ export async function testCodeWithTestCasesLocally(
 }
 
 /**
- * Test compiled code against multiple test cases
- * Compiles ONCE, then runs against all test cases
+ * Test code against multiple test cases using a shared environment (cached file/compile).
+ * - Creates temp dir ONCE
+ * - Writes Code ONCE
+ * - Compiles ONCE (if applicable)
+ * - Runs all test cases sequentially against the same artifact
+ * This significantly reduces I/O and process overhead compared to a fresh setup per test case.
  */
-async function testCompiledCodeWithTestCases(
+async function testCodeWithSharedEnv(
   code: string,
   language: string,
   testCases: Array<{ input: string; expectedOutput: string; timeoutMs?: number; isHidden?: boolean; originalIndex?: number }>

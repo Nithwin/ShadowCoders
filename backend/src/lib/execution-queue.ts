@@ -226,8 +226,8 @@ const getMaxConcurrent = (): number => {
   }
   
   // Default based on stability
-  // Lowered default to 3 from 5 to prevent CPU locking on smaller instances
-  const defaultConcurrent = 3;
+  // Optimized execution allows for slightly higher concurrency
+  const defaultConcurrent = 5;
   return defaultConcurrent;
 };
 
@@ -241,7 +241,9 @@ const getMaxQueueSize = (): number => {
   }
   
   // Default max queue size
-  return 50; 
+  // Increased to 1000 to prevent 'Server Busy' errors during exam spikes
+  // With optimized execution, we can clear this queue much faster
+  return 1000; 
 };
 
 export const executionQueue = new ExecutionQueue(getMaxConcurrent(), getMaxQueueSize());
