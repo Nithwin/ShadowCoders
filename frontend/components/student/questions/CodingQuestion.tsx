@@ -166,6 +166,40 @@ export default function CodingQuestion({
       isInitialMount.current = true;
     }
   }, [questionId, answer?.code, answer?.language, starterCode, availableLanguages, defaultLanguage]);
+  
+  // -- LOCAL EXECUTION LOGIC --
+  const [executionMode, setExecutionMode] = useState<'SERVER' | 'LOCAL'>('SERVER');
+  const [localRunnerAvailable, setLocalRunnerAvailable] = useState(false);
+
+  useEffect(() => {
+      // Check if local runner is available
+      const checkLocalRunner = async () => {
+          try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
+              const res = await fetch('http://localhost:3005/health', { 
+                  method: 'GET', 
+                  signal: controller.signal 
+              });
+              clearTimeout(timeoutId);
+              if (res.ok) {
+                  setLocalRunnerAvailable(true);
+                  if (executionMode === 'SERVER') {
+                    setExecutionMode('LOCAL'); // Auto-switch to local if available
+                  }
+              }
+          } catch (e) {
+              setLocalRunnerAvailable(false);
+              setExecutionMode('SERVER');
+          }
+      };
+      
+      checkLocalRunner();
+      // Poll every 10 seconds to check availability
+      const interval = setInterval(checkLocalRunner, 10000);
+      return () => clearInterval(interval);
+  }, []);
+  // ---------------------------
 
   // Sync with answer prop changes from parent ONLY on initial mount (not after user edits)
   // This prevents server responses from overwriting user edits after submission
@@ -374,26 +408,68 @@ export default function CodingQuestion({
     setTestResults(null);
 
     try {
-      const response = await api.post(`/student/attempts/${attemptId}/run-code`, {
-        questionId,
-        code,
-        language,
-        customInput: showCustomInput ? customInput : undefined,
-      });
+      if (executionMode === 'LOCAL') {
+          // --- LOCAL EXECUTION ---
+          try {
+            const res = await fetch('http://localhost:3005/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code,
+                    language,
+                    input: showCustomInput ? customInput : undefined,
+                    timeLimit: 5000
+                })
+            });
+            
+            if (!res.ok) throw new Error('Local runner error');
+            const result = await res.json();
+             // Map local result format to expected frontend format if needed, 
+             // but our local-runner.js returns compatible structure (output, error, status)
+             // We just need to wrap it if it's not array of test results
+             
+             // For single custom input run, we mock a test result array
+             const singleTestResult: TestResult = {
+                input: showCustomInput ? customInput : 'Manual Run',
+                expectedOutput: '', // User didn't specify expected
+                actualOutput: result.output,
+                passed: result.status.id === 3,
+                status: result.status.description,
+                error: result.error
+             };
+             
+            setTestResults({
+                passed: result.status.id === 3 ? 1 : 0,
+                total: 1,
+                testResults: [singleTestResult],
+                message: result.output || result.error || 'Execution Complete'
+            });
+            setOutput(result.output || result.error || '');
+            
+          } catch (localErr) {
+               console.error('Local execution failed, falling back to server...', localErr);
+               setExecutionMode('SERVER'); // Fallback
+               setError('Local execution failed. Falling back to server. Please try again.');
+          }
+      } else {
+          // --- SERVER EXECUTION (Original) ---
+          const response = await api.post(`/student/attempts/${attemptId}/run-code`, {
+            questionId,
+            code,
+            language,
+            customInput: showCustomInput ? customInput : undefined,
+          });
 
-      const result = response.data;
-      
-      // Debug: Log the result structure
-
-      
-      // Ensure testResults is always an array
-      if (result && !Array.isArray(result.testResults)) {
-
-        result.testResults = [];
+          const result = response.data;
+          
+          // Ensure testResults is always an array
+          if (result && !Array.isArray(result.testResults)) {
+             // result.testResults = []; // handled by existing logic
+          }
+          
+          setTestResults(result);
+          setOutput(result.message || '');
       }
-      
-      setTestResults(result);
-      setOutput(result.message || '');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       if (process.env.NODE_ENV === 'development') {
@@ -403,7 +479,7 @@ export default function CodingQuestion({
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, questionId, attemptId, showCustomInput, customInput, config]);
+  }, [code, language, questionId, attemptId, showCustomInput, customInput, config, executionMode]);
 
   // Submit code (runs ALL test cases including hidden ones, then saves) - memoized to prevent flicker
   const handleSubmitCode = useCallback(async () => {
@@ -523,6 +599,16 @@ export default function CodingQuestion({
               </h2>
             </div>
             <div className="flex items-center gap-3">
+              {localRunnerAvailable && (
+                  <div 
+                    className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 cursor-pointer transition-colors ${executionMode === 'LOCAL' ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'}`}
+                    onClick={() => setExecutionMode(prev => prev === 'LOCAL' ? 'SERVER' : 'LOCAL')}
+                    title="Click to toggle execution mode"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${executionMode === 'LOCAL' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                    {executionMode === 'LOCAL' ? 'Local Execution' : 'Server Execution'}
+                  </div>
+              )}
               {reportButton}
               <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">
                 {points} {points === 1 ? 'point' : 'points'}

@@ -221,14 +221,16 @@ const getMaxConcurrent = (): number => {
   if (envValue) {
     const parsed = parseInt(envValue, 10);
     if (!isNaN(parsed) && parsed > 0) {
+      console.log(`[ExecutionQueue] Using configured max concurrent: ${parsed}`);
       return parsed;
     }
   }
   
-  // Default based on stability
-  // Optimized execution allows for slightly higher concurrency
-  const defaultConcurrent = 5;
-  return defaultConcurrent;
+  // Dynamic default based on CPU cores (leave 1 core free for system/DB)
+  const cpuCount = require('os').cpus().length;
+  const dynamicLimit = Math.max(1, cpuCount - 1);
+  console.log(`[ExecutionQueue] Auto-configured max concurrent: ${dynamicLimit} (Proessors: ${cpuCount})`);
+  return dynamicLimit;
 };
 
 const getMaxQueueSize = (): number => {
@@ -241,9 +243,8 @@ const getMaxQueueSize = (): number => {
   }
   
   // Default max queue size
-  // Increased to 1000 to prevent 'Server Busy' errors during exam spikes
-  // With optimized execution, we can clear this queue much faster
-  return 1000; 
+  // Increased to 2000 to prevent 'Server Busy' errors during exam spikes
+  return 2000; 
 };
 
 export const executionQueue = new ExecutionQueue(getMaxConcurrent(), getMaxQueueSize());
