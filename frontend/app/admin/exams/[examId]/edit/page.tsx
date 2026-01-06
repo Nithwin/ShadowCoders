@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from '@/lib/api';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Exam } from '@/types';
 import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy } from 'lucide-react';
@@ -19,6 +19,7 @@ import Modal from '@/components/ui/Modal';
 export default function EditExamPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const examId = params?.examId as string;
   const { confirm } = useConfirmationDialog();
   const toast = useToastNotification();
@@ -37,6 +38,14 @@ export default function EditExamPage() {
   const [templateDescription, setTemplateDescription] = useState('');
   const [isTemplatePublic, setIsTemplatePublic] = useState(false);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+
+  // Sync tab with URL
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (tab === 'questions' || tab === 'assignments' || tab === 'settings') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const fetchExamData = async (showLoading = true) => {
     if (showLoading) setIsLoadingExam(true);

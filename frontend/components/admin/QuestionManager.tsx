@@ -5,6 +5,7 @@ import { api } from '@/lib/api';
 import { QType } from '@/types';
 import { Edit, Trash2, Loader2, Wand2, Plus, Eye } from 'lucide-react';
 import GenerateAiQuestionsModal from './GenerateAiQuestionsModal';
+import ManualAiGenerationModal from './ManualAiGenerationModal';
 import ManualQuestionForm from './question/ManualQuestionForm';
 import EditQuestionModal from './question/EditQuestionModal';
 import ViewQuestionModal from './question/ViewQuestionModal';
@@ -40,6 +41,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
 
   // State to control the modals
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isManualAiModalOpen, setIsManualAiModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [viewingQuestion, setViewingQuestion] = useState<Question | null>(null);
@@ -215,8 +217,6 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
         return baseQuestion;
       });
 
-      // Log formatted questions for debugging (especially testcases)
-
       
       // Validate that coding questions have testcases
       const codingQuestions = formattedQuestions.filter((q): q is typeof q & { type: QType.CODING; testcases: unknown[] } => 
@@ -242,6 +242,7 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
       
       // Close modal on success
       setIsAiModalOpen(false);
+      setIsManualAiModalOpen(false); // Close manual modal too
       
       // Clear any previous errors
       setError(null);
@@ -364,6 +365,11 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
         onOpenChange={setIsAiModalOpen}
         onQuestionsGenerated={handleQuestionsGenerated}
       />
+      <ManualAiGenerationModal
+        open={isManualAiModalOpen}
+        onOpenChange={setIsManualAiModalOpen}
+        onQuestionsGenerated={handleQuestionsGenerated}
+      />
       <ManualQuestionForm
         examId={examId}
         open={isManualModalOpen}
@@ -438,6 +444,14 @@ export default function QuestionManager({ examId }: QuestionManagerProps) {
               >
                 <Wand2 className="w-4 h-4 mr-2" />
                 Generate with AI
+              </Button>
+              <Button
+                onClick={() => setIsManualAiModalOpen(true)}
+                disabled={isSaving}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+              >
+                <Wand2 className="w-4 h-4 mr-2" />
+                Generate with Prompt
               </Button>
               <Button
                 onClick={() => setIsManualModalOpen(true)}

@@ -1,5 +1,3 @@
-'use client';
-
 import { useForm } from 'react-hook-form'; // No SubmitHandler needed
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,9 +7,7 @@ import { Loader2, Wand2 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { QType } from '@/types';
 
-// 1. Define the Zod schema for the AI generation form
 // 1. Define the Zod schema for the AI generation form
 const generateQuestionsFormSchema = z.object({
   topic: z.string().min(3, 'A topic is required'),
@@ -22,8 +18,6 @@ const generateQuestionsFormSchema = z.object({
   difficulty: z.enum(['EASY', 'MEDIUM', 'HARD', 'ANY']).default('ANY'),
   points: z.coerce.number().int().positive().optional(),
 });
-
-// This is the *output* type after Zod coercion, which 'onSubmit' will receive
 
 interface GenerateAiQuestionsModalProps {
   open: boolean;
@@ -85,7 +79,6 @@ export default function GenerateAiQuestionsModal({
         points: data.points, // Send points if provided
       });
       
-      // ... (rest of the handle logic remains same)
       if (response.data && Array.isArray(response.data)) {
         if (response.data.length === 0) {
           setApiError('No questions were generated. Please try again with different parameters.');
@@ -104,7 +97,6 @@ export default function GenerateAiQuestionsModal({
       }
 
     } catch (err: unknown) {
-      // ... (error handling remains same)
        const error = err as { response?: { data?: { error?: { message?: string } | string; message?: string } } };
        console.error('Error', err);
        let errorMessage = 'Failed to generate questions';
@@ -116,7 +108,7 @@ export default function GenerateAiQuestionsModal({
   return (
     <Modal open={open} onOpenChange={handleModalChange} title="Generate Questions with AI">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Topic Field (keep same) */}
+        {/* Topic Field */}
         <div>
           <label htmlFor="topic" className="block text-sm font-semibold text-primary mb-2">
             Topic <span className="text-red-500">*</span>
@@ -132,7 +124,7 @@ export default function GenerateAiQuestionsModal({
           )}
         </div>
 
-         {/* Counts (keep same) */}
+         {/* Counts */}
          <div>
             <label className="block text-sm font-semibold text-primary mb-2">Number of Questions</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -50,8 +50,8 @@ export default function CreateExamPage() {
       }
       
       const newExamId = response.data.id;
-      // On success, redirect to the "Edit" page
-      router.push(`/admin/exams/${newExamId}/edit`);
+      // On success, redirect to the "Edit" page with Questions tab active
+      router.push(`/admin/exams/${newExamId}/edit?tab=questions`);
     } catch (error) {
       console.error('Failed to create exam:', error);
       alert('Failed to create exam');
