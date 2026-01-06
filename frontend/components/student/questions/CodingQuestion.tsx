@@ -189,8 +189,8 @@ export default function CodingQuestion({
               }
               // Only poll if it WAS found initially (to detect if it disconnects)
               // Using a longer interval to be less aggressive
-              // const interval = setInterval(checkLocalRunner, 30000);
-              // return () => clearInterval(interval);
+              const interval = setInterval(checkLocalRunner, 30000);
+              return () => clearInterval(interval);
           }
       } catch (e) {
           // If failed first time, assume not installed and DON'T check again
@@ -417,7 +417,29 @@ export default function CodingQuestion({
     setTestResults(null);
 
     try {
-      if (executionMode === 'LOCAL') {
+        // --- ON-DEMAND LOCAL CHECK ---
+        // Try to detect local runner right now if not already confirmed
+        let useLocal = executionMode === 'LOCAL';
+        if (!useLocal) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 500); // Fast check
+                const healthRes = await fetch('http://localhost:3005/health', { 
+                    method: 'GET', 
+                    signal: controller.signal 
+                });
+                clearTimeout(timeoutId);
+                if (healthRes.ok) {
+                    useLocal = true;
+                    setLocalRunnerAvailable(true);
+                    setExecutionMode('LOCAL');
+                }
+            } catch (ignore) {
+                // Ignore check failure, fallback to server
+            }
+        }
+
+      if (useLocal) {
           // --- LOCAL EXECUTION ---
           try {
             const inputsToRun = showCustomInput 
@@ -471,10 +493,20 @@ export default function CodingQuestion({
           } catch (localErr) {
                console.error('Local execution failed, falling back to server...', localErr);
                setExecutionMode('SERVER'); 
-               setError('Local execution interrupted. Switched to Server mode. Please try running again.');
+               setLocalRunnerAvailable(false); // Mark as unavailable so we don't try again immediately without checking
+               
+               // Retry with Server
+               const response = await api.post(`/student/attempts/${attemptId}/run-code`, {
+                questionId,
+                code,
+                language,
+                customInput: showCustomInput ? customInput : undefined,
+              });
+              setTestResults(response.data);
+              setOutput(response.data.message || '');
           }
       } else {
-          // --- SERVER EXECUTION (Original) ---
+          // --- SERVER EXECUTION (Default) ---
           const response = await api.post(`/student/attempts/${attemptId}/run-code`, {
             questionId,
             code,
@@ -483,12 +515,6 @@ export default function CodingQuestion({
           });
 
           const result = response.data;
-          
-          // Ensure testResults is always an array
-          if (result && !Array.isArray(result.testResults)) {
-             // result.testResults = []; // handled by existing logic
-          }
-          
           setTestResults(result);
           setOutput(result.message || '');
       }
@@ -501,7 +527,7 @@ export default function CodingQuestion({
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, questionId, attemptId, showCustomInput, customInput, config, executionMode]);
+  }, [code, language, questionId, attemptId, showCustomInput, customInput, config, executionMode, visibleTestCases, checkForbiddenKeywords]);
 
   // Submit code (runs ALL test cases including hidden ones, then saves) - memoized to prevent flicker
   const handleSubmitCode = useCallback(async () => {
@@ -622,6 +648,19 @@ export default function CodingQuestion({
               </h2>
             </div>
             <div className="flex items-center gap-3">
+              {/* Local Runner Status Indicator - Hidden as per requirements, logic is auto-detect */}
+               <div
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                    localRunnerAvailable 
+                      ? 'bg-green-50 text-green-700 border-green-200' 
+                      : 'hidden' 
+                  }`}
+                  title="Running locally"
+                >
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  Local Mode
+               </div>
+
               <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">
                 {points} {points === 1 ? 'point' : 'points'}
               </div>

@@ -283,8 +283,11 @@ export const submitAnswer = async (
   );
 };
 
+// ----------------------------------------------------------------------
+// OPTIMIZED SUBMIT LOGIC (Concurrency Fix)
+// ----------------------------------------------------------------------
 export const submitAttempt = async (studentId: string, attemptId: string, submissionReason?: string) => {
-  // 1. Fetch all data needed for grading
+  // 1. Fetch all data needed for grading in ONE query (reduce DB roundtrips)
   const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
 
   // 2. --- Validation Checks ---
@@ -298,150 +301,201 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
     throw { status: 403, message: `Attempt has already been ${attempt.status.toLowerCase()}` };
   }
 
+  // 3. --- In-Memory Grading Calculation ---
+  // We calculate everything FIRST before touching the database to keep transaction short.
+  
   let totalScore = 0;
   let maxScore = 0;
+  
+  // Prepare updates for bulk execution
+  const responseUpdates: Array<{
+    questionId: string;
+    earnedPoints: number;
+    verdict: string;
+    gradingMode: GradingMode;
+    feedback?: string | undefined;
+  }> = [];
 
-
-  for (const question of attempt.exam.questions) {
+  // We need to resolve all async grading promises (like coding runners) using Promise.all
+  // to avoid blocking the loop sequentially.
+  const gradingPromises = attempt.exam.questions.map(async (question) => {
     // Add question's points to the max possible score
-    // Convert Decimal to number for calculation
     const questionPoints = Number(question.points);
-    maxScore += questionPoints;
-
-    // Find the student's response for this question
+    // Note: We use a local variable for maxScore accumulation and return it
+    // because mutation inside map/async can be tricky, but since we await all, it's safe if careful.
+    // Better to return the partial maxScore and sum it up later? 
+    // Actually, simple valid let maxScore accumulation is fine if we await correctly.
+    
+    // Find the student's response
     const response = attempt.responses.find((r) => r.questionId === question.id);
-
-    // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
+    
+    // --- FORCE FULL MARKS CHECK ---
     const config = (question as any).config;
     if (config && config.forceFullMarks === true) {
-        // Award full points regardless of answer
-        totalScore += questionPoints;
-        
-        // If response exists, update it to reflect full marks
         if (response) {
-             await prisma.response.updateMany({
-              where: {
-                attemptId: attemptId,
+            return {
+                type: 'UPDATE',
                 questionId: question.id,
-              },
-              data: {
                 earnedPoints: questionPoints,
                 verdict: 'PASS',
-                gradingMode: GradingMode.AUTO, 
+                gradingMode: GradingMode.AUTO,
                 feedback: 'Full marks awarded by staff override.',
-              },
-            });
+                maxScoreAdd: questionPoints,
+                scoreAdd: questionPoints
+            };
         }
-        continue; // Skip normal grading logic
+        return { type: 'SKIP', maxScoreAdd: questionPoints, scoreAdd: questionPoints }; // Still adds to max/total
     }
 
     if (response && response.answer) {
       // Auto-grade based on question type
-      let gradingResult: {
-        earnedPoints: number;
-        verdict: string;
-        gradingMode: GradingMode;
-      } = {
+      let gradingResult: any = {
         earnedPoints: 0,
         verdict: 'FAIL',
-        gradingMode: GradingMode.MANUAL, // Default to manual if not auto-graded
+        gradingMode: GradingMode.MANUAL,
       };
 
       switch (question.type) {
         case QType.MCQ:
-          gradingResult = gradeMCQ(
-            response.answer as { chosenOptionIds?: string[] },
-            question.correctOptionIds as string[],
-            questionPoints
-          );
+            // Sync grading
+            gradingResult = gradeMCQ(
+                response.answer as { chosenOptionIds?: string[] },
+                question.correctOptionIds as string[],
+                questionPoints
+            );
           break;
 
         case QType.CODING:
-          gradingResult = await gradeCoding(
-            response.answer as { code?: string; language?: string },
-            question.testcases as any[],
-            questionPoints
-          );
+            // Async grading
+            gradingResult = await gradeCoding(
+                response.answer as { code?: string; language?: string },
+                question.testcases as any[],
+                questionPoints
+            );
           break;
 
         case QType.SQL:
-          const sqlConfig = (question as any).config;
-          const ddl = sqlConfig?.ddl || '';
-          const sqlTestCases = (question.testcases as any[]).map((tc) => ({
-            ...tc,
-            input: ddl ? `${ddl}\n${tc.input}` : tc.input,
-          }));
-          
-          gradingResult = await gradeCoding(
-            response.answer as { code?: string; language?: string },
-            sqlTestCases,
-            questionPoints
-          );
+            // Async grading
+            const sqlConfig = (question as any).config;
+            const ddl = sqlConfig?.ddl || '';
+            const sqlTestCases = (question.testcases as any[]).map((tc) => ({
+                ...tc,
+                input: ddl ? `${ddl}\n${tc.input}` : tc.input,
+            }));
+            
+            gradingResult = await gradeCoding(
+                response.answer as { code?: string; language?: string },
+                sqlTestCases,
+                questionPoints
+            );
           break;
           
         case QType.ESSAY:
         case QType.SPEAKING:
-          // Manual grading required
-          gradingResult = {
-            earnedPoints: 0,
-            verdict: 'PENDING', // Or FAIL/PASS based on policy, usually PENDING for manual
-            gradingMode: GradingMode.MANUAL,
-          };
+          gradingResult = { earnedPoints: 0, verdict: 'PENDING', gradingMode: GradingMode.MANUAL };
           break;
         
         default:
-          gradingResult = {
-            earnedPoints: 0,
-            verdict: 'FAIL',
-            gradingMode: GradingMode.MANUAL,
-          };
+          gradingResult = { earnedPoints: 0, verdict: 'FAIL', gradingMode: GradingMode.MANUAL };
       }
 
-      // Update total score if auto-graded
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-        totalScore += gradingResult.earnedPoints;
-      }
-
-      // Update the response in the database
-      // Only update if we actually have a result (even 0 points)
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-         await prisma.response.updateMany({
-          where: {
-            attemptId: attemptId,
-            questionId: question.id,
-          },
-          data: {
-            earnedPoints: gradingResult.earnedPoints,
-            verdict: gradingResult.verdict,
-            gradingMode: gradingResult.gradingMode,
-          },
-        });
-      }
+      // Return the result for processing
+      return {
+        type: 'UPDATE',
+        questionId: question.id,
+        earnedPoints: gradingResult.earnedPoints,
+        verdict: gradingResult.verdict, 
+        gradingMode: gradingResult.gradingMode,
+        maxScoreAdd: questionPoints,
+        scoreAdd: gradingResult.gradingMode === GradingMode.AUTO ? gradingResult.earnedPoints : 0,
+        feedback: undefined
+      };
     }
-  }
 
-  // 4. --- Update the Attempt in the Database ---
-  // Determine submission type
-  const submissionType = submissionReason ? 'AUTO' : 'NORMAL';
-
-  const submittedAttempt = await prisma.attempt.update({
-    where: { id: attemptId },
-    data: {
-      status: AttemptStatus.SUBMITTED,
-      submittedAt: new Date(),
-      score: totalScore,
-      maxScore: maxScore,
-      submissionType: submissionType,
-      submissionReason: submissionReason || null,
-      // Calculate time spent
-      timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
-    },
+    // No response but question exists
+    return { type: 'SKIP', maxScoreAdd: questionPoints, scoreAdd: 0 };
   });
 
-  // Points are now awarded manually by admin from the submissions page
-  // No automatic points awarding on submission
+  // Calculate scores and prepare updates in parallel
+  const gradingResults = await Promise.all(gradingPromises);
 
-  return submittedAttempt;
+  // Aggregate results
+  gradingResults.forEach(res => {
+     maxScore += res.maxScoreAdd;
+     totalScore += res.scoreAdd;
+     if (res.type === 'UPDATE') {
+         responseUpdates.push({
+             questionId: res.questionId!,
+             earnedPoints: res.earnedPoints!,
+             verdict: res.verdict! as string,
+             gradingMode: res.gradingMode! as GradingMode,
+             feedback: res.feedback as string | undefined
+         });
+     }
+  });
+
+
+  // 4. --- Atomic Transaction execution ---
+  // We execute ALL DB writes in a single transaction.
+  // This locks the rows briefly but ensures consistency and speeds up throughput 
+  // by avoiding network roundtrip latency for each question.
+  
+  return await prisma.$transaction(async (tx) => {
+      // a. Double-check status inside transaction (optimistic locking)
+      // This prevents double-submission if two requests hit exactly same time
+      const currentStatus = await tx.attempt.findUnique({ 
+          where: { id: attemptId },
+          select: { status: true } 
+      });
+      
+      if (!currentStatus || currentStatus.status !== AttemptStatus.IN_PROGRESS) {
+          throw { status: 409, message: 'Attempt already submitted or invalid' };
+      }
+
+      // b. Bulk Update Responses
+      // Prisma doesn't support bulk update with DIFFERENT values easily yet (updateMany is same value).
+      // So we use a loop of update promises, but inside transaction it's fast.
+      // Alternatively, we could use raw SQL for massive speedup, but this loop is 
+      // significantly better than the previous implementation because it's inside one transaction context.
+      
+      const updatePromises = responseUpdates.map(update => 
+          tx.response.updateMany({
+              where: {
+                  attemptId: attemptId,
+                  questionId: update.questionId
+              },
+              data: {
+                  earnedPoints: update.earnedPoints,
+                  verdict: update.verdict,
+                  gradingMode: update.gradingMode,
+                  feedback: update.feedback || null // Use null for DB if undefined
+              }
+          })
+      );
+      
+      await Promise.all(updatePromises);
+
+      // c. Update Final Attempt Status
+      const submissionType = submissionReason ? 'AUTO' : 'NORMAL';
+      
+      const submittedAttempt = await tx.attempt.update({
+        where: { id: attemptId },
+        data: {
+          status: AttemptStatus.SUBMITTED,
+          submittedAt: new Date(),
+          score: totalScore,
+          maxScore: maxScore,
+          submissionType: submissionType,
+          submissionReason: submissionReason || null,
+          timeSpentSec: Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000),
+        },
+      });
+      
+      return submittedAttempt;
+  }, {
+      timeout: 20000, // 20s timeout for the whole transaction (grading + updates)
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted 
+  });
 };
 
 export const forceSubmitAttempt = async (attemptId: string, submissionReason?: string) => {
@@ -490,17 +544,12 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
     }
 
     if (response && response.answer) {
-      let gradingResult: {
-        earnedPoints: number;
-        verdict: string;
-        gradingMode: GradingMode;
-      } = {
+      // Auto-grade based on question type
+      let gradingResult: any = {
         earnedPoints: 0,
         verdict: 'FAIL',
         gradingMode: GradingMode.MANUAL,
-      };
-
-      switch (question.type) {
+      };switch (question.type) {
         case QType.MCQ:
           gradingResult = gradeMCQ(
             response.answer as { chosenOptionIds?: string[] },

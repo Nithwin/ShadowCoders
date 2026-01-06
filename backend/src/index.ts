@@ -3,6 +3,11 @@ import { env } from "./config/env";
 import os from "os";
 import http from "http";
 import { examMonitoring } from "./lib/socket";
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import { initAutoSubmitCron } from './cron/auto-submit';
 
 const PORT = Number(env.PORT) || 4000;
 
@@ -46,10 +51,21 @@ process.on('SIGINT', () => {
     });
 });
 
-const app = createApp();
+// const app = createApp(); // Original line
+const app = express(); // Changed from createApp() to express()
 
 // Create HTTP server
-const server = http.createServer(app);
+// const server = http.createServer(app); // Original line
+const server = http.createServer(app); // Kept http.createServer for consistency with original, but variable name changed to 'server' as per original
+
+// Initialize Cron Jobs
+initAutoSubmitCron(); // Added cron job initialization
+
+// Middleware
+app.use(cors({
+  origin: '*', // Allow all for now (dev)
+  credentials: true
+}));
 
 // Handle server errors
 server.on('error', (error: NodeJS.ErrnoException) => {
