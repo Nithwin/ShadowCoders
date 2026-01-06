@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { 
   Users, 
   FileText, 
@@ -13,26 +14,27 @@ import {
   PieChart,
   Activity,
   Award,
-  Clock
+  Loader2, 
+  Plus
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  BarChart, 
-  Bar, 
-  PieChart as RechartsPieChart, 
-  Pie, 
-  Cell, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from 'recharts';
-import { Loader2, Plus } from 'lucide-react';
+
+// Lazy load chart components
+const StatusPieChart = dynamic(() => import('@/components/admin/dashboard/StatusPieChart'), { 
+  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
+  ssr: false 
+});
+const SubmissionsAreaChart = dynamic(() => import('@/components/admin/dashboard/SubmissionsAreaChart'), { 
+  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
+  ssr: false 
+});
+const SubmissionsBarChart = dynamic(() => import('@/components/admin/dashboard/SubmissionsBarChart'), { 
+  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
+  ssr: false 
+});
+const PerformanceBarChart = dynamic(() => import('@/components/admin/dashboard/PerformanceBarChart'), { 
+  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
+  ssr: false 
+});
 
 type Exam = {
   id: string;
@@ -62,8 +64,6 @@ type Attempt = {
   maxScore: number | string | null;
   submittedAt: string | null;
 };
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function AdminDashboardPage() {
   useAuth();
@@ -306,68 +306,7 @@ export default function AdminDashboardPage() {
             <PieChart className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-semibold text-primary">Exam Status</h2>
           </div>
-          {examStatusData.some(d => d.value > 0) ? (
-            <div className="w-full">
-              <ResponsiveContainer width="100%" height={280}>
-                <RechartsPieChart>
-                  <Pie
-                    data={examStatusData}
-                    cx="50%"
-                    cy="45%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    paddingAngle={2}
-                  >
-                    {examStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1f2937', 
-                      border: '1px solid #374151', 
-                      borderRadius: '8px',
-                      padding: '8px 12px'
-                    }}
-                    labelStyle={{ color: '#f3f4f6', marginBottom: '4px' }}
-                    formatter={(value: number, name: string) => [value, name]}
-                  />
-                </RechartsPieChart>
-              </ResponsiveContainer>
-              {/* Custom Legend */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 px-2">
-                {examStatusData.map((entry, index) => {
-                  const total = examStatusData.reduce((sum, d) => sum + d.value, 0);
-                  const percentage = total > 0 ? ((entry.value / total) * 100).toFixed(0) : 0;
-                  return (
-                    <div 
-                      key={entry.name} 
-                      className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
-                    >
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0" 
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs sm:text-sm text-primary/80 font-medium truncate">
-                          {entry.name}
-                        </div>
-                        <div className="text-xs text-primary/60">
-                          {entry.value} exam{entry.value !== 1 ? 's' : ''} • {percentage}%
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No exams yet</p>
-            </div>
-          )}
+          <StatusPieChart data={examStatusData} />
         </div>
 
         {/* Submissions Timeline */}
@@ -376,37 +315,7 @@ export default function AdminDashboardPage() {
             <TrendingUp className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-semibold text-primary">Recent Submissions</h2>
           </div>
-          {recentSubmissions.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={recentSubmissions}>
-                <defs>
-                  <linearGradient id="colorSubmissions" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
-                <YAxis stroke="#9ca3af" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f3f4f6' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#10b981" 
-                  fillOpacity={1} 
-                  fill="url(#colorSubmissions)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No submissions yet</p>
-            </div>
-          )}
+          <SubmissionsAreaChart data={recentSubmissions} />
         </div>
       </div>
 
@@ -418,24 +327,7 @@ export default function AdminDashboardPage() {
             <BarChart3 className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-semibold text-primary">Submissions by Exam</h2>
           </div>
-          {submissionsByExam.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={submissionsByExam}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} angle={-45} textAnchor="end" height={80} />
-                <YAxis stroke="#9ca3af" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f3f4f6' }}
-                />
-                <Bar dataKey="submissions" fill="#10b981" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No submissions yet</p>
-            </div>
-          )}
+          <SubmissionsBarChart data={submissionsByExam} />
         </div>
 
         {/* Performance Distribution */}
@@ -444,24 +336,7 @@ export default function AdminDashboardPage() {
             <Award className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-semibold text-primary">Performance Distribution</h2>
           </div>
-          {performanceDistribution.some(d => d.value > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={performanceDistribution} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-                <XAxis type="number" stroke="#9ca3af" fontSize={12} />
-                <YAxis dataKey="name" type="category" stroke="#9ca3af" fontSize={12} width={120} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
-                  labelStyle={{ color: '#f3f4f6' }}
-                />
-                <Bar dataKey="value" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-primary/50">
-              <p>No performance data yet</p>
-            </div>
-          )}
+          <PerformanceBarChart data={performanceDistribution} />
         </div>
       </div>
     </div>

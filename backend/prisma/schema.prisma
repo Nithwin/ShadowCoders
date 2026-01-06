@@ -299,6 +299,8 @@ model Attempt {
   @@unique([examId, studentId, attemptNo])
   @@index([examId])
   @@index([studentId])
+  @@index([startedAt])
+  @@index([score])
 }
 
 enum SubmissionType {

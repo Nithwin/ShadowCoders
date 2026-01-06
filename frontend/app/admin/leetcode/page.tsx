@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
-import * as XLSX from 'xlsx';
+
 import Modal from '@/components/ui/Modal';
 import { User, LeetCodeStats } from '@/types';
 
@@ -120,8 +120,9 @@ export default function LeetCodeDashboard() {
     setShowExportModal(true);
   };
 
-  const executeExport = () => {
+  const executeExport = async () => {
     try {
+      const XLSX = await import('xlsx');
       // Apply filters first
       let studentsToExport = filteredStudents;
       if (exportDeptFilter !== 'all') {

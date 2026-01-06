@@ -113,6 +113,7 @@ For a fresh Ubuntu system, you can use the automated installer script which sets
 
 - **[Backend README](./backend/README.md)** - Backend quick start and API reference
 - **[Frontend README](./frontend/README.md)** - Frontend quick start and overview
+- **[USER MANUAL](./USER_MANUAL.md)** - Guide for Students and Admins
 
 ## 🏗️ Project Structure
 
@@ -177,6 +178,7 @@ ShadowCoders/
 - **Progress Tracking**: Track student progress through exam
 - **Status Indicators**: See active, idle, and submitted students
 - **Connection Status**: Monitor student connection status
+- **Modern Dashboard**: Interact with data via responsive charts and Bento Grid layout
 
 ### Security & Anti-cheating
 
@@ -443,5 +445,5 @@ For support, please open an issue on GitHub or contact the development team.
 
 ---
 
-**Last Updated**: November 2024
-**Version**: 1.0.0
+**Last Updated**: January 2026
+**Version**: 2.0.0 (Performance Update)

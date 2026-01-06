@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Plus, Search, Edit, Trash2, Eye, Activity } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Activity, RefreshCw } from 'lucide-react';
 import { ExamStatus } from '@/types';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
@@ -172,13 +172,23 @@ export default function ExamManagementPage() {
     <div className="text-primary">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold font-alan-sans">Exam Management</h1>
-        <Link
-          href="/admin/exams/new"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Create New Exam
-        </Link>
+        <div className="flex gap-2">
+            <button
+                onClick={() => fetchExams()}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-lg shadow-md hover:bg-secondary/80 transition-colors border border-primary/10"
+            >
+                <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+            </button>
+            <Link
+            href="/admin/exams/new"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors"
+            >
+            <Plus className="w-5 h-5" />
+            Create New Exam
+            </Link>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">

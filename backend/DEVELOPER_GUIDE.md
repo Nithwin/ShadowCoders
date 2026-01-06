@@ -637,7 +637,7 @@ Set production environment variables:
 
 ### Performance
 
-- Use database indexes
+- Use database indexes (e.g., `@@index([startedAt])` and `@@index([score])` on `Attempt` for dashboard analytics)
 - Implement pagination
 - Use transactions for related operations
 - Cache frequently accessed data (future)

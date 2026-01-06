@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Plus, Search, Edit, Trash2, User as UserIcon, Filter, ArrowUpDown } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User as UserIcon, Filter, ArrowUpDown, RefreshCw } from 'lucide-react';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
 
@@ -116,13 +116,23 @@ export default function UserManagementPage() {
     <div className="text-primary">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold font-alan-sans">User Management</h1>
-        <Link
-          href="/admin/users/create"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Add New User
-        </Link>
+        <div className="flex gap-2">
+            <button
+                onClick={fetchUsers}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-secondary text-primary rounded-lg shadow-md hover:bg-secondary/80 transition-colors border border-primary/10"
+            >
+                <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+            </button>
+            <Link
+            href="/admin/users/create"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors"
+            >
+            <Plus className="w-5 h-5" />
+            Add New User
+            </Link>
+        </div>
       </div>
 
       {/* Filters & Search */}

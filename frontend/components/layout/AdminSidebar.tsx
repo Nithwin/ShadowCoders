@@ -76,7 +76,7 @@ export default function AdminSidebar() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center">
             <Image 
-              src="/images/codepath.png" 
+              src="/images/logo-v2.png" 
               alt="ShadowCoders Logo" 
               width={40} 
               height={40}

@@ -42,7 +42,7 @@ const aerospace = localFont({
 export const metadata: Metadata = {
   title: "ShadowCoders",
   description: "A Platform which takes your skills to whole another level",
-  icons:'/images/codepath.png',
+  icons:'/images/logo-v2.png',
   other: {
     // Suppress password field security warning on HTTP (for development/LAN use)
     'x-robots-tag': 'noindex, nofollow',

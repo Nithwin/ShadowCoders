@@ -683,7 +683,9 @@ Set production environment variables:
 - Use `useCallback` for function props
 - Implement code splitting
 - Optimize images (Next.js Image component)
-- Lazy load components when possible
+- Lazy load components when possible (e.g., Monaco Editor, Recharts, xlsx)
+- Use `next/dynamic` for heavy libraries
+- Optimize images using Next.js `<Image/>` component
 
 ### Accessibility
 
