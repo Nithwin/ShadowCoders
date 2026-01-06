@@ -1241,7 +1241,7 @@ export const resumeAttempts = async (input: ResumeAttemptsInput) => {
   const whereClause: Prisma.AttemptWhereInput = {
     examId: examId,
     status: AttemptStatus.SUBMITTED,
-    submissionType: 'AUTO', // Only resume auto-submitted attempts (using Prisma enum value)
+    // submissionType: 'AUTO', // Allow resuming manual submissions too (per user request)
   };
 
   if (!resumeAll && studentIds && studentIds.length > 0) {
@@ -1263,25 +1263,42 @@ export const resumeAttempts = async (input: ResumeAttemptsInput) => {
     };
   }
 
-  // Resume attempts: change status back to IN_PROGRESS, clear submittedAt, and update startedAt to current time
-  // This ensures the timer starts fresh for resumed attempts
+  // Resume attempts: change status back to IN_PROGRESS, clear submittedAt, and update startedAt to preserve time spent
+  // We need to calculate a new "startedAt" such that (now - newStartedAt) = previousTimeSpent
+  // This ensures the timer continues from where it left off
+  
+  let resumedCount = 0;
   const now = new Date();
-  const result = await prisma.attempt.updateMany({
-    where: {
-      id: { in: attemptIds },
-    },
-    data: {
-      status: AttemptStatus.IN_PROGRESS,
-      submittedAt: null,
-      startedAt: now, // Reset startedAt to current time so timer starts fresh
-      submissionType: 'NORMAL', // Reset to normal since it's being resumed
-      submissionReason: null, // Clear the auto-submit reason
-    },
+
+  // We need to fetch the timeSpentSec for each attempt to calculate the new startedAt
+  // We already have attemptIds (which are just IDs), let's fetch the full attempts
+  const attemptsWithData = await prisma.attempt.findMany({
+    where: { id: { in: attemptIds } },
+    select: { id: true, timeSpentSec: true },
   });
 
+  // Update attempts individually (or in batch if we could, but startedAt differs per attempt)
+  // Since this is an admin action for specific students, sequential updates are acceptable
+  for (const attempt of attemptsWithData) {
+    const timeSpentMs = (attempt.timeSpentSec || 0) * 1000;
+    const newStartedAt = new Date(now.getTime() - timeSpentMs);
+
+    await prisma.attempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: AttemptStatus.IN_PROGRESS,
+        submittedAt: null,
+        startedAt: newStartedAt, // Backdate startedAt so elapsed time matches timeSpentSec
+        submissionType: 'NORMAL',
+        submissionReason: null,
+      },
+    });
+    resumedCount++;
+  }
+
   return {
-    resumedCount: result.count,
-    message: `Successfully resumed ${result.count} attempt(s)`,
+    resumedCount,
+    message: `Successfully resumed ${resumedCount} attempt(s)`,
   };
 };
 

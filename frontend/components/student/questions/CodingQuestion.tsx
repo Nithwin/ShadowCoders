@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2, Database } from 'lucide-react';
+import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -170,35 +170,44 @@ export default function CodingQuestion({
   // -- LOCAL EXECUTION LOGIC --
   const [executionMode, setExecutionMode] = useState<'SERVER' | 'LOCAL'>('SERVER');
   const [localRunnerAvailable, setLocalRunnerAvailable] = useState(false);
+  const [isCheckingRunner, setIsCheckingRunner] = useState(false);
+
+  const checkLocalRunner = useCallback(async () => {
+      setIsCheckingRunner(true);
+      try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
+          const res = await fetch('http://localhost:3005/health', { 
+              method: 'GET', 
+              signal: controller.signal 
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+              setLocalRunnerAvailable(true);
+              if (executionMode === 'SERVER') {
+                setExecutionMode('LOCAL'); // Auto-switch to local if available
+              }
+              // Only poll if it WAS found initially (to detect if it disconnects)
+              // Using a longer interval to be less aggressive
+              // const interval = setInterval(checkLocalRunner, 30000);
+              // return () => clearInterval(interval);
+          }
+      } catch (e) {
+          // If failed first time, assume not installed and DON'T check again
+          // entirely suppressing checks to prevent errors/crashes as requested
+          setLocalRunnerAvailable(false);
+          setExecutionMode('SERVER');
+      } finally {
+        setIsCheckingRunner(false);
+      }
+  }, [executionMode]);
 
   useEffect(() => {
-      // Check if local runner is available
-      const checkLocalRunner = async () => {
-          try {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
-              const res = await fetch('http://localhost:3005/health', { 
-                  method: 'GET', 
-                  signal: controller.signal 
-              });
-              clearTimeout(timeoutId);
-              if (res.ok) {
-                  setLocalRunnerAvailable(true);
-                  if (executionMode === 'SERVER') {
-                    setExecutionMode('LOCAL'); // Auto-switch to local if available
-                  }
-              }
-          } catch (e) {
-              setLocalRunnerAvailable(false);
-              setExecutionMode('SERVER');
-          }
-      };
-      
-      checkLocalRunner();
-      // Poll every 10 seconds to check availability
-      const interval = setInterval(checkLocalRunner, 10000);
-      return () => clearInterval(interval);
-  }, []);
+    checkLocalRunner();
+  }, [checkLocalRunner]);
+  
+  // ---------------------------
+
   // ---------------------------
 
   // Sync with answer prop changes from parent ONLY on initial mount (not after user edits)
@@ -411,45 +420,58 @@ export default function CodingQuestion({
       if (executionMode === 'LOCAL') {
           // --- LOCAL EXECUTION ---
           try {
-            const res = await fetch('http://localhost:3005/execute', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    code,
-                    language,
-                    input: showCustomInput ? customInput : undefined,
-                    timeLimit: 5000
-                })
-            });
+            const inputsToRun = showCustomInput 
+                ? [{ input: customInput, expectedOutput: '' }] 
+                : visibleTestCases;
             
-            if (!res.ok) throw new Error('Local runner error');
-            const result = await res.json();
-             // Map local result format to expected frontend format if needed, 
-             // but our local-runner.js returns compatible structure (output, error, status)
-             // We just need to wrap it if it's not array of test results
-             
-             // For single custom input run, we mock a test result array
-             const singleTestResult: TestResult = {
-                input: showCustomInput ? customInput : 'Manual Run',
-                expectedOutput: '', // User didn't specify expected
-                actualOutput: result.output,
-                passed: result.status.id === 3,
-                status: result.status.description,
-                error: result.error
-             };
-             
-            setTestResults({
-                passed: result.status.id === 3 ? 1 : 0,
-                total: 1,
-                testResults: [singleTestResult],
-                message: result.output || result.error || 'Execution Complete'
-            });
-            setOutput(result.output || result.error || '');
+            const results = [];
+            let totalPassed = 0;
+
+            for (const testCase of inputsToRun) {
+                const res = await fetch('http://localhost:3005/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        code,
+                        language,
+                        input: testCase.input,
+                        timeLimit: 5000 // 5s timeout for local
+                    })
+                });
+
+                if (!res.ok) throw new Error('Local runner error');
+                const runResult = await res.json();
+                
+                const passed = !runResult.error && !runResult.timedOut && (
+                    showCustomInput || (runResult.output?.trim() === testCase.expectedOutput?.trim())
+                );
+                
+                if (passed) totalPassed++;
+
+                results.push({
+                    input: testCase.input,
+                    expectedOutput: testCase.expectedOutput,
+                    actualOutput: runResult.output || '',
+                    passed: passed,
+                    status: runResult.status?.description || (passed ? 'Accepted' : 'Wrong Answer'),
+                    error: runResult.error
+                });
+            }
+
+            const finalResult = {
+                passed: totalPassed,
+                total: inputsToRun.length,
+                testResults: results,
+                message: totalPassed === inputsToRun.length ? 'All local tests passed!' : 'Some tests failed.'
+            };
+              
+            setTestResults(finalResult);
+            setOutput(finalResult.message);
             
           } catch (localErr) {
                console.error('Local execution failed, falling back to server...', localErr);
-               setExecutionMode('SERVER'); // Fallback
-               setError('Local execution failed. Falling back to server. Please try again.');
+               setExecutionMode('SERVER'); 
+               setError('Local execution interrupted. Switched to Server mode. Please try running again.');
           }
       } else {
           // --- SERVER EXECUTION (Original) ---
@@ -566,8 +588,9 @@ export default function CodingQuestion({
       }
     } finally {
       setIsSubmitting(false);
-      // Start 30-second cooldown after submission
-      setSubmitCooldown(30);
+      // Start cooldown after submission
+      // 5 seconds for LOCAL execution (student device), 30 seconds for SERVER (to prevent overload)
+      setSubmitCooldown(executionMode === 'LOCAL' ? 5 : 30);
     }
   }, [code, language, questionId, attemptId, onChange, submitCooldown, config]);
 
@@ -599,17 +622,6 @@ export default function CodingQuestion({
               </h2>
             </div>
             <div className="flex items-center gap-3">
-              {localRunnerAvailable && (
-                  <div 
-                    className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 cursor-pointer transition-colors ${executionMode === 'LOCAL' ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200' : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'}`}
-                    onClick={() => setExecutionMode(prev => prev === 'LOCAL' ? 'SERVER' : 'LOCAL')}
-                    title="Click to toggle execution mode"
-                  >
-                    <div className={`w-2 h-2 rounded-full ${executionMode === 'LOCAL' ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                    {executionMode === 'LOCAL' ? 'Local Execution' : 'Server Execution'}
-                  </div>
-              )}
-              {reportButton}
               <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">
                 {points} {points === 1 ? 'point' : 'points'}
               </div>
@@ -735,13 +747,13 @@ export default function CodingQuestion({
                     <div className="p-4 grid grid-cols-1 gap-4">
                       <div>
                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Input</div>
-                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 overflow-x-auto">
+                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap">
                           {testCase.input || <span className="text-gray-400 italic">(empty)</span>}
                         </div>
                       </div>
                       <div>
                         <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Expected Output</div>
-                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 overflow-x-auto">
+                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap">
                           {testCase.expectedOutput}
                         </div>
                       </div>

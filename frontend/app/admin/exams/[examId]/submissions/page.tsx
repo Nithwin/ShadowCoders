@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Search, Loader2, Eye, Download, X, Code, FileText, CheckCircle2, XCircle, Volume2, Play, Pause, User, Clock, Award, TrendingUp, Users, Calendar, ChevronLeft, ChevronRight, Filter, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Search, Loader2, Eye, Download, X, Code, FileText, CheckCircle2, XCircle, Volume2, Play, Pause, User, Clock, Award, TrendingUp, Users, Calendar, ChevronLeft, ChevronRight, Filter, BarChart3, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useToastNotification } from '@/context/ToastContext';
@@ -139,8 +139,13 @@ export default function ExamSubmissionsPage() {
     const scoreNum = typeof score === 'string' ? parseFloat(score) : score;
     const maxScoreNum = typeof maxScore === 'string' ? parseFloat(maxScore) : maxScore;
     if (isNaN(scoreNum) || isNaN(maxScoreNum)) return 'Not graded';
+    
+    // Rounding per user request
+    const roundedScore = Math.round(scoreNum);
+    const roundedMax = Math.round(maxScoreNum);
+    
     const percentage = Math.round((scoreNum / maxScoreNum) * 100);
-    return `${scoreNum.toFixed(2)} / ${maxScoreNum.toFixed(2)} (${percentage}%)`;
+    return `${roundedScore} / ${roundedMax} (${percentage}%)`;
   };
 
   const getScorePercentage = (score: number | string | null, maxScore: number | string | null): number => {
@@ -298,6 +303,14 @@ export default function ExamSubmissionsPage() {
             <Search className="w-5 h-5 text-primary/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
           <div className="flex gap-3">
+            <Button
+              onClick={fetchAttempts}
+              disabled={isLoading}
+              className="bg-secondary border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/5 text-primary shadow-sm hover:shadow-md transition-all duration-300 px-4 py-3 rounded-xl"
+              title="Refresh Submissions"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
             <Button 
               onClick={async () => {
                 const confirmed = window.confirm(
@@ -433,7 +446,7 @@ export default function ExamSubmissionsPage() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-semibold text-primary/70">Score</span>
                             <span className="text-lg font-bold text-primary">
-                              {typeof attempt.score === 'string' ? parseFloat(attempt.score).toFixed(2) : attempt.score.toFixed(2)} / {typeof attempt.maxScore === 'string' ? parseFloat(attempt.maxScore).toFixed(2) : attempt.maxScore.toFixed(2)}
+                              {Math.round(typeof attempt.score === 'string' ? parseFloat(attempt.score) : (attempt.score || 0))} / {Math.round(typeof attempt.maxScore === 'string' ? parseFloat(attempt.maxScore) : (attempt.maxScore || 1))}
                             </span>
                           </div>
                           <div className="w-full bg-primary/10 rounded-full h-3 overflow-hidden shadow-inner">
@@ -475,20 +488,61 @@ export default function ExamSubmissionsPage() {
                   </div>
 
                   {/* Card Footer */}
-                  <div className="p-5 bg-primary/5 border-t border-primary/10 flex gap-2">
-                    <Link href={`/admin/exams/${examId}/submissions/${attempt.id}`} className="flex-1">
-                      <Button
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl py-2.5"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                    </Link>
-                    <Link href={`/admin/attempts/${attempt.id}/grade`} className="flex-1">
-                      <Button className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-secondary border-0 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl py-2.5">
-                        Grade
-                      </Button>
-                    </Link>
+                  <div className="p-5 bg-primary/5 border-t border-primary/10 flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Link href={`/admin/exams/${examId}/submissions/${attempt.id}`} className="flex-1">
+                        <Button
+                          className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl py-2.5"
+                        >
+                          <Eye className="w-4 h-4 mr-2" />
+                          View
+                        </Button>
+                      </Link>
+                      <Link href={`/admin/attempts/${attempt.id}/grade`} className="flex-1">
+                        <Button className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-secondary border-0 shadow-md hover:shadow-lg transition-all duration-300 rounded-xl py-2.5">
+                          Grade
+                        </Button>
+                      </Link>
+                    </div>
+                    
+                    {/* Admin Actions: Resume / Reattempt */}
+                    <div className="flex gap-2 pt-2 border-t border-primary/5">
+                         <Button 
+                            onClick={async () => {
+                                if(!confirm('Resume this exam? The timer will continue from where it left off.')) return;
+                                try {
+                                    await api.post('/admin/attempts/resume', { examId, studentIds: [attempt.student.id] });
+                                    toast.success('Exam resumed successfully');
+                                    fetchAttempts();
+                                } catch(e: any) {
+                                    toast.error(e.response?.data?.message || 'Failed to resume');
+                                }
+                            }}
+                            variant="outline" 
+                            className="flex-1 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
+                         >
+                            <Play className="w-4 h-4 mr-2" />
+                            Resume
+                         </Button>
+
+                         <Button 
+                             onClick={async () => {
+                                if(!confirm('Reset this attempt? The student will be able to start fresh (ALL DATA WILL BE DELETED).')) return;
+                                try {
+                                    await api.post('/admin/attempts/reset', { examId, studentIds: [attempt.student.id] });
+                                    toast.success('Attempt reset successfully');
+                                    fetchAttempts();
+                                } catch(e: any) {
+                                    toast.error(e.response?.data?.message || 'Failed to reset');
+                                }
+                             }}
+                            variant="outline"
+                            className="flex-1 border-red-500/50 text-red-600 hover:bg-red-50"
+                         >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Reattempt
+                         </Button>
+                    </div>
                   </div>
                 </div>
               );

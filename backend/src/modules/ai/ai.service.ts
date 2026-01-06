@@ -46,7 +46,18 @@ Generate exam questions based on the following requirements:
   ]
 }
 
-2. Each question object must follow this structure based on its type:
+
+3. **CODING INPUT FORMATTING RULES (CRITICAL):**
+   - **Arrays/Lists:** ALWAYS provide the size (N) on the first line, followed by the elements on the next line (space-separated). 
+     - Example (Array=[1,2,3]): Input string should be "3\\n1 2 3" (NOT "[1,2,3]").
+   - **Multiple Arguments:** Provide each argument on a NEW LINE.
+     - Example (Two Sum: target=9, nums=[2,7..]): 
+       Input string should be "9\\n4\\n2 7 11 15"
+       (Line 1: Target, Line 2: Size, Line 3: Elements).
+   - **Matrices:** Provide Dimensions (R C) on line 1, then R lines of elements.
+   - **Avoid JSON syntax** in inputs unless explicitly requested. Use standard competitive programming input formats.
+
+4. Each question object must follow this structure based on its type:
 
 **For MCQ questions:**
 {
@@ -71,15 +82,17 @@ Generate exam questions based on the following requirements:
   "prompt": "<problem description in Markdown (.md) format with clear problem statement, constraints, input/output format, and examples - use markdown syntax for code blocks, lists, headers, etc. DO NOT include any starter code, function signatures, or code snippets in the prompt - only describe the problem>",
   "starterCode": "// write your code here",
   "testcases": [
-    // EXACTLY 2 sample test cases (visible to students) - MUST be valid and executable
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": false, "timeoutMs": 2000 },
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": false, "timeoutMs": 2000 },
-    // EXACTLY 5 hidden test cases (for validation) - MUST be valid and executable
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 },
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 },
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 },
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 },
-    { "input": "<actual input string>", "expectedOutput": "<actual expected output string>", "isHidden": true, "timeoutMs": 2000 }
+  "testcases": [
+    // EXACTLY 2 sample test cases (visible to students). Inputs MUST follow strictly the competitive programming format defined above.
+    { "input": "<size>\\n<space_separated_values>", "expectedOutput": "<actual output>", "isHidden": false, "timeoutMs": 2000 },
+    { "input": "<arg1>\\n<arg2>", "expectedOutput": "<actual output>", "isHidden": false, "timeoutMs": 2000 },
+    // EXACTLY 5 hidden test cases
+    { "input": "...", "expectedOutput": "...", "isHidden": true, "timeoutMs": 2000 },
+    // ... ensure all 7 test cases follow the formatting rules
+    { "input": "...", "expectedOutput": "...", "isHidden": true, "timeoutMs": 2000 },
+    { "input": "...", "expectedOutput": "...", "isHidden": true, "timeoutMs": 2000 },
+    { "input": "...", "expectedOutput": "...", "isHidden": true, "timeoutMs": 2000 },
+    { "input": "...", "expectedOutput": "...", "isHidden": true, "timeoutMs": 2000 }
   ]
 }
 
