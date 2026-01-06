@@ -13,7 +13,7 @@ export interface UserPayLoad {
 }
 
 const SALT_ROUNDS = 10;
-const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
+const ACCESS_TOKEN_EXPIRY = '3h'; // 3 hours (sufficient for most exams)
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;
 
 /**
