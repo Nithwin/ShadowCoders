@@ -43,43 +43,31 @@ A comprehensive online examination platform built with Next.js 16 and Express.js
    - Admin Dashboard: `http://localhost:3000/admin/dashboard`
    - Student Portal: `http://localhost:3000/student/dashboard`
 
-## 🐧 Production Setup (Linux)
-
-For deploying on a Linux server (Ubuntu/Debian), follow these additional steps:
-
-### 1. System Requirements
-
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-```
-
-### 2. Install Node.js (v20)
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-```
-
-### 3. Process Management (PM2)
-```bash
-sudo npm install -g pm2
-
-# Start Backend
-cd backend
-npm run build
-pm2 start dist/index.js --name "shadowcoders-backend"
-
-# Start Frontend
-cd ../frontend
-npm run build
-pm2 start npm --name "shadowcoders-frontend" -- start
-```
-
 ### 4. Nginx Reverse Proxy (Optional but Recommended)
 ```bash
 sudo apt install nginx -y
 # Configure /etc/nginx/sites-available/default to proxy port 3000 (frontend) and 4000 (backend)
 ```
+
+## 🐧 One-Click Installer (Ubuntu)
+
+For a fresh Ubuntu system, you can use the automated installer script which sets up Node.js, Java, Python, Postgres, Redis, and builds the application.
+
+1. **Copy the script**
+   Copy `deploy-ubuntu.sh` to your server.
+
+2. **Run the installer**
+   ```bash
+   chmod +x deploy-ubuntu.sh
+   ./deploy-ubuntu.sh
+   ```
+
+3. **Start the server**
+   ```bash
+   ./start_server.sh
+   ```
+
+## 🐧 Manual Production Setup (Linux)
 
 ## 📚 Documentation
 
@@ -198,6 +186,12 @@ ShadowCoders/
 - **Keyboard Shortcut Blocking**: Block common shortcuts
 - **Developer Tools Detection**: Warn when dev tools are opened
 - **Audio Monitoring**: Monitor for suspicious audio activity
+
+### Local Code Execution
+
+- **Client-Side Offloading**: Students can run code on their own machines instead of the server to reduce load.
+- **Local Runner**: Students run a lightweight Node.js script (`scripts/local-runner.js`) that the exam page connects to.
+- **Auto-Switching**: The exam interface automatically detects the local runner and switches execution mode.
 
 ### AI Integration
 
