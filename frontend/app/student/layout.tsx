@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import StudentSidebar from '@/components/layout/StudentSidebar';
 import StudentHeader from '@/components/student/StudentHeader';
 import LeetCodeIdPrompt from '@/components/student/LeetCodeIdPrompt';
+import GlobalPreloader from '@/components/student/GlobalPreloader';
 
 export default function StudentLayout({
   children,
@@ -59,6 +60,9 @@ export default function StudentLayout({
       </div>
       {/* LeetCode ID Prompt Popup - Only shows for students without LeetCode ID */}
       <LeetCodeIdPrompt />
+      
+      {/* Global Asset Preloader - Caches Wasm runtimes in background */}
+      <GlobalPreloader />
     </>
   );
 }

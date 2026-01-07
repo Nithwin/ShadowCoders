@@ -51,8 +51,7 @@ process.on('SIGINT', () => {
     });
 });
 
-// const app = createApp(); // Original line
-const app = express(); // Changed from createApp() to express()
+const app = createApp();
 
 // Create HTTP server
 // const server = http.createServer(app); // Original line
@@ -61,11 +60,8 @@ const server = http.createServer(app); // Kept http.createServer for consistency
 // Initialize Cron Jobs
 initAutoSubmitCron(); // Added cron job initialization
 
-// Middleware
-app.use(cors({
-  origin: '*', // Allow all for now (dev)
-  credentials: true
-}));
+// CORS is handled in createApp() within app.ts
+// app.use(cors(...));
 
 // Handle server errors
 server.on('error', (error: NodeJS.ErrnoException) => {

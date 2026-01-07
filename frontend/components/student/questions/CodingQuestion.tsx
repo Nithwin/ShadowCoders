@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
+import { runCode } from '@/lib/code-runner';
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -167,46 +168,21 @@ export default function CodingQuestion({
     }
   }, [questionId, answer?.code, answer?.language, starterCode, availableLanguages, defaultLanguage]);
   
-  // -- LOCAL EXECUTION LOGIC --
-  const [executionMode, setExecutionMode] = useState<'SERVER' | 'LOCAL'>('SERVER');
-  const [localRunnerAvailable, setLocalRunnerAvailable] = useState(false);
-  const [isCheckingRunner, setIsCheckingRunner] = useState(false);
-
-  const checkLocalRunner = useCallback(async () => {
-      setIsCheckingRunner(true);
-      try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
-          const res = await fetch('http://localhost:3005/health', { 
-              method: 'GET', 
-              signal: controller.signal 
-          });
-          clearTimeout(timeoutId);
-          if (res.ok) {
-              setLocalRunnerAvailable(true);
-              if (executionMode === 'SERVER') {
-                setExecutionMode('LOCAL'); // Auto-switch to local if available
-              }
-              // Only poll if it WAS found initially (to detect if it disconnects)
-              // Using a longer interval to be less aggressive
-              const interval = setInterval(checkLocalRunner, 30000);
-              return () => clearInterval(interval);
-          }
-      } catch (e) {
-          // If failed first time, assume not installed and DON'T check again
-          // entirely suppressing checks to prevent errors/crashes as requested
-          setLocalRunnerAvailable(false);
-          setExecutionMode('SERVER');
-      } finally {
-        setIsCheckingRunner(false);
-      }
-  }, [executionMode]);
-
-  useEffect(() => {
-    checkLocalRunner();
-  }, [checkLocalRunner]);
+  // -- CLIENT EXECUTION LOGIC --
+  const [executionMode, setExecutionMode] = useState<'SERVER' | 'CLIENT' | 'LOCAL'>('SERVER');
   
-  // ---------------------------
+  // Check if current language supports client-side execution
+  useEffect(() => {
+    // Only use CLIENT (Wasm) mode for Python, JS, and Java
+    if (['python', 'javascript', 'java'].includes(language)) {
+      setExecutionMode('CLIENT');
+    } else {
+      setExecutionMode('SERVER');
+    }
+  }, [language]);
+
+
+// ---------------------------
 
   // ---------------------------
 
@@ -417,30 +393,14 @@ export default function CodingQuestion({
     setTestResults(null);
 
     try {
-        // --- ON-DEMAND LOCAL CHECK ---
-        // Try to detect local runner right now if not already confirmed
-        let useLocal = executionMode === 'LOCAL';
-        if (!useLocal) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 500); // Fast check
-                const healthRes = await fetch('http://localhost:3005/health', { 
-                    method: 'GET', 
-                    signal: controller.signal 
-                });
-                clearTimeout(timeoutId);
-                if (healthRes.ok) {
-                    useLocal = true;
-                    setLocalRunnerAvailable(true);
-                    setExecutionMode('LOCAL');
-                }
-            } catch (ignore) {
-                // Ignore check failure, fallback to server
-            }
+        // Check for CLIENT mode logic
+        if (executionMode === 'CLIENT') {
+             // Already set by useEffect
         }
 
-      if (useLocal) {
-          // --- LOCAL EXECUTION ---
+
+      if (executionMode === 'CLIENT') {
+          // --- CLIENT SIDE EXECUTION (Wasm/Worker) ---
           try {
             const inputsToRun = showCustomInput 
                 ? [{ input: customInput, expectedOutput: '' }] 
@@ -450,21 +410,9 @@ export default function CodingQuestion({
             let totalPassed = 0;
 
             for (const testCase of inputsToRun) {
-                const res = await fetch('http://localhost:3005/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        code,
-                        language,
-                        input: testCase.input,
-                        timeLimit: 5000 // 5s timeout for local
-                    })
-                });
-
-                if (!res.ok) throw new Error('Local runner error');
-                const runResult = await res.json();
+                const runResult = await runCode(code, language, testCase.input);
                 
-                const passed = !runResult.error && !runResult.timedOut && (
+                const passed = !runResult.error && (
                     showCustomInput || (runResult.output?.trim() === testCase.expectedOutput?.trim())
                 );
                 
@@ -476,7 +424,7 @@ export default function CodingQuestion({
                     actualOutput: runResult.output || '',
                     passed: passed,
                     status: runResult.status?.description || (passed ? 'Accepted' : 'Wrong Answer'),
-                    error: runResult.error
+                    error: runResult.error || undefined
                 });
             }
 
@@ -484,16 +432,14 @@ export default function CodingQuestion({
                 passed: totalPassed,
                 total: inputsToRun.length,
                 testResults: results,
-                message: totalPassed === inputsToRun.length ? 'All local tests passed!' : 'Some tests failed.'
+                message: totalPassed === inputsToRun.length ? 'All tests passed (Client Side)!' : 'Some tests failed.'
             };
               
             setTestResults(finalResult);
             setOutput(finalResult.message);
             
-          } catch (localErr) {
-               console.error('Local execution failed, falling back to server...', localErr);
-               setExecutionMode('SERVER'); 
-               setLocalRunnerAvailable(false); // Mark as unavailable so we don't try again immediately without checking
+          } catch (clientErr) {
+               console.error('Client execution failed, falling back to server...', clientErr);
                
                // Retry with Server
                const response = await api.post(`/student/attempts/${attemptId}/run-code`, {
@@ -615,8 +561,8 @@ export default function CodingQuestion({
     } finally {
       setIsSubmitting(false);
       // Start cooldown after submission
-      // 5 seconds for LOCAL execution (student device), 30 seconds for SERVER (to prevent overload)
-      setSubmitCooldown(executionMode === 'LOCAL' ? 5 : 30);
+      // 5 seconds for LOCAL/CLIENT execution, 30 seconds for SERVER
+      setSubmitCooldown((executionMode === 'LOCAL' || executionMode === 'CLIENT') ? 5 : 30);
     }
   }, [code, language, questionId, attemptId, onChange, submitCooldown, config]);
 
@@ -649,16 +595,17 @@ export default function CodingQuestion({
             </div>
             <div className="flex items-center gap-3">
               {/* Local Runner Status Indicator - Hidden as per requirements, logic is auto-detect */}
+              {/* Client Mode Indicator */}
                <div
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                    localRunnerAvailable 
-                      ? 'bg-green-50 text-green-700 border-green-200' 
+                    executionMode === 'CLIENT'
+                      ? 'bg-purple-50 text-purple-700 border-purple-200' 
                       : 'hidden' 
                   }`}
-                  title="Running locally"
+                  title="Running in Browser (Wasm)"
                 >
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Local Mode
+                  <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                  Client Mode
                </div>
 
               <div className="px-4 py-2 bg-amber-100 text-amber-800 rounded-lg text-sm font-bold border border-amber-300 shadow-sm">

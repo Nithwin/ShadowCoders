@@ -102,12 +102,17 @@ export const getCookieOptions = (req: Request) => {
     // 2. Check environment
     const isProduction = env.NODE_ENV === 'production';
     
-    // 3. Check if we are conceptually on localhost
-    const isLocalhost = host.includes('localhost') || host === '127.0.0.1' || host.startsWith('192.168.');
+    // 3. Check if we are conceptually on localhost or LAN
+    // This includes loopback, private IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+    const isLocalhostOrLan = 
+        host.includes('localhost') || 
+        host === '127.0.0.1' || 
+        // IPv4 regex check to prevent setting domain on IPs
+        /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?::[0-9]{1,5})?$/.test(host);
     
-    // If we are in production, OR on a public host, OR securely serving:
+    // If we are in production, OR on a public host (AND not an IP address), OR securely serving:
     // FORCE Secure=true and set Domain
-    if (isProduction || !isLocalhost || isSecure) {
+    if (isProduction && !isLocalhostOrLan && isSecure) {
         // Force secure to true for any public access (Cloudflare, Vercel, etc.)
         cookieOptions.secure = true;
         

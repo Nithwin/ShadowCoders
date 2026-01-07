@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { prisma } from './prisma';
 import { Role, AttemptStatus } from '@prisma/client';
-
+import { buildAllowedOrigins } from '../config/cors';
 
 export interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -49,7 +49,7 @@ class ExamMonitoringService {
   initialize(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: env.FRONTEND_URL?.split(',') || ['http://localhost:3000'],
+        origin: buildAllowedOrigins(),
         credentials: true,
         methods: ['GET', 'POST'],
       },
