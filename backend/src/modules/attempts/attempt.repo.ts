@@ -4,18 +4,18 @@ import { retryWithBackoff } from "../../lib/utils/retry";
 
 
 export const createAttempt = (data: Prisma.AttemptCreateInput) => {
-    return prisma.attempt.create({
-        data,
-        select:{
-            id:true,
-            examId:true,
-            studentId:true,
-            startedAt:true,
-            status:true,
-            orderMap:true,
-            attemptNo:true,
-        }
-    })
+  return prisma.attempt.create({
+    data,
+    select: {
+      id: true,
+      examId: true,
+      studentId: true,
+      startedAt: true,
+      status: true,
+      orderMap: true,
+      attemptNo: true,
+    }
+  })
 }
 
 export const upsertResponse = async (data: {
@@ -32,7 +32,7 @@ export const upsertResponse = async (data: {
     answer: answer,
     ...otherData,
   };
-  
+
   if (audioAssetId !== undefined) {
     updateData.audioAsset = audioAssetId ? { connect: { id: audioAssetId } } : { disconnect: true };
   }
@@ -44,7 +44,7 @@ export const upsertResponse = async (data: {
     answer: answer,
     ...otherData,
   };
-  
+
   if (audioAssetId) {
     createData.audioAsset = { connect: { id: audioAssetId } };
   }
@@ -141,18 +141,20 @@ export const getAttemptDetails = (attemptId: string) => {
 
 export const getAttemptForSubmission = (attemptId: string) => {
   return prisma.attempt.findUnique({
-    where:{id: attemptId},
-    select : {
-      id:true,
-      studentId:true,
-      status:true,
-      examId:true,
-      startedAt:true,
-      responses : {
+    where: { id: attemptId },
+    select: {
+      id: true,
+      studentId: true,
+      status: true,
+      examId: true,
+      startedAt: true,
+      responses: {
         select: {
-          questionId:true,
-          answer:true,
-          type:true,
+          questionId: true,
+          answer: true,
+          type: true,
+          earnedPoints: true,
+          verdict: true,
         },
       },
       exam: {
@@ -254,12 +256,12 @@ export const listAttemptsForExam = async (params: {
 
   // Strategy: Get the latest attempt per student
   // We'll use a subquery to find the max attemptNo for each student, then fetch those attempts
-  
+
   // 1. If search is provided, first find matching students by name, email, or reg_no
   let studentIds: string[] | undefined = undefined;
   if (searchQuery && searchQuery.trim()) {
     const searchTerm = searchQuery.trim();
-    
+
     // Build OR conditions for search - handle null values properly
     const searchConditions: Prisma.UserWhereInput[] = [
       // Search name only if it's not null
@@ -279,7 +281,7 @@ export const listAttemptsForExam = async (params: {
         ],
       },
     ];
-    
+
     const matchingStudents = await prisma.user.findMany({
       where: {
         role: 'STUDENT',
@@ -287,9 +289,9 @@ export const listAttemptsForExam = async (params: {
       },
       select: { id: true, name: true, email: true, reg_no: true },
     });
-    
+
     studentIds = matchingStudents.map(s => s.id);
-    
+
     // If no students match the search, return empty results early
     if (studentIds.length === 0) {
       return { attempts: [], totalCount: 0 };
@@ -362,7 +364,7 @@ export const listAttemptsForExam = async (params: {
 
     // Return attempt without responses (to match original API contract)
     const { responses, ...attemptWithoutResponses } = attempt;
-    
+
     return {
       ...attemptWithoutResponses,
       score: calculatedScore, // Override with calculated score
@@ -379,7 +381,7 @@ export const listAttemptsForExam = async (params: {
 export const getStudentAttempts = async (studentId: string) => {
   // Strategy: Get the latest attempt per exam for this student
   // Similar to listAttemptsForExam, but grouped by examId instead of studentId
-  
+
   // 1. First, get all unique exams this student has attempted with their latest attemptNo
   const latestAttempts = await prisma.attempt.groupBy({
     by: ['examId'],
@@ -435,7 +437,7 @@ export const getStudentAttempts = async (studentId: string) => {
 
     // Return attempt without responses (to match original API contract)
     const { responses, ...attemptWithoutResponses } = attempt;
-    
+
     return {
       ...attemptWithoutResponses,
       score: calculatedScore, // Override with calculated score
@@ -487,7 +489,7 @@ export const getFullAttemptForAdmin = (attemptId: string) => {
               id: true,
               url: true,
               kind: true,
-              },
+            },
           },
           // Get the original question for context
           question: {

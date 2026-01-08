@@ -28,19 +28,19 @@ function extractJavaClassName(code: string): string {
   const codeWithoutComments = code
     .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
     .replace(/\/\/.*/g, ''); // Remove line comments
-  
+
   // Match: public class ClassName
   const publicClassMatch = codeWithoutComments.match(/public\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/);
   if (publicClassMatch?.[1]) {
     return publicClassMatch[1];
   }
-  
+
   // If no public class, match any class declaration
   const anyClassMatch = codeWithoutComments.match(/class\s+([A-Za-z_][A-Za-z0-9_]*)/);
   if (anyClassMatch?.[1]) {
     return anyClassMatch[1];
   }
-  
+
   // Default fallback
   return 'Main';
 }
@@ -197,7 +197,7 @@ export async function executeCodeLocally(
   timeoutMs: number = 10000
 ): Promise<ExecutionResult> {
   const langConfig = LANGUAGE_CONFIGS[language.toLowerCase()];
-  
+
   if (!langConfig) {
     return {
       stdout: null,
@@ -217,10 +217,10 @@ export async function executeCodeLocally(
   if (langConfig.command) {
     const isAvailable = await isCommandAvailable(langConfig.command);
     if (!isAvailable) {
-      const installGuide = language.toLowerCase() === 'java' 
+      const installGuide = language.toLowerCase() === 'java'
         ? 'Please install Java JDK (https://www.oracle.com/java/technologies/downloads/) and ensure javac is in your system PATH.'
         : `Please install ${langConfig.command} and ensure it is in your system PATH.`;
-      
+
       return {
         stdout: null,
         stderr: null,
@@ -238,7 +238,7 @@ export async function executeCodeLocally(
 
   // Create temporary directory for this execution
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-exec-'));
-  
+
   // For Java, always use Main.java as the filename (no class-name extraction)
   let fileName = `code.${langConfig.extension}`;
   let className = 'Main'; // default class name
@@ -257,7 +257,7 @@ export async function executeCodeLocally(
       // console.log(`[LocalExecutor] Extracted Java package: ${javaPackage}`);
     }
   }
-  
+
   const filePath = path.join(tempDir, fileName);
 
   try {
@@ -269,7 +269,7 @@ export async function executeCodeLocally(
         // Write setup SQL to a separate file
         const setupFilePath = path.join(tempDir, 'setup.sql');
         await fs.writeFile(setupFilePath, input, 'utf-8');
-        
+
         // For SQLite, create database and run setup
         const dbPath = path.join(tempDir, 'test.db');
         // First run setup to create schema/data
@@ -284,7 +284,7 @@ export async function executeCodeLocally(
           console.warn('SQL setup warning:', setupError);
         }
       }
-      
+
       // Write the query code to file
       await fs.writeFile(filePath, code, 'utf-8');
     } else {
@@ -302,7 +302,7 @@ export async function executeCodeLocally(
       const compileCmd = language.toLowerCase() === 'java'
         ? `javac -encoding UTF-8 -d "${tempDir}" "${filePath}"`
         : langConfig.compileCommand(filePath);
-      
+
       try {
         const compileResult = await execAsync(compileCmd, {
           cwd: tempDir,
@@ -325,11 +325,11 @@ export async function executeCodeLocally(
         }
       } catch (compileError: any) {
         let errorMessage = compileError.stderr || compileError.message || 'Compilation failed';
-        
+
         if (compileError.code === 'ENOENT' || errorMessage.toLowerCase().includes('not found') || errorMessage.toLowerCase().includes('not recognized')) {
           errorMessage = `${langConfig.command} not found. Please install ${language} compiler.`;
         }
-        
+
         return {
           stdout: null,
           stderr: null,
@@ -353,10 +353,10 @@ export async function executeCodeLocally(
       runCmd = `java -cp "${tempDir}" ${fqcn}`;
     }
     const startTime = Date.now();
-    
+
     try {
       const inputForExecution = (language.toLowerCase() === 'sql') ? '' : (input || '');
-      
+
       const result = await executeWithTimeout(runCmd, inputForExecution, tempDir, timeoutMs);
       const executionTime = Date.now() - startTime;
 
@@ -476,24 +476,40 @@ async function executeWithTimeout(
       });
     }, timeoutMs);
 
+    const MAX_BUFFER_SIZE = 1024 * 1024; // 1MB limit
+
     // Handle stdout
     if (childProcess.stdout) {
       childProcess.stdout.on('data', (data: Buffer) => {
-        stdout += data.toString();
+        if (stdout.length < MAX_BUFFER_SIZE) {
+          const chunk = data.toString();
+          if (stdout.length + chunk.length > MAX_BUFFER_SIZE) {
+            stdout += chunk.substring(0, MAX_BUFFER_SIZE - stdout.length) + '\n...[Output Truncated]';
+          } else {
+            stdout += chunk;
+          }
+        }
       });
     }
 
     // Handle stderr
     if (childProcess.stderr) {
       childProcess.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString();
+        if (stderr.length < MAX_BUFFER_SIZE) {
+          const chunk = data.toString();
+          if (stderr.length + chunk.length > MAX_BUFFER_SIZE) {
+            stderr += chunk.substring(0, MAX_BUFFER_SIZE - stderr.length) + '\n...[Output Truncated]';
+          } else {
+            stderr += chunk;
+          }
+        }
       });
     }
 
     // Handle process exit
     childProcess.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
       clearTimeout(timeout);
-      
+
       if (timedOut) {
         return; // Already resolved
       }
@@ -570,7 +586,7 @@ export async function testCodeWithTestCasesLocally(
   if (language.toLowerCase() !== 'sql') {
     return await testCodeWithSharedEnv(code, language, testCases);
   }
-  
+
   // For interpreted languages, execute SEQUENTIALLY to ensure deterministic order
   // This prevents race conditions and ensures consistent results
   const results: Array<{
@@ -584,14 +600,14 @@ export async function testCodeWithTestCasesLocally(
     testCaseIndex?: number;
     errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
   }> = [];
-  
+
   for (let i = 0; i < testCases.length; i++) {
     const testCase = testCases[i];
     if (!testCase) {
       // Skip undefined test cases
       continue;
     }
-    
+
     try {
       const response = await executeCodeLocally(
         code,
@@ -602,11 +618,11 @@ export async function testCodeWithTestCasesLocally(
 
       const actualOutput = response.stdout?.trim() || null;
       const expectedOutputTrimmed = testCase.expectedOutput.trim();
-      
+
       // Determine error type and status
       let errorType: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted' = 'Accepted';
       let passed = false;
-      
+
       if (response.status.id === 5) {
         // Time Limit Exceeded
         errorType = 'TLE';
@@ -621,13 +637,13 @@ export async function testCodeWithTestCasesLocally(
         // Normalize whitespace for comparison (consistent normalization)
         const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
         const normalizedExpected = expectedOutputTrimmed.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
-        
+
         // Also try single-line comparison for cases where output is on one line
         const singleLineActual = actualOutput.replace(/\s+/g, ' ').trim();
         const singleLineExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
-        
+
         passed = normalizedActual === normalizedExpected || singleLineActual === singleLineExpected;
-        
+
         if (!passed) {
           errorType = 'Wrong Answer';
         }
@@ -655,16 +671,16 @@ export async function testCodeWithTestCasesLocally(
         testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
         errorType,
       };
-      
+
       // Only include optional properties if they have values
       if (testCase.isHidden !== undefined) {
         result.isHidden = testCase.isHidden;
       }
-      
+
       if (errorMsg) {
         result.error = errorMsg;
       }
-      
+
       results.push(result);
     } catch (error: any) {
       const errorResult: {
@@ -687,11 +703,11 @@ export async function testCodeWithTestCasesLocally(
         testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : i,
         errorType: 'Runtime Error',
       };
-      
+
       if (testCase.isHidden !== undefined) {
         errorResult.isHidden = testCase.isHidden;
       }
-      
+
       results.push(errorResult);
     }
   }
@@ -739,7 +755,7 @@ async function testCodeWithSharedEnv(
 
   // Create temporary directory for this execution
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code-exec-'));
-  
+
   try {
     // For Java, always use Main.java as the filename (no class-name extraction)
     let fileName = `code.${langConfig.extension}`;
@@ -759,21 +775,21 @@ async function testCodeWithSharedEnv(
         // console.log(`[Java] Package: ${javaPackage}`);
       }
     }
-    
+
     const filePath = path.join(tempDir, fileName);
     // console.log(`[Executor] Dir: ${tempDir}, File: ${filePath}`);
     if (language.toLowerCase() === 'java' && javaRelDir) {
       await fs.mkdir(path.dirname(filePath), { recursive: true });
     }
     await fs.writeFile(filePath, code, 'utf-8');
-    
+
     // Compile ONCE for all test cases
     if (langConfig.compileCommand) {
       const compileCmd = language.toLowerCase() === 'java'
         ? `javac -encoding UTF-8 -d "${tempDir}" "${filePath}"`
         : langConfig.compileCommand(filePath);
       // console.log(`[Compiler] Cmd: ${compileCmd}`);
-      
+
       try {
         const compileResult = await execAsync(compileCmd, {
           cwd: tempDir,
@@ -781,9 +797,9 @@ async function testCodeWithSharedEnv(
           maxBuffer: 1024 * 1024,
           shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
         });
-        
+
         // console.log(`[Compiler] Success`);
-        
+
         // Verify class file for Java
         if (language.toLowerCase() === 'java') {
           const classFile = fileName.replace('.java', '.class');
@@ -794,7 +810,7 @@ async function testCodeWithSharedEnv(
             // console.log(`[Java] ✗ ${classFile} NOT FOUND!`);
           }
         }
-        
+
         // Check for actual compilation errors (not warnings/notes)
         if (compileResult.stderr && !compileResult.stderr.includes('Note:') && !compileResult.stderr.includes('warning:')) {
           // console.log(`[Compiler] Error: ${compileResult.stderr}`);
@@ -812,7 +828,7 @@ async function testCodeWithSharedEnv(
                 testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
                 errorType: 'Compilation Error' as const,
               };
-              
+
               // Only include optional properties if they have values
               if (typeof tc.isHidden === 'boolean') {
                 return { ...baseResult, isHidden: tc.isHidden };
@@ -837,7 +853,7 @@ async function testCodeWithSharedEnv(
               testCaseIndex: tc.originalIndex !== undefined ? tc.originalIndex : idx,
               errorType: 'Compilation Error' as const,
             };
-            
+
             // Only include optional properties if they have values
             if (typeof tc.isHidden === 'boolean') {
               return { ...baseResult, isHidden: tc.isHidden };
@@ -847,7 +863,7 @@ async function testCodeWithSharedEnv(
         };
       }
     }
-    
+
     // Run against all test cases SEQUENTIALLY (code is already compiled)
     // This ensures deterministic order and prevents race conditions
     const results: Array<{
@@ -861,14 +877,14 @@ async function testCodeWithSharedEnv(
       testCaseIndex?: number;
       errorType?: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted';
     }> = [];
-    
+
     for (let idx = 0; idx < testCases.length; idx++) {
       const testCase = testCases[idx];
       if (!testCase) {
         // Skip undefined test cases
         continue;
       }
-      
+
       try {
         // Build run command (override for Java to handle package + classpath root)
         let runCmd = langConfig.runCommand(filePath);
@@ -877,24 +893,24 @@ async function testCodeWithSharedEnv(
           runCmd = `java -cp "${tempDir}" ${fqcn}`;
         }
         // console.log(`[Test ${idx+1}] Cmd: ${runCmd}`);
-        
+
         const result = await executeWithTimeout(
           runCmd,
           testCase.input || '',
           tempDir,
           testCase.timeoutMs || 5000
         );
-        
+
         // console.log(`[Test ${idx+1}] Out: "${result.stdout}", Err: "${result.stderr}"`);
-        
+
         const actualOutput = result.stdout?.trim() || null;
         const expectedOutputTrimmed = testCase.expectedOutput.trim();
-        
+
         // Determine error type and status
         let errorType: 'TLE' | 'Runtime Error' | 'Compilation Error' | 'Wrong Answer' | 'Accepted' = 'Accepted';
         let passed = false;
         let status = 'Accepted';
-        
+
         if (result.timedOut) {
           status = 'Time Limit Exceeded';
           errorType = 'TLE';
@@ -905,13 +921,13 @@ async function testCodeWithSharedEnv(
           // Normalize whitespace for comparison (consistent normalization)
           const normalizedActual = actualOutput.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
           const normalizedExpected = expectedOutputTrimmed.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => line.trim()).filter(line => line.length > 0).join('\n');
-          
+
           // Also try single-line comparison for cases where output is on one line
           const singleLineActual = actualOutput.replace(/\s+/g, ' ').trim();
           const singleLineExpected = expectedOutputTrimmed.replace(/\s+/g, ' ').trim();
-          
+
           passed = normalizedActual === normalizedExpected || singleLineActual === singleLineExpected;
-          
+
           if (!passed) {
             errorType = 'Wrong Answer';
             status = 'Wrong Answer';
@@ -920,7 +936,7 @@ async function testCodeWithSharedEnv(
           errorType = 'Wrong Answer';
           status = 'Wrong Answer';
         }
-        
+
         const resultObj: {
           input: string;
           expectedOutput: string;
@@ -940,17 +956,17 @@ async function testCodeWithSharedEnv(
           testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
           errorType,
         };
-        
+
         // Only include optional properties if they have values
         if (testCase.isHidden !== undefined) {
           resultObj.isHidden = testCase.isHidden;
         }
-        
+
         const errorMessage = result.stderr || result.error;
         if (errorMessage) {
           resultObj.error = errorMessage;
         }
-        
+
         results.push(resultObj);
       } catch (error: any) {
         const errorResult: {
@@ -973,18 +989,18 @@ async function testCodeWithSharedEnv(
           testCaseIndex: testCase.originalIndex !== undefined ? testCase.originalIndex : idx,
           errorType: 'Runtime Error',
         };
-        
+
         // Only include optional properties if they have values
         if (testCase.isHidden !== undefined) {
           errorResult.isHidden = testCase.isHidden;
         }
-        
+
         results.push(errorResult);
       }
     }
-    
+
     const passed = results.filter((r) => r.passed).length;
-    
+
     return {
       passed,
       total: testCases.length,

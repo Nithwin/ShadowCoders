@@ -139,11 +139,11 @@ export default function ExamSubmissionsPage() {
     const scoreNum = typeof score === 'string' ? parseFloat(score) : score;
     const maxScoreNum = typeof maxScore === 'string' ? parseFloat(maxScore) : maxScore;
     if (isNaN(scoreNum) || isNaN(maxScoreNum)) return 'Not graded';
-    
+
     // Rounding per user request
     const roundedScore = Math.round(scoreNum);
     const roundedMax = Math.round(maxScoreNum);
-    
+
     const percentage = Math.round((scoreNum / maxScoreNum) * 100);
     return `${roundedScore} / ${roundedMax} (${percentage}%)`;
   };
@@ -168,14 +168,14 @@ export default function ExamSubmissionsPage() {
     total: attempts.length,
     submitted: attempts.filter(a => a.status === 'SUBMITTED').length,
     inProgress: attempts.filter(a => a.status === 'IN_PROGRESS').length,
-    averageScore: attempts.length > 0 
+    averageScore: attempts.length > 0
       ? attempts
-          .filter(a => a.score !== null && a.maxScore !== null)
-          .reduce((sum, a) => {
-            const score = typeof a.score === 'string' ? parseFloat(a.score) : (a.score || 0);
-            const maxScore = typeof a.maxScore === 'string' ? parseFloat(a.maxScore) : (a.maxScore || 0);
-            return sum + (maxScore > 0 ? (score / maxScore) * 100 : 0);
-          }, 0) / attempts.filter(a => a.score !== null && a.maxScore !== null).length
+        .filter(a => a.score !== null && a.maxScore !== null)
+        .reduce((sum, a) => {
+          const score = typeof a.score === 'string' ? parseFloat(a.score) : (a.score || 0);
+          const maxScore = typeof a.maxScore === 'string' ? parseFloat(a.maxScore) : (a.maxScore || 0);
+          return sum + (maxScore > 0 ? (score / maxScore) * 100 : 0);
+        }, 0) / attempts.filter(a => a.score !== null && a.maxScore !== null).length
       : 0
   };
 
@@ -311,7 +311,7 @@ export default function ExamSubmissionsPage() {
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
-            <Button 
+            <Button
               onClick={async () => {
                 const confirmed = window.confirm(
                   `Are you sure you want to award points to all students who submitted this exam?\n\n` +
@@ -323,9 +323,9 @@ export default function ExamSubmissionsPage() {
                   `- Below 60%: 10 points\n\n` +
                   `Note: Retakes (attemptNo > 1) and already awarded attempts will be skipped.`
                 );
-                
+
                 if (!confirmed) return;
-                
+
                 try {
                   setIsExporting(true);
                   const res = await api.post(`/admin/exams/${examId}/award-points`);
@@ -358,6 +358,12 @@ export default function ExamSubmissionsPage() {
               <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl">
                 <Download className="w-4 h-4 mr-2" />
                 Export Data
+              </Button>
+            </Link>
+            <Link href={`/admin/exams/${examId}/re-evaluation`}>
+              <Button className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 rounded-xl">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Bulk Re-eval
               </Button>
             </Link>
           </div>
@@ -401,7 +407,7 @@ export default function ExamSubmissionsPage() {
             {attempts.map((attempt) => {
               const scorePercentage = getScorePercentage(attempt.score, attempt.maxScore);
               const scoreColor = getScoreColor(scorePercentage);
-              
+
               return (
                 <div
                   key={attempt.id}
@@ -504,44 +510,62 @@ export default function ExamSubmissionsPage() {
                         </Button>
                       </Link>
                     </div>
-                    
+
                     {/* Admin Actions: Resume / Reattempt */}
                     <div className="flex gap-2 pt-2 border-t border-primary/5">
-                         <Button 
-                            onClick={async () => {
-                                if(!confirm('Resume this exam? The timer will continue from where it left off.')) return;
-                                try {
-                                    await api.post('/admin/attempts/resume', { examId, studentIds: [attempt.student.id] });
-                                    toast.success('Exam resumed successfully');
-                                    fetchAttempts();
-                                } catch(e: any) {
-                                    toast.error(e.response?.data?.message || 'Failed to resume');
-                                }
-                            }}
-                            variant="outline" 
-                            className="flex-1 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
-                         >
-                            <Play className="w-4 h-4 mr-2" />
-                            Resume
-                         </Button>
+                      <Button
+                        onClick={async () => {
+                          if (!confirm('Resume this exam? The timer will continue from where it left off.')) return;
+                          try {
+                            await api.post('/admin/attempts/resume', { examId, studentIds: [attempt.student.id] });
+                            toast.success('Exam resumed successfully');
+                            fetchAttempts();
+                          } catch (e: any) {
+                            toast.error(e.response?.data?.message || 'Failed to resume');
+                          }
+                        }}
+                        variant="outline"
+                        className="flex-1 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
+                      >
+                        <Play className="w-4 h-4 mr-2" />
+                        Resume
+                      </Button>
 
-                         <Button 
-                             onClick={async () => {
-                                if(!confirm('Reset this attempt? The student will be able to start fresh (ALL DATA WILL BE DELETED).')) return;
-                                try {
-                                    await api.post('/admin/attempts/reset', { examId, studentIds: [attempt.student.id] });
-                                    toast.success('Attempt reset successfully');
-                                    fetchAttempts();
-                                } catch(e: any) {
-                                    toast.error(e.response?.data?.message || 'Failed to reset');
-                                }
-                             }}
-                            variant="outline"
-                            className="flex-1 border-red-500/50 text-red-600 hover:bg-red-50"
-                         >
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Reattempt
-                         </Button>
+                      <Button
+                        onClick={async () => {
+                          if (!confirm('Reset this attempt? The student will be able to start fresh (ALL DATA WILL BE DELETED).')) return;
+                          try {
+                            await api.post('/admin/attempts/reset', { examId, studentIds: [attempt.student.id] });
+                            toast.success('Attempt reset successfully');
+                            fetchAttempts();
+                          } catch (e: any) {
+                            toast.error(e.response?.data?.message || 'Failed to reset');
+                          }
+                        }}
+                        variant="outline"
+                        className="flex-1 border-red-500/50 text-red-600 hover:bg-red-50"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Reattempt
+                      </Button>
+
+                      <Button
+                        onClick={async () => {
+                          if (!confirm('Re-evaluate this attempt? This will re-grade all coding/MCQ/SQL questions.')) return;
+                          try {
+                            await api.post(`/admin/attempts/${attempt.id}/re-evaluate`);
+                            toast.success('Re-evaluation started');
+                            fetchAttempts();
+                          } catch (e: any) {
+                            toast.error(e.response?.data?.message || 'Failed to re-evaluate');
+                          }
+                        }}
+                        variant="outline"
+                        className="flex-1 border-purple-500/50 text-purple-600 hover:bg-purple-50"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Re-eval
+                      </Button>
                     </div>
                   </div>
                 </div>

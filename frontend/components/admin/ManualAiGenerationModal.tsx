@@ -9,6 +9,8 @@ import Modal from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { buildSystemPrompt } from '@/lib/ai-prompt';
+import { copyToClipboard } from '@/lib/utils';
+import { useToastNotification } from '@/context/ToastContext';
 
 // Reusing the same schema for params
 const manualGenerationSchema = z.object({
@@ -32,6 +34,7 @@ export default function ManualAiGenerationModal({
   onOpenChange,
   onQuestionsGenerated,
 }: ManualAiGenerationModalProps) {
+  const toast = useToastNotification();
   const [apiError, setApiError] = useState<string | null>(null);
   const [generatedPrompt, setGeneratedPrompt] = useState('');
   const [pastedJson, setPastedJson] = useState('');
@@ -89,10 +92,15 @@ export default function ManualAiGenerationModal({
     setApiError(null);
   };
 
-  const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(generatedPrompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyPrompt = async () => {
+    const success = await copyToClipboard(generatedPrompt);
+    if (success) {
+      setCopied(true);
+      toast.success('Prompt copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error('Failed to copy. Please select and copy manually.');
+    }
   };
 
   const handleParseAndSave = async () => {
@@ -106,7 +114,7 @@ export default function ManualAiGenerationModal({
 
     try {
       let cleanedResponse = pastedJson.trim();
-      
+
       // Remove Markdown code blocks if present
       if (cleanedResponse.startsWith('```')) {
         const lines = cleanedResponse.split('\n');
@@ -138,7 +146,7 @@ export default function ManualAiGenerationModal({
 
       // Send to parent for saving (DB persistence)
       await onQuestionsGenerated(parsed.questions);
-      
+
       // Close modal on success
       handleModalChange(false);
 
@@ -153,18 +161,18 @@ export default function ManualAiGenerationModal({
   return (
     <Modal open={open} onOpenChange={handleModalChange} title="Generate with Prompt (Manual)" size="lg">
       <div className="space-y-6">
-        
+
         {/* Step 1: Configuration */}
         <div className="space-y-4 border-b border-primary/10 pb-6">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-primary">1. Configure Requirements</h3>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-primary mb-1">Topic <span className="text-red-500">*</span></label>
-            <Input 
-              {...register('topic')} 
-              placeholder="e.g. Java Loops, SQL Joins" 
+            <Input
+              {...register('topic')}
+              placeholder="e.g. Java Loops, SQL Joins"
             />
             {errors.topic && <p className="text-xs text-red-500 mt-1">{errors.topic.message}</p>}
           </div>
@@ -178,7 +186,7 @@ export default function ManualAiGenerationModal({
               <label className="block text-xs font-medium text-primary/70 mb-1">Coding</label>
               <Input type="number" min={0} {...register('codingCount')} placeholder="0" />
             </div>
-             <div>
+            <div>
               <label className="block text-xs font-medium text-primary/70 mb-1">SQL</label>
               <Input type="number" min={0} {...register('sqlCount')} placeholder="0" />
             </div>
@@ -187,20 +195,20 @@ export default function ManualAiGenerationModal({
               <Input type="number" min={0} {...register('essayCount')} placeholder="0" />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-               <label className="block text-xs font-medium text-primary/70 mb-1">Difficulty</label>
-               <select {...register('difficulty')} className="flex h-10 w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary/50">
-                 <option value="ANY">Any</option>
-                 <option value="EASY">Easy</option>
-                 <option value="MEDIUM">Medium</option>
-                 <option value="HARD">Hard</option>
-               </select>
+              <label className="block text-xs font-medium text-primary/70 mb-1">Difficulty</label>
+              <select {...register('difficulty')} className="flex h-10 w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary/50">
+                <option value="ANY">Any</option>
+                <option value="EASY">Easy</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HARD">Hard</option>
+              </select>
             </div>
-             <div>
-               <label className="block text-xs font-medium text-primary/70 mb-1">Points (Optional)</label>
-               <Input type="number" min={1} {...register('points')} placeholder="Auto" />
+            <div>
+              <label className="block text-xs font-medium text-primary/70 mb-1">Points (Optional)</label>
+              <Input type="number" min={1} {...register('points')} placeholder="Auto" />
             </div>
           </div>
 
@@ -224,8 +232,8 @@ export default function ManualAiGenerationModal({
               Paste this into Gemini (browser), ChatGPT, or Claude. It contains the schema instructions.
             </p>
             <div className="relative">
-              <textarea 
-                readOnly 
+              <textarea
+                readOnly
                 value={generatedPrompt}
                 className="w-full h-24 p-2 text-xs font-mono bg-black/5 rounded border border-primary/20 resize-none focus:outline-none"
               />
@@ -243,7 +251,7 @@ export default function ManualAiGenerationModal({
               placeholder="Paste the JSON response from the AI here..."
               className="w-full h-32 p-3 text-sm bg-white/5 rounded border border-primary/20 focus:ring-accent/50 focus:border-accent font-mono"
             />
-            
+
             {apiError && (
               <div className="p-3 bg-red-50 text-red-600 text-sm rounded border border-red-200">
                 {apiError}
@@ -252,8 +260,8 @@ export default function ManualAiGenerationModal({
 
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => handleModalChange(false)}>Cancel</Button>
-              <Button 
-                onClick={handleParseAndSave} 
+              <Button
+                onClick={handleParseAndSave}
                 disabled={!pastedJson.trim() || isProcessing}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >

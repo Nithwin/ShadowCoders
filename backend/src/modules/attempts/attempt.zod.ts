@@ -4,20 +4,20 @@ import z from "zod";
 const answerPayloadSchema = z.record(z.string(), z.any()).nullable();
 
 export const submitAnswerSchema = z.object({
-    body: z.object({
-        questionId: z.string().cuid({message: 'Invalid question ID format'}),
-        answer: answerPayloadSchema,
-    })
+  body: z.object({
+    questionId: z.string().cuid({ message: 'Invalid question ID format' }),
+    answer: answerPayloadSchema,
+  })
 })
 
 export const runCodeSchema = z.object({
-    body: z.object({
-        questionId: z.string().cuid({message: 'Invalid question ID format'}),
-        code: z.string(),
-        language: z.string(),
-        customInput: z.string().optional(),
-        runAllTests: z.boolean().optional(),
-    })
+  body: z.object({
+    questionId: z.string().cuid({ message: 'Invalid question ID format' }),
+    code: z.string(),
+    language: z.string(),
+    customInput: z.string().optional(),
+    runAllTests: z.boolean().optional(),
+  })
 });
 
 export const listAttemptsSchema = z.object({
@@ -32,7 +32,7 @@ export const listAttemptsSchema = z.object({
       .number()
       .int()
       .min(1, 'Page size must be at least 1')
-      .max(100, 'Page size cannot exceed 100')
+      .max(1000, 'Page size cannot exceed 1000')
       .optional()
       .default(20), // Default to 20 per page
     q: z.string().optional(), // Search query for student name or email

@@ -1,8 +1,8 @@
 import * as ExcelJS from 'exceljs';
 import { prisma } from '../../lib/prisma';
-import { QType } from '@prisma/client';
+import { Prisma, QType } from '@prisma/client';
 
-export type ExportField = 
+export type ExportField =
   | 'studentName'
   | 'email'
   | 'regNo'
@@ -19,10 +19,12 @@ export interface ExportOptions {
   fields?: ExportField[];
   includeSummary?: boolean;
   includeExamInfo?: boolean;
+  roundScores?: boolean;
+  sortBy?: 'score_desc' | 'score_asc' | 'studentName_asc' | 'submittedAt_desc';
 }
 
 export const exportExamResultsToExcel = async (
-  examId: string, 
+  examId: string,
   options: ExportOptions = {}
 ): Promise<ExcelJS.Workbook> => {
   const {
@@ -39,8 +41,29 @@ export const exportExamResultsToExcel = async (
     ],
     includeSummary = true,
     includeExamInfo = true,
+    roundScores = false,
+    sortBy = 'submittedAt_desc',
   } = options;
-  // 1. Fetch exam details
+
+  // Determine Prisma orderBy based on sortBy option
+  let orderBy: Prisma.AttemptOrderByWithRelationInput = { submittedAt: 'desc' };
+  switch (sortBy) {
+    case 'score_desc':
+      orderBy = { score: 'desc' };
+      break;
+    case 'score_asc':
+      orderBy = { score: 'asc' };
+      break;
+    case 'studentName_asc':
+      orderBy = { student: { name: 'asc' } };
+      break;
+    case 'submittedAt_desc':
+    default:
+      orderBy = { submittedAt: 'desc' };
+      break;
+  }
+
+  // 1. Fetch exam details (unchanged)
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
     select: {
@@ -67,7 +90,7 @@ export const exportExamResultsToExcel = async (
     throw { status: 404, message: 'Exam not found' };
   }
 
-  // 2. Fetch all submitted attempts for this exam
+  // 2. Fetch all submitted attempts for this exam with dyanmic sorting
   const attempts = await prisma.attempt.findMany({
     where: {
       examId: examId,
@@ -105,9 +128,7 @@ export const exportExamResultsToExcel = async (
         },
       },
     },
-    orderBy: {
-      submittedAt: 'desc',
-    },
+    orderBy: orderBy,
   });
 
   // 3. Create Excel workbook
@@ -116,7 +137,7 @@ export const exportExamResultsToExcel = async (
 
   // 4. Define columns based on selected fields
   const columns: any[] = [];
-  
+
   if (fields.includes('studentName')) {
     columns.push({ header: 'Student Name', key: 'studentName', width: 20 });
   }
@@ -190,7 +211,7 @@ export const exportExamResultsToExcel = async (
       const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
       const rowData: any = {};
-      
+
       if (fields.includes('studentName')) {
         rowData.studentName = attempt.student.name || 'Unknown';
       }
@@ -221,10 +242,10 @@ export const exportExamResultsToExcel = async (
         exam.questions.forEach((question) => {
           const response = attempt.responses.find((r) => r.question.id === question.id);
           const questionPoints = question.points ? parseFloat(String(question.points)) : 0;
-          
+
           if (response) {
             const earnedPoints = response.earnedPoints ? parseFloat(String(response.earnedPoints)) : 0;
-            
+
             if (fields.includes('questionScores')) {
               rowData[`q${question.id}_score`] = `${earnedPoints.toFixed(2)} / ${questionPoints}`;
             }
@@ -249,7 +270,7 @@ export const exportExamResultsToExcel = async (
       }
 
       const row = worksheet.addRow(rowData);
-      
+
       // Style score cells if they exist
       if (fields.includes('score')) {
         const scoreCell = row.getCell('score');
@@ -263,7 +284,7 @@ export const exportExamResultsToExcel = async (
           maxScoreCell.numFmt = '0.00';
         }
       }
-      
+
       // Color code percentage if it exists
       if (fields.includes('percentage')) {
         const percentageCell = row.getCell('percentage');

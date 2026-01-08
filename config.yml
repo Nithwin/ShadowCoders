@@ -1,0 +1,10 @@
+tunnel: 43b1a927-416c-417d-a5a6-3bcf125cb0c8
+credentials-file: /home/cse/.cloudflared/43b1a927-416c-417d-a5a6-3bcf125cb0c8.json
+protocol: http2
+
+ingress:
+  - hostname: shadowcoders.app
+    service: http://localhost:3000
+  - hostname: api.shadowcoders.app
+    service: http://localhost:4000
+  - service: http_status:404

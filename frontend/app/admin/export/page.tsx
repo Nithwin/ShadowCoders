@@ -15,7 +15,7 @@ type Exam = {
   status: string;
 };
 
-type ExportField = 
+type ExportField =
   | 'studentName'
   | 'email'
   | 'regNo'
@@ -78,6 +78,9 @@ export default function CustomExportPage() {
   const [includeExamInfo, setIncludeExamInfo] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPreselected, setIsPreselected] = useState(false);
+  const [roundScores, setRoundScores] = useState(false);
+  const [sortBy, setSortBy] = useState('submittedAt_desc');
 
   useEffect(() => {
     fetchExams();
@@ -90,6 +93,7 @@ export default function CustomExportPage() {
       const examIdFromUrl = params.get('examId');
       if (examIdFromUrl) {
         setSelectedExamId(examIdFromUrl);
+        setIsPreselected(true);
       }
     }
   }, []);
@@ -99,7 +103,10 @@ export default function CustomExportPage() {
     try {
       const res = await api.get<{ data: Exam[] }>('/admin/exams?pageSize=100');
       setExams(res.data.data.filter(e => e.status === 'PUBLISHED' || e.status === 'CLOSED'));
-      if (res.data.data.length > 0) {
+
+      // Only set default if NO exam ID is in URL (to avoid overwriting pre-selection)
+      const params = new URLSearchParams(window.location.search);
+      if (!params.get('examId') && res.data.data.length > 0) {
         setSelectedExamId(res.data.data[0].id);
       }
     } catch (err) {
@@ -111,8 +118,8 @@ export default function CustomExportPage() {
   };
 
   const toggleField = (field: ExportField) => {
-    setSelectedFields(prev => 
-      prev.includes(field) 
+    setSelectedFields(prev =>
+      prev.includes(field)
         ? prev.filter(f => f !== field)
         : [...prev, field]
     );
@@ -147,6 +154,8 @@ export default function CustomExportPage() {
       params.append('fields', selectedFields.join(','));
       if (!includeSummary) params.append('includeSummary', 'false');
       if (!includeExamInfo) params.append('includeExamInfo', 'false');
+      if (roundScores) params.append('roundScores', 'true');
+      if (sortBy) params.append('sortBy', sortBy);
 
       const response = await api.get(`/admin/exams/${selectedExamId}/export?${params.toString()}`, {
         responseType: 'blob',
@@ -162,16 +171,16 @@ export default function CustomExportPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       const selectedExam = exams.find(e => e.id === selectedExamId);
       const safeTitle = selectedExam?.title.replace(/[^a-z0-9]/gi, '_') || selectedExamId;
       link.download = `exam_results_${safeTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success('Excel file downloaded successfully!');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } }; message?: string };
@@ -197,7 +206,7 @@ export default function CustomExportPage() {
   return (
     <div className="text-primary">
       <div className="mb-6">
-        <Link 
+        <Link
           href="/admin/submissions"
           className="inline-flex items-center gap-2 text-primary/70 hover:text-primary mb-4"
         >
@@ -213,19 +222,36 @@ export default function CustomExportPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Exam Selection */}
           <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-            <h2 className="text-xl font-semibold text-primary mb-4">Select Exam</h2>
-            <select
-              value={selectedExamId}
-              onChange={(e) => setSelectedExamId(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="">-- Select an exam --</option>
-              {exams.map((exam) => (
-                <option key={exam.id} value={exam.id}>
-                  {exam.title} ({exam.status})
-                </option>
-              ))}
-            </select>
+            <h2 className="text-xl font-semibold text-primary mb-4">Exam Context</h2>
+            {isPreselected ? (
+              <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <div className="bg-primary/10 p-2 rounded-full">
+                  <FileSpreadsheet className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-primary/60">Exporting data for:</p>
+                  <p className="text-lg font-bold text-primary">
+                    {exams.find(e => e.id === selectedExamId)?.title || 'Loading...'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-primary/60 mb-2">Select the exam you want to export data from:</p>
+                <select
+                  value={selectedExamId}
+                  onChange={(e) => setSelectedExamId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">-- Select an exam --</option>
+                  {exams.map((exam) => (
+                    <option key={exam.id} value={exam.id}>
+                      {exam.title} ({exam.status})
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           {/* Field Selection */}
@@ -305,6 +331,32 @@ export default function CustomExportPage() {
                   <div className="text-sm text-primary/60">Add a separate sheet with exam details</div>
                 </div>
               </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={roundScores}
+                  onChange={(e) => setRoundScores(e.target.checked)}
+                  className="w-5 h-5 rounded border-primary/20 text-primary focus:ring-primary/50"
+                />
+                <div>
+                  <div className="font-medium text-primary">Round Scores</div>
+                  <div className="text-sm text-primary/60">Export whole numbers (no decimals)</div>
+                </div>
+              </label>
+
+              <div className="space-y-2 mt-4">
+                <h3 className="font-medium text-primary">Sort Order</h3>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="submittedAt_desc">Submitted Date (Newest First)</option>
+                  <option value="score_desc">Score (High to Low)</option>
+                  <option value="score_asc">Score (Low to High)</option>
+                  <option value="studentName_asc">Student Name (A-Z)</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>

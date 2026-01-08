@@ -25,23 +25,23 @@ class WorkerManager {
   async getPythonWorker(): Promise<Worker> {
     if (!this.pythonWorker) {
       this.pythonWorker = new Worker(new URL('../workers/python.worker.ts', import.meta.url));
-      
+
       // Init Pyodide
-      this.pythonWorker.postMessage({ 
-        type: 'INIT', 
-        payload: { pyodideUrl: 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js' } 
+      this.pythonWorker.postMessage({
+        type: 'INIT',
+        payload: { pyodideUrl: 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js' }
       });
 
       // Wait for ready
       await new Promise<void>((resolve, reject) => {
         const handler = (e: MessageEvent) => {
-            if (e.data.type === 'READY') {
-                this.isPythonReady = true;
-                this.pythonWorker?.removeEventListener('message', handler);
-                resolve();
-            } else if (e.data.type === 'ERROR') {
-                reject(e.data.payload.message);
-            }
+          if (e.data.type === 'READY') {
+            this.isPythonReady = true;
+            this.pythonWorker?.removeEventListener('message', handler);
+            resolve();
+          } else if (e.data.type === 'ERROR') {
+            reject(e.data.payload.message);
+          }
         };
         this.pythonWorker?.addEventListener('message', handler);
       });
@@ -52,23 +52,23 @@ class WorkerManager {
   async getJavaWorker(): Promise<Worker> {
     if (!this.javaWorker) {
       this.javaWorker = new Worker(new URL('../workers/java.worker.ts', import.meta.url));
-      
+
       // Init CheerpJ
-      this.javaWorker.postMessage({ 
-        type: 'INIT', 
-        payload: { cheerpjUrl: 'https://cjrtnc.leaningtech.com/3.0/cj3loader.js' } 
+      this.javaWorker.postMessage({
+        type: 'INIT',
+        payload: { cheerpjUrl: 'https://cjrtnc.leaningtech.com/3.0/cj3loader.js' }
       });
 
       // Wait for ready
       await new Promise<void>((resolve, reject) => {
         const handler = (e: MessageEvent) => {
-            if (e.data.type === 'READY') {
-                this.isJavaReady = true;
-                this.javaWorker?.removeEventListener('message', handler);
-                resolve();
-            } else if (e.data.type === 'ERROR') {
-                reject(e.data.payload.message);
-            }
+          if (e.data.type === 'READY') {
+            this.isJavaReady = true;
+            this.javaWorker?.removeEventListener('message', handler);
+            resolve();
+          } else if (e.data.type === 'ERROR') {
+            reject(e.data.payload.message);
+          }
         };
         this.javaWorker?.addEventListener('message', handler);
       });
@@ -80,7 +80,7 @@ class WorkerManager {
     this.pythonWorker?.terminate();
     this.pythonWorker = null;
     this.isPythonReady = false;
-    
+
     this.javaWorker?.terminate();
     this.javaWorker = null;
     this.isJavaReady = false;
@@ -93,8 +93,8 @@ export const workerManager = new WorkerManager();
  * Execute code on the CLIENT SIDE (if supported) or fallback to server
  */
 export async function runCode(
-  code: string, 
-  language: string, 
+  code: string,
+  language: string,
   input: string
 ): Promise<ExecutionResult> {
   const lang = language.toLowerCase();
@@ -103,62 +103,62 @@ export async function runCode(
   if (lang === 'python') {
     try {
       const worker = await workerManager.getPythonWorker();
-      
+
       return new Promise((resolve) => {
         let outputBuffer = "";
         let errorBuffer = "";
 
         const handler = (e: MessageEvent) => {
           const { type, payload } = e.data;
-          
+
           if (type === 'STDOUT') {
             outputBuffer += payload + "\n";
           } else if (type === 'STDERR') {
             errorBuffer += payload + "\n";
           } else if (type === 'EXECUTION_COMPLETE') {
-             worker.removeEventListener('message', handler);
-             resolve({
-                output: outputBuffer || null,
-                error: errorBuffer || null,
-                status: { id: 3, description: 'Accepted' },
-                time: payload.time,
-                memory: 0 // Client side memory tracking is hard
-             });
+            worker.removeEventListener('message', handler);
+            resolve({
+              output: outputBuffer || null,
+              error: errorBuffer || null,
+              status: { id: 3, description: 'Accepted' },
+              time: payload.time,
+              memory: 0 // Client side memory tracking is hard
+            });
           } else if (type === 'ERROR') {
-             worker.removeEventListener('message', handler);
-             resolve({
-                output: outputBuffer || null,
-                error: (errorBuffer + "\n" + payload.message).trim(),
-                status: { id: 11, description: 'Runtime Error' },
-                time: 0,
-                memory: 0
-             });
+            worker.removeEventListener('message', handler);
+            resolve({
+              output: outputBuffer || null,
+              error: (errorBuffer + "\n" + payload.message).trim(),
+              status: { id: 11, description: 'Runtime Error' },
+              time: 0,
+              memory: 0
+            });
           }
         };
 
         worker.addEventListener('message', handler);
-        
+
         // Send Run Command
-        worker.postMessage({ 
-            type: 'RUN_CODE', 
-            payload: { code, input } 
+        worker.postMessage({
+          type: 'RUN_CODE',
+          payload: { code, input }
         });
 
         // Timeout Safety (5s)
         setTimeout(() => {
-            worker.removeEventListener('message', handler);
-            // We might need to terminate worker if it's stuck?
-            // implemented via wrapper if needed.
-            // For now, let's assume valid Pyodide usage.
-            if (!outputBuffer && !errorBuffer) {
-               resolve({
-                output: null,
-                error: "Time Limit Exceeded (Client)",
-                status: { id: 5, description: "Time Limit Exceeded" },
-                time: 5000,
-                memory: 0
-               });
-            }
+          worker.removeEventListener('message', handler);
+          // We might need to terminate worker if it's stuck?
+          // implemented via wrapper if needed.
+          // For now, let's assume valid Pyodide usage.
+          if (!outputBuffer && !errorBuffer) {
+            resolve({
+              output: null,
+              error: "Time Limit Exceeded (Client)",
+              status: { id: 5, description: "Time Limit Exceeded" },
+              time: 5000,
+              memory: 0
+            });
+          }
         }, 10000);
       });
     } catch (err) {
@@ -171,63 +171,70 @@ export async function runCode(
   if (lang === 'java') {
     try {
       const worker = await workerManager.getJavaWorker();
-      
-      return new Promise((resolve) => {
+
+      return new Promise((resolve, reject) => {
         let outputBuffer = "";
         let errorBuffer = "";
 
         const handler = (e: MessageEvent) => {
           const { type, payload } = e.data;
-          
+
           if (type === 'STDOUT') {
             outputBuffer += payload + "\n";
           } else if (type === 'STDERR') {
             errorBuffer += payload + "\n";
           } else if (type === 'EXECUTION_COMPLETE') {
-             worker.removeEventListener('message', handler);
-             resolve({
-                output: outputBuffer || null,
-                error: errorBuffer || null,
-                status: { id: 3, description: 'Accepted' },
-                time: payload.time,
-                memory: 0
-             });
+            worker.removeEventListener('message', handler);
+            resolve({
+              output: outputBuffer || null,
+              error: errorBuffer || null,
+              status: { id: 3, description: 'Accepted' },
+              time: payload.time,
+              memory: 0
+            });
           } else if (type === 'ERROR') {
-             worker.removeEventListener('message', handler);
-             resolve({
-                output: outputBuffer || null,
-                error: (errorBuffer + "\n" + payload.message).trim(),
-                status: { id: 11, description: 'Runtime Error' },
-                time: 0,
-                memory: 0
-             });
+            worker.removeEventListener('message', handler);
+
+            // Check if this is a fallback trigger
+            if (payload.message && payload.message.includes('FALLBACK_TRIGGERED')) {
+              reject(new Error(payload.message));
+              return;
+            }
+
+            resolve({
+              output: outputBuffer || null,
+              error: (errorBuffer + "\n" + payload.message).trim(),
+              status: { id: 11, description: 'Runtime Error' },
+              time: 0,
+              memory: 0
+            });
           }
         };
 
         worker.addEventListener('message', handler);
-        
+
         // Send Run Command (Extract class name if possible, default to Main)
         // Simple regex to find "public class X"
         const classMatch = code.match(/public\s+class\s+(\w+)/);
         const className = classMatch ? classMatch[1] : 'Main';
 
-        worker.postMessage({ 
-            type: 'RUN_CODE', 
-            payload: { code, input, className } 
+        worker.postMessage({
+          type: 'RUN_CODE',
+          payload: { code, input, className }
         });
 
         // Timeout Safety (10s for Java as it can be slower)
         setTimeout(() => {
-            worker.removeEventListener('message', handler);
-            if (!outputBuffer && !errorBuffer) {
-               resolve({
-                output: null,
-                error: "Time Limit Exceeded (Client)",
-                status: { id: 5, description: "Time Limit Exceeded" },
-                time: 10000,
-                memory: 0
-               });
-            }
+          worker.removeEventListener('message', handler);
+          if (!outputBuffer && !errorBuffer) {
+            resolve({
+              output: null,
+              error: "Time Limit Exceeded (Client)",
+              status: { id: 5, description: "Time Limit Exceeded" },
+              time: 10000,
+              memory: 0
+            });
+          }
         }, 20000);
       });
     } catch (err) {
@@ -238,7 +245,7 @@ export async function runCode(
 
   // 2. JAVASCRIPT (Client Side)
   if (lang === 'javascript') {
-      // Implement JS worker similarly
+    // Implement JS worker similarly
   }
 
   // 3. FALLBACK: Server-Side Execution (for other languages or if client fails)

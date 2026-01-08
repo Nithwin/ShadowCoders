@@ -69,11 +69,11 @@ export const runCodeHandler: RequestHandler = async (req, res, next) => {
     }
 
     const result = await attemptService.runCode(
-      studentId, 
-      attemptId, 
-      questionId, 
-      code, 
-      language, 
+      studentId,
+      attemptId,
+      questionId,
+      code,
+      language,
       customInput,
       runAllTests
     );
@@ -203,7 +203,7 @@ export const getStudentAttemptsHandler: RequestHandler = async (req, res, next) 
 export const listAttemptsForExamHandler: RequestHandler = async (req, res, next) => {
   try {
     const examId = req.params.examId;
-    
+
     if (!examId) {
       return next({ status: 400, message: 'Exam ID parameter is required' });
     }
@@ -213,14 +213,14 @@ export const listAttemptsForExamHandler: RequestHandler = async (req, res, next)
       page: 1,
       pageSize: 20,
     };
-    
+
     // Pass the query object directly to the service (it expects { page, pageSize, q })
     const validatedParams = {
       page: Number(queryParams.page) || 1,
       pageSize: Number(queryParams.pageSize) || 20,
       q: queryParams.q?.trim() || undefined,
     };
-    
+
     // Call the ATTEMPT service to get the data
     const result = await attemptService.listAttemptsForExam(examId, validatedParams);
 
@@ -310,6 +310,43 @@ export const forceSubmitAttemptHandler: RequestHandler = async (req, res, next) 
 
     // Send back the details of the submitted attempt
     res.status(200).json(submittedAttempt);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reevaluateAttemptHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const attemptId = req.params.attemptId;
+    const { dryRun } = req.body;
+
+    if (!attemptId) {
+      return next({ status: 400, message: 'Attempt ID parameter is required' });
+    }
+
+    // Call the service to re-evaluate the attempt
+    const result = await attemptService.reevaluateAttempt(attemptId, dryRun);
+
+    res.status(200).json(result);
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const applyReevaluationHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const attemptId = req.params.attemptId;
+    const { score, maxScore, responseUpdates } = req.body;
+
+    if (!attemptId) {
+      return next({ status: 400, message: 'Attempt ID parameter is required' });
+    }
+
+    await attemptService.applyReevaluationResults(attemptId, score, maxScore, responseUpdates);
+
+    res.status(200).json({ message: 'Re-evaluation applied successfully' });
 
   } catch (error) {
     next(error);

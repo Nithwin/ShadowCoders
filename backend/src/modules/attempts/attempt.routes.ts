@@ -7,7 +7,7 @@ import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSch
 export const registerAttemptRoutes = (app: Express) => {
   app.post(
     '/api/student/exams/:examId/start',
-    verifyAccess, 
+    verifyAccess,
     attemptController.startAttemptHandler
   );
 
@@ -92,5 +92,19 @@ export const registerAttemptRoutes = (app: Express) => {
     requireRole('STAFF'),
     validate(forceSubmitAttemptSchema),
     attemptController.forceSubmitAttemptHandler
+  );
+
+  app.post(
+    '/api/admin/attempts/:attemptId/re-evaluate',
+    verifyAccess,
+    requireRole('STAFF'),
+    attemptController.reevaluateAttemptHandler
+  );
+
+  app.post(
+    '/api/admin/attempts/:attemptId/apply-reevaluation',
+    verifyAccess,
+    requireRole('STAFF'),
+    attemptController.applyReevaluationHandler
   );
 };

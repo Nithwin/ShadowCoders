@@ -7,7 +7,7 @@ import { listExamsSchema, studentListExamsSchema } from './exam.zod';
 export const listExamsHandler: RequestHandler = async (req, res, next) => {
   try {
     const queryParams = req.validatedData?.query as z.infer<typeof listExamsSchema>['query'];
-    
+
     const result = await examService.listExams(queryParams);
 
     res.status(200).json(result);
@@ -86,7 +86,7 @@ export const studentListExamsHandler: RequestHandler = async (req, res, next) =>
   try {
     const studentId = req.user?.sub;
     const queryParams = req.validatedData?.query as z.infer<typeof studentListExamsSchema>['query'];
-    
+
     if (!studentId) {
       return next({ status: 401, message: 'Unauthorized' });
     }
@@ -143,7 +143,7 @@ export const deleteAssignmentHandler: RequestHandler = async (req, res, next) =>
   try {
     const examId = req.params.examId;
     const assignmentId = req.params.assignmentId;
-    
+
     if (!examId) {
       return next({ status: 400, message: 'Missing examId parameter' });
     }
@@ -178,7 +178,7 @@ export const exportExamResultsHandler: RequestHandler = async (req, res, next) =
     if (!examId) {
       return next({ status: 400, message: 'Missing examId parameter' });
     }
-    
+
     // Parse field selection from query parameters
     const fieldsParam = req.query.fields;
     let fields: exportService.ExportField[] | undefined = undefined;
@@ -189,28 +189,32 @@ export const exportExamResultsHandler: RequestHandler = async (req, res, next) =
         fields = fieldsParam.split(',') as exportService.ExportField[];
       }
     }
-    
+
     const includeSummary = req.query.includeSummary !== 'false';
     const includeExamInfo = req.query.includeExamInfo !== 'false';
-    
+    const roundScores = req.query.roundScores === 'true';
+    const sortBy = req.query.sortBy as 'score_desc' | 'score_asc' | 'studentName_asc' | 'submittedAt_desc' | undefined;
+
     const options: exportService.ExportOptions = {
       ...(fields && { fields }),
       includeSummary,
       includeExamInfo,
+      roundScores,
+      ...(sortBy && { sortBy }),
     };
-    
+
     const workbook = await exportService.exportExamResultsToExcel(examId, options);
-    
+
     // Get exam title for filename
     const exam = await examService.getExamById(examId);
     const safeTitle = exam?.title?.replace(/[^a-z0-9]/gi, '_') || examId;
     const filename = `exam_results_${safeTitle}_${new Date().toISOString().split('T')[0]}.xlsx`;
-    
+
     // Set headers for file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.setHeader('Content-Transfer-Encoding', 'binary');
-    
+
     // Write workbook to buffer, then send
     const buffer = await workbook.xlsx.writeBuffer();
     res.send(buffer);
@@ -225,21 +229,21 @@ export const toggleResultLockHandler: RequestHandler = async (req, res, next) =>
     if (!examId) {
       return next({ status: 400, message: 'Missing examId parameter' });
     }
-    
+
     const { releaseResults } = req.body;
     if (typeof releaseResults !== 'boolean') {
       return next({ status: 400, message: 'releaseResults must be a boolean' });
     }
-    
+
     const updated = await examService.updateExam(examId, { releaseResults });
-    
+
     if (!updated) {
       return next({ status: 404, message: 'Exam not found' });
     }
-    
-    res.status(200).json({ 
+
+    res.status(200).json({
       message: releaseResults ? 'Results released successfully' : 'Results locked successfully',
-      releaseResults: updated.releaseResults 
+      releaseResults: updated.releaseResults
     });
   } catch (error) {
     next(error);

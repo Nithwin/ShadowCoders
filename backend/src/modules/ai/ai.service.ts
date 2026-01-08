@@ -59,6 +59,13 @@ Generate exam questions based on the following requirements:
 
 4. Each question object must follow this structure based on its type:
 
+**CRITICAL JSON FORMATTING RULE:** 
+- You MUST escape all double quotes inside string values with a backslash. 
+  - INCORRECT: "prompt": "The "quote" here" 
+  - CORRECT: "prompt": "The \"quote\" here"
+- Failure to escape quotes will cause a JSON parse error and the response will be rejected. 
+
+
 **For MCQ questions:**
 {
   "type": "MCQ",
@@ -306,7 +313,7 @@ export const generateQuestions = async (input: GenerateInput) => {
 
     // 2. Call the AI service based on provider
     let aiResponseString: string;
-    
+
     if (env.AI_PROVIDER === 'ollama') {
       try {
         const { generateJsonFromOllama } = await import('../../lib/ollama');
@@ -322,7 +329,7 @@ export const generateQuestions = async (input: GenerateInput) => {
 
     // 3. Clean and parse the AI's string response
     let cleanedResponse = aiResponseString.trim();
-    
+
     // Remove markdown code blocks if present (```json ... ```)
     if (cleanedResponse.startsWith('```')) {
       const lines = cleanedResponse.split('\n');
@@ -334,7 +341,7 @@ export const generateQuestions = async (input: GenerateInput) => {
       }
       cleanedResponse = lines.join('\n').trim();
     }
-    
+
     // Fallback: If not starting with {, try to find the first { and last }
     if (!cleanedResponse.startsWith('{') && cleanedResponse.includes('{')) {
       const start = cleanedResponse.indexOf('{');
@@ -364,9 +371,9 @@ export const generateQuestions = async (input: GenerateInput) => {
       if (question.type === 'CODING' && question.language === 'sql') {
         if (!question.config || !question.config.ddl) {
           console.error('❌ SQL question missing DDL:', question);
-          throw { 
-            status: 500, 
-            message: 'AI generated SQL question without DDL in config. This is a critical error. Please try again.' 
+          throw {
+            status: 500,
+            message: 'AI generated SQL question without DDL in config. This is a critical error. Please try again.'
           };
         }
         console.log('✅ SQL question has DDL:', question.config.ddl.substring(0, 100) + '...');
@@ -381,17 +388,17 @@ export const generateQuestions = async (input: GenerateInput) => {
     if (!validationResult.success) {
       console.error('Validation failed:', validationResult.error.format());
       console.error('AI returned:', JSON.stringify(parsedJson, null, 2));
-      
+
       // Create a more helpful error message
       const issues = validationResult.error.issues || [];
       const errorDetails = issues
         .map((err: any) => `${err.path.join('.')}: ${err.message}`)
         .slice(0, 5)
         .join('; ');
-      
-      throw { 
-        status: 500, 
-        message: `AI output did not match expected question structure. Validation errors: ${errorDetails}. Please try again or adjust your request.` 
+
+      throw {
+        status: 500,
+        message: `AI output did not match expected question structure. Validation errors: ${errorDetails}. Please try again or adjust your request.`
       };
     }
 
