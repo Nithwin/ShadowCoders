@@ -24,6 +24,9 @@ export const upsertResponse = async (data: {
   type: QType;
   answer: Prisma.InputJsonValue | Prisma.NullTypes.JsonNull;
   audioAssetId?: string;
+  earnedPoints?: number;
+  verdict?: string;
+  gradingMode?: any;
 }) => {
   const { attemptId, questionId, type, answer, audioAssetId, ...otherData } = data;
 
@@ -155,6 +158,7 @@ export const getAttemptForSubmission = (attemptId: string) => {
           type: true,
           earnedPoints: true,
           verdict: true,
+          gradingMode: true,
         },
       },
       exam: {

@@ -268,12 +268,19 @@ export const submitAnswer = async (
         audioAssetId = answer.audioAssetId as string;
       }
 
+      // Extract optional grading fields from input
+      const { earnedPoints, verdict, gradingMode } = input;
+
       const responseData: Parameters<typeof attemptRepo.upsertResponse>[0] = {
         attemptId: attemptId,
         questionId: questionId,
         answer: answer ? (answer as Prisma.InputJsonValue) : Prisma.JsonNull,
         type: question.type,
-        ...(audioAssetId && { audioAssetId }),
+        ...(audioAssetId !== undefined && { audioAssetId }),
+        // Pass grading fields if provided
+        ...(earnedPoints !== undefined && { earnedPoints }),
+        ...(verdict !== undefined && { verdict }),
+        ...(gradingMode !== undefined && { gradingMode }),
       };
       const savedResponse = await attemptRepo.upsertResponse(responseData);
 
@@ -343,78 +350,32 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
       continue;
     }
 
-    if (response && response.answer) {
-      // Auto-grade based on question type
-      let gradingResult: any = {
-        earnedPoints: 0,
-        verdict: 'FAIL',
-        gradingMode: GradingMode.MANUAL,
-      };
+    if (response) {
+      // 3. --- USE STORED GRADING RESULT ---
+      // We no longer re-grade on submit. We trust the incremental grading (client-side or previous server-side).
 
-      try {
-        switch (question.type) {
-          case QType.MCQ:
-            // Sync grading
-            gradingResult = gradeMCQ(
-              response.answer as { chosenOptionIds?: string[] },
-              question.correctOptionIds as string[],
-              questionPoints
-            );
-            break;
+      // Add to total score
+      const points = Number(response.earnedPoints) || 0;
+      totalScore += points;
 
-          case QType.CODING:
-            // Async grading - AWAITED SEQUENTIALLY
-            console.log(`[Submit] Grading Coding Question ${question.id} for attempt ${attemptId}...`);
-            gradingResult = await gradeCoding(
-              response.answer as { code?: string; language?: string },
-              question.testcases as any[],
-              questionPoints
-            );
-            break;
+      // Ensure we have a verdict and grading mode, defaulting if missing
+      const verdict = response.verdict || (points >= questionPoints ? 'PASS' : (points > 0 ? 'PARTIAL' : 'FAIL'));
+      const gradingMode = response.gradingMode || GradingMode.AUTO; // Default to AUTO if missing
 
-          case QType.SQL:
-            // Async grading - AWAITED SEQUENTIALLY
-            const sqlConfig = (question as any).config;
-            const ddl = sqlConfig?.ddl || '';
-            const sqlTestCases = (question.testcases as any[]).map((tc) => ({
-              ...tc,
-              input: ddl ? `${ddl}\n${tc.input}` : tc.input,
-            }));
+      // Add to update list (to ensure consistency, though strictly strictly strictly strictly not needed if we trust DB, 
+      // but good to enforce "Snapshotting" the final state in case we want to lock it down)
+      // Actually, if we just trust the DB, we might not need to update anything unless we want to "Seal" it.
+      // But preserving the existing logic structure:
 
-            console.log(`[Submit] Grading SQL Question ${question.id} for attempt ${attemptId}...`);
-            gradingResult = await gradeCoding(
-              response.answer as { code?: string; language?: string },
-              sqlTestCases,
-              questionPoints
-            );
-            break;
-
-          case QType.ESSAY:
-          case QType.SPEAKING:
-            gradingResult = { earnedPoints: 0, verdict: 'PENDING', gradingMode: GradingMode.MANUAL };
-            break;
-
-          default:
-            gradingResult = { earnedPoints: 0, verdict: 'FAIL', gradingMode: GradingMode.MANUAL };
-        }
-      } catch (err) {
-        console.error(`[Submit] Error grading question ${question.id}:`, err);
-        gradingResult = { earnedPoints: 0, verdict: 'ERROR', gradingMode: GradingMode.AUTO };
-      }
-
-      // Add to total score if auto-graded
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-        totalScore += gradingResult.earnedPoints;
-      }
-
-      // Add to update list
       responseUpdates.push({
         questionId: question.id,
-        earnedPoints: gradingResult.earnedPoints,
-        verdict: gradingResult.verdict,
-        gradingMode: gradingResult.gradingMode,
-        feedback: undefined
+        earnedPoints: points,
+        verdict: verdict,
+        gradingMode: gradingMode as GradingMode,
+        feedback: undefined // Or keep existing feedback?
       });
+    } else {
+      // No response, 0 points
     }
   }
 

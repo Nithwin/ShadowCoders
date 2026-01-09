@@ -7,6 +7,10 @@ export const submitAnswerSchema = z.object({
   body: z.object({
     questionId: z.string().cuid({ message: 'Invalid question ID format' }),
     answer: answerPayloadSchema,
+    earnedPoints: z.number().optional(),
+    verdict: z.string().optional(),
+    gradingMode: z.string().optional(),
+    meta: z.any().optional(),
   })
 })
 
