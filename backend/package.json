@@ -8,6 +8,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "npx prisma db push && ts-node-dev --respawn --transpile-only src/index.ts",
+    "test": "jest",
     "build": "tsc",
     "start": "npx prisma db push && node dist/index.js",
     "build:prod": "node scripts/build-with-frontend.js",
@@ -31,6 +32,7 @@
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
@@ -47,11 +49,16 @@
     "@types/cors": "^2.8.19",
     "@types/exceljs": "^0.5.3",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.7.2",
     "@types/node-cron": "^3.0.11",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.2.0",
     "prisma": "^6.17.1",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.3"
   }

@@ -13,7 +13,7 @@ export const gradeMCQ = (
   correctOptionIds: string[],
   points: number
 ) => {
-  if (!answer?.chosenOptionIds || !correctOptionIds) {
+  if (!answer?.chosenOptionIds || !correctOptionIds || correctOptionIds.length === 0) {
     return {
       earnedPoints: 0,
       verdict: 'FAIL',
@@ -21,11 +21,34 @@ export const gradeMCQ = (
     };
   }
 
-  const isCorrect = areArraysEqual(answer.chosenOptionIds, correctOptionIds);
-  
+  const chosenIds = answer.chosenOptionIds;
+  const correctIds = correctOptionIds;
+
+  // Calculate matches (correctly selected)
+  const matches = chosenIds.filter(id => correctIds.includes(id)).length;
+  // Calculate mismatches (incorrectly selected)
+  const mismatches = chosenIds.filter(id => !correctIds.includes(id)).length;
+
+  const totalCorrect = correctIds.length;
+
+  // Formula: (matches - mismatches) / totalCorrect * points
+  // Ensure score is not negative
+  let rawScore = ((matches - mismatches) / totalCorrect) * points;
+  if (rawScore < 0) rawScore = 0;
+
+  // Format to 2 decimal places
+  const earnedPoints = parseFloat(rawScore.toFixed(2));
+
+  let verdict = 'FAIL';
+  if (matches === totalCorrect && mismatches === 0) {
+    verdict = 'PASS';
+  } else if (earnedPoints > 0) {
+    verdict = 'PARTIAL';
+  }
+
   return {
-    earnedPoints: isCorrect ? points : 0,
-    verdict: isCorrect ? 'PASS' : 'FAIL',
+    earnedPoints,
+    verdict,
     gradingMode: GradingMode.AUTO,
   };
 };
@@ -71,14 +94,14 @@ export const gradeCoding = async (
     // Calculate ratio of passed test cases
     const totalTestCases = testResults.total;
     const passedTestCases = testResults.passed;
-    
+
     // Avoid division by zero
     const passedRatio = totalTestCases > 0 ? (passedTestCases / totalTestCases) : 0;
-    
+
     // Earned points proportional to passed test cases
     // Use Math.max(0, ...) to be safe, though passedRatio should be >= 0
     let earnedPoints = parseFloat((passedRatio * points).toFixed(2));
-    
+
     // Determine verdict
     let verdict = 'FAIL';
     if (passedTestCases === totalTestCases && totalTestCases > 0) {

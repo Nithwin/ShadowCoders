@@ -111,6 +111,7 @@ export const exportExamResultsToExcel = async (
           reg_no: true,
         },
       },
+      attemptNo: true,
       responses: {
         select: {
           questionId: true,
@@ -130,6 +131,55 @@ export const exportExamResultsToExcel = async (
     },
     orderBy: orderBy,
   });
+
+  // Filter for latest attempt per student to match UI behavior
+  const latestAttemptsMap = new Map<string, typeof attempts[0]>();
+  attempts.forEach((a) => {
+    const existing = latestAttemptsMap.get(a.studentId);
+    if (!existing || a.attemptNo > existing.attemptNo) {
+      latestAttemptsMap.set(a.studentId, a);
+    }
+  });
+
+  // Convert back to array and sort according to original order (or re-sort)
+  // Since we used a Map, order might be lost. We should re-sort to be safe.
+  // Although 'attempts' was sorted by DB, filtering might need re-sort if we care.
+  // But usually sorting by name or score is done AFTER filtering in UI.
+  // The DB query had 'orderBy'. Let's preserve that relative order if possible, 
+  // or simply re-sort the filtered list.
+
+  // Let's filter first, then rely on the array operations.
+  const filteredAttempts = Array.from(latestAttemptsMap.values());
+
+  // Re-apply sort if needed, or if the DB sort was sufficient, we mostly good 
+  // ONLY IF the desired sort was not 'attemptNo' dependent. 
+  // If sorting by 'score', the latest attempt might have different score.
+  // So we should sort `filteredAttempts` in JS.
+
+  const attemptsToExport = filteredAttempts.sort((a, b) => {
+    if (sortBy === 'score_desc') {
+      // Recalculate scores for sorting to match the export values
+      const scoreA = a.responses.reduce((sum, r) => sum + (r.earnedPoints ? parseFloat(String(r.earnedPoints)) : 0), 0);
+      const scoreB = b.responses.reduce((sum, r) => sum + (r.earnedPoints ? parseFloat(String(r.earnedPoints)) : 0), 0);
+      return scoreB - scoreA;
+    } else if (sortBy === 'score_asc') {
+      const scoreA = a.responses.reduce((sum, r) => sum + (r.earnedPoints ? parseFloat(String(r.earnedPoints)) : 0), 0);
+      const scoreB = b.responses.reduce((sum, r) => sum + (r.earnedPoints ? parseFloat(String(r.earnedPoints)) : 0), 0);
+      return scoreA - scoreB;
+    } else if (sortBy === 'studentName_asc') {
+      return (a.student.name || '').localeCompare(b.student.name || '');
+    } else { // submittedAt_desc or default
+      return (b.submittedAt ? new Date(b.submittedAt).getTime() : 0) - (a.submittedAt ? new Date(a.submittedAt).getTime() : 0);
+    }
+  });
+
+  // Replace original attempts with filtered list
+  // Note: we can't re-assign 'const attempts', so let's use 'attemptsToExport' downstream
+  // Actually, I should rename 'attempts' to 'rawAttempts' or just use 'attemptsToExport' 
+  // in the loop below.
+  // For minimal diff, I'll alias it.
+
+  const uniqueAttempts = attemptsToExport;
 
   // 3. Create Excel workbook
   const workbook = new ExcelJS.Workbook();
@@ -203,11 +253,19 @@ export const exportExamResultsToExcel = async (
   headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
   // 6. Add data rows (only if there are attempts)
-  if (attempts.length > 0) {
-    attempts.forEach((attempt) => {
+  if (uniqueAttempts.length > 0) {
+    uniqueAttempts.forEach((attempt) => {
       // Convert Decimal to number if needed
-      const score = attempt.score ? parseFloat(String(attempt.score)) : 0;
-      const maxScore = attempt.maxScore ? parseFloat(String(attempt.maxScore)) : 0;
+      // Recalculate score from responses to fix potential sync issues (e.g. MCQ auto-grading not updating attempt score)
+      const score = attempt.responses.reduce((sum, r) => {
+        const points = r.earnedPoints ? parseFloat(String(r.earnedPoints)) : 0;
+        return sum + points;
+      }, 0);
+
+      // Recalculate maxScore based on the current exam questions to ensure consistency
+      const maxScore = exam.questions.reduce((sum, q) => {
+        return sum + (q.points ? parseFloat(String(q.points)) : 0);
+      }, 0);
       const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
       const rowData: any = {};
@@ -332,24 +390,25 @@ export const exportExamResultsToExcel = async (
   }
 
   // 7. Add summary row
-  if (includeSummary && attempts.length > 0) {
-    const totalStudents = attempts.length;
-    const avgScore = attempts.reduce((sum, a) => {
-      const score = a.score ? parseFloat(String(a.score)) : 0;
+  if (includeSummary && uniqueAttempts.length > 0) {
+    const totalStudents = uniqueAttempts.length;
+    const avgScore = uniqueAttempts.reduce((sum, a) => {
+      // Recalculate score for summary too
+      const score = a.responses.reduce((s, r) => s + (r.earnedPoints ? parseFloat(String(r.earnedPoints)) : 0), 0);
       return sum + score;
     }, 0) / totalStudents;
-    const avgMaxScore = attempts.reduce((sum, a) => {
-      const maxScore = a.maxScore ? parseFloat(String(a.maxScore)) : 0;
-      return sum + maxScore;
-    }, 0) / totalStudents;
-    const avgPercentage = avgMaxScore > 0 ? Math.round((avgScore / avgMaxScore) * 100) : 0;
+
+    // Recalculate max score logic (assuming same exam for all, so just use one example or recompute)
+    const examMaxScore = exam.questions.reduce((sum, q) => sum + (q.points ? parseFloat(String(q.points)) : 0), 0);
+
+    const avgPercentage = examMaxScore > 0 ? Math.round((avgScore / examMaxScore) * 100) : 0;
 
     worksheet.addRow({}); // Empty row
     const summaryRow = worksheet.addRow({
       studentName: 'SUMMARY',
       email: `Total Students: ${totalStudents}`,
       score: avgScore.toFixed(2),
-      maxScore: avgMaxScore.toFixed(2),
+      maxScore: examMaxScore.toFixed(2),
       percentage: `${avgPercentage}%`,
     });
 
@@ -381,7 +440,7 @@ export const exportExamResultsToExcel = async (
     infoSheet.addRow({ property: 'Start Date', value: exam.startAt.toLocaleString() });
     infoSheet.addRow({ property: 'End Date', value: exam.endAt.toLocaleString() });
     infoSheet.addRow({ property: 'Total Questions', value: exam.questions.length.toString() });
-    infoSheet.addRow({ property: 'Total Students', value: attempts.length.toString() });
+    infoSheet.addRow({ property: 'Total Students', value: uniqueAttempts.length.toString() });
   }
 
   return workbook;

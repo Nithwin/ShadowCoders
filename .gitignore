@@ -46,3 +46,6 @@ next-env.d.ts
 *.njsproj
 *.sln
 *.sw?
+
+# User docs
+*.pdf

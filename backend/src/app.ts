@@ -1,6 +1,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import { env } from './config/env';
@@ -40,16 +41,33 @@ export const createApp = () => {
         crossOriginResourcePolicy: false,
     }));
 
+    // Rate limiting: 100 requests per 15 minutes
+    const limiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 100,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: {
+            error: {
+                code: 'TOO_MANY_REQUESTS',
+                message: 'Too many requests, please try again later.'
+            }
+        }
+    });
+
+    // Apply rate limiting to all requests
+    app.use(limiter);
+
     // Custom CORS handler - completely bypass cors package to avoid * issues
     const allowedOrigins = buildAllowedOrigins();
-    
+
     // CRITICAL: Intercept setHeader BEFORE any other middleware to prevent * from ever being set
     app.use((req, res, next) => {
         const origin = req.headers.origin;
         const originalSetHeader = res.setHeader.bind(res);
-        
+
         // Override setHeader to NEVER allow * when there's an origin
-        res.setHeader = function(name: string, value: string | number | string[]) {
+        res.setHeader = function (name: string, value: string | number | string[]) {
             if (name.toLowerCase() === 'access-control-allow-origin') {
                 if (origin && (value === '*' || value === 'null')) {
                     const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
@@ -60,17 +78,17 @@ export const createApp = () => {
             }
             return originalSetHeader(name, value);
         };
-        
+
         next();
     });
-    
+
     // Set CORS headers on ALL requests (including OPTIONS)
     app.use((req, res, next) => {
         const origin = req.headers.origin;
         const originalEnd = res.end.bind(res);
         const originalJson = res.json.bind(res);
         const originalWriteHead = res.writeHead.bind(res);
-        
+
         // Function to force-set correct CORS headers
         const forceCorsHeaders = () => {
             if (origin) {
@@ -88,7 +106,7 @@ export const createApp = () => {
                         res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
                         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
                         res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
-                        
+
                     }
                 } else {
                     if (env.NODE_ENV !== 'production') {
@@ -98,48 +116,48 @@ export const createApp = () => {
                 }
             }
         };
-        
+
         // Handle preflight OPTIONS requests
         if (req.method === 'OPTIONS') {
             forceCorsHeaders();
             res.setHeader('Access-Control-Max-Age', '86400');
             return res.status(204).end();
         }
-        
+
         // Set headers immediately
         forceCorsHeaders();
-        
+
         // Override response methods to ensure headers are set right before sending
-        res.writeHead = function(statusCode: number, ...args: any[]) {
+        res.writeHead = function (statusCode: number, ...args: any[]) {
             forceCorsHeaders();
             return originalWriteHead(statusCode, ...args);
         };
-        
-        res.end = function(...args: any[]) {
+
+        res.end = function (...args: any[]) {
             forceCorsHeaders();
             return originalEnd(...args);
         };
-        
-        res.json = function(body: any) {
+
+        res.json = function (body: any) {
             forceCorsHeaders();
             return originalJson(body);
         };
-        
+
         next();
     });
-    
+
     // Body parsing middleware
     app.use(express.json());
-    
+
     // Graceful handling of JSON parsing errors (prevents server crash on malformed JSON)
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
             console.error('❌ Malformed JSON received:', err.message);
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: {
                     code: 'INVALID_JSON',
                     message: 'Invalid JSON format in request body'
-                } 
+                }
             });
         }
         next(err);
@@ -161,7 +179,7 @@ export const createApp = () => {
                     res.setHeader('Access-Control-Allow-Credentials', 'true');
                 }
             }
-            
+
             // Set cache headers for media files
             if (filePath.endsWith('.mp3') || filePath.endsWith('.wav') || filePath.endsWith('.webm') || filePath.endsWith('.ogg')) {
                 res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
@@ -180,7 +198,7 @@ export const createApp = () => {
     app.get('/api/healthz', async (_req, res) => {
         const { checkDatabaseHealth } = await import('./lib/db-health');
         const dbHealth = await checkDatabaseHealth();
-        
+
         if (dbHealth.connected) {
             res.json({
                 status: 'healthy',
@@ -225,7 +243,7 @@ export const createApp = () => {
     app.use('/api/notifications', notificationRoutes);
     registerSystemRoutes(app);
 
-    
+
     // In production, serve the built frontend (Next.js static export)
     if (env.NODE_ENV === 'production') {
         const frontendOutDir = path.resolve(__dirname, '../../frontend/out');
@@ -253,7 +271,7 @@ export const createApp = () => {
     // Final CORS fix middleware - runs after all routes to ensure headers are correct
     app.use((req, res, next) => {
         const origin = req.headers.origin;
-        
+
         // Listen for the 'finish' event which fires right before headers are sent
         res.on('finish', () => {
             if (origin) {
@@ -268,12 +286,12 @@ export const createApp = () => {
                 }
             }
         });
-        
+
         // Intercept response methods to fix headers before they're sent
         const originalEnd = res.end.bind(res);
         const originalJson = res.json.bind(res);
         const originalWriteHead = res.writeHead.bind(res);
-        
+
         const fixCorsBeforeSend = () => {
             if (origin) {
                 const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
@@ -294,25 +312,25 @@ export const createApp = () => {
                 }
             }
         };
-        
-        res.writeHead = function(statusCode: number, ...args: any[]) {
+
+        res.writeHead = function (statusCode: number, ...args: any[]) {
             fixCorsBeforeSend();
             return originalWriteHead(statusCode, ...args);
         };
-        
-        res.end = function(...args: any[]) {
+
+        res.end = function (...args: any[]) {
             fixCorsBeforeSend();
             return originalEnd(...args);
         };
-        
-        res.json = function(body: any) {
+
+        res.json = function (body: any) {
             fixCorsBeforeSend();
             return originalJson(body);
         };
-        
+
         next();
     });
-    
+
     app.use(errorHandler);
 
     return app;

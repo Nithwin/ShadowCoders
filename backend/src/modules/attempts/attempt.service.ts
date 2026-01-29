@@ -228,6 +228,21 @@ export const submitAnswer = async (
   // Coding questions get lower priority since they're auto-saved frequently
   const priority = question.type === QType.CODING ? 0 : 1;
 
+  // We need to fetch more specific question details for proper server-side grading (MCQ)
+  // Re-fetch question with more fields if it's an MCQ
+  let questionDetails: any = question;
+  if (question.type === QType.MCQ) {
+    questionDetails = await prisma.question.findUnique({
+      where: { id: questionId },
+      select: {
+        examId: true,
+        type: true,
+        points: true,
+        correctOptionIds: true
+      },
+    });
+  }
+
   return answerQueue.enqueue(
     attemptId,
     questionId,
@@ -269,7 +284,20 @@ export const submitAnswer = async (
       }
 
       // Extract optional grading fields from input
-      const { earnedPoints, verdict, gradingMode } = input;
+      let { earnedPoints, verdict, gradingMode } = input;
+
+      // --- SERVER-SIDE AUTO-GRADING (For MCQ) ---
+      // Security/Reliability: Always grade MCQ on server
+      if (question.type === QType.MCQ && questionDetails?.correctOptionIds) {
+        const gradingResult = gradeMCQ(
+          answer as { chosenOptionIds?: string[] },
+          questionDetails.correctOptionIds as string[],
+          Number(questionDetails.points)
+        );
+        earnedPoints = gradingResult.earnedPoints;
+        verdict = gradingResult.verdict;
+        gradingMode = gradingResult.gradingMode;
+      }
 
       const responseData: Parameters<typeof attemptRepo.upsertResponse>[0] = {
         attemptId: attemptId,
@@ -277,7 +305,7 @@ export const submitAnswer = async (
         answer: answer ? (answer as Prisma.InputJsonValue) : Prisma.JsonNull,
         type: question.type,
         ...(audioAssetId !== undefined && { audioAssetId }),
-        // Pass grading fields if provided
+        // Pass grading fields
         ...(earnedPoints !== undefined && { earnedPoints }),
         ...(verdict !== undefined && { verdict }),
         ...(gradingMode !== undefined && { gradingMode }),
