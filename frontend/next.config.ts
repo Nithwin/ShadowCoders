@@ -27,7 +27,7 @@ const backendUrl = getBackendUrl();
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactStrictMode: false, // Strict mode can cause double-renders in dev
+  reactStrictMode: true, // Enabled for better debugging
   transpilePackages: ['lucide-react', 'recharts'], // Ensure these are transpiled
   
   // Compiler options for production
@@ -50,17 +50,20 @@ const nextConfig: NextConfig = {
   // ...(isProd ? { output: 'export' } : {}),
 
   async rewrites() {
-    // Only proxy in development or if explicitly configured
-    // In production, API calls should go directly to the backend URL
+    // Standard proxy for both dev and prod (if API Proxy is enabled in prod)
     if (isProd && !process.env.NEXT_PUBLIC_USE_API_PROXY) {
-      return [];
+        return [];
     }
-    
+
     return [
       {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`, // Proxy to Backend
       },
+      {
+        source: '/uploads/:path*',
+        destination: `${backendUrl}/uploads/:path*`, // Proxy to Uploads
+      }
     ]
   },
   

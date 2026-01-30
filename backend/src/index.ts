@@ -54,8 +54,7 @@ process.on('SIGINT', () => {
 const app = createApp();
 
 // Create HTTP server
-// const server = http.createServer(app); // Original line
-const server = http.createServer(app); // Kept http.createServer for consistency with original, but variable name changed to 'server' as per original
+const server = http.createServer(app);
 
 // Initialize Cron Jobs
 initAutoSubmitCron(); // Added cron job initialization

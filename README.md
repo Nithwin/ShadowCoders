@@ -446,4 +446,4 @@ For support, please open an issue on GitHub or contact the development team.
 ---
 
 **Last Updated**: January 2026
-**Version**: 2.0.0 (Performance Update)
+**Version**: 2.1.0 (Stability & Security Update)

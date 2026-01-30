@@ -4,8 +4,9 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
+import cors from 'cors';
 import { env } from './config/env';
-import { buildAllowedOrigins, isOriginAllowed } from './config/cors';
+import { buildAllowedOrigins, createCorsOptions } from './config/cors';
 import { errorHandler } from './middleware/error';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
@@ -58,94 +59,18 @@ export const createApp = () => {
     // Apply rate limiting to all requests
     app.use(limiter);
 
-    // Custom CORS handler - completely bypass cors package to avoid * issues
+    // Standard CORS Middleware
     const allowedOrigins = buildAllowedOrigins();
+    const corsOptions = createCorsOptions(allowedOrigins);
+    app.use(cors(corsOptions));
 
-    // CRITICAL: Intercept setHeader BEFORE any other middleware to prevent * from ever being set
+    // Request timeout middleware (prevents hanging requests)
     app.use((req, res, next) => {
-        const origin = req.headers.origin;
-        const originalSetHeader = res.setHeader.bind(res);
-
-        // Override setHeader to NEVER allow * when there's an origin
-        res.setHeader = function (name: string, value: string | number | string[]) {
-            if (name.toLowerCase() === 'access-control-allow-origin') {
-                if (origin && (value === '*' || value === 'null')) {
-                    const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
-                    if (allowedOrigin) {
-                        return originalSetHeader(name, allowedOrigin);
-                    }
-                }
-            }
-            return originalSetHeader(name, value);
-        };
-
+        req.setTimeout(30000); // 30 seconds
+        res.setTimeout(30000);
         next();
     });
-
-    // Set CORS headers on ALL requests (including OPTIONS)
-    app.use((req, res, next) => {
-        const origin = req.headers.origin;
-        const originalEnd = res.end.bind(res);
-        const originalJson = res.json.bind(res);
-        const originalWriteHead = res.writeHead.bind(res);
-
-        // Function to force-set correct CORS headers
-        const forceCorsHeaders = () => {
-            if (origin) {
-                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
-                if (allowedOrigin) {
-                    // CRITICAL: Always remove first, then set to ensure no * can exist
-                    const current = res.getHeader('Access-Control-Allow-Origin');
-                    if (current === '*' || current !== allowedOrigin) {
-                        // Remove any existing CORS headers first
-                        res.removeHeader('Access-Control-Allow-Origin');
-                        res.removeHeader('Access-Control-Allow-Credentials');
-                        // Set correct headers
-                        res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-                        res.setHeader('Access-Control-Allow-Credentials', 'true');
-                        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-                        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
-                        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
-
-                    }
-                } else {
-                    if (env.NODE_ENV !== 'production') {
-                        console.warn(`[CORS] ❌ Rejected origin: ${origin}`);
-                        console.warn(`[CORS] Allowed origins:`, allowedOrigins);
-                    }
-                }
-            }
-        };
-
-        // Handle preflight OPTIONS requests
-        if (req.method === 'OPTIONS') {
-            forceCorsHeaders();
-            res.setHeader('Access-Control-Max-Age', '86400');
-            return res.status(204).end();
-        }
-
-        // Set headers immediately
-        forceCorsHeaders();
-
-        // Override response methods to ensure headers are set right before sending
-        res.writeHead = function (statusCode: number, ...args: any[]) {
-            forceCorsHeaders();
-            return originalWriteHead(statusCode, ...args);
-        };
-
-        res.end = function (...args: any[]) {
-            forceCorsHeaders();
-            return originalEnd(...args);
-        };
-
-        res.json = function (body: any) {
-            forceCorsHeaders();
-            return originalJson(body);
-        };
-
-        next();
-    });
-
+    
     // Body parsing middleware
     app.use(express.json());
 
@@ -170,16 +95,6 @@ export const createApp = () => {
     app.use('/uploads', express.static(uploadsDir, {
         // Set appropriate headers for audio/video files
         setHeaders: (res, filePath) => {
-            // Allow CORS for media files
-            const origin = (res.req as any).headers?.origin;
-            if (origin) {
-                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
-                if (allowedOrigin) {
-                    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-                    res.setHeader('Access-Control-Allow-Credentials', 'true');
-                }
-            }
-
             // Set cache headers for media files
             if (filePath.endsWith('.mp3') || filePath.endsWith('.wav') || filePath.endsWith('.webm') || filePath.endsWith('.ogg')) {
                 res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year cache
@@ -195,6 +110,7 @@ export const createApp = () => {
             timestamp: new Date().toISOString(),
         });
     });
+    
     app.get('/api/healthz', async (_req, res) => {
         const { checkDatabaseHealth } = await import('./lib/db-health');
         const dbHealth = await checkDatabaseHealth();
@@ -267,69 +183,6 @@ export const createApp = () => {
             console.warn(`[FE] Frontend build not found at ${frontendOutDir}`);
         }
     }
-
-    // Final CORS fix middleware - runs after all routes to ensure headers are correct
-    app.use((req, res, next) => {
-        const origin = req.headers.origin;
-
-        // Listen for the 'finish' event which fires right before headers are sent
-        res.on('finish', () => {
-            if (origin) {
-                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
-                if (allowedOrigin) {
-                    const current = res.getHeader('Access-Control-Allow-Origin');
-                    // Force fix if it's * or wrong - but we can't change headers after finish
-                    // So we need to intercept earlier
-                    if (current === '*' && env.NODE_ENV !== 'production') {
-                        console.warn(`[CORS-FINAL] WARNING: * detected but too late to fix!`);
-                    }
-                }
-            }
-        });
-
-        // Intercept response methods to fix headers before they're sent
-        const originalEnd = res.end.bind(res);
-        const originalJson = res.json.bind(res);
-        const originalWriteHead = res.writeHead.bind(res);
-
-        const fixCorsBeforeSend = () => {
-            if (origin) {
-                const allowedOrigin = isOriginAllowed(origin, allowedOrigins);
-                if (allowedOrigin) {
-                    const current = res.getHeader('Access-Control-Allow-Origin');
-                    // ALWAYS remove and reset to ensure no * can slip through
-                    if (current === '*' || current !== allowedOrigin) {
-                        // Remove ALL CORS headers first
-                        res.removeHeader('Access-Control-Allow-Origin');
-                        res.removeHeader('Access-Control-Allow-Credentials');
-                        // Set correct headers
-                        res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-                        res.setHeader('Access-Control-Allow-Credentials', 'true');
-                        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-                        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
-                        res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie, Content-Disposition, Content-Type');
-                    }
-                }
-            }
-        };
-
-        res.writeHead = function (statusCode: number, ...args: any[]) {
-            fixCorsBeforeSend();
-            return originalWriteHead(statusCode, ...args);
-        };
-
-        res.end = function (...args: any[]) {
-            fixCorsBeforeSend();
-            return originalEnd(...args);
-        };
-
-        res.json = function (body: any) {
-            fixCorsBeforeSend();
-            return originalJson(body);
-        };
-
-        next();
-    });
 
     app.use(errorHandler);
 

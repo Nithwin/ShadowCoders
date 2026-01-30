@@ -5,6 +5,7 @@ import { validate } from '../../middleware/validate';
 import { createAssetSchema } from './asset.zod';
 import * as assetController from './asset.controller';
 import multer from 'multer';
+import { FILE_UPLOAD } from '../../config/constants';
 
 // 1. Configure Multer
 // We'll use memoryStorage to temporarily hold the file in memory
@@ -12,7 +13,22 @@ import multer from 'multer';
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB file size limit
+    fileSize: FILE_UPLOAD.MAX_SIZE, // 10MB file size limit
+    files: FILE_UPLOAD.MAX_FILES,
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow audio, image, and video files
+    const allowedTypes: string[] = [
+      ...FILE_UPLOAD.ALLOWED_AUDIO,
+      ...FILE_UPLOAD.ALLOWED_IMAGES,
+      ...FILE_UPLOAD.ALLOWED_VIDEOS,
+    ];
+    
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type: ${file.mimetype}. Allowed types: audio, image, video.`));
+    }
   },
 });
 
