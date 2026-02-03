@@ -142,6 +142,7 @@ export interface Exam {
   maxAttempts?: number | null;
   maxTabSwitches?: number | null;
   allowedLanguages?: string[] | null;
+  enableProctoring?: boolean;
   createdAt: string;
   updatedAt: string;
   assignments?: any[]; // We can refine this type if needed, but array existence check is enough for now

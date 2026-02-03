@@ -53,6 +53,7 @@ export const examFormSchema = z.object({
     .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer (0 for unlimited)'),
   allowedLanguages: z.array(z.string()).optional(),
   releaseResults: z.boolean().optional(),
+  enableProctoring: z.boolean().optional(),
 }).refine((data) => new Date(data.startAt) < new Date(data.endAt), {
   message: 'Start time must be before end time',
   path: ['startAt'],
@@ -202,7 +203,7 @@ export default function ExamForm({
         )}
         
         {activeTab === 'security' && (
-          <ExamSecurity register={register} errors={errors} />
+          <ExamSecurity register={register} errors={errors} watch={watch} />
         )}
       </div>
 

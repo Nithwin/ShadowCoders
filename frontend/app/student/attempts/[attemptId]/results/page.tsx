@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { QType } from '@/types';
 import { useToastNotification } from '@/context/ToastContext';
+import { ProctoringViolationSummary } from '@/components/student/ProctoringViolationSummary';
 
 type QuestionResult = {
   questionId: string;
@@ -352,6 +353,11 @@ export default function ExamResultsPage() {
                         </button>
                     </div>
                 )}
+
+                {/* Proctoring Violation Summary */}
+                <div className="mt-6">
+                  <ProctoringViolationSummary attemptId={attemptId} />
+                </div>
 
                 {/* Leaderboard */}
                 {showLeaderboard && leaderboard && (

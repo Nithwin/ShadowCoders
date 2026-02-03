@@ -29,6 +29,7 @@ import { registerPointsRoutes } from './modules/points/points.routes';
 import { registerRedeemRoutes } from './modules/redeem/redeem.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import { registerSystemRoutes } from './modules/system/system.routes';
+import proctoringRoutes from './modules/proctoring/proctoring.routes';
 
 
 export const createApp = () => {
@@ -163,6 +164,7 @@ export const createApp = () => {
     registerRedeemRoutes(app);
     app.use('/api/notifications', notificationRoutes);
     registerSystemRoutes(app);
+    app.use('/api/proctoring', proctoringRoutes);
 
 
     // In production, serve the built frontend (Next.js static export)

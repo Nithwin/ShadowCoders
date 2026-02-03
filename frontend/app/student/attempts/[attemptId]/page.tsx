@@ -23,6 +23,8 @@ import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useExamSocket } from '@/hooks/useExamSocket';
 import { useSectionNavigation } from '@/hooks/useSectionNavigation';
 import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
+import { useEyeHeadTracking } from '@/hooks/useEyeHeadTracking';
+import { EyeTrackingMonitor } from '@/components/student/EyeTrackingMonitor';
 
 import { ReportQuestionButton } from '@/components/student/ReportQuestionButton';
 import KeyboardViolationPopup from '@/components/student/exam/KeyboardViolationPopup';
@@ -367,6 +369,21 @@ export default function ExamAttemptPage() {
     attempt?.exam?.maxTabSwitches ?? null
   );
 
+  // Eye and Head Tracking (only if enabled for this exam)
+  const {
+    isTracking,
+    cameraPermission,
+    violationCount: eyeViolationCount,
+    showWarning: showEyeWarning,
+    warningMessage: eyeWarningMessage,
+    videoRef,
+    canvasRef,
+  } = useEyeHeadTracking({
+    attemptId: attemptId,
+    enabled: !!attempt && attempt.status === 'IN_PROGRESS' && isFullscreen && (attempt.exam.enableProctoring ?? false),
+    warningThreshold: 3,
+  });
+
 
   // Section Navigation Hook
   const {
@@ -692,6 +709,19 @@ export default function ExamAttemptPage() {
           )}
         </div>
       </div>
+
+      {/* Eye Tracking Monitor - Only show if proctoring is enabled */}
+      {attempt && attempt.status === 'IN_PROGRESS' && attempt.exam.enableProctoring && (
+        <EyeTrackingMonitor
+          isTracking={isTracking}
+          cameraPermission={cameraPermission}
+          violationCount={eyeViolationCount}
+          showWarning={showEyeWarning}
+          warningMessage={eyeWarningMessage}
+          videoRef={videoRef}
+          canvasRef={canvasRef}
+        />
+      )}
     </div>
   );
 }

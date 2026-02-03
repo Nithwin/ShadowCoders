@@ -59,6 +59,7 @@ model Exam {
   allowedLanguages     Json?
   maxTabSwitches       Int?
   releaseResults       Boolean           @default(true)
+  enableProctoring     Boolean           @default(false)
   attempts             Attempt[]
   assignments          ExamAssignment[]
   sections             ExamSection[]
@@ -157,29 +158,47 @@ model Question {
 }
 
 model Attempt {
-  id               String           @id @default(cuid())
-  examId           String
-  studentId        String
-  attemptNo        Int              @default(1)
-  startedAt        DateTime         @default(now())
-  submittedAt      DateTime?
-  status           AttemptStatus    @default(IN_PROGRESS)
-  score            Decimal?         @db.Decimal(8, 2)
-  maxScore         Decimal?         @db.Decimal(8, 2)
-  timeSpentSec     Int              @default(0)
-  orderMap         Json?
-  submissionReason String?
-  submissionType   SubmissionType   @default(NORMAL)
-  exam             Exam             @relation(fields: [examId], references: [id])
-  student          User             @relation(fields: [studentId], references: [id])
-  sections         AttemptSection[]
-  responses        Response[]
+  id                     String            @id @default(cuid())
+  examId                 String
+  studentId              String
+  attemptNo              Int               @default(1)
+  startedAt              DateTime          @default(now())
+  submittedAt            DateTime?
+  status                 AttemptStatus     @default(IN_PROGRESS)
+  score                  Decimal?          @db.Decimal(8, 2)
+  maxScore               Decimal?          @db.Decimal(8, 2)
+  timeSpentSec           Int               @default(0)
+  orderMap               Json?
+  submissionReason       String?
+  submissionType         SubmissionType    @default(NORMAL)
+  eyeTrackingViolations  Int               @default(0)
+  headTrackingViolations Int               @default(0)
+  exam                   Exam              @relation(fields: [examId], references: [id])
+  student                User              @relation(fields: [studentId], references: [id])
+  sections               AttemptSection[]
+  responses              Response[]
+  proctoringEvents       ProctoringEvent[]
 
   @@unique([examId, studentId, attemptNo])
   @@index([examId])
   @@index([studentId])
   @@index([startedAt])
   @@index([score])
+}
+
+model ProctoringEvent {
+  id          String              @id @default(cuid())
+  attemptId   String
+  eventType   ProctoringEventType
+  severity    String              @default("warning")
+  description String?
+  timestamp   DateTime            @default(now())
+  metadata    Json?
+  attempt     Attempt             @relation(fields: [attemptId], references: [id])
+
+  @@index([attemptId])
+  @@index([eventType])
+  @@index([timestamp])
 }
 
 model AttemptSection {
@@ -521,6 +540,17 @@ enum SectionLockPolicy {
   NONE
   LOCK_ON_COMPLETE
   LINEAR_NO_BACKTRACK
+}
+
+enum ProctoringEventType {
+  EYE_TRACKING_VIOLATION
+  HEAD_TRACKING_VIOLATION
+  FACE_NOT_DETECTED
+  MULTIPLE_FACES_DETECTED
+  LOOKING_AWAY
+  HEAD_TURNED_AWAY
+  EYES_CLOSED
+  SUSPICIOUS_MOVEMENT
 }
 
 enum SectionAttemptStatus {

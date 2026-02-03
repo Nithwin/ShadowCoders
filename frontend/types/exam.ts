@@ -36,6 +36,7 @@ export type Attempt = {
     durationMins: number;
     maxTabSwitches?: number | null;
     allowedLanguages?: string[] | null;
+    enableProctoring?: boolean;
     questions: Array<{ id: string; order: number }>;
     sections?: Array<{
       id: string;
@@ -59,5 +60,7 @@ export type Attempt = {
     };
   }>;
   orderMap: string[] | null;
+  eyeTrackingViolations?: number;
+  headTrackingViolations?: number;
 };
 
