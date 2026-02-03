@@ -43,7 +43,13 @@ const nextConfig: NextConfig = {
   // Configure allowed origins for development (Cloudflare Tunnel)
   allowedDevOrigins: process.env.ALLOWED_DEV_ORIGINS 
     ? process.env.ALLOWED_DEV_ORIGINS.split(',') 
-    : ['localhost:3000', 'shadowcoders.app', '10.11.74.76:3000', '192.168.137.1:3000'],
+    : ['localhost:3000', 'shadowcoders.app', '10.11.74.80:3000', '10.11.74.76:3000', '192.168.137.1:3000'],
+
+  // Dev indicators configuration
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
+  },
 
   // In production, export static files for serving via Express (if needed)
   // Uncomment if you want to serve static export

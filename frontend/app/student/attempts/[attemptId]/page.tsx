@@ -160,8 +160,8 @@ export default function ExamAttemptPage() {
         if (updatedAttempt.submittedAt || updatedAttempt.status !== 'IN_PROGRESS') {
           setShowKeyboardViolation(false);
           removeViolation(attemptId);
-          // If force submitted, reload to show results
-          if (updatedAttempt.submittedAt) {
+          // If force submitted, reload to show results (only if different from current attempt)
+          if (updatedAttempt.submittedAt && !attempt.submittedAt) {
             window.location.reload();
           }
         }
@@ -173,11 +173,12 @@ export default function ExamAttemptPage() {
       }
     };
 
-    // Check immediately and then every 3 seconds
-    checkAttemptStatus();
-    const interval = setInterval(checkAttemptStatus, 3000);
-
-    return () => clearInterval(interval);
+    // Only run status check if keyboard violation is active and exam isn't already submitted
+    if (showKeyboardViolation && !attempt.submittedAt && attempt.status === 'IN_PROGRESS') {
+      checkAttemptStatus();
+      const interval = setInterval(checkAttemptStatus, 5000); // Reduced frequency to 5 seconds
+      return () => clearInterval(interval);
+    }
   }, [showKeyboardViolation, attemptId, attempt, removeViolation]);
 
   // Sync initial reported status from questions

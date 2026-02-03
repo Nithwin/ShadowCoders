@@ -51,3 +51,15 @@ export const requireRole = (role:Role): RequestHandler => {
         next();
     };
 };
+
+export const authorize = (roles: string[]): RequestHandler => {
+    return (req, res, next) => {
+        const user = req.user;
+        if (!user || !roles.includes(user.role)) {
+            return next({ status: 403, message: 'Forbidden' });
+        }
+        next();
+    };
+};
+
+export const authenticate = verifyAccess;

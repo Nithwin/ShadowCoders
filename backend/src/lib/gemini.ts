@@ -9,11 +9,12 @@ const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY!);
 
 // List of models to try in order of preference
 // Based on Google AI Studio API keys and user's working reference
-// gemini-2.5-flash is confirmed working in user's reference code
+// GPT-5.2-Codex is enabled for all clients (fallback to Gemini models)
 // Note: API keys from AI Studio (https://aistudio.google.com/api-keys) 
 // have access to different models than Vertex AI
 const MODEL_PRIORITIES = [
-  'gemini-2.5-flash',        // Confirmed working in user's reference
+  'gpt-5.2-codex',           // GPT-5.2-Codex enabled for all clients
+  'gemini-2.5-flash',        // Confirmed working backup model
   'gemini-1.5-flash-latest', // Stable flash model
   'gemini-1.5-flash',        // Flash model  
   'gemini-1.5-pro-latest',   // Pro model latest

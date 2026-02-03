@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Settings,
-  Gift
+  Gift,
+  Video
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,6 +24,7 @@ const navLinks = [
   { name: 'My Exams', href: '/student/exams', icon: FileText },
   { name: 'Results', href: '/student/results', icon: ClipboardCheck },
   { name: 'Redeem', href: '/student/redeem', icon: Gift },
+  { name: 'Meetings', href: '/student/meetings', icon: Video },
   { name: 'Settings', href: '/student/settings', icon: Settings },
 ];
 
@@ -70,6 +72,7 @@ export default function StudentSidebar() {
               width={40} 
               height={40}
               priority
+              style={{ width: 'auto', height: 'auto' }}
             />
             <span className="ml-2 text-xl font-bold font-alan-sans">ShadowCoders</span>
           </div>

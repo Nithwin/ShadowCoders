@@ -5,6 +5,24 @@ All notable changes to the ShadowCoders project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-03
+
+### Added
+- **GPT-5.2-Codex Integration** - Enabled GPT-5.2-Codex as the primary AI model for question generation
+  - Automatic fallback to Gemini models (2.5-flash, 1.5-flash-latest, 1.5-pro) for redundancy
+  - Enhanced AI capabilities for code-related questions and advanced content generation
+  - Multi-model retry logic for improved reliability
+
+### Changed
+- **AI Model Priority** - Updated MODEL_PRIORITIES to prioritize GPT-5.2-Codex over Gemini models
+- **Documentation Updates** - Updated all documentation to reflect GPT-5.2-Codex as the primary AI service
+
+### Removed
+- Cleaned up temporary error logs and resolved feature documentation files
+  - Removed: backend_errors.txt, errors.txt, errors_utf8.txt
+  - Removed: build_error.txt, tsc_output.txt, tsc_output_utf8.txt
+  - Removed: INNOVATION_FEATURES.md.resolved
+
 ## [2.1.0] - 2026-01-30
 
 ### Added

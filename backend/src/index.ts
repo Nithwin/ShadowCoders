@@ -74,7 +74,13 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 });
 
 // Initialize Socket.IO
-examMonitoring.initialize(server);
+const io = examMonitoring.initialize(server);
+
+import { meetingHandler } from './socket/meeting.handler';
+if (io) {
+    meetingHandler(io);
+}
+
 
 // Get local IP address for LAN access
 const getLocalIP = (): string | null => {

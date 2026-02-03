@@ -138,11 +138,22 @@ export const createCorsOptions = (allowedOrigins: string[]): cors.CorsOptions =>
             callback(new Error(`Not allowed by CORS: ${origin}`));
         },
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie'],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+        allowedHeaders: [
+            'Content-Type', 
+            'Authorization', 
+            'Cookie', 
+            'Set-Cookie',
+            'X-Requested-With',
+            'Accept',
+            'Origin',
+            'Access-Control-Request-Method',
+            'Access-Control-Request-Headers'
+        ],
         exposedHeaders: ['Set-Cookie', 'Content-Disposition', 'Content-Type'],
         preflightContinue: false,
         optionsSuccessStatus: 204,
+        maxAge: 86400, // 24 hours - cache preflight requests
     };
 };
 

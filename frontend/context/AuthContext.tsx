@@ -98,12 +98,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Login function
   const login = useCallback(async (email: string, pass: string) => {
     try {
+      // Trim inputs to remove any accidental whitespace
+      const trimmedEmail = email.trim();
+      const trimmedPassword = pass.trim();
+      
+      console.log('[Login] Attempting login with:', { 
+        email: trimmedEmail, 
+        apiUrl: api.defaults.baseURL 
+      });
+      
       // Step 1: Login and get access token
-      const { data } = await api.post('/auth/login', { email, password: pass });
+      const { data } = await api.post('/auth/login', { 
+        email: trimmedEmail, 
+        password: trimmedPassword 
+      });
       
       if (!data || !data.accessToken) {
         throw new Error('No access token received from server');
       }
+      
+      console.log('[Login] Login successful, setting token');
       
       // Step 2: Set access token for future requests
       setAccessToken(data.accessToken);
@@ -117,9 +131,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Step 3: Get user profile
       const { data: userData } = await api.get('/auth/me');
       setUser(userData);
+      
+      console.log('[Login] User profile loaded:', userData.email);
     } catch (error: any) {
       // Log error for debugging
-      console.error('Login error:', error);
+      console.error('[Login] Login error:', {
+        message: error.response?.data?.message || error.message,
+        status: error.response?.status,
+        apiUrl: api.defaults.baseURL
+      });
       
       // Re-throw error so the login page can handle it
       throw error;

@@ -7,9 +7,448 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                    String               @id @default(cuid())
+  email                 String               @unique
+  name                  String?
+  pictureUrl            String?
+  role                  Role                 @default(STUDENT)
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  password              String?
+  department            String?
+  reg_no                String?              @unique
+  section               String?
+  year                  Int?
+  settings              Json?
+  leetcodeId            String?
+  leetcodeStats         Json?
+  pictureData           Bytes?
+  pictureMimeType       String?
+  points                Int                  @default(0)
+  attempts              Attempt[]
+  assessments           Evaluation[]         @relation("EvaluationAssessor")
+  createdTemplates      ExamTemplate[]
+  hostedMeetings        Meeting[]            @relation("HostedMeetings")
+  meetingParticipations MeetingParticipant[]
+  notifications         Notification[]
+  pointsHistory         PointsHistory[]
+  invalidatedQuestions  Question[]           @relation("QuestionInvalidator")
+  reportedQuestions     QuestionReport[]
+  redeemOrders          RedeemOrder[]
+
+  @@index([role])
+  @@index([year, department, section])
+}
+
+model Exam {
+  id                   String            @id @default(cuid())
+  title                String
+  description          String?
+  startAt              DateTime
+  endAt                DateTime
+  timingMode           TimingMode        @default(OVERALL_ONLY)
+  durationMins         Int
+  sectionLockPolicy    SectionLockPolicy @default(NONE)
+  randomizeQuestions   Boolean           @default(false)
+  negativeMarkPerWrong Decimal?          @db.Decimal(5, 2)
+  status               ExamStatus        @default(DRAFT)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  maxAttempts          Int?
+  allowedLanguages     Json?
+  maxTabSwitches       Int?
+  releaseResults       Boolean           @default(true)
+  attempts             Attempt[]
+  assignments          ExamAssignment[]
+  sections             ExamSection[]
+  questions            Question[]
+  reports              QuestionReport[]
+
+  @@index([status])
+  @@index([startAt, endAt])
+}
+
+model ExamAssignment {
+  id               String  @id @default(uuid())
+  examId           String
+  cohortYear       Int?
+  cohortDepartment String?
+  cohortSection    String?
+  studentIds       Json?
+  assignToAll      Boolean @default(false)
+  exam             Exam    @relation(fields: [examId], references: [id])
+
+  @@index([examId])
+  @@index([cohortYear, cohortDepartment, cohortSection])
+}
+
+model ExamSection {
+  id               String            @id @default(cuid())
+  examId           String
+  title            String
+  order            Int
+  description      String?
+  durationMins     Int?
+  startsAt         DateTime?
+  endsAt           DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  attempts         AttemptSection[]
+  exam             Exam              @relation(fields: [examId], references: [id])
+  sectionQuestions SectionQuestion[]
+
+  @@index([examId])
+  @@index([order])
+}
+
+model SectionQuestion {
+  id         String      @id @default(cuid())
+  sectionId  String
+  questionId String
+  order      Int
+  question   Question    @relation(fields: [questionId], references: [id])
+  section    ExamSection @relation(fields: [sectionId], references: [id])
+
+  @@unique([sectionId, questionId])
+  @@index([questionId])
+}
+
+model Question {
+  id                 String            @id @default(cuid())
+  examId             String?
+  order              Int
+  type               QType
+  points             Decimal           @db.Decimal(6, 2)
+  prompt             String?
+  options            Json?
+  correctOptionIds   Json?
+  starterCode        String?
+  testcases          Json?
+  languageHints      Json?
+  wordLimit          Int?
+  mediaAssetId       String?
+  passageAssetId     String?
+  maxDurationSec     Int?
+  clozeTemplate      String?
+  blanks             Json?
+  clozeConfig        Json?
+  config             Json?
+  rubricId           String?
+  status             QuestionStatus    @default(ACTIVE)
+  invalidationReason String?
+  invalidatedAt      DateTime?
+  invalidatedById    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  language           String?
+  exam               Exam?             @relation(fields: [examId], references: [id])
+  invalidatedBy      User?             @relation("QuestionInvalidator", fields: [invalidatedById], references: [id])
+  mediaAsset         Asset?            @relation("Question_mediaAsset", fields: [mediaAssetId], references: [id])
+  passageAsset       Asset?            @relation("Question_passageAsset", fields: [passageAssetId], references: [id])
+  rubric             Rubric?           @relation("QuestionRubric", fields: [rubricId], references: [id])
+  reports            QuestionReport[]
+  responses          Response[]
+  sectionLinks       SectionQuestion[]
+
+  @@index([examId])
+  @@index([type])
+  @@index([status])
+}
+
+model Attempt {
+  id               String           @id @default(cuid())
+  examId           String
+  studentId        String
+  attemptNo        Int              @default(1)
+  startedAt        DateTime         @default(now())
+  submittedAt      DateTime?
+  status           AttemptStatus    @default(IN_PROGRESS)
+  score            Decimal?         @db.Decimal(8, 2)
+  maxScore         Decimal?         @db.Decimal(8, 2)
+  timeSpentSec     Int              @default(0)
+  orderMap         Json?
+  submissionReason String?
+  submissionType   SubmissionType   @default(NORMAL)
+  exam             Exam             @relation(fields: [examId], references: [id])
+  student          User             @relation(fields: [studentId], references: [id])
+  sections         AttemptSection[]
+  responses        Response[]
+
+  @@unique([examId, studentId, attemptNo])
+  @@index([examId])
+  @@index([studentId])
+  @@index([startedAt])
+  @@index([score])
+}
+
+model AttemptSection {
+  id           String               @id @default(cuid())
+  attemptId    String
+  sectionId    String
+  status       SectionAttemptStatus @default(NOT_STARTED)
+  startedAt    DateTime?
+  submittedAt  DateTime?
+  timeSpentSec Int                  @default(0)
+  remainingSec Int?
+  lockReason   String?
+  attempt      Attempt              @relation(fields: [attemptId], references: [id])
+  section      ExamSection          @relation(fields: [sectionId], references: [id])
+
+  @@unique([attemptId, sectionId])
+  @@index([attemptId])
+  @@index([sectionId])
+}
+
+model Response {
+  id               String             @id @default(cuid())
+  attemptId        String
+  questionId       String
+  type             QType
+  answer           Json?
+  chosenOptionIds  Json?
+  code             String?
+  language         String?
+  textAnswer       String?
+  audioAssetId     String?
+  gradingMode      GradingMode?
+  verdict          String?
+  earnedPoints     Decimal?           @db.Decimal(6, 2)
+  manualAdjustment Decimal?           @db.Decimal(6, 2)
+  feedback         String?
+  judgeRunId       String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  evaluations      Evaluation[]
+  gradingJobs      GradingJob[]
+  attempt          Attempt            @relation(fields: [attemptId], references: [id])
+  audioAsset       Asset?             @relation("Response_audioAsset", fields: [audioAssetId], references: [id])
+  question         Question           @relation(fields: [questionId], references: [id])
+  artifacts        ResponseArtifact[]
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId, questionId])
+  @@index([type])
+}
+
+model Evaluation {
+  id         String         @id @default(cuid())
+  responseId String
+  kind       EvaluationKind
+  assessorId String?
+  rubricId   String?
+  score      Decimal?       @db.Decimal(6, 2)
+  breakdown  Json?
+  comments   String?
+  isFinal    Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+  assessor   User?          @relation("EvaluationAssessor", fields: [assessorId], references: [id])
+  response   Response       @relation(fields: [responseId], references: [id])
+  rubric     Rubric?        @relation("EvaluationRubric", fields: [rubricId], references: [id])
+
+  @@index([responseId])
+  @@index([kind])
+  @@index([assessorId])
+}
+
+model Rubric {
+  id          String       @id @default(cuid())
+  name        String
+  criteria    Json
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  evaluations Evaluation[] @relation("EvaluationRubric")
+  questions   Question[]   @relation("QuestionRubric")
+}
+
+model Asset {
+  id                  String             @id @default(cuid())
+  kind                AssetKind
+  url                 String
+  durationSec         Int?
+  meta                Json?
+  createdAt           DateTime           @default(now())
+  mediaForQuestions   Question[]         @relation("Question_mediaAsset")
+  passageForQuestions Question[]         @relation("Question_passageAsset")
+  responseAudioFor    Response[]         @relation("Response_audioAsset")
+  artifacts           ResponseArtifact[]
+}
+
+model ResponseArtifact {
+  id         String   @id @default(cuid())
+  responseId String
+  assetId    String
+  createdAt  DateTime @default(now())
+  asset      Asset    @relation(fields: [assetId], references: [id])
+  response   Response @relation(fields: [responseId], references: [id])
+
+  @@index([responseId])
+  @@index([assetId])
+}
+
+model GradingJob {
+  id         String   @id @default(cuid())
+  responseId String
+  provider   String
+  status     String   @default("QUEUED")
+  payload    Json?
+  result     Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  response   Response @relation(fields: [responseId], references: [id])
+
+  @@index([responseId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ExamTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  structure   Json
+  isPublic    Boolean  @default(false)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  creator     User     @relation(fields: [createdBy], references: [id])
+
+  @@index([isPublic])
+  @@index([createdBy])
+}
+
+model QuestionReport {
+  id          String       @id @default(cuid())
+  questionId  String
+  studentId   String
+  examId      String
+  description String?
+  status      ReportStatus @default(OPEN)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  exam        Exam         @relation(fields: [examId], references: [id])
+  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  student     User         @relation(fields: [studentId], references: [id])
+
+  @@index([questionId])
+  @@index([examId])
+  @@index([status])
+}
+
+model RedeemItem {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  pointsCost  Int
+  isActive    Boolean       @default(true)
+  itemType    String
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  orders      RedeemOrder[]
+
+  @@index([isActive])
+  @@index([itemType])
+}
+
+model RedeemOrder {
+  id              String            @id @default(cuid())
+  userId          String
+  itemId          String
+  pointsCost      Int
+  status          RedeemOrderStatus @default(PENDING)
+  adminNotes      String?
+  rejectionReason String?
+  reportUrl       String?
+  processedById   String?
+  processedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  leaveDate       DateTime?
+  message         String?
+  item            RedeemItem        @relation(fields: [itemId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([itemId])
+}
+
+model PointsHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  points      Int
+  balance     Int
+  type        String
+  description String?
+  relatedId   String?
+  relatedType String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  link      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model Meeting {
+  id           String               @id @default(cuid())
+  title        String
+  description  String?
+  date         DateTime
+  meetLink     String?
+  hostId       String
+  transcript   String?
+  summary      String?
+  status       MeetingStatus        @default(SCHEDULED)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  host         User                 @relation("HostedMeetings", fields: [hostId], references: [id])
+  participants MeetingParticipant[]
+
+  @@index([hostId])
+}
+
+model MeetingParticipant {
+  id        String   @id @default(cuid())
+  meetingId String
+  userId    String
+  joinedAt  DateTime @default(now())
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+}
+
 enum Role {
   STUDENT
   STAFF
+  ADMIN
 }
 
 enum ExamStatus {
@@ -91,486 +530,14 @@ enum SectionAttemptStatus {
   LOCKED
 }
 
-model User {
-  id              String  @id @default(cuid())
-  reg_no          String? @unique
-  email           String  @unique
-  name            String?
-  password        String?
-  pictureUrl      String?
-  pictureData     Bytes?
-  pictureMimeType String?
-  role            Role    @default(STUDENT)
-  year            Int?
-  department      String?
-  section         String?
-  leetcodeId      String?
-  leetcodeStats   Json?
-  settings        Json?
-  points          Int     @default(0)
-
-  attempts      Attempt[]
-  pointsHistory PointsHistory[]
-  redeemOrders  RedeemOrder[]
-  notifications Notification[]
-
-  // back-relations with explicit names
-  invalidatedQuestions Question[]       @relation("QuestionInvalidator")
-  reportedQuestions    QuestionReport[]
-  assessments          Evaluation[]     @relation("EvaluationAssessor")
-  createdTemplates     ExamTemplate[]
-
-
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([role])
-  @@index([year, department, section])
-}
-
-model Exam {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  startAt     DateTime
-  endAt       DateTime
-
-  timingMode        TimingMode        @default(OVERALL_ONLY)
-  durationMins      Int
-  sectionLockPolicy SectionLockPolicy @default(NONE)
-
-  randomizeQuestions   Boolean    @default(false)
-  negativeMarkPerWrong Decimal?   @db.Decimal(5, 2)
-  status               ExamStatus @default(DRAFT)
-  releaseResults       Boolean    @default(true)
-  maxAttempts          Int? // null means unlimited attempts
-  maxTabSwitches       Int? // null means unlimited tab switches
-  allowedLanguages     Json? // Array of allowed programming languages for coding questions
-
-  questions   Question[]
-  assignments ExamAssignment[]
-  attempts    Attempt[]
-  sections    ExamSection[]
-  reports     QuestionReport[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status])
-  @@index([startAt, endAt])
-}
-
-model ExamAssignment {
-  id               String  @id @default(uuid())
-  examId           String
-  exam             Exam    @relation(fields: [examId], references: [id])
-  assignToAll      Boolean @default(false)
-  cohortYear       Int?
-  cohortDepartment String?
-  cohortSection    String?
-  studentIds       Json?
-
-  @@index([examId])
-  @@index([cohortYear, cohortDepartment, cohortSection])
-}
-
-model ExamSection {
-  id     String @id @default(cuid())
-  examId String
-  exam   Exam   @relation(fields: [examId], references: [id])
-
-  title        String
-  order        Int
-  description  String?
-  durationMins Int?
-  startsAt     DateTime?
-  endsAt       DateTime?
-
-  sectionQuestions SectionQuestion[]
-  attempts         AttemptSection[] // back-rel
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([examId])
-  @@index([order])
-}
-
-model SectionQuestion {
-  id         String      @id @default(cuid())
-  sectionId  String
-  section    ExamSection @relation(fields: [sectionId], references: [id])
-  questionId String
-  question   Question    @relation(fields: [questionId], references: [id])
-  order      Int
-
-  @@unique([sectionId, questionId])
-  @@index([questionId])
-}
-
-model Question {
-  id     String @id @default(cuid())
-  examId String?
-  exam   Exam?   @relation(fields: [examId], references: [id])
-
-  // If not using sections, use this order; otherwise SectionQuestion.order applies
-  order  Int
-  type   QType
-  points Decimal @db.Decimal(6, 2)
-  prompt String?
-
-  // MCQ
-  options          Json?
-  correctOptionIds Json?
-
-  // CODING
-  starterCode   String?
-  language      String? // For SQL questions: "sql"
-  testcases     Json?
-  languageHints Json?
-
-  // ESSAY
-  wordLimit Int?
-
-  // SPEAKING/LISTENING/READING media/passage
-  mediaAssetId String?
-  mediaAsset   Asset?  @relation("Question_mediaAsset", fields: [mediaAssetId], references: [id])
-
-  passageAssetId String?
-  passageAsset   Asset?  @relation("Question_passageAsset", fields: [passageAssetId], references: [id])
-
-  maxDurationSec Int?
-
-  // FILL (cloze)
-  clozeTemplate String?
-  blanks        Json?
-  clozeConfig   Json?
-
-  // Generic per-type add-ons
-  config Json?
-
-  // Rubric for subjective grading
-  rubricId String?
-  rubric   Rubric? @relation("QuestionRubric", fields: [rubricId], references: [id])
-
-  // Invalidation
-  status             QuestionStatus @default(ACTIVE)
-  invalidationReason String?
-  invalidatedAt      DateTime?
-  invalidatedById    String?
-  invalidatedBy      User?          @relation("QuestionInvalidator", fields: [invalidatedById], references: [id])
-
-  responses    Response[]
-  sectionLinks SectionQuestion[]
-  reports      QuestionReport[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([examId])
-  @@index([type])
-  @@index([status])
-}
-
-model Attempt {
-  id        String @id @default(cuid())
-  examId    String
-  exam      Exam   @relation(fields: [examId], references: [id])
-  studentId String
-  student   User   @relation(fields: [studentId], references: [id])
-
-  attemptNo Int @default(1)
-
-  startedAt        DateTime       @default(now())
-  submittedAt      DateTime?
-  status           AttemptStatus  @default(IN_PROGRESS)
-  submissionType   SubmissionType @default(NORMAL)
-  submissionReason String?
-  score            Decimal?       @db.Decimal(8, 2)
-  maxScore         Decimal?       @db.Decimal(8, 2)
-  timeSpentSec     Int            @default(0)
-
-  orderMap Json?
-
-  sections  AttemptSection[]
-  responses Response[]
-
-  @@unique([examId, studentId, attemptNo])
-  @@index([examId])
-  @@index([studentId])
-  @@index([startedAt])
-  @@index([score])
-}
-
 enum SubmissionType {
   NORMAL
   AUTO
 }
 
-model AttemptSection {
-  id        String      @id @default(cuid())
-  attemptId String
-  attempt   Attempt     @relation(fields: [attemptId], references: [id])
-  sectionId String
-  section   ExamSection @relation(fields: [sectionId], references: [id])
-
-  status      SectionAttemptStatus @default(NOT_STARTED)
-  startedAt   DateTime?
-  submittedAt DateTime?
-
-  timeSpentSec Int     @default(0)
-  remainingSec Int?
-  lockReason   String?
-
-  @@unique([attemptId, sectionId])
-  @@index([attemptId])
-  @@index([sectionId])
+enum MeetingStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
 }
-
-model Response {
-  id         String   @id @default(cuid())
-  attemptId  String
-  attempt    Attempt  @relation(fields: [attemptId], references: [id])
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id])
-  type       QType
-
-  // Generic answer payload (works for all types)
-  answer Json?
-
-  // Quick-access (optional)
-  chosenOptionIds Json?
-  code            String?
-  language        String?
-  textAnswer      String?
-
-  audioAssetId String?
-  audioAsset   Asset?  @relation("Response_audioAsset", fields: [audioAssetId], references: [id])
-
-  // Final/aggregated grading
-  gradingMode      GradingMode?
-  verdict          String?
-  earnedPoints     Decimal?     @db.Decimal(6, 2)
-  manualAdjustment Decimal?     @db.Decimal(6, 2)
-  feedback         String?
-
-  evaluations Evaluation[]
-  artifacts   ResponseArtifact[]
-
-  judgeRunId  String?
-  gradingJobs GradingJob[] // back-rel
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([attemptId, questionId])
-  @@index([attemptId, questionId])
-  @@index([type])
-}
-
-model Evaluation {
-  id         String   @id @default(cuid())
-  responseId String
-  response   Response @relation(fields: [responseId], references: [id])
-
-  kind       EvaluationKind
-  assessorId String?
-  assessor   User?          @relation("EvaluationAssessor", fields: [assessorId], references: [id])
-
-  rubricId String?
-  rubric   Rubric? @relation("EvaluationRubric", fields: [rubricId], references: [id])
-
-  score     Decimal? @db.Decimal(6, 2)
-  breakdown Json?
-  comments  String?
-  isFinal   Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-
-  @@index([responseId])
-  @@index([kind])
-  @@index([assessorId])
-}
-
-model Rubric {
-  id        String   @id @default(cuid())
-  name      String
-  criteria  Json
-  createdBy String?
-  createdAt DateTime @default(now())
-
-  questions   Question[]   @relation("QuestionRubric")
-  evaluations Evaluation[] @relation("EvaluationRubric")
-}
-
-model Asset {
-  id                  String     @id @default(cuid())
-  kind                AssetKind
-  url                 String
-  durationSec         Int?
-  meta                Json?
-  createdAt           DateTime   @default(now())
-  mediaForQuestions   Question[] @relation("Question_mediaAsset")
-  passageForQuestions Question[] @relation("Question_passageAsset")
-  responseAudioFor    Response[] @relation("Response_audioAsset")
-
-  artifacts ResponseArtifact[]
-}
-
-model ResponseArtifact {
-  id         String   @id @default(cuid())
-  responseId String
-  response   Response @relation(fields: [responseId], references: [id])
-  assetId    String
-  asset      Asset    @relation(fields: [assetId], references: [id])
-  createdAt  DateTime @default(now())
-
-  @@index([responseId])
-  @@index([assetId])
-}
-
-model GradingJob {
-  id         String   @id @default(cuid())
-  responseId String
-  response   Response @relation(fields: [responseId], references: [id])
-  provider   String
-  status     String   @default("QUEUED")
-  payload    Json?
-  result     Json?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([responseId])
-}
-
-model RefreshToken {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-model ExamTemplate {
-  id          String  @id @default(cuid())
-  title       String
-  description String?
-
-  // JSON structure of the exam (sections, questions, settings)
-  structure Json
-
-  // Metadata
-  isPublic  Boolean @default(false)
-  createdBy String
-  creator   User    @relation(fields: [createdBy], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isPublic])
-  @@index([createdBy])
-}
-
-model QuestionReport {
-  id         String   @id @default(cuid())
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  studentId  String
-  student    User     @relation(fields: [studentId], references: [id])
-  examId     String
-  exam       Exam     @relation(fields: [examId], references: [id])
-
-  description String?
-  status      ReportStatus @default(OPEN)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([questionId])
-  @@index([examId])
-  @@index([status])
-}
-
-model RedeemItem {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  pointsCost  Int
-  isActive    Boolean @default(true)
-  itemType    String // e.g., "LEAVE_1_DAY", "LEAVE_1_WEEK"
-  metadata    Json? // Additional data like leave duration, etc.
-
-  orders RedeemOrder[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([isActive])
-  @@index([itemType])
-}
-
-model RedeemOrder {
-  id              String            @id @default(cuid())
-  userId          String
-  user            User              @relation(fields: [userId], references: [id])
-  itemId          String
-  item            RedeemItem        @relation(fields: [itemId], references: [id])
-  pointsCost      Int
-  status          RedeemOrderStatus @default(PENDING)
-  leaveDate       DateTime? // Date when the student wants to take leave
-  message         String? // Optional reason/message from student
-  adminNotes      String?
-  rejectionReason String?
-  reportUrl       String? // URL to generated report/document
-
-  processedById String? // Admin who processed the order
-  processedAt   DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([status])
-  @@index([itemId])
-}
-
-model PointsHistory {
-  id          String  @id @default(cuid())
-  userId      String
-  user        User    @relation(fields: [userId], references: [id])
-  points      Int // Positive for earned, negative for spent
-  balance     Int // User's balance after this transaction
-  type        String // "EARNED", "SPENT", "REFUND", "ADJUSTMENT"
-  description String?
-  relatedId   String? // ID of related entity (e.g., attemptId, orderId)
-  relatedType String? // Type of related entity (e.g., "ATTEMPT", "ORDER")
-
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([type])
-  @@index([createdAt])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  title     String
-  message   String
-  type      String // "REDEEM", "INFO", "ALERT"
-  isRead    Boolean  @default(false)
-  link      String? // Optional link to redirect to
-  metadata  Json? // Any extra data needed
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([isRead])
-}
-
-// ============================================
-// Clash of Codes Models - REMOVED
-// ============================================

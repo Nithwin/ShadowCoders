@@ -144,7 +144,7 @@ GOOGLE_CLIENT_SECRET=
 - **Create Exams** - Create exams with multiple sections
 - **Manage Questions** - Add, edit, delete questions
 - **Question Types** - MCQ, Coding, Essay questions
-- **AI Question Generation** - Generate questions using Google Gemini
+- **AI Question Generation** - Generate questions using GPT-5.2-Codex (with Gemini fallback)
 - **Assign Exams** - Assign exams to specific students or all students
 - **Publish Exams** - Publish exams for students to take
 - **View Submissions** - View and review student submissions

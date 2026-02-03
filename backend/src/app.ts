@@ -21,6 +21,7 @@ import { registerGradingRoutes } from './modules/grading/grading.routes';
 import { registerAnalyticsRoutes } from './modules/analytics/analytics.routes';
 import { registerSettingsRoutes } from './modules/settings/settings.routes';
 import { registerUserRoutes } from './modules/users/users.routes';
+import { registerMeetingRoutes } from './routes/meeting.routes';
 import { registerTemplateRoutes } from './modules/exams/templates/exam-template.routes';
 import { registerLeetCodeRoutes } from './modules/leetcode/leetcode.routes';
 import { reportRoutes } from './modules/reports/report.routes';
@@ -33,8 +34,8 @@ import { registerSystemRoutes } from './modules/system/system.routes';
 export const createApp = () => {
     const app = express();
 
-    // Trust proxy to get correct client info
-    app.set('trust proxy', true);
+    // Trust proxy to get correct client info (set to 1 for single proxy, not true for security)
+    app.set('trust proxy', 1);
 
     // Configure helmet to not interfere with CORS
     app.use(helmet({
@@ -42,12 +43,20 @@ export const createApp = () => {
         crossOriginResourcePolicy: false,
     }));
 
+    // CORS MUST come before rate limiting to handle OPTIONS preflight requests
+    // Standard CORS Middleware
+    const allowedOrigins = buildAllowedOrigins();
+    const corsOptions = createCorsOptions(allowedOrigins);
+    app.use(cors(corsOptions));
+
     // Rate limiting: 100 requests per 15 minutes
+    // Skip rate limiting for OPTIONS requests (CORS preflight)
     const limiter = rateLimit({
         windowMs: 15 * 60 * 1000,
         max: 100,
         standardHeaders: true,
         legacyHeaders: false,
+        skip: (req) => req.method === 'OPTIONS', // Skip preflight requests
         message: {
             error: {
                 code: 'TOO_MANY_REQUESTS',
@@ -56,13 +65,8 @@ export const createApp = () => {
         }
     });
 
-    // Apply rate limiting to all requests
+    // Apply rate limiting to all requests (except OPTIONS)
     app.use(limiter);
-
-    // Standard CORS Middleware
-    const allowedOrigins = buildAllowedOrigins();
-    const corsOptions = createCorsOptions(allowedOrigins);
-    app.use(cors(corsOptions));
 
     // Request timeout middleware (prevents hanging requests)
     app.use((req, res, next) => {
@@ -151,6 +155,7 @@ export const createApp = () => {
     registerAnalyticsRoutes(app);
     registerSettingsRoutes(app);
     registerUserRoutes(app);
+    registerMeetingRoutes(app);
     registerTemplateRoutes(app);
     registerLeetCodeRoutes(app);
     app.use('/api/reports', reportRoutes);

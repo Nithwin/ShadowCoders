@@ -68,12 +68,31 @@ body{
         }
     }
 
+    @keyframes reactionPop {
+        0% {
+            opacity: 0;
+            transform: scale(0) translateY(0);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.2) translateY(-20px);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(1) translateY(-60px);
+        }
+    }
+
     .animate-fade-in {
         animation: fade-in 0.3s ease-out;
     }
 
     .animate-scale-in {
         animation: scale-in 0.3s ease-out;
+    }
+
+    .animate-bounce-in {
+        animation: reactionPop 0.5s ease-out forwards;
     }
 }
 

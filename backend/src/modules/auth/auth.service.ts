@@ -14,11 +14,13 @@ import path from 'path';
 
 export const handleEmailLogin = async (input: any) => {
   try {
-    // Normalize email to lowercase for consistent lookup
+    // Normalize email to lowercase for consistent lookup and trim whitespace
     const normalizedEmail = input.email?.toLowerCase().trim();
+    // Trim password to remove any accidental whitespace
+    const password = input.password?.trim();
 
     
-    if (!normalizedEmail || !input.password) {
+    if (!normalizedEmail || !password) {
       throw { status: 400, message: 'Email and password are required' };
     }
 
@@ -29,8 +31,10 @@ export const handleEmailLogin = async (input: any) => {
       throw { status: 401, message: 'Invalid email or password' };
     }
 
-    const isPasswordValid = await bcrypt.compare(input.password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      // Log for debugging (remove in production)
+      console.log(`Login failed for ${normalizedEmail}`);
       throw { status: 401, message: 'Invalid email or password' };
     }
 

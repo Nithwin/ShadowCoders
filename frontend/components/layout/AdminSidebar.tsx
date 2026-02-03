@@ -17,7 +17,8 @@ import {
   Settings,
   AlertTriangle,
   ShoppingCart,
-  Activity
+  Activity,
+  Video
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -34,6 +35,7 @@ const navLinks = [
   { name: 'LeetCode Stats', href: '/admin/leetcode', icon: Code2 },
   { name: 'Users', href: '/admin/users', icon: UserIcon },
   { name: 'Resource Monitoring', href: '/admin/resources', icon: Activity },
+  { name: 'Meetings', href: '/admin/meetings', icon: Video },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
@@ -81,6 +83,7 @@ export default function AdminSidebar() {
               width={40} 
               height={40}
               priority
+              style={{ width: 'auto', height: 'auto' }}
             />
             <span className="ml-2 text-xl font-bold font-alan-sans">ShadowCoders</span>
           </div>

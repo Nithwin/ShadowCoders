@@ -20,7 +20,7 @@ ShadowCoders is a comprehensive online examination platform designed for conduct
 ### Key Features
 - **Multi-question Type Support**: MCQ, Coding, Essay, Speaking, Listening, Fill-in-the-blank, Reading
 - **Automated Grading**: Real-time code execution and automated scoring
-- **AI Integration**: Google Gemini AI for question generation
+- **AI Integration**: GPT-5.2-Codex for advanced question generation (with Google Gemini AI fallback)
 - **Real-time Monitoring**: Socket.IO for live exam monitoring
 - **Anti-cheating Measures**: Fullscreen enforcement, tab switch detection, copy/paste prevention
 - **Manual Grading**: Rubric-based evaluation system for subjective questions
@@ -63,9 +63,9 @@ ShadowCoders is a comprehensive online examination platform designed for conduct
         ┌──────────────────┼──────────────────┐
         │                  │                  │
 ┌───────▼──────┐  ┌────────▼────────┐  ┌─────▼──────┐
-│  PostgreSQL  │  │   Judge0 API    │  │  Gemini AI │
-│   Database   │  │  (Code Exec)    │  │   Service  │
-└──────────────┘  └─────────────────┘  └────────────┘
+│  PostgreSQL  │  │   Judge0 API    │  │ GPT-5.2-Codex/│
+│   Database   │  │  (Code Exec)    │  │  Gemini AI   │
+└──────────────┘  └─────────────────┘  └──────────────┘
 ```
 
 ### Component Interaction Flow
@@ -75,7 +75,7 @@ User Request Flow:
 1. User → Frontend (Next.js)
 2. Frontend → Backend API (Express)
 3. Backend → Database (Prisma ORM)
-4. Backend → External Services (Judge0, Gemini)
+4. Backend → External Services (Judge0, GPT-5.2-Codex/Gemini)
 5. Response flows back through the chain
 
 Real-time Flow:
@@ -95,7 +95,7 @@ Real-time Flow:
 - **Authentication**: JWT (jsonwebtoken) + bcrypt
 - **WebSocket**: Socket.IO 4.x
 - **Code Execution**: Judge0 API + Local Executor
-- **AI Service**: Google Generative AI (Gemini)
+- **AI Service**: GPT-5.2-Codex (primary) / Google Generative AI (Gemini fallback)
 - **File Upload**: Multer
 - **Security**: Helmet, CORS
 
