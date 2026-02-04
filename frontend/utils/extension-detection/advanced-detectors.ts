@@ -102,15 +102,17 @@ export function checkStylesheets(): boolean {
  * This is the most reliable method but requires permissions
  */
 export async function getChromeExtensions(): Promise<string[]> {
-  if (typeof chrome === 'undefined' || !chrome.management) {
+  const chrome = typeof window !== 'undefined' ? (window as any).chrome : undefined;
+
+  if (!chrome || !chrome.management) {
     return [];
   }
   
   try {
     const extensions = await chrome.management.getAll();
     return extensions
-      .filter(ext => ext.enabled && ext.type === 'extension')
-      .map(ext => ext.name);
+      .filter((ext: any) => ext.enabled && ext.type === 'extension')
+      .map((ext: any) => ext.name);
   } catch (e) {
     return [];
   }

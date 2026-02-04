@@ -249,3 +249,15 @@ export const toggleResultLockHandler: RequestHandler = async (req, res, next) =>
     next(error);
   }
 };
+export const triggerGenerationHandler: RequestHandler = async (req, res, next) => {
+  try {
+    const examId = req.params.examId;
+    if (!examId) {
+      return next({ status: 400, message: 'Missing examId parameter' });
+    }
+    const result = await examService.triggerManualGeneration(examId);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

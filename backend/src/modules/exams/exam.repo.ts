@@ -211,6 +211,7 @@ export const findExamByIdForStudent = async (params: {
       status: true,
       allowedLanguages: true, // Include allowed languages for coding questions
       maxAttempts: true, // Include maxAttempts
+      mode: true, // Include mode to show adaptive instructions
       // Include attempts to check if student has completed or has in-progress attempt
       attempts: {
         where: {
@@ -224,6 +225,7 @@ export const findExamByIdForStudent = async (params: {
           status: true,
           submittedAt: true,
           attemptNo: true,
+          orderMap: true,
         },
         orderBy: {
           attemptNo: 'desc',
@@ -232,9 +234,11 @@ export const findExamByIdForStudent = async (params: {
       // Include question types to check if exam has speaking questions
       questions: {
         select: {
+          id: true,
           type: true,
+          difficulty: true, // Needed for adaptive logic if frontend cares, or for internal filter
         },
-        distinct: ['type'],
+        // distinct: ['type'], // Cannot use distinct with other fields easily in Prisma if we want all IDs
       },
       // Count attempts
       _count: {
@@ -261,9 +265,34 @@ export const findExamByIdForStudent = async (params: {
   // Extract unique question types
   const questionTypes = questions ? [...new Set(questions.map(q => q.type))] : [];
   const hasSpeakingQuestions = questionTypes.includes('SPEAKING');
+
+  // --- Dynamic Exam Filtering: Only show questions present in orderMap ---
+  let visibleQuestions = questions;
+  if (exam.mode === 'DYNAMIC') { // Check mode directly
+      if (latestAttempt && latestAttempt.orderMap && Array.isArray(latestAttempt.orderMap)) {
+          const authorizedIds = new Set(latestAttempt.orderMap as unknown as string[]);
+          visibleQuestions = visibleQuestions.filter(q => authorizedIds.has(q.id));
+          
+          // Sort visible questions based on orderMap
+          const orderMap = latestAttempt.orderMap as unknown as string[];
+          visibleQuestions.sort((a, b) => {
+              const idxA = orderMap.indexOf(a.id);
+              const idxB = orderMap.indexOf(b.id);
+              return idxA - idxB;
+          });
+      } else {
+          // If no attempt started yet (or no orderMap), show nothing (or pool? No, strict visibility)
+          // Actually, before start, maybe show count or first sample?
+          // Safest to show EMPTY until they click Start.
+          // BUT: The UI might crash if questions are empty?
+          // Let's rely on Start Exam logic to populate.
+          visibleQuestions = []; 
+      }
+  }
   
   return {
     ...examData,
+    questions: visibleQuestions, // Return filtered questions
     hasAttempt: hasAttempt,
     attemptId: latestAttempt?.id || null,
     attemptStatus: latestAttempt?.status || null,
@@ -434,6 +463,16 @@ export const updateExam = (
       sectionLockPolicy: true,
       status: true,
       releaseResults: true,
+      mode: true,
+      dynamicQuestionCount: true,
+      dynamicTopics: true,
+      randomizeQuestions: true,
+      negativeMarkPerWrong: true,
+      maxAttempts: true,
+      maxTabSwitches: true,
+      allowedLanguages: true,
+      enableProctoring: true,
+      generationPrompt: true,
     },
   });
 };

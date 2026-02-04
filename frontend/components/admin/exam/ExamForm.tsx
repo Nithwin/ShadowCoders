@@ -54,9 +54,21 @@ export const examFormSchema = z.object({
   allowedLanguages: z.array(z.string()).optional(),
   releaseResults: z.boolean().optional(),
   enableProctoring: z.boolean().optional(),
+  mode: z.enum(['STANDARD', 'DYNAMIC']).default('STANDARD'),
+  dynamicQuestionCount: z.coerce.number().int().min(1).optional(),
+  generationPrompt: z.string().optional(),
+  dynamicTopics: z.array(z.string()).optional(),
 }).refine((data) => new Date(data.startAt) < new Date(data.endAt), {
   message: 'Start time must be before end time',
   path: ['startAt'],
+}).refine((data) => {
+  if (data.mode !== 'DYNAMIC') return true;
+  const hasCount = typeof data.dynamicQuestionCount === 'number' && data.dynamicQuestionCount >= 1;
+  const hasTopics = Array.isArray(data.dynamicTopics) && data.dynamicTopics.length > 0;
+  return hasCount && hasTopics;
+}, {
+  message: 'Dynamic mode requires questions per student and at least one topic.',
+  path: ['dynamicTopics'],
 });
 
 export type ExamFormInput = z.input<typeof examFormSchema>;
@@ -165,7 +177,14 @@ export default function ExamForm({
   const tabErrors = {
     basic: !!(errors.title || errors.description),
     timing: !!(errors.startAt || errors.endAt || errors.durationMins || errors.timingMode || errors.sectionLockPolicy),
-    settings: !!(errors.randomizeQuestions || errors.negativeMarkPerWrong || errors.allowedLanguages || errors.releaseResults),
+    settings: !!(
+      errors.randomizeQuestions ||
+      errors.negativeMarkPerWrong ||
+      errors.allowedLanguages ||
+      errors.releaseResults ||
+      errors.dynamicQuestionCount ||
+      errors.dynamicTopics
+    ),
     security: !!(errors.maxAttempts || errors.maxTabSwitches),
   };
 
@@ -231,6 +250,8 @@ export default function ExamForm({
           </div>
         </div>
       )}
+
+
 
       {displayError && (
         <div className="p-4 rounded-md bg-red-50 border border-red-200 text-red-800">

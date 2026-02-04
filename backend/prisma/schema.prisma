@@ -36,6 +36,7 @@ model User {
   invalidatedQuestions  Question[]           @relation("QuestionInvalidator")
   reportedQuestions     QuestionReport[]
   redeemOrders          RedeemOrder[]
+  dynamicSessions       DynamicExamSession[]
 
   @@index([role])
   @@index([year, department, section])
@@ -60,8 +61,13 @@ model Exam {
   maxTabSwitches       Int?
   releaseResults       Boolean           @default(true)
   enableProctoring     Boolean           @default(false)
+  mode                 ExamMode          @default(STANDARD)
+  dynamicQuestionCount Int?              @default(5)
+  generationPrompt     String?
+  dynamicTopics        String[]
   attempts             Attempt[]
   assignments          ExamAssignment[]
+  dynamicSessions      DynamicExamSession[]
   sections             ExamSection[]
   questions            Question[]
   reports              QuestionReport[]
@@ -121,6 +127,7 @@ model Question {
   order              Int
   type               QType
   points             Decimal           @db.Decimal(6, 2)
+  difficulty         Difficulty        @default(MEDIUM)
   prompt             String?
   options            Json?
   correctOptionIds   Json?
@@ -258,6 +265,7 @@ model Evaluation {
   rubricId   String?
   score      Decimal?       @db.Decimal(6, 2)
   breakdown  Json?
+  complexity Json? // Stores { time: "O(n)", space: "O(1)", explanation: "..." }
   comments   String?
   isFinal    Boolean        @default(false)
   createdAt  DateTime       @default(now())
@@ -570,4 +578,45 @@ enum MeetingStatus {
   ONGOING
   COMPLETED
   CANCELLED
+}
+
+enum ExamMode {
+  STANDARD
+  DYNAMIC
+}
+
+enum Difficulty {
+  VERY_EASY
+  EASY
+  MEDIUM
+  HARD
+}
+
+model QuestionPool {
+  id          String     @id @default(cuid())
+  topic       String
+  difficulty  Difficulty
+  data        Json
+  isUsed      Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  @@index([topic, difficulty])
+  @@index([isUsed])
+}
+
+model DynamicExamSession {
+  id                String     @id @default(cuid())
+  studentId         String
+  examId            String
+  currentDifficulty Difficulty @default(MEDIUM)
+  questionsAnswered Int        @default(0)
+  history           Json?      // Log of [{ questionId, timeTaken, passed, difficulty }]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  student User @relation(fields: [studentId], references: [id])
+  exam    Exam @relation(fields: [examId], references: [id])
+
+  @@unique([studentId, examId])
+  @@index([examId])
 }

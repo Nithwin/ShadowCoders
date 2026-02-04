@@ -30,6 +30,8 @@ import { registerRedeemRoutes } from './modules/redeem/redeem.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import { registerSystemRoutes } from './modules/system/system.routes';
 import proctoringRoutes from './modules/proctoring/proctoring.routes';
+import generationRoutes from './modules/generation/generation.routes';
+import adaptiveRoutes from './modules/adaptive/adaptive.routes';
 
 
 export const createApp = () => {
@@ -175,7 +177,15 @@ export const createApp = () => {
     registerRedeemRoutes(app);
     app.use('/api/notifications', notificationRoutes);
     registerSystemRoutes(app);
+    registerSystemRoutes(app);
     app.use('/api/proctoring', proctoringRoutes);
+    app.use('/api/generation', generationRoutes);
+    
+    // Generic Code Execution
+    const { registerExecutionRoutes } = require('./modules/execution/execution.routes');
+    registerExecutionRoutes(app);
+
+    app.use('/api/adaptive', adaptiveRoutes);
 
 
     // In production, serve the built frontend (Next.js static export)

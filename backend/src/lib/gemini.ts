@@ -8,13 +8,12 @@ import { env } from '../config/env'; // Assuming your env.ts has GOOGLE_API_KEY
 const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY!);
 
 // List of models to try in order of preference
-// Based on Google AI Studio API keys and user's working reference
-// GPT-5.2-Codex is enabled for all clients (fallback to Gemini models)
-// Note: API keys from AI Studio (https://aistudio.google.com/api-keys) 
-// have access to different models than Vertex AI
+// Based on Google Generative AI API available models
+// Only include valid Gemini models that are available via Google AI Studio
 const MODEL_PRIORITIES = [
-  'gpt-5.2-codex',           // GPT-5.2-Codex enabled for all clients
-  'gemini-2.5-flash',        // Confirmed working backup model
+  'gemini-3-flash-preview',  // Gemini 3 (found to work)
+  'gemini-2.5-flash',        // Gemini 2.5 (available)
+  'gemini-2.0-flash',        // Latest stable flash model
   'gemini-1.5-flash-latest', // Stable flash model
   'gemini-1.5-flash',        // Flash model  
   'gemini-1.5-pro-latest',   // Pro model latest
@@ -83,79 +82,102 @@ const getModel = (modelName?: string) => {
 /**
  * Sends a structured prompt to the Gemini API and expects a JSON string back.
  * Tries multiple models in order if one fails.
+ * Implements exponential backoff for rate limiting (429) errors.
  */
 export const generateJsonFromAi = async (prompt: string): Promise<string> => {
   if (!env.GOOGLE_API_KEY) {
     throw { status: 500, message: 'Google API key is not configured. Please contact administrator.' };
   }
 
-
   let lastError: any = null;
   const errorsByModel: Array<{ model: string; error: string }> = [];
   
   // Try each model in priority order
   for (const modelName of MODEL_PRIORITIES) {
-    try {
-      const currentModel = getModel(modelName);
-      
-      const result = await currentModel.generateContent(prompt);
-      const response = result.response;
-      
-      // Check if the response was blocked by safety settings
-      if (response.promptFeedback?.blockReason) {
-        const blockReason = response.promptFeedback.blockReason;
-        throw { 
-          status: 400, 
-          message: `Content generation was blocked due to safety filters. Reason: ${blockReason}. Please adjust your topic and try again.` 
-        };
-      }
+    let retryCount = 0;
+    const maxRetries = 2;
+    let success = false;
+    
+    while (retryCount <= maxRetries && !success) {
+      try {
+        const currentModel = getModel(modelName);
+        
+        const result = await currentModel.generateContent(prompt);
+        const response = result.response;
+        
+        // Check if the response was blocked by safety settings
+        if (response.promptFeedback?.blockReason) {
+          const blockReason = response.promptFeedback.blockReason;
+          throw { 
+            status: 400, 
+            message: `Content generation was blocked due to safety filters. Reason: ${blockReason}. Please adjust your topic and try again.` 
+          };
+        }
 
-      const responseText = response.text();
-      
-      if (!responseText || responseText.trim().length === 0) {
-        throw { status: 500, message: 'AI returned an empty response. Please try again.' };
-      }
+        const responseText = response.text();
+        
+        if (!responseText || responseText.trim().length === 0) {
+          throw { status: 500, message: 'AI returned an empty response. Please try again.' };
+        }
 
-      return responseText;
-    } catch (error: any) {
-      lastError = error;
-      const errorMsg = error?.message || error?.toString() || 'Unknown error';
-      errorsByModel.push({ model: modelName, error: errorMsg });
-      
-      console.error(`[Gemini] Model ${modelName} failed:`, {
-        message: errorMsg,
-        status: error?.status,
-        code: error?.code,
-        stack: error?.stack?.substring(0, 200), // First 200 chars of stack
-      });
-      
-      // If it's a 404 (model not found), try the next model
-      if (error?.message?.includes('404') || 
-          error?.message?.includes('not found') || 
-          error?.message?.includes('is not found for API version') ||
-          error?.status === 404 ||
-          error?.code === 404) {
-        console.warn(`[Gemini] Model ${modelName} not available (404), trying next model...`);
-        continue; // Try next model
-      }
-      
-      // If it's not a 404, it's a different error (safety, quota, etc.)
-      
-      // Check for 503 Service Unavailable, 500 Internal Server Error, 502 Bad Gateway, 504 Gateway Timeout
-      // These should be retried
-      const statusCode = error?.status || error?.code;
-      if (
-        statusCode === 503 || statusCode === 500 || statusCode === 502 || statusCode === 504 ||
-        error?.message?.includes('503') || error?.message?.includes('overloaded') ||
-        error?.message?.includes('500') || error?.message?.includes('internal server error')
-      ) {
-        console.warn(`[Gemini] Model ${modelName} encountered server error (${statusCode}), trying next model...`);
-        continue; // Try next model
-      }
+        return responseText;
+      } catch (error: any) {
+        lastError = error;
+        const errorMsg = error?.message || error?.toString() || 'Unknown error';
+        const statusCode = error?.status || error?.code;
+        
+        // Log the error with status
+        console.error(`[Gemini] Model ${modelName} (attempt ${retryCount + 1}/${maxRetries + 1}):`, {
+          message: errorMsg.substring(0, 200),
+          status: statusCode,
+        });
+        
+        // Handle 429 Rate Limit - retry with exponential backoff
+        if (statusCode === 429 || error?.message?.includes('429')) {
+          retryCount++;
+          
+          if (retryCount <= maxRetries) {
+            // Exponential backoff: 1s, 2s, 4s
+            const backoffMs = Math.pow(2, retryCount - 1) * 1000;
+            console.warn(`[Gemini] Rate limited (429). Retrying ${modelName} after ${backoffMs}ms...`);
+            
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, backoffMs));
+            continue; // Retry same model
+          } else {
+            // Max retries exceeded for this model
+            errorsByModel.push({ 
+              model: modelName, 
+              error: 'Quota exceeded - Free tier limit reached. Please upgrade your Google API key or try again later.' 
+            });
+            break; // Move to next model
+          }
+        }
+        
+        // If it's a 404 (model not found), try the next model
+        if (statusCode === 404 || 
+            error?.message?.includes('404') || 
+            error?.message?.includes('not found') || 
+            error?.message?.includes('is not found for API version')) {
+          console.warn(`[Gemini] Model ${modelName} not available (404), trying next model...`);
+          errorsByModel.push({ model: modelName, error: 'Model not found (404)' });
+          break; // Move to next model
+        }
+        
+        // Check for other server errors (503, 500, 502, 504) - try next model
+        if (statusCode === 503 || statusCode === 500 || statusCode === 502 || statusCode === 504 ||
+            error?.message?.includes('503') || error?.message?.includes('overloaded') ||
+            error?.message?.includes('500') || error?.message?.includes('internal server error')) {
+          console.warn(`[Gemini] Model ${modelName} encountered server error (${statusCode}), trying next model...`);
+          errorsByModel.push({ model: modelName, error: `Server error (${statusCode})` });
+          break; // Move to next model
+        }
 
-      // Other errors - don't retry
-      console.error(`[Gemini] Non-404/Non-503 error for model ${modelName}, stopping retry loop`);
-      break;
+        // Other errors - don't retry, move to next model
+        console.error(`[Gemini] Non-retriable error for model ${modelName}, stopping for this model`);
+        errorsByModel.push({ model: modelName, error: errorMsg.substring(0, 100) });
+        break;
+      }
     }
   }
   
@@ -163,15 +185,16 @@ export const generateJsonFromAi = async (prompt: string): Promise<string> => {
   console.error('[Gemini] All models failed. Error summary:', JSON.stringify(errorsByModel, null, 2));
 
   // If we get here, all models failed
-  console.error('All models failed. Last error:', lastError);
+  console.error('All models failed. Last error:', lastError?.message?.substring(0, 300));
   
-  // Handle specific Gemini API errors
-  if (lastError?.status) {
-    // Already formatted error
-    throw lastError;
+  // Handle specific Gemini API errors with user-friendly messages
+  if (lastError?.status === 429 || lastError?.message?.includes('429')) {
+    throw { 
+      status: 503, 
+      message: 'AI service is currently overloaded due to high demand. Please try again in a few moments. If this persists, you may need to upgrade your Google API plan.' 
+    };
   }
   
-  // Handle API-specific errors
   if (lastError?.message?.includes('API_KEY') || 
       lastError?.message?.includes('api key') || 
       lastError?.code === 'invalid_api_key') {
@@ -179,10 +202,11 @@ export const generateJsonFromAi = async (prompt: string): Promise<string> => {
   }
   
   if (lastError?.message?.includes('quota') || 
-      lastError?.message?.includes('QUOTA') || 
-      lastError?.code === 'resource_exhausted' || 
-      lastError?.status === 429) {
-    throw { status: 503, message: 'AI service quota exceeded. Please try again later.' };
+      lastError?.message?.includes('QUOTA')) {
+    throw { 
+      status: 503, 
+      message: 'AI service quota exceeded. Please upgrade your Google API plan or try again later.' 
+    };
   }
 
   // Handle blocked content
@@ -198,13 +222,13 @@ export const generateJsonFromAi = async (prompt: string): Promise<string> => {
       lastError?.message?.includes('is not found for API version')) {
     throw { 
       status: 500, 
-      message: `None of the available Gemini models are accessible. Please check your API key permissions or try again later. Error: ${lastError?.message || 'Model not found'}` 
+      message: `None of the available Gemini models are accessible. Please check your API key permissions or try again later.` 
     };
   }
 
   // Generic error
   throw { 
     status: 500, 
-    message: lastError?.message || 'Failed to generate content from AI. Please try again.' 
+    message: lastError?.message?.substring(0, 200) || 'Failed to generate content from AI. Please try again.' 
   };
 };

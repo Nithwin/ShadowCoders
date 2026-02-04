@@ -21,6 +21,8 @@ export function ExamSettings({
   showNegativeMarking = true,
 }: ExamSettingsProps) {
   const selectedLanguages = watch('allowedLanguages') || [];
+  const dynamicTopics = watch('dynamicTopics') || [];
+  const dynamicTopicsText = dynamicTopics.join(', ');
 
   const toggleLanguage = (langValue: string) => {
     const current = selectedLanguages || [];
@@ -42,6 +44,98 @@ export function ExamSettings({
           <h3 className="text-lg font-semibold text-primary">Exam Settings</h3>
           <p className="text-sm text-primary/60">Configure randomization, languages, and marking</p>
         </div>
+      </div>
+
+      {/* Exam Mode Selection */}
+      <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-primary">
+              Exam Mode
+            </label>
+            <p className="text-xs text-primary/60">
+              Standard uses fixed questions. Dynamic generates questions per student.
+            </p>
+          </div>
+          <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+            Adaptive
+          </span>
+        </div>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value="STANDARD"
+              {...register('mode')}
+              className="w-4 h-4 text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Standard (Fixed Questions)</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value="DYNAMIC"
+              {...register('mode')}
+              className="w-4 h-4 text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Dynamic (Adaptive Generation)</span>
+          </label>
+        </div>
+
+        {/* Dynamic Settings */}
+        {watch('mode') === 'DYNAMIC' && (
+          <div className="mt-4 p-4 rounded-lg bg-white/60 border border-primary/10 space-y-4 animate-in fade-in slide-in-from-top-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Questions per Student
+                </label>
+                <Input
+                  type="number"
+                  {...register('dynamicQuestionCount')}
+                  min={1}
+                  max={20}
+                  className="max-w-[150px]"
+                />
+                <p className="text-xs text-primary/60 mt-1">
+                  Each student will get this many generated questions.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Topics (Comma separated)
+                </label>
+                <Input
+                  placeholder="e.g. Arrays, Dynamic Programming, Strings"
+                  value={dynamicTopicsText}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const topics = val.split(',').map(t => t.trim()).filter(Boolean);
+                    setValue('dynamicTopics', topics, { shouldDirty: true });
+                  }}
+                />
+                <p className="text-xs text-primary/60 mt-1">
+                  Questions will be generated from these topics.
+                </p>
+                <input type="hidden" {...register('dynamicTopics')} />
+              </div>
+              
+               <div className="col-span-1 md:col-span-2">
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Generation Prompt (Optional)
+                </label>
+                <textarea
+                  {...register('generationPrompt')}
+                  placeholder="e.g. Generate questions about array sorting algorithms focusing on time complexity, specifically QuickSort and MergeSort."
+                  className="flex min-h-[80px] w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <p className="text-xs text-primary/60 mt-1">
+                  Provide custom instructions to guide the AI generation. If empty, it will use the topics.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Additional Options */}

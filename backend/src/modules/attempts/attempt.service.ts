@@ -1,5 +1,5 @@
 import * as attemptRepo from "./attempt.repo";
-import { Prisma, ExamStatus, AttemptStatus, QType, GradingMode } from "@prisma/client";
+import { Prisma, ExamStatus, AttemptStatus, QType, GradingMode, Difficulty } from "@prisma/client";
 import { shuffleArray } from "../../lib/utils";
 import { prisma } from "../../lib/prisma";
 import z from "zod";
@@ -13,7 +13,7 @@ export const startAttempt = async (studentId: string, examId: string) => {
     where: { id: examId },
     include: {
       assignments: true,
-      questions: { select: { id: true } },
+      questions: { select: { id: true, difficulty: true } },
       attempts: {
         where: {
           studentId: studentId,
@@ -131,7 +131,26 @@ export const startAttempt = async (studentId: string, examId: string) => {
     const nextAttemptNo = currentAttempts.length + 1;
 
     let orderMap: Prisma.InputJsonValue | null = null;
-    if (exam.randomizeQuestions && exam.questions.length > 0) {
+    
+    if (exam.mode === 'DYNAMIC' && exam.questions.length > 0) {
+      // --- Adaptive Start: Pick 1st Question (Medium) ---
+      // --- Adaptive Start: Pick 1st Question (Medium) ---
+      // We purposefully do NOT assign all questions. We start with one.
+      const pool = exam.questions as any[]; // Cast to any to safely access difficulty
+      
+      // Try to find a MEDIUM question first (standard adaptive start)
+      let candidates = pool.filter(q => q.difficulty === 'MEDIUM');
+      if (candidates.length === 0) candidates = pool.filter(q => q.difficulty === 'EASY'); // Fallback to Easy
+      if (candidates.length === 0) candidates = pool; // Fallback to any
+
+      if (candidates.length > 0) {
+         // Pick random candidate
+         const randomQ = candidates[Math.floor(Math.random() * candidates.length)];
+         if (randomQ) {
+             orderMap = [randomQ.id];
+         }
+      }
+    } else if (exam.randomizeQuestions && exam.questions.length > 0) {
       const questionIds = exam.questions.map((q) => q.id);
       orderMap = shuffleArray(questionIds) as Prisma.InputJsonValue;
     }
@@ -201,6 +220,81 @@ export const startAttempt = async (studentId: string, examId: string) => {
 };
 
 type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
+
+
+
+/**
+ * Handles adaptive question assignment for Dynamic Exams.
+ * Called after a response is submitted.
+ */
+const handleAdaptiveProgression = async (attemptId: string, lastResponse: { questionId: string; verdict: string | null }) => {
+  // 1. Fetch Attempt & Exam info
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: attemptId },
+    include: { 
+      exam: { 
+        include: { questions: { select: { id: true, difficulty: true } } } 
+      } 
+    }
+  });
+
+
+
+  if (!attempt) return;
+  
+  if (attempt.exam.mode !== 'DYNAMIC') return;
+
+  // 2. Check if we reached the limit
+  const assignedIds = Array.isArray(attempt.orderMap) ? (attempt.orderMap as unknown as string[]) : [];
+  const targetCount = attempt.exam.dynamicQuestionCount || 5;
+
+  if (assignedIds.length >= targetCount) return; // Exam finished (question-wise)
+
+  // 3. Determine Next Difficulty
+  // Logic: Pass -> Increase Difficulty, Fail -> Decrease Difficulty
+  const currentQId = lastResponse.questionId;
+  const questions = attempt.exam.questions as any[];
+  const currentQ = questions.find((q) => q.id === currentQId);
+  const currentDiff = (currentQ?.difficulty as string) || 'MEDIUM';
+  
+  // Use verdict to decide (PASS = Harder, else Easier)
+  const isPass = lastResponse.verdict === 'PASS';
+  
+  let nextDiff = 'MEDIUM';
+  if (currentDiff === 'EASY') {
+    nextDiff = isPass ? 'MEDIUM' : 'EASY';
+  } else if (currentDiff === 'MEDIUM') {
+    nextDiff = isPass ? 'HARD' : 'EASY'; 
+  } else if (currentDiff === 'HARD') {
+    nextDiff = isPass ? 'HARD' : 'MEDIUM';
+  }
+
+  // 4. Pick a question from the pool
+  // Must match difficulty AND not be already assigned
+  const pool = questions;
+  let candidates = pool.filter((q) => q.difficulty === nextDiff && !assignedIds.includes(q.id));
+
+  // Fallback 1: If no candidates in nextDiff, try to start fresh with any unassigned
+  if (candidates.length === 0) {
+    candidates = pool.filter((q) => !assignedIds.includes(q.id));
+  }
+
+  if (candidates.length > 0) {
+    const nextQ = candidates[Math.floor(Math.random() * candidates.length)];
+    
+    if (nextQ) {
+        // 5. Update Attempt orderMap
+        const newOrderMap = [...assignedIds, nextQ.id];
+        await prisma.attempt.update({
+          where: { id: attemptId },
+          data: { orderMap: newOrderMap }
+        });
+        console.log(`[Adaptive] Assigned next question ${nextQ.id} (${nextQ.difficulty}) for attempt ${attemptId}`);
+    }
+  } else {
+    console.log(`[Adaptive] No more questions available for attempt ${attemptId}`);
+  }
+};
 
 export const submitAnswer = async (
   studentId: string,
@@ -311,6 +405,10 @@ export const submitAnswer = async (
         ...(gradingMode !== undefined && { gradingMode }),
       };
       const savedResponse = await attemptRepo.upsertResponse(responseData);
+
+      // --- Adaptive Progression ---
+      // If this is a Dynamic Exam, assign the next question based on this result
+      await handleAdaptiveProgression(attemptId, savedResponse);
 
       return savedResponse;
     },

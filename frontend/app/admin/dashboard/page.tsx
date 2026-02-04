@@ -15,8 +15,13 @@ import {
   Activity,
   Award,
   Loader2, 
-  Plus
+  Plus,
+  Trophy,
+  Clock
 } from 'lucide-react';
+import AnimatedStatCard from '@/components/admin/dashboard/AnimatedStatCard';
+import LeaderboardWidget from '@/components/admin/dashboard/LeaderboardWidget';
+import ActivityFeed from '@/components/admin/dashboard/ActivityFeed';
 
 // Lazy load chart components
 const StatusPieChart = dynamic(() => import('@/components/admin/dashboard/StatusPieChart'), { 
@@ -36,6 +41,42 @@ const PerformanceBarChart = dynamic(() => import('@/components/admin/dashboard/P
   ssr: false 
 });
 
+type DashboardOverview = {
+  overview: {
+    totalUsers: number;
+    totalExams: number;
+    totalSubmissions: number;
+    totalStudents: number;
+    usersThisWeek: number;
+    examsThisWeek: number;
+    submissionsThisWeek: number;
+    userGrowth: number;
+    examGrowth: number;
+    submissionGrowth: number;
+    avgCompletionTime: number;
+  };
+  recentActivity: Array<{
+    id: string;
+    studentName: string;
+    examTitle: string;
+    score: number;
+    maxScore: number;
+    percentage: number;
+    submittedAt: Date | string | null;
+  }>;
+};
+
+type LeaderboardEntry = {
+  rank: number;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  studentRegNo: string | null;
+  pictureUrl: string | null;
+  totalExams: number;
+  averageScore: number;
+};
+
 type Exam = {
   id: string;
   title: string;
@@ -48,27 +89,11 @@ type Exam = {
   };
 };
 
-type Attempt = {
-  id: string;
-  exam: {
-    id: string;
-    title: string;
-  };
-  student: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  status: string;
-  score: number | string | null;
-  maxScore: number | string | null;
-  submittedAt: string | null;
-};
-
 export default function AdminDashboardPage() {
   useAuth();
+  const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
-  const [recentAttempts, setRecentAttempts] = useState<Attempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -80,27 +105,16 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch exams
-      const examsRes = await api.get<{ data: Exam[]; meta: any }>('/admin/exams?pageSize=100');
-      setExams(examsRes.data.data);
+      // Fetch new analytics endpoints
+      const [overviewRes, leaderboardRes, examsRes] = await Promise.all([
+        api.get<DashboardOverview>('/admin/analytics/overview'),
+        api.get<LeaderboardEntry[]>('/admin/analytics/leaderboard?limit=5'),
+        api.get<{ data: Exam[]; meta: any }>('/admin/exams?pageSize=100'),
+      ]);
 
-      // Fetch recent attempts (we'll get from all exams)
-      const allAttempts: Attempt[] = [];
-      for (const exam of examsRes.data.data.slice(0, 10)) {
-        try {
-          const attemptsRes = await api.get<{ data: Attempt[] }>(`/admin/attempts/exam/${exam.id}?pageSize=5`);
-          allAttempts.push(...attemptsRes.data.data);
-        } catch (err) {
-          // Skip if fails
-        }
-      }
-      // Sort by submittedAt and take most recent
-      allAttempts.sort((a, b) => {
-        const dateA = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
-        const dateB = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
-        return dateB - dateA;
-      });
-      setRecentAttempts(allAttempts.slice(0, 10));
+      setOverview(overviewRes.data);
+      setLeaderboard(leaderboardRes.data);
+      setExams(examsRes.data.data);
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
@@ -109,34 +123,6 @@ export default function AdminDashboardPage() {
       setIsLoading(false);
     }
   };
-
-  const formatScore = (score: number | string | null): number => {
-    if (score === null || score === undefined) return 0;
-    const num = typeof score === 'string' ? parseFloat(score) : Number(score);
-    return isNaN(num) ? 0 : num;
-  };
-
-  const getScorePercentage = (score: number | string | null, maxScore: number | string | null): number => {
-    const scoreNum = formatScore(score);
-    const maxScoreNum = formatScore(maxScore);
-    if (!scoreNum || !maxScoreNum) return 0;
-    return Math.round((scoreNum / maxScoreNum) * 100);
-  };
-
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalExams = exams.length;
-    const publishedExams = exams.filter(e => e.status === 'PUBLISHED').length;
-    const totalSubmissions = exams.reduce((sum, e) => sum + (e._count?.attempts || 0), 0);
-    const totalStudents = new Set(recentAttempts.map(a => a.student.id)).size;
-
-    return {
-      totalExams,
-      publishedExams,
-      totalSubmissions,
-      totalStudents
-    };
-  }, [exams, recentAttempts]);
 
   // Exam status distribution
   const examStatusData = useMemo(() => {
@@ -155,7 +141,7 @@ export default function AdminDashboardPage() {
     return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
   }, [exams]);
 
-  // Submissions over time (by exam)
+  // Submissions by exam
   const submissionsByExam = useMemo(() => {
     return exams
       .filter(e => e._count && e._count.attempts > 0)
@@ -166,53 +152,6 @@ export default function AdminDashboardPage() {
       .sort((a, b) => b.submissions - a.submissions)
       .slice(0, 8);
   }, [exams]);
-
-  // Performance distribution
-  const performanceDistribution = useMemo(() => {
-    const submittedAttempts = recentAttempts.filter(
-      a => a.status === 'SUBMITTED' && a.score !== null && a.maxScore !== null
-    );
-    
-    const distribution = {
-      'Excellent (90-100)': 0,
-      'Good (80-89)': 0,
-      'Average (70-79)': 0,
-      'Below Average (60-69)': 0,
-      'Needs Improvement (<60)': 0
-    };
-    
-    submittedAttempts.forEach(attempt => {
-      const percentage = getScorePercentage(attempt.score, attempt.maxScore);
-      if (percentage >= 90) distribution['Excellent (90-100)']++;
-      else if (percentage >= 80) distribution['Good (80-89)']++;
-      else if (percentage >= 70) distribution['Average (70-79)']++;
-      else if (percentage >= 60) distribution['Below Average (60-69)']++;
-      else distribution['Needs Improvement (<60)']++;
-    });
-    
-    return Object.entries(distribution).map(([name, value]) => ({ name, value }));
-  }, [recentAttempts]);
-
-  // Recent submissions timeline
-  const recentSubmissions = useMemo(() => {
-    return recentAttempts
-      .filter(a => a.submittedAt)
-      .slice(0, 7)
-      .map(attempt => ({
-        name: new Date(attempt.submittedAt!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        count: 1
-      }))
-      .reduce((acc, curr) => {
-        const existing = acc.find(item => item.name === curr.name);
-        if (existing) {
-          existing.count += 1;
-        } else {
-          acc.push(curr);
-        }
-        return acc;
-      }, [] as { name: string; count: number }[])
-      .sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime());
-  }, [recentAttempts]);
 
   if (isLoading) {
     return (
@@ -225,11 +164,11 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (error) {
+  if (error || !overview) {
     return (
       <div className="text-primary">
         <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          <p>{error}</p>
+          <p>{error || 'Failed to load dashboard'}</p>
         </div>
       </div>
     );
@@ -251,50 +190,60 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-      {/* Bento Grid Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        {/* Stat Card 1 - Total Exams */}
-        <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-6 border border-blue-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
-              <FileText className="w-6 h-6 text-blue-500" />
-            </div>
+      {/* Animated Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <AnimatedStatCard
+          title="Total Exams"
+          value={overview.overview.totalExams}
+          icon={FileText}
+          gradient="from-blue-500/10 to-blue-600/5 border-blue-500/20"
+          iconColor="text-blue-500"
+          growth={overview.overview.examGrowth}
+        />
+        <AnimatedStatCard
+          title="Total Students"
+          value={overview.overview.totalStudents}
+          icon={Users}
+          gradient="from-green-500/10 to-green-600/5 border-green-500/20"
+          iconColor="text-green-500"
+          growth={overview.overview.userGrowth}
+        />
+        <AnimatedStatCard
+          title="Total Submissions"
+          value={overview.overview.totalSubmissions}
+          icon={ClipboardCheck}
+          gradient="from-purple-500/10 to-purple-600/5 border-purple-500/20"
+          iconColor="text-purple-500"
+          growth={overview.overview.submissionGrowth}
+        />
+        <AnimatedStatCard
+          title="Avg Completion Time"
+          value={Math.round(overview.overview.avgCompletionTime / 60)}
+          icon={Clock}
+          gradient="from-orange-500/10 to-orange-600/5 border-orange-500/20"
+          iconColor="text-orange-500"
+          suffix="m"
+        />
+      </div>
+
+      {/* Top Row: Leaderboard + Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Leaderboard */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Top Performers</h2>
           </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalExams}</h3>
-          <p className="text-sm text-primary/60">Total Exams</p>
+          <LeaderboardWidget data={leaderboard} />
         </div>
 
-        {/* Stat Card 2 - Published Exams */}
-        <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 rounded-xl p-6 border border-green-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-green-500/20 rounded-lg">
-              <Activity className="w-6 h-6 text-green-500" />
-            </div>
+        {/* Activity Feed */}
+        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-primary">Recent Activity</h2>
           </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.publishedExams}</h3>
-          <p className="text-sm text-primary/60">Published Exams</p>
-        </div>
-
-        {/* Stat Card 3 - Total Submissions */}
-        <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-6 border border-purple-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <ClipboardCheck className="w-6 h-6 text-purple-500" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalSubmissions}</h3>
-          <p className="text-sm text-primary/60">Total Submissions</p>
-        </div>
-
-        {/* Stat Card 4 - Active Students */}
-        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 rounded-xl p-6 border border-orange-500/20">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 bg-orange-500/20 rounded-lg">
-              <Users className="w-6 h-6 text-orange-500" />
-            </div>
-          </div>
-          <h3 className="text-3xl font-bold text-primary mb-1">{stats.totalStudents}</h3>
-          <p className="text-sm text-primary/60">Active Students</p>
+          <ActivityFeed data={overview.recentActivity} />
         </div>
       </div>
 
@@ -309,18 +258,6 @@ export default function AdminDashboardPage() {
           <StatusPieChart data={examStatusData} />
         </div>
 
-        {/* Submissions Timeline */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Recent Submissions</h2>
-          </div>
-          <SubmissionsAreaChart data={recentSubmissions} />
-        </div>
-      </div>
-
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Submissions by Exam */}
         <div className="bg-secondary rounded-xl p-6 border border-primary/10">
           <div className="flex items-center gap-2 mb-4">
@@ -328,15 +265,6 @@ export default function AdminDashboardPage() {
             <h2 className="text-xl font-semibold text-primary">Submissions by Exam</h2>
           </div>
           <SubmissionsBarChart data={submissionsByExam} />
-        </div>
-
-        {/* Performance Distribution */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Award className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Performance Distribution</h2>
-          </div>
-          <PerformanceBarChart data={performanceDistribution} />
         </div>
       </div>
     </div>

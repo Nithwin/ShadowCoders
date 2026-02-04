@@ -5,7 +5,7 @@ export const generateQuestionsSchema = z.object({
   body: z
     .object({
       topic: z.string().min(3, 'A topic is required'),
-      language: z.string().optional(), // For coding questions
+      language: z.string().optional().default(''), // For coding questions
 
       // Define counts for each type
       mcqCount: z.number().int().min(0).max(20).optional().default(0),
@@ -19,7 +19,7 @@ export const generateQuestionsSchema = z.object({
 
       // Define difficulty
       difficulty: z.enum(['EASY', 'MEDIUM', 'HARD', 'ANY']).optional().default('ANY'),
-      points: z.number().int().positive().optional(),
+      points: z.number().int().positive().optional().or(z.undefined()),
     })
     .refine(
       (data) => {

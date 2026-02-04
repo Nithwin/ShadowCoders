@@ -220,6 +220,36 @@ export const runCode = async (
       };
   }
 
+  // --- Complexity Analysis ---
+  // We analyze the code for complexity metrics using AI
+  // We do this after execution so we don't block basic validation, but before returning result
+  let complexityAnalysis = null;
+  if (code && code.trim().length > 0) {
+    try {
+      // Lazy load generation service to avoid circular dependency issues if any
+      const { generationService } = await import('../generation/generation.service'); 
+      complexityAnalysis = await generationService.analyzeComplexity(code, language);
+      
+      // Save to Evaluation (so we have a record of it)
+      await prisma.evaluation.create({
+        data: {
+          responseId: response.id,
+          kind: 'AI',
+          score: -1, // -1 indicates metadata/analysis only, not a grade
+          comments: 'Complexity Analysis',
+          // @ts-ignore: Schema updated but client not generated due to server lock
+          complexity: complexityAnalysis,
+          isFinal: false,
+        }
+      });
+      
+      // Attach to result so frontend sees it immediately
+      result.complexity = complexityAnalysis;
+    } catch (e) {
+      console.error("[RunCode] Complexity analysis failed:", e);
+    }
+  }
+
   // 6. --- Update Job with Result ---
   const jobStatus = result.customOutput 
     ? (result.customOutput.error ? 'FAILED' : 'SUCCEEDED')

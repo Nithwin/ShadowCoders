@@ -104,6 +104,7 @@ export default function CodingQuestion({
     total: number;
     testResults: TestResult[];
     message: string;
+    complexity?: { timeComplexity: string; spaceComplexity: string; explanation: string };
   } | null>(null);
   const [output, setOutput] = useState<string>('');
   const [error, setError] = useState<string>('');
@@ -1146,6 +1147,31 @@ export default function CodingQuestion({
                     </div>
                   );
                 })()}
+
+                {/* Complexity Analysis Badge */}
+                {testResults.complexity && (
+                  <div className="p-4 rounded-lg border border-purple-500/30 bg-purple-900/10 shadow-sm">
+                    <div className="flex items-center gap-3 mb-2">
+                       <span className="p-1.5 bg-purple-600 rounded">
+                          <Info className="w-3.5 h-3.5 text-white" />
+                       </span>
+                       <h4 className="font-bold text-purple-300 text-sm uppercase tracking-wide">Complexity Analysis (AI)</h4>
+                    </div>
+                    <div className="flex gap-4">
+                      <div className="px-3 py-1.5 rounded bg-gray-800 border border-gray-700 text-xs text-gray-300 font-mono">
+                         <span className="text-gray-500 mr-2">Time:</span>
+                         <span className="text-emerald-400 font-bold">{testResults.complexity.timeComplexity}</span>
+                      </div>
+                      <div className="px-3 py-1.5 rounded bg-gray-800 border border-gray-700 text-xs text-gray-300 font-mono">
+                         <span className="text-gray-500 mr-2">Space:</span>
+                         <span className="text-blue-400 font-bold">{testResults.complexity.spaceComplexity}</span>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs text-gray-400 leading-relaxed border-t border-purple-500/20 pt-2">
+                      {testResults.complexity.explanation}
+                    </p>
+                  </div>
+                )}
 
                 {/* Detailed Results */}
                 {(() => {

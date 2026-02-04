@@ -25,6 +25,7 @@ type Exam = {
   questionTypes?: string[];
   maxAttempts?: number | null;
   attemptCount?: number;
+  mode?: 'STANDARD' | 'DYNAMIC';
 };
 
 export default function ExamDetailPage() {
@@ -279,6 +280,12 @@ export default function ExamDetailPage() {
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
             {status.label}
           </span>
+          {exam.mode === 'DYNAMIC' && (
+            <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+              <RefreshCw className="w-3 h-3" />
+              Adaptive Difficulty
+            </span>
+          )}
         </div>
         {exam.description && (
           <div className="mb-4">
@@ -354,10 +361,22 @@ export default function ExamDetailPage() {
             <div className="border-t border-primary/10 pt-4">
               <h2 className="text-lg font-semibold mb-2">Instructions</h2>
               <ul className="space-y-1.5 text-sm text-primary/80 list-disc list-inside">
-                <li>Read questions carefully.</li>
-                <li>Duration: <strong>{exam.durationMins} mins</strong>. Timer cannot be paused.</li>
-                <li>Submit before time runs out.</li>
-                <li>Review answers before final submission.</li>
+                {exam.mode === 'DYNAMIC' ? (
+                  <>
+                    <li><strong>Adaptive Mode:</strong> Questions difficulty adjusts based on your performance.</li>
+                    <li>Solve thoroughly to unlock higher-tier questions and more points.</li>
+                    <li>Duration: <strong>{exam.durationMins} mins</strong>. Timer cannot be paused.</li>
+                    <li>Once you submit an answer, you may not be able to return (Adaptive).</li>
+                    <li>Review your code carefully before running test cases.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>Read questions carefully.</li>
+                    <li>Duration: <strong>{exam.durationMins} mins</strong>. Timer cannot be paused.</li>
+                    <li>Submit before time runs out.</li>
+                    <li>Review answers before final submission.</li>
+                  </>
+                )}
                 {exam.hasSpeakingQuestions && (
                   <li className="text-amber-600 font-medium">Microphone access required for speaking Qs.</li>
                 )}

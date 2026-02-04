@@ -41,7 +41,7 @@ export const createExam = async (input: CreateExamInput) => {
       message: "Exam start date must be before the end date",
     };
   }
-  const dataToSave = {
+  const dataToSave: Prisma.ExamCreateInput = {
     ...input,
     description: input.description ?? null,
     negativeMarkPerWrong: input.negativeMarkPerWrong ?? null,
@@ -54,12 +54,41 @@ export const createExam = async (input: CreateExamInput) => {
     allowedLanguages: input.allowedLanguages ? (input.allowedLanguages as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
     maxTabSwitches: input.maxTabSwitches ?? null,
     enableProctoring: input.enableProctoring ?? false,
+    dynamicTopics: input.dynamicTopics ?? [],
+    generationPrompt: input.generationPrompt ?? null,
   };
 
   const newExam = await examRepo.createExam(dataToSave);
   
   // Create default sections automatically
   await createDefaultSections(newExam.id);
+
+  // --- Auotmated Generation for Dynamic Exams ---
+  // If dynamic topics are provided, trigger generation in background
+  if (input.mode === 'DYNAMIC' && input.dynamicTopics && input.dynamicTopics.length > 0) {
+    const topic = input.dynamicTopics[0]; // Currently support 1st topic, or iterate
+    const count =  input.dynamicQuestionCount || 5; 
+    
+    // Run in background - do NOT await
+    // We generate 3x the count per level to ensure a good pool
+    // e.g. Count 5 -> 5 Easy, 5 Medium, 5 Hard = 15 total
+    
+    // Use the exported singleton directly
+    import('../generation/generation.service').then(({ generationService }) => {
+       console.log(`[ExamService] Triggering auto-generation for Exam ${newExam.id} (Topic: ${topic})`);
+       if (typeof topic === 'string') {
+         // Pass the custom prompt if it exists
+         generationService.bulkGenerate(
+           topic, 
+           count, 
+           ['EASY', 'MEDIUM', 'HARD'], 
+           input.generationPrompt || undefined
+         )
+         .then(res => console.log(`[ExamService] Auto-generation complete for ${newExam.id}:`, res))
+         .catch(err => console.error(`[ExamService] Auto-generation failed for ${newExam.id}:`, err));
+       }
+    });
+  }
   
   return newExam;
 };
@@ -361,6 +390,22 @@ export const updateExam = async (examId: string, input: UpdateExamInput) => {
   if (input.enableProctoring !== undefined) {
     dataToUpdate.enableProctoring = input.enableProctoring;
   }
+  if (input.releaseResults !== undefined) {
+    dataToUpdate.releaseResults = input.releaseResults;
+  }
+  if (input.mode !== undefined) {
+    dataToUpdate.mode = input.mode;
+  }
+  if (input.dynamicQuestionCount !== undefined) {
+    dataToUpdate.dynamicQuestionCount = input.dynamicQuestionCount;
+  }
+  if (input.dynamicTopics !== undefined) {
+    dataToUpdate.dynamicTopics = input.dynamicTopics;
+  }
+  if (input.generationPrompt !== undefined) {
+    dataToUpdate.generationPrompt = input.generationPrompt ?? null;
+  }
+
 
   // 3. --- Call Repository ---
   // Note: We allow editing even if the exam is published
@@ -508,4 +553,35 @@ export const getExamByIdForStudent = async (studentId: string, examId: string) =
   // 3. Return only the fields students need (no sensitive admin data)
   // The repo already includes hasAttempt and attemptId
   return exam;
+};
+
+// Manual trigger for generation
+export const triggerManualGeneration = async (examId: string) => {
+  const exam = await examRepo.findExamById(examId);
+  if (!exam) throw { status: 404, message: 'Exam not found' };
+  
+  if (exam.mode !== 'DYNAMIC' || !exam.dynamicTopics || exam.dynamicTopics.length === 0) {
+    throw { status: 400, message: 'Exam is not dynamic or has no topics configured' };
+  }
+
+  const topic = exam.dynamicTopics[0];
+  const count = exam.dynamicQuestionCount || 5;
+
+  // Run in background / detached
+  // Use the exported singleton directly
+  import('../generation/generation.service').then(({ generationService }) => {
+     console.log(`[ExamService] Manual generation trigger for Exam ${exam.id}`);
+     if (typeof topic === 'string') {
+        generationService.bulkGenerate(
+           topic, 
+           count, 
+           ['EASY', 'MEDIUM', 'HARD'], 
+           exam.generationPrompt || undefined
+        )
+        .then(res => console.log(`[ExamService] Manual generation complete for ${exam.id}:`, res))
+        .catch(err => console.error(`[ExamService] Manual generation failed for ${exam.id}:`, err));
+     }
+  });
+
+  return { message: 'Generation started in background' };
 };

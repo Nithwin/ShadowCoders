@@ -36,6 +36,13 @@ export const registerExamRoutes = (app: Express) => {
         examController.publishExamHandler
     );
 
+    app.post(
+        '/api/admin/exams/:examId/generate',
+        verifyAccess,
+        requireRole('STAFF'),
+        examController.triggerGenerationHandler
+    );
+
     app.get(
         '/api/admin/exams',
         verifyAccess,

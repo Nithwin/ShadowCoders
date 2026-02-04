@@ -11,7 +11,7 @@ import { INTERNAL_CHROME_IDS } from './constants';
 export function findExtensionIdsInChrome(): string[] {
   const extensionIds: string[] = [];
   
-  if (typeof window === 'undefined' || !window.chrome) {
+  if (typeof window === 'undefined' || !(window as any).chrome) {
     return extensionIds;
   }
 
@@ -51,7 +51,7 @@ export function findExtensionIdsInChrome(): string[] {
       });
     };
 
-    scanObject(window.chrome);
+    scanObject((window as any).chrome);
     
     if (typeof navigator !== 'undefined') {
       scanObject(navigator);

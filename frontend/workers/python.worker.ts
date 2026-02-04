@@ -93,13 +93,13 @@ ctx.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 
             // Reset stdin if input is provided
             if (input !== undefined) {
-               // We can mock stdin. Ideally pyodide.setStdin, but check docs.
-               // Simple approach: Pre-fill a buffer or mock input()
-               // For basic competitive programming:
+               // Safer input injection using globals
+               pyodide.globals.set("stdin_input", input);
                const pythonInputMock = `
 import sys
-from io import StringIO
-sys.stdin = StringIO('${input.replace(/'/g, "\\'").replace(/\n/g, "\\n")}')
+import io
+from js import stdin_input
+sys.stdin = io.StringIO(stdin_input)
 `;
                await pyodide.runPythonAsync(pythonInputMock);
             }

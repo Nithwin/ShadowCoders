@@ -202,6 +202,67 @@ export default function ExamAttemptPage() {
       }
   }, [questions]);
 
+  // --- DYNAMIC EXAM LOGIC ---
+  const [isFetchingNext, setIsFetchingNext] = useState(false);
+  const isDynamicMode = attempt?.exam?.mode === 'DYNAMIC';
+
+  const fetchNextDynamicQuestion = async () => {
+      if (!attempt || isFetchingNext) return;
+      setIsFetchingNext(true);
+      try {
+          // Save current answer first? useExamSubmission handles auto-save usually, 
+          // but we might want to ensure it's saved before getting next.
+          // For now, assume auto-save worked or user clicked submit.
+          
+          const res = await api.get(`/adaptive/${attempt.exam.id}/next-question`);
+          const data = res.data;
+          
+          if (data.finished) {
+              // Exam done!
+              handleSubmitExam(false, "Dynamic exam completed");
+              return;
+          }
+          
+          if (data.question) {
+              // Append question
+              // We need to merge it into 'questions' state
+              setQuestions(prev => {
+                  // Check if already exists to avoid dupes
+                  if (prev.find(q => q.id === data.question.id)) return prev;
+                  return [...prev, data.question];
+              });
+              // Move to it
+              setTimeout(() => {
+                  setCurrentQuestionIndex(prev => prev + 1);
+              }, 100);
+          }
+      } catch (err) {
+          console.error("Failed to fetch next question", err);
+          // show toast?
+      } finally {
+          setIsFetchingNext(false);
+      }
+  };
+
+  // Initial fetch for dynamic (if no questions)
+  useEffect(() => {
+      if (attempt && isDynamicMode && questions.length === 0 && !isLoading && !isFetchingNext) {
+          fetchNextDynamicQuestion();
+      }
+  }, [attempt, isDynamicMode, questions.length, isLoading]);
+
+  const handleNavigateQuestionWrapped = (direction: 'next' | 'prev') => {
+      if (isDynamicMode && direction === 'next') {
+          // If at last loaded question, fetch next
+          if (currentQuestionIndex === questions.length - 1) {
+              fetchNextDynamicQuestion();
+              return;
+          }
+      }
+      navigateQuestion(direction);
+  };
+
+
   // Fullscreen management
   const handleAutoSubmit = (reason: string) => {
     handleSubmitExam(true, reason);
@@ -700,7 +761,8 @@ export default function ExamAttemptPage() {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex overflow-hidden ${showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}`}>
-        {/* Question Navigation Sidebar */}
+        {/* Question Navigation Sidebar - Hide for Dynamic Mode */}
+        {!isDynamicMode && (
         <QuestionNavigation
           questions={questions}
           sections={sectionsWithQuestions}
@@ -733,6 +795,7 @@ export default function ExamAttemptPage() {
           currentQuestionType={currentQuestion?.type}
           filteredQuestions={filteredQuestions}
         />
+        )}
         
         {/* Question Content Area */}
         <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ, QType.SQL].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
@@ -744,9 +807,9 @@ export default function ExamAttemptPage() {
                     currentQuestionIndex={currentQuestionIndex}
                     answers={answers}
                     attemptId={attemptId}
-                    isSubmitting={isSubmitting}
+                    isSubmitting={isSubmitting || isFetchingNext}
                     onAnswerChange={handleAnswerChange}
-                    onNavigateQuestion={navigateQuestion}
+                    onNavigateQuestion={handleNavigateQuestionWrapped}
                     onSubmitExam={handleSubmitExamClick}
                     allowedLanguages={attempt?.exam?.allowedLanguages}
                     reportButton={

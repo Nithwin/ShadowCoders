@@ -143,6 +143,10 @@ export interface Exam {
   maxTabSwitches?: number | null;
   allowedLanguages?: string[] | null;
   enableProctoring?: boolean;
+  releaseResults?: boolean;
+  mode?: 'STANDARD' | 'DYNAMIC';
+  dynamicQuestionCount?: number | null;
+  dynamicTopics?: string[] | null;
   createdAt: string;
   updatedAt: string;
   assignments?: any[]; // We can refine this type if needed, but array existence check is enough for now

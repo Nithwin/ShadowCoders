@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Exam } from '@/types';
-import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import QuestionManager from '@/components/admin/QuestionManager';
 import ExamForm, { toDateTimeLocal, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
@@ -169,6 +169,39 @@ export default function EditExamPage() {
     }
   };
 
+  const [isRegenerating, setIsRegenerating] = useState(false);
+
+  const handleRegenerate = async () => {
+    if (!examData) return;
+    
+    // Check if dynamic mode
+    if (examData.mode !== 'DYNAMIC') {
+      toast.error('Regeneration is only available for Dynamic exams.');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Regenerate Questions?',
+      message: 'This will trigger the AI to generate new questions based on your configured topics. Existing questions will remain. Do you want to continue?',
+      confirmText: 'Generate',
+      cancelText: 'Cancel',
+      variant: 'default',
+    });
+
+    if (!confirmed) return;
+
+    setIsRegenerating(true);
+    try {
+      await api.post(`/admin/exams/${examId}/generate`);
+      toast.success('Generation started! Questions will appear in the pool shortly.');
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to trigger generation');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   const handleCreateTemplate = async () => {
     if (!templateTitle.trim()) {
       alert('Template title is required');
@@ -254,6 +287,25 @@ export default function EditExamPage() {
           </div>
           
             <div className="flex gap-2">
+              {examData?.mode === 'DYNAMIC' && (
+                <Button
+                  onClick={handleRegenerate}
+                  disabled={isRegenerating}
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-0"
+                >
+                  {isRegenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Regenerate Questions
+                    </>
+                  )}
+                </Button>
+              )}
               <Button
                 onClick={() => setIsTemplateModalOpen(true)}
                 className="bg-purple-600 hover:bg-purple-700 text-white border-0"
@@ -318,6 +370,10 @@ export default function EditExamPage() {
             maxTabSwitches: examData.maxTabSwitches ?? 1,
             allowedLanguages: Array.isArray(examData.allowedLanguages) ? examData.allowedLanguages : [],
             enableProctoring: examData.enableProctoring ?? false,
+            releaseResults: examData.releaseResults ?? true,
+            mode: examData.mode ?? 'STANDARD',
+            dynamicQuestionCount: examData.dynamicQuestionCount ?? 5,
+            dynamicTopics: Array.isArray(examData.dynamicTopics) ? examData.dynamicTopics : [],
           }}
           onSubmit={handleFormSubmit}
           isSubmitting={isSubmitting}

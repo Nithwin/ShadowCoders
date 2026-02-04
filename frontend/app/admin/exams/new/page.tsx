@@ -102,6 +102,10 @@ export default function CreateExamPage() {
           maxAttempts: templateData?.structure?.maxAttempts,
           maxTabSwitches: templateData?.structure?.maxTabSwitches,
           allowedLanguages: templateData?.structure?.allowedLanguages || [],
+          releaseResults: templateData?.structure?.releaseResults ?? true,
+          mode: templateData?.structure?.mode || 'STANDARD',
+          dynamicQuestionCount: templateData?.structure?.dynamicQuestionCount ?? 5,
+          dynamicTopics: templateData?.structure?.dynamicTopics || [],
         }}
         onSubmit={handleFormSubmit}
         submitLabel={templateId ? "Create Exam from Template" : "Save and Continue"}

@@ -1,0 +1,5 @@
+﻿utils/extension-detection/advanced-detectors.ts(105,14): error TS2304: Cannot find name 'chrome'.
+utils/extension-detection/advanced-detectors.ts(105,41): error TS2304: Cannot find name 'chrome'.
+utils/extension-detection/advanced-detectors.ts(110,30): error TS2304: Cannot find name 'chrome'.
+utils/extension-detection/advanced-detectors.ts(112,15): error TS7006: Parameter 'ext' implicitly has an 'any' type.
+utils/extension-detection/advanced-detectors.ts(113,12): error TS7006: Parameter 'ext' implicitly has an 'any' type.

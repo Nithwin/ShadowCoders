@@ -40,7 +40,10 @@ export type Attempt = {
     durationMins: number;
     maxTabSwitches?: number | null;
     allowedLanguages?: string[] | null;
+
     enableProctoring?: boolean;
+    mode?: 'STANDARD' | 'DYNAMIC';
+    dynamicQuestionCount?: number | null;
     questions: Array<{ id: string; order: number }>;
     sections?: Array<{
       id: string;

@@ -44,6 +44,29 @@ export const registerAnalyticsRoutes = (app: Express) => {
     analyticsController.getTimeAnalysisHandler
   );
 
+  // NEW: Global leaderboard
+  app.get(
+    '/api/admin/analytics/leaderboard',
+    verifyAccess,
+    requireRole('STAFF'),
+    analyticsController.getGlobalLeaderboardHandler
+  );
+
+  // NEW: Dashboard overview statistics
+  app.get(
+    '/api/admin/analytics/overview',
+    verifyAccess,
+    requireRole('STAFF'),
+    analyticsController.getDashboardOverviewHandler
+  );
+
+  // NEW: Student personal insights
+  app.get(
+    '/api/student/analytics/insights',
+    verifyAccess,
+    analyticsController.getStudentInsightsHandler
+  );
+
   // Student activity routes
   app.get(
     '/api/student/activity',
@@ -57,4 +80,3 @@ export const registerAnalyticsRoutes = (app: Express) => {
     activityController.getUserStatsHandler
   );
 };
-

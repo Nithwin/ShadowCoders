@@ -63,3 +63,4 @@ export const authorize = (roles: string[]): RequestHandler => {
 };
 
 export const authenticate = verifyAccess;
+export const requireAuth = verifyAccess;

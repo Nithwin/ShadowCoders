@@ -28,6 +28,10 @@ export const createExamSchema = z.object({
     allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
     releaseResults: z.boolean().optional().default(true),
     enableProctoring: z.boolean().optional().default(false),
+    mode: z.enum(['STANDARD', 'DYNAMIC']).optional().default('STANDARD'),
+    dynamicQuestionCount: z.number().int().min(1).optional().default(5),
+    dynamicTopics: z.array(z.string()).optional(),
+    generationPrompt: z.string().optional(),
   }),
 });
 
@@ -169,6 +173,10 @@ export const updateExamSchema = z.object({
       allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
       releaseResults: z.boolean().optional(),
       enableProctoring: z.boolean().optional(),
+      mode: z.enum(['STANDARD', 'DYNAMIC']).optional(),
+      dynamicQuestionCount: z.number().int().min(1).optional(),
+      dynamicTopics: z.array(z.string()).optional(),
+      generationPrompt: z.string().optional(),
     })
     // Add a refinement to ensure if both dates are sent, start is before end
     .refine(

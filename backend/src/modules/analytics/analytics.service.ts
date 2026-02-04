@@ -486,3 +486,299 @@ export const getExamAnalytics = async (examId: string) => {
   };
 };
 
+/**
+ * Get global leaderboard - top performing students
+ */
+export const getGlobalLeaderboard = async (limit: number = 10) => {
+  const students = await prisma.user.findMany({
+    where: {
+      role: 'STUDENT',
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      reg_no: true,
+      pictureUrl: true,
+      attempts: {
+        where: {
+          status: 'SUBMITTED',
+        },
+        select: {
+          score: true,
+          maxScore: true,
+        },
+      },
+    },
+  });
+
+  const leaderboard = students
+    .map((student) => {
+      const submittedAttempts = student.attempts.filter(
+        (a) => a.score !== null && a.maxScore !== null
+      );
+
+      if (submittedAttempts.length === 0) {
+        return null;
+      }
+
+      const totalScore = submittedAttempts.reduce(
+        (sum, a) => sum + (Number(a.score) || 0),
+        0
+      );
+      const totalMaxScore = submittedAttempts.reduce(
+        (sum, a) => sum + (Number(a.maxScore) || 0),
+        0
+      );
+
+      const averagePercentage =
+        totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
+
+      return {
+        studentId: student.id,
+        studentName: student.name || student.email,
+        studentEmail: student.email,
+        studentRegNo: student.reg_no,
+        pictureUrl: student.pictureUrl,
+        totalExams: submittedAttempts.length,
+        averageScore: Math.round(averagePercentage * 100) / 100,
+      };
+    })
+    .filter((s) => s !== null)
+    .sort((a, b) => b!.averageScore - a!.averageScore)
+    .slice(0, limit)
+    .map((student, index) => ({
+      ...student,
+      rank: index + 1,
+    }));
+
+  return leaderboard;
+};
+
+/**
+ * Get admin dashboard overview statistics
+ */
+export const getDashboardOverview = async () => {
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Total counts
+  const [totalUsers, totalExams, totalSubmissions, totalStudents] = await Promise.all([
+    prisma.user.count(),
+    prisma.exam.count(),
+    prisma.attempt.count({ where: { status: 'SUBMITTED' } }),
+    prisma.user.count({ where: { role: 'STUDENT' } }),
+  ]);
+
+  // This week counts
+  const [usersThisWeek, examsThisWeek, submissionsThisWeek] = await Promise.all([
+    prisma.user.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+    prisma.exam.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+    prisma.attempt.count({
+      where: { status: 'SUBMITTED', submittedAt: { gte: oneWeekAgo } },
+    }),
+  ]);
+
+  // Calculate growth percentages
+  const calculateGrowth = (current: number, weekly: number) => {
+    const previous = current - weekly;
+    if (previous === 0) return weekly > 0 ? 100 : 0;
+    return Math.round(((weekly / previous) * 100) * 100) / 100;
+  };
+
+  // Average completion time
+  const completedAttempts = await prisma.attempt.findMany({
+    where: { status: 'SUBMITTED', timeSpentSec: { gt: 0 } },
+    select: { timeSpentSec: true },
+  });
+
+  const avgCompletionTime =
+    completedAttempts.length > 0
+      ? Math.round(
+          completedAttempts.reduce((sum, a) => sum + (a.timeSpentSec || 0), 0) /
+            completedAttempts.length
+        )
+      : 0;
+
+  // Recent activity (last 7 days)
+  const recentActivity = await prisma.attempt.findMany({
+    where: {
+      status: 'SUBMITTED',
+      submittedAt: { gte: oneWeekAgo },
+    },
+    select: {
+      id: true,
+      submittedAt: true,
+      student: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      exam: {
+        select: {
+          title: true,
+        },
+      },
+      score: true,
+      maxScore: true,
+    },
+    orderBy: { submittedAt: 'desc' },
+    take: 10,
+  });
+
+  return {
+    overview: {
+      totalUsers,
+      totalExams,
+      totalSubmissions,
+      totalStudents,
+      usersThisWeek,
+      examsThisWeek,
+      submissionsThisWeek,
+      userGrowth: calculateGrowth(totalUsers, usersThisWeek),
+      examGrowth: calculateGrowth(totalExams, examsThisWeek),
+      submissionGrowth: calculateGrowth(totalSubmissions, submissionsThisWeek),
+      avgCompletionTime,
+    },
+    recentActivity: recentActivity.map((activity) => ({
+      id: activity.id,
+      studentName: activity.student.name || activity.student.email,
+      examTitle: activity.exam.title,
+      score: activity.score ? Number(activity.score) : 0,
+      maxScore: activity.maxScore ? Number(activity.maxScore) : 0,
+      percentage:
+        activity.score && activity.maxScore
+          ? Math.round((Number(activity.score) / Number(activity.maxScore)) * 100)
+          : 0,
+      submittedAt: activity.submittedAt,
+    })),
+  };
+};
+
+/**
+ * Get student personal insights
+ */
+export const getStudentInsights = async (studentId: string) => {
+  const attempts = await prisma.attempt.findMany({
+    where: {
+      studentId,
+      status: 'SUBMITTED',
+    },
+    select: {
+      score: true,
+      maxScore: true,
+      responses: {
+        select: {
+          question: {
+            select: {
+              type: true,
+            },
+          },
+          earnedPoints: true,
+        },
+      },
+    },
+  });
+
+  if (attempts.length === 0) {
+    return {
+      totalExams: 0,
+      averageScore: 0,
+      rank: null,
+      totalStudents: 0,
+      strengthAreas: [],
+      weakAreas: [],
+      streak: 0,
+    };
+  }
+
+  // Calculate average score
+  const scores = attempts
+    .filter((a) => a.score !== null && a.maxScore !== null)
+    .map((a) => {
+      const score = Number(a.score) || 0;
+      const maxScore = Number(a.maxScore) || 0;
+      return maxScore > 0 ? (score / maxScore) * 100 : 0;
+    });
+
+  const averageScore = scores.length > 0
+    ? Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 100) / 100
+    : 0;
+
+  // Calculate rank
+  const allStudents = await prisma.user.findMany({
+    where: { role: 'STUDENT' },
+    select: {
+      id: true,
+      attempts: {
+        where: { status: 'SUBMITTED' },
+        select: { score: true, maxScore: true },
+      },
+    },
+  });
+
+  const studentScores = allStudents
+    .map((student) => {
+      const submittedAttempts = student.attempts.filter(
+        (a) => a.score !== null && a.maxScore !== null
+      );
+      if (submittedAttempts.length === 0) return null;
+
+      const totalScore = submittedAttempts.reduce(
+        (sum, a) => sum + (Number(a.score) || 0),
+        0
+      );
+      const totalMaxScore = submittedAttempts.reduce(
+        (sum, a) => sum + (Number(a.maxScore) || 0),
+        0
+      );
+
+      return {
+        studentId: student.id,
+        avgScore: totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0,
+      };
+    })
+    .filter((s) => s !== null)
+    .sort((a, b) => b!.avgScore - a!.avgScore);
+
+  const rank = studentScores.findIndex((s) => s!.studentId === studentId) + 1;
+
+  // Analyze performance by question type
+  const typePerformance = new Map<string, { earned: number; total: number }>();
+
+  attempts.forEach((attempt) => {
+    attempt.responses.forEach((response) => {
+      const type = response.question.type;
+      const earned = Number(response.earnedPoints) || 0;
+
+      if (!typePerformance.has(type)) {
+        typePerformance.set(type, { earned: 0, total: 0 });
+      }
+
+      const current = typePerformance.get(type)!;
+      current.earned += earned;
+      current.total += 1;
+    });
+  });
+
+  const typeScores = Array.from(typePerformance.entries()).map(([type, data]) => ({
+    type,
+    averageScore: data.total > 0 ? (data.earned / data.total) * 100 : 0,
+  }));
+
+  typeScores.sort((a, b) => b.averageScore - a.averageScore);
+
+  const strengthAreas = typeScores.slice(0, 2).map((t) => t.type);
+  const weakAreas = typeScores.slice(-2).map((t) => t.type);
+
+  return {
+    totalExams: attempts.length,
+    averageScore,
+    rank: rank > 0 ? rank : null,
+    totalStudents: studentScores.length,
+    strengthAreas,
+    weakAreas,
+    streak: 0, // TODO: Implement streak calculation
+  };
+};

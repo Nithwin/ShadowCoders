@@ -35,7 +35,7 @@ async def simulate_student(session, student_id):
             if i % 2 == 0:
                 path = f"/api/student/exams/{EXAM_ID}"
                 async with session.get(f"{BASE_URL}{path}") as resp:
-                     pass # print(f"Student {student_id}: Read Exam -> {resp.status}")
+                    pass # print(f"Student {student_id}: Read Exam -> {resp.status}")
             else:
                 # Simulate Code Execution
                 path = f"/api/student/attempts/{student_id}/run" # Note: Needs valid attempt ID logic in real scenario
@@ -43,7 +43,7 @@ async def simulate_student(session, student_id):
                 # In real test, you'd need to create an attempt first.
                 # For this demo, we'll hit the healthz repeatedly to hammer the server
                 async with session.get(f"{BASE_URL}/api/healthz") as resp:
-                     pass
+                    pass
 
     except Exception as e:
         print(f"Student {student_id}: ERROR - {str(e)}")
@@ -56,12 +56,7 @@ async def main():
     print("✅ Load Test Complete")
 
 if __name__ == "__main__":
-    print("To run this test, ensure you have python and aiohttp installed:")
-    print("pip install aiohttp")
     try:
-        import aiohttp
         asyncio.run(main())
-    except ImportError:
-        print("Error: aiohttp not installed. skipping execution.")
     except KeyboardInterrupt:
         print("\nTest stopped by user.")

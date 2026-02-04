@@ -76,7 +76,7 @@ export default function GenerateAiQuestionsModal({
         sqlCount: data.sqlCount || 0,
         essayCount: data.essayCount || 0,
         difficulty: data.difficulty || 'ANY',
-        points: data.points, // Send points if provided
+        ...(data.points !== undefined && { points: data.points }), // Only send points if provided
       });
       
       if (response.data && Array.isArray(response.data)) {
