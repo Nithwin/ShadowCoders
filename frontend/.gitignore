@@ -40,4 +40,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Error logs and temporary files
+errors.txt
+errors*.txt
+errors.log
+errors*.log
+eslint_errors*.txt
+
+# Test coverage
+coverage/
+.nyc_output/
+
 .vercel

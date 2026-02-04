@@ -1,2 +1,0 @@
-﻿components/meetings/meeting-card.tsx(17,25): error TS2367: This comparison appears to be unintentional because the types 'Role | undefined' and '"ADMIN"' have no overlap.
-components/meetings/meetings-page-content.tsx(16,26): error TS2367: This comparison appears to be unintentional because the types 'Role | undefined' and '"ADMIN"' have no overlap.
