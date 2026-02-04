@@ -52,3 +52,8 @@ coverage/
 .nyc_output/
 
 .vercel
+
+# Playwright
+/playwright-report/
+/test-results/
+/test-results*/

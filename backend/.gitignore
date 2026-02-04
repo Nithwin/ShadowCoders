@@ -18,3 +18,6 @@ yarn-debug.log*
 
 # OS
 .DS_Store
+
+# Local error logs
+error_log.txt
