@@ -119,11 +119,11 @@ export default function StudentResultsPage() {
   };
 
   return (
-    <div className="text-primary min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="text-primary min-h-screen bg-linear-to-br from-background via-background to-primary/5">
       {/* Header Section */}
       <div className="mb-8">
         <div className="mb-6">
-          <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-linear-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             My Results
           </h1>
           <p className="text-lg text-primary/70 font-medium">View your exam results and performance</p>
@@ -132,7 +132,7 @@ export default function StudentResultsPage() {
         {/* Stats Cards */}
         {!isLoading && filteredAttempts.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-5 border border-blue-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="bg-linear-to-br from-blue-500/10 to-blue-600/5 rounded-xl p-5 border border-blue-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
                   <FileText className="w-5 h-5 text-blue-600" />
@@ -141,7 +141,7 @@ export default function StudentResultsPage() {
               <p className="text-3xl font-bold text-primary mb-1">{stats.totalAttempts}</p>
               <p className="text-sm text-primary/60 font-medium">Total Attempts</p>
             </div>
-            <div className="bg-gradient-to-br from-green-500/10 to-emerald-600/5 rounded-xl p-5 border border-green-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="bg-linear-to-br from-green-500/10 to-emerald-600/5 rounded-xl p-5 border border-green-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 bg-green-500/20 rounded-lg">
                   <TrendingUp className="w-5 h-5 text-green-600" />
@@ -152,7 +152,7 @@ export default function StudentResultsPage() {
               </p>
               <p className="text-sm text-primary/60 font-medium">Average Score</p>
             </div>
-            <div className="bg-gradient-to-br from-yellow-500/10 to-orange-600/5 rounded-xl p-5 border border-yellow-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="bg-linear-to-br from-yellow-500/10 to-orange-600/5 rounded-xl p-5 border border-yellow-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 bg-yellow-500/20 rounded-lg">
                   <Trophy className="w-5 h-5 text-yellow-600" />
@@ -161,7 +161,7 @@ export default function StudentResultsPage() {
               <p className="text-3xl font-bold text-primary mb-1">{stats.highestScore}%</p>
               <p className="text-sm text-primary/60 font-medium">Highest Score</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-5 border border-purple-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="bg-linear-to-br from-purple-500/10 to-purple-600/5 rounded-xl p-5 border border-purple-500/20 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
               <div className="flex items-center justify-between mb-2">
                 <div className="p-2 bg-purple-500/20 rounded-lg">
                   <Target className="w-5 h-5 text-purple-600" />
@@ -243,15 +243,15 @@ export default function StudentResultsPage() {
                   className="group bg-secondary rounded-2xl shadow-lg hover:shadow-2xl border border-primary/10 hover:border-primary/30 transition-all duration-300 overflow-hidden hover:scale-[1.02]"
                 >
                   {/* Card Header */}
-                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-5 border-b border-primary/10">
+                  <div className="bg-linear-to-r from-primary/10 to-primary/5 p-5 border-b border-primary/10">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <h3 className="text-xl font-bold text-primary truncate">{attempt.exam.title}</h3>
                           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border shadow-sm ${
                             attempt.status === 'SUBMITTED'
-                              ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-700 border-green-500/30'
-                              : 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-700 border-yellow-500/30'
+                              ? 'bg-linear-to-r from-green-500/20 to-emerald-500/20 text-green-700 border-green-500/30'
+                              : 'bg-linear-to-r from-yellow-500/20 to-orange-500/20 text-yellow-700 border-yellow-500/30'
                           }`}>
                             {attempt.status === 'SUBMITTED' ? (
                               <CheckCircle2 className="w-3 h-3" />
@@ -278,7 +278,7 @@ export default function StudentResultsPage() {
                         </div>
                         <div className="w-full bg-primary/10 rounded-full h-3 overflow-hidden shadow-inner">
                           <div
-                            className={`h-3 rounded-full bg-gradient-to-r ${scoreColor} transition-all duration-500 flex items-center justify-end pr-2`}
+                            className={`h-3 rounded-full bg-linear-to-r ${scoreColor} transition-all duration-500 flex items-center justify-end pr-2`}
                             style={{ width: `${Math.max(percentage, 5)}%` }}
                           >
                             {percentage > 15 && (
@@ -316,7 +316,7 @@ export default function StudentResultsPage() {
                   {/* Card Footer */}
                   <div className="p-5 bg-primary/5 border-t border-primary/10">
                     <Link href={`/student/attempts/${attempt.id}/results`} className="block">
-                      <button className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                      <button className="w-full px-4 py-3 bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-semibold transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
                         <Eye className="w-5 h-5" />
                         View Details
                       </button>

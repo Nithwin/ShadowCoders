@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import axios from 'axios';
+import { api } from '@/lib/api';
 
 interface EyeTrackingOptions {
   attemptId: string;
@@ -35,8 +35,8 @@ export function useEyeHeadTracking(options: EyeTrackingOptions) {
   const [showWarning, setShowWarning] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastViolationTimeRef = useRef<number>(0);
@@ -53,7 +53,7 @@ export function useEyeHeadTracking(options: EyeTrackingOptions) {
     metadata?: Record<string, any>
   ) => {
     try {
-      await axios.post('/api/proctoring/events', {
+      await api.post('/proctoring/events', {
         attemptId,
         eventType,
         severity,
@@ -217,12 +217,19 @@ export function useEyeHeadTracking(options: EyeTrackingOptions) {
       console.error('Failed to access camera:', error);
       setCameraPermission('denied');
       
+      let errorDesc = 'Camera access denied or unavailable';
+      if (error.name === 'NotReadableError') {
+        errorDesc = 'Camera is in use by another application';
+      } else if (error.name === 'NotAllowedError') {
+        errorDesc = 'Camera permission denied';
+      }
+
       // Record permission denial
       recordViolation(
         'FACE_NOT_DETECTED',
         'critical',
-        'Camera access denied or unavailable',
-        { error: error.message }
+        errorDesc,
+        { error: error.message, name: error.name }
       );
     }
   }, [analyzeFrame, recordViolation]);

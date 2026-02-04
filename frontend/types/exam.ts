@@ -24,7 +24,11 @@ export type Attempt = {
   id: string;
   status: string;
   startedAt: string;
+  submittedAt: string | null;
   studentId: string;
+  timeSpentSec?: number;
+  score?: number | null;
+  maxScore?: number | null;
   student?: {
     name: string;
     email: string;

@@ -81,7 +81,7 @@ export function CreateMeetingDialog({ onCreated }: { onCreated: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md border-0 transition-all hover:scale-105">
+        <Button className="bg-linear-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white shadow-md border-0 transition-all hover:scale-105">
           <Plus className="mr-2 h-4 w-4" />
           New Meeting
         </Button>
@@ -89,7 +89,7 @@ export function CreateMeetingDialog({ onCreated }: { onCreated: () => void }) {
       <DialogContent className="sm:max-w-[460px] max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl border-0 shadow-2xl">
         
         {/* Compact Header */}
-        <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 px-5 py-4 text-white relative overflow-hidden">
+        <div className="bg-linear-to-br from-indigo-600 via-violet-600 to-purple-600 px-5 py-4 text-white relative overflow-hidden">
            {/* Subtle decorative elements */}
            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full translate-x-16 -translate-y-16 blur-3xl pointer-events-none" />
            <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-400/10 rounded-full -translate-x-8 translate-y-8 blur-2xl pointer-events-none" />
@@ -132,7 +132,7 @@ export function CreateMeetingDialog({ onCreated }: { onCreated: () => void }) {
                className={`
                  flex-1 flex items-center justify-center gap-2 py-2.5 px-4 text-sm font-semibold rounded-xl transition-all duration-300 border-2
                  ${type === 'INSTANT' 
-                   ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-md shadow-violet-500/20 scale-[1.02]" 
+                   ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-md shadow-violet-500/20 scale-[1.02]" 
                    : "bg-background text-muted-foreground border-border hover:border-violet-300 hover:bg-secondary/50"}
                `}
              >
@@ -144,7 +144,7 @@ export function CreateMeetingDialog({ onCreated }: { onCreated: () => void }) {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {error && (
               <div className="bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300 px-3 py-2.5 rounded-lg text-xs border border-red-200 dark:border-red-800/50 flex gap-2 items-start animate-in slide-in-from-top-2 fade-in">
-                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                 <span className="leading-relaxed">{error}</span>
               </div>
             )}
@@ -196,7 +196,7 @@ export function CreateMeetingDialog({ onCreated }: { onCreated: () => void }) {
                 className={`
                   w-full h-11 text-sm font-bold shadow-lg transition-all duration-300 rounded-xl
                   ${type === 'INSTANT' 
-                    ? "bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 text-white hover:shadow-violet-500/30 hover:scale-[1.02]"
+                    ? "bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 hover:from-indigo-700 hover:via-violet-700 hover:to-purple-700 text-white hover:shadow-violet-500/30 hover:scale-[1.02]"
                     : "bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-indigo-500/30 hover:scale-[1.02]"}
                 `}
               >

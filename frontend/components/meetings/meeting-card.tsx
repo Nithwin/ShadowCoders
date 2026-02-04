@@ -94,7 +94,7 @@ export function MeetingCard({ meeting, onUpdate }: { meeting: Meeting; onUpdate:
   return (
     <div className="group relative bg-card hover:bg-card/95 border border-border/50 rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full flex flex-col">
       {/* Decorative Header Gradient */}
-      <div className={`h-24 w-full absolute top-0 left-0 bg-gradient-to-br ${
+      <div className={`h-24 w-full absolute top-0 left-0 bg-linear-to-br ${
         meeting.status === 'COMPLETED' ? 'from-emerald-500/20 to-teal-500/5' :
         isPast ? 'from-gray-500/20 to-slate-500/5' : 'from-indigo-500/20 to-violet-500/5'
       }`} />
@@ -104,7 +104,7 @@ export function MeetingCard({ meeting, onUpdate }: { meeting: Meeting; onUpdate:
         
         {/* Top Row: Date Badge & Status */}
         <div className="flex justify-between items-start mb-4">
-           <div className="flex flex-col bg-background/90 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-1.5 text-center min-w-[3.5rem] shadow-sm">
+           <div className="flex flex-col bg-background/90 backdrop-blur-sm border border-border/50 rounded-lg px-3 py-1.5 text-center min-w-14 shadow-sm">
               <span className="text-xs font-bold text-red-500 uppercase tracking-wide">
                 {meetingDate.toLocaleDateString(undefined, { month: 'short' })}
               </span>
@@ -144,7 +144,7 @@ export function MeetingCard({ meeting, onUpdate }: { meeting: Meeting; onUpdate:
         {/* Error Message */}
         {error && (
           <div className="mb-3 p-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 text-xs flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
@@ -174,9 +174,9 @@ export function MeetingCard({ meeting, onUpdate }: { meeting: Meeting; onUpdate:
         </div>
 
         {/* Time & Description */}
-        <div className="space-y-3 mb-6 flex-grow">
+        <div className="space-y-3 mb-6 grow">
            <div className="flex items-center text-sm text-muted-foreground bg-secondary/40 p-2 rounded-lg border border-border/30">
-             <Clock className="mr-2 h-4 w-4 text-primary/70 flex-shrink-0" />
+             <Clock className="mr-2 h-4 w-4 text-primary/70 shrink-0" />
              <span className="font-medium truncate">
                {meetingDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                {' - '}
@@ -251,7 +251,7 @@ export function MeetingCard({ meeting, onUpdate }: { meeting: Meeting; onUpdate:
                          </div>
                          {error && (
                            <div className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 p-4 rounded-xl text-sm border border-red-100 dark:border-red-500/20 flex gap-3">
-                             <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                             <AlertTriangle className="h-5 w-5 shrink-0" />
                              <span>{error}</span>
                            </div>
                          )}

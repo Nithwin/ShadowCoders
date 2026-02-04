@@ -121,7 +121,7 @@ export default function AdminSidebar() {
                       }
                     `}
                   >
-                    <link.icon className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <link.icon className="w-5 h-5 mr-3 shrink-0" />
                     <span>{link.name}</span>
                   </Link>
                 </li>
@@ -131,7 +131,7 @@ export default function AdminSidebar() {
         </div>
 
         {/* User Profile & Logout Section - Fixed at bottom */}
-        <div className="border-t border-secondary/20 pt-4 mt-auto flex-shrink-0">
+        <div className="border-t border-secondary/20 pt-4 mt-auto shrink-0">
 
           <button
             onClick={logout}

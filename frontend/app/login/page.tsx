@@ -21,15 +21,16 @@ export default function LoginPage() {
 
 
   useEffect(() => {
+    console.log('[Login Page] Auth State Check:', { user: user?.email, role: user?.role, authLoading });
     if (!authLoading && user) {
+      console.log('[Login Page] Redirecting user based on role:', user.role);
       if (user.role === 'STAFF') {
         router.replace('/admin/dashboard');
       } else {
         router.replace('/student/dashboard');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

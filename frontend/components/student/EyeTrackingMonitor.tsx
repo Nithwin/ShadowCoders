@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Eye, Camera, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Eye, Camera, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface EyeTrackingMonitorProps {
   isTracking: boolean;
@@ -25,57 +25,78 @@ export function EyeTrackingMonitor({
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {/* Compact Status Indicator */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 min-w-[200px]">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Eye className={`w-4 h-4 ${isTracking ? 'text-green-500' : 'text-gray-400'}`} />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Proctoring
-            </span>
-          </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 min-w-[240px] overflow-hidden">
+        {/* Camera Preview */}
+        <div className="relative mb-3 rounded-md overflow-hidden bg-black aspect-video group">
+          <video
+            ref={videoRef}
+            className={`w-full h-full object-cover mirror ${isTracking ? 'opacity-100' : 'opacity-0'}`}
+            autoPlay
+            playsInline
+            muted
+          />
+          <canvas
+            ref={canvasRef}
+            className="hidden"
+          />
+          
+          {!isTracking && cameraPermission !== 'denied' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 text-white/50 animate-spin" />
+            </div>
+          )}
+
+          {cameraPermission === 'denied' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-gray-900/80">
+              <Camera className="w-6 h-6 text-red-500 mb-2" />
+              <span className="text-[10px] text-white">Camera Denied</span>
+            </div>
+          )}
+
           {isTracking && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs text-green-600 dark:text-green-400">Active</span>
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+              <span className="text-[10px] font-bold text-white tracking-widest uppercase">Live AI Monitoring</span>
             </div>
           )}
         </div>
 
-        {/* Camera Status */}
-        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-1">
-          <Camera className="w-3 h-3" />
-          {cameraPermission === 'granted' && <span>Camera connected</span>}
-          {cameraPermission === 'denied' && (
-            <span className="text-red-500">Camera access denied</span>
-          )}
-          {cameraPermission === 'prompt' && <span>Requesting camera...</span>}
-        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className={`w-4 h-4 ${isTracking ? 'text-blue-500' : 'text-gray-400'}`} />
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                AI PROCTORING
+              </span>
+            </div>
+            {isTracking ? (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-bold uppercase tracking-wider">
+                Active
+              </span>
+            ) : (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-900/30 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider">
+                Standby
+              </span>
+            )}
+          </div>
 
-        {/* Violation Count */}
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-600 dark:text-gray-400">Violations:</span>
-          <span className={`font-semibold ${
-            violationCount === 0 ? 'text-green-600' :
-            violationCount < 3 ? 'text-yellow-600' :
-            violationCount < 5 ? 'text-orange-600' :
-            'text-red-600'
-          }`}>
-            {violationCount}
-          </span>
-        </div>
+          <div className="h-px bg-gray-100 dark:bg-gray-700" />
 
-        {/* Hidden Video and Canvas Elements */}
-        <video
-          ref={videoRef}
-          className="hidden"
-          autoPlay
-          playsInline
-          muted
-        />
-        <canvas
-          ref={canvasRef}
-          className="hidden"
-        />
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-gray-500 dark:text-gray-400">Malpractice Alerts:</span>
+            <span className={`font-bold px-2 py-0.5 rounded-full ${
+              violationCount === 0 ? 'bg-green-50 text-green-700' :
+              violationCount < 3 ? 'bg-yellow-50 text-yellow-700' :
+              'bg-red-50 text-red-700'
+            }`}>
+              {violationCount}
+            </span>
+          </div>
+          
+          <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight">
+            AI is analyzing eye movement and head position for exam integrity.
+          </p>
+        </div>
       </div>
 
       {/* Warning Overlay */}

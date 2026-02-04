@@ -27,6 +27,7 @@ export const createExamSchema = z.object({
     maxTabSwitches: z.number().int().min(0).nullable().optional(), // null means unlimited
     allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
     releaseResults: z.boolean().optional().default(true),
+    enableProctoring: z.boolean().optional().default(false),
   }),
 });
 
@@ -167,6 +168,7 @@ export const updateExamSchema = z.object({
       maxTabSwitches: z.number().int().min(0).nullable().optional(), // null means unlimited
       allowedLanguages: z.array(z.string()).optional(), // Array of allowed programming languages
       releaseResults: z.boolean().optional(),
+      enableProctoring: z.boolean().optional(),
     })
     // Add a refinement to ensure if both dates are sent, start is before end
     .refine(

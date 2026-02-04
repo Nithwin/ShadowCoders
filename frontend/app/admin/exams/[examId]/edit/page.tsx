@@ -317,6 +317,7 @@ export default function EditExamPage() {
             maxAttempts: examData.maxAttempts ?? 1,
             maxTabSwitches: examData.maxTabSwitches ?? 1,
             allowedLanguages: Array.isArray(examData.allowedLanguages) ? examData.allowedLanguages : [],
+            enableProctoring: examData.enableProctoring ?? false,
           }}
           onSubmit={handleFormSubmit}
           isSubmitting={isSubmitting}

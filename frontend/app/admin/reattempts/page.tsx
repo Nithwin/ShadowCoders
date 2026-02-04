@@ -253,9 +253,24 @@ export default function ReattemptsPage() {
 
   return (
     <div className="text-primary">
-      <div className="mb-6">
-        <h1 className="text-4xl font-bold font-alan-sans mb-2">Enable Reattempt</h1>
-        <p className="text-primary/70">Reset submitted attempts to allow students to retake exams.</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-4xl font-bold font-alan-sans mb-2">Enable Reattempt</h1>
+          <p className="text-primary/70">Reset submitted attempts to allow students to retake exams.</p>
+        </div>
+        <Button
+          onClick={async () => {
+            await fetchExams();
+            if (selectedExamId) {
+              await fetchStudents();
+            }
+          }}
+          disabled={isLoadingExams || isLoadingStudents}
+          className="flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
+        >
+          <RefreshCw className={`w-4 h-4 ${(isLoadingExams || isLoadingStudents) ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </Button>
       </div>
 
       {/* Exam Selection */}

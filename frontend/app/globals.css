@@ -94,6 +94,10 @@ body{
     .animate-bounce-in {
         animation: reactionPop 0.5s ease-out forwards;
     }
+
+    .mirror {
+        transform: scaleX(-1);
+    }
 }
 
 @layer components {

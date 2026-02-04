@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/Button';
 import { QType } from '@/types';
 import { useToastNotification } from '@/context/ToastContext';
 import { ProctoringViolationSummary } from '@/components/student/ProctoringViolationSummary';
+import { CircularProgress } from '@/components/ui/CircularProgress';
+import { Confetti } from '@/components/ui/Confetti';
+import { PerformanceChart } from '@/components/student/PerformanceChart';
 
 type QuestionResult = {
   questionId: string;
@@ -74,6 +77,9 @@ export default function ExamResultsPage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any>(null);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [questionFilter, setQuestionFilter] = useState<'all' | 'correct' | 'incorrect' | 'partial' | 'unanswered'>('all');
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   const fetchResults = async () => {
     setIsLoading(true);
@@ -100,6 +106,12 @@ export default function ExamResultsPage() {
       }
       
       setResults(res.data);
+      
+      // Trigger confetti for high scores
+      const percentage = getScorePercentage(res.data.score, res.data.maxScore);
+      if (percentage >= 80) {
+        setTimeout(() => setShowConfetti(true), 500);
+      }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: { message?: string }, message?: string } } };
       console.error(err);
@@ -302,38 +314,78 @@ export default function ExamResultsPage() {
                 </div>
                 )}
 
-                {/* Score Card */}
-                {!results.isLocked && (
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-                        {/* Score Info */}
-                        <div className="flex-1">
-                          <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Your Score</div>
-                          <div className="flex items-baseline gap-3 mb-3">
-                            <span className="text-5xl font-bold text-gray-900">{percentage}%</span>
-                            <span className="text-xl text-gray-500">({formatScore(results.score)} / {formatScore(results.maxScore)})</span>
-                          </div>
-                          <p className="text-lg font-medium text-gray-700">{performanceMessage}</p>
-                        </div>
 
-                        {/* Rank Badge */}
-                        {results.rank !== null && results.rank !== undefined && results.totalParticipants !== undefined && (
-                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center min-w-[200px]">
-                            <Medal className="w-8 h-8 mx-auto mb-2 text-gray-600" />
-                            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Your Rank</div>
-                            <div className="text-3xl font-bold text-gray-900 mb-1">
-                              #{results.rank}
-                            </div>
-                            {results.totalParticipants > 0 && (
-                              <div className="text-sm text-gray-600">
-                                of {results.totalParticipants} students
+                {/* Hero Section with Circular Progress */}
+                {!results.isLocked && (
+                  <div className="relative bg-gradient-to-br from-white via-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+                    {/* Confetti Effect */}
+                    <Confetti active={showConfetti} duration={3000} />
+                    
+                    <div className="p-8 lg:p-12">
+                      <div className="flex flex-col lg:flex-row items-center gap-12">
+                        {/* Circular Progress */}
+                        <div className="flex-shrink-0">
+                          <CircularProgress 
+                            percentage={percentage} 
+                            size={220}
+                            strokeWidth={16}
+                            animate={true}
+                          />
+                        </div>
+                        
+                        {/* Score Details */}
+                        <div className="flex-1 text-center lg:text-left">
+                          <div className="mb-4">
+                            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
+                              {performanceMessage}
+                            </h2>
+                            <p className="text-lg text-gray-600">
+                              You scored <span className="font-bold text-gray-900">{formatScore(results.score)}</span> out of <span className="font-bold text-gray-900">{formatScore(results.maxScore)}</span> points
+                            </p>
+                          </div>
+                          
+                          {/* Performance Badge */}
+                          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold" style={{
+                            backgroundColor: percentage >= 90 ? '#d1fae5' : percentage >= 80 ? '#dbeafe' : percentage >= 70 ? '#ede9fe' : percentage >= 60 ? '#fef3c7' : percentage >= 50 ? '#fed7aa' : '#fee2e2',
+                            color: percentage >= 90 ? '#065f46' : percentage >= 80 ? '#1e40af' : percentage >= 70 ? '#5b21b6' : percentage >= 60 ? '#92400e' : percentage >= 50 ? '#9a3412' : '#991b1b'
+                          }}>
+                            <Award className="w-4 h-4" />
+                            {percentage >= 90 ? 'Outstanding' : percentage >= 80 ? 'Excellent' : percentage >= 70 ? 'Great' : percentage >= 60 ? 'Good' : percentage >= 50 ? 'Fair' : 'Needs Improvement'}
+                          </div>
+                          
+                          {/* Stats Row */}
+                          <div className="mt-6 flex flex-wrap gap-6 justify-center lg:justify-start">
+                            {results.submittedAt && (
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <Clock className="w-5 h-5" />
+                                <div>
+                                  <div className="text-xs text-gray-500">Submitted</div>
+                                  <div className="text-sm font-medium">{formatDate(results.submittedAt)}</div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {results.rank !== null && results.rank !== undefined && results.totalParticipants !== undefined && (
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <Medal className="w-5 h-5" />
+                                <div>
+                                  <div className="text-xs text-gray-500">Your Rank</div>
+                                  <div className="text-sm font-medium">#{results.rank} of {results.totalParticipants}</div>
+                                </div>
                               </div>
                             )}
                           </div>
-                        )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* Performance Analytics */}
+                {!results.isLocked && results.responses && results.responses.length > 0 && (
+                  <PerformanceChart responses={results.responses} maxScore={results.maxScore} />
+                )}
+
 
                 {/* Leaderboard Toggle */}
                 {!results.isLocked && results.rank !== null && results.rank !== undefined && (
@@ -441,9 +493,52 @@ export default function ExamResultsPage() {
 
                 {/* Questions Section */}
                 <div className="space-y-6">
-                    <h2 className="text-xl font-bold text-gray-900">Questions</h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <h2 className="text-xl font-bold text-gray-900">Question Review</h2>
+                      
+                      {/* Filter Tabs */}
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { key: 'all', label: 'All', icon: null },
+                          { key: 'correct', label: 'Correct', icon: CheckCircle2 },
+                          { key: 'incorrect', label: 'Incorrect', icon: XCircle },
+                          { key: 'partial', label: 'Partial', icon: AlertCircle },
+                          { key: 'unanswered', label: 'Unanswered', icon: null },
+                        ].map(({ key, label, icon: Icon }) => (
+                          <button
+                            key={key}
+                            onClick={() => setQuestionFilter(key as any)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                              questionFilter === key
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-white text-gray-700 border border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {Icon && <Icon className="w-4 h-4" />}
+                              {label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     
-                    {(results.exam.questions || []).map((question, index) => {
+                    {(results.exam.questions || [])
+                      .filter((question) => {
+                        if (questionFilter === 'all') return true;
+                        
+                        const response = results.responses.find(r => r.questionId === question.id);
+                        const qPoints = Number(question.points);
+                        const ePoints = response ? Number(response.earnedPoints || 0) : 0;
+                        
+                        if (questionFilter === 'correct') return response && ePoints === qPoints && qPoints > 0;
+                        if (questionFilter === 'incorrect') return response && ePoints === 0;
+                        if (questionFilter === 'partial') return response && ePoints > 0 && ePoints < qPoints;
+                        if (questionFilter === 'unanswered') return !response;
+                        
+                        return true;
+                      })
+                      .map((question, index) => {
                         const response = results.responses.find(r => r.questionId === question.id);
                         
                         const qPoints = Number(question.points);
@@ -453,15 +548,30 @@ export default function ExamResultsPage() {
                         const isNotAnswered = !response;
                         const isFailed = response && ePoints === 0;
 
+                        const isExpanded = expandedQuestions.has(question.id);
+                        const toggleExpand = () => {
+                          const newExpanded = new Set(expandedQuestions);
+                          if (isExpanded) {
+                            newExpanded.delete(question.id);
+                          } else {
+                            newExpanded.add(question.id);
+                          }
+                          setExpandedQuestions(newExpanded);
+                        };
+
                         return (
                             <div 
                                 key={question.id} 
-                                className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden"
+                                className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all hover:shadow-md"
                             >
-                                <div className="p-6">
-                                    <div className="flex items-start gap-4">
+                                {/* Question Header - Always Visible */}
+                                <button
+                                  onClick={toggleExpand}
+                                  className="w-full p-6 text-left hover:bg-gray-50 transition-colors"
+                                >
+                                <div className="flex items-start gap-4">
                                         {/* Question Number */}
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold flex-shrink-0 ${
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold shrink-0 ${
                                             isCorrect ? 'bg-green-100 text-green-700' : 
                                             isPartial ? 'bg-yellow-100 text-yellow-700' : 
                                             isNotAnswered ? 'bg-gray-100 text-gray-500' :
@@ -483,17 +593,42 @@ export default function ExamResultsPage() {
                                             </div>
 
                                             {/* Question Prompt */}
-                                            <div className="text-gray-900 font-medium mb-4">
+                                            <div className="text-gray-900 font-medium mb-2">
                                                 {question.type === QType.CODING ? (
                                                     <div dangerouslySetInnerHTML={{ __html: renderMarkdown(question.prompt || '') }} />
                                                 ) : (
                                                     question.prompt
                                                 )}
                                             </div>
+                                        </div>
 
-                                            {/* Answer */}
+                                        {/* Points */}
+                                        <div className="flex flex-col items-end pl-4 border-l border-gray-200 min-w-20">
+                                            <div className={`text-2xl font-bold ${
+                                                isCorrect ? 'text-green-600' : 
+                                                isPartial ? 'text-yellow-600' : 
+                                                isNotAnswered ? 'text-gray-400' :
+                                                'text-red-600'
+                                            }`}>
+                                                {formatScore(ePoints)}
+                                            </div>
+                                            <div className="text-xs font-semibold text-gray-500">
+                                                / {formatScore(qPoints)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {/* Expandable Content */}
+                                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                                  isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                                }`}>
+                                  <div className="px-6 pb-6 pt-0 border-t border-gray-100">
+                                    <div className="mt-4">
+
+                                            {/* Answer Section */}
                                             <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Your Answer</div>
+                                                <div className="text-xs font-semibold text-gray-500 uppercase mb-3">Your Answer</div>
                                                 {!response ? (
                                                     <div className="text-gray-400 italic">No answer submitted</div>
                                                 ) : (
@@ -534,21 +669,6 @@ export default function ExamResultsPage() {
                                                     {response?.feedback || "Incorrect answer."}
                                                 </div>
                                             )}
-                                        </div>
-
-                                        {/* Points */}
-                                        <div className="flex flex-col items-end pl-4 border-l border-gray-200 min-w-[80px]">
-                                            <div className={`text-2xl font-bold ${
-                                                isCorrect ? 'text-green-600' : 
-                                                isPartial ? 'text-yellow-600' : 
-                                                isNotAnswered ? 'text-gray-400' :
-                                                'text-red-600'
-                                            }`}>
-                                                {formatScore(ePoints)}
-                                            </div>
-                                            <div className="text-xs font-semibold text-gray-500">
-                                                / {formatScore(qPoints)}
-                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { QType } from '@/types';
 import ExamHeader from '@/components/student/exam/ExamHeader';
 import FullscreenWarning from '@/components/student/exam/FullscreenWarning';
@@ -11,6 +11,7 @@ import ExamErrorScreen from '@/components/student/exam/ExamErrorScreen';
 import ExamLoadingScreen from '@/components/student/exam/ExamLoadingScreen';
 import ExamErrorDisplay from '@/components/student/exam/ExamErrorDisplay';
 import ExamContentArea from '@/components/student/exam/ExamContentArea';
+import { ProctoringInitialDialog } from '@/components/student/exam/ProctoringInitialDialog';
 import { calculateAnsweredCount } from '@/utils/examCalculations';
 import { getFilteredQuestions, getEssayQuestions, getCurrentSectionType } from '@/utils/examQuestionUtils';
 import { mergeAnswersFromResponses } from '@/utils/examDataUtils';
@@ -25,6 +26,7 @@ import { useSectionNavigation } from '@/hooks/useSectionNavigation';
 import { useQuestionNavigation } from '@/hooks/useQuestionNavigation';
 import { useEyeHeadTracking } from '@/hooks/useEyeHeadTracking';
 import { EyeTrackingMonitor } from '@/components/student/EyeTrackingMonitor';
+import { useExtensionSecurity } from '@/hooks/useExtensionSecurity';
 
 import { ReportQuestionButton } from '@/components/student/ReportQuestionButton';
 import KeyboardViolationPopup from '@/components/student/exam/KeyboardViolationPopup';
@@ -33,6 +35,7 @@ import { api } from '@/lib/api';
 
 export default function ExamAttemptPage() {
   const params = useParams();
+  const router = useRouter();
   const attemptId = params?.attemptId as string;
   const containerRef = useRef<HTMLDivElement>(null);
   const { confirm } = useConfirmationDialog();
@@ -40,7 +43,10 @@ export default function ExamAttemptPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [reportedQuestions, setReportedQuestions] = useState<Set<string>>(new Set());
   const [showKeyboardViolation, setShowKeyboardViolation] = useState(false);
+  const [proctoringInitialized, setProctoringInitialized] = useState(false);
+  const [showProctoringDialog, setShowProctoringDialog] = useState(false);
   const { addViolation, removeViolation } = useViolationNotifications();
+  const { hasExtensions, detectedExtensions } = useExtensionSecurity();
 
   // Fetch attempt and questions data
   const {
@@ -91,7 +97,7 @@ export default function ExamAttemptPage() {
     (activity) => {
       // Emit final submitted status
       emitActivity({
-        ...activity,
+        status: 'submitted',
         answeredCount: questions.length,
         timeSpent: attempt?.startedAt
           ? Math.floor((new Date().getTime() - new Date(attempt.startedAt).getTime()) / 1000)
@@ -380,10 +386,24 @@ export default function ExamAttemptPage() {
     canvasRef,
   } = useEyeHeadTracking({
     attemptId: attemptId,
-    enabled: !!attempt && attempt.status === 'IN_PROGRESS' && isFullscreen && (attempt.exam.enableProctoring ?? false),
+    enabled: !!attempt && attempt.status === 'IN_PROGRESS' && isFullscreen && (attempt.exam.enableProctoring ?? false) && proctoringInitialized,
     warningThreshold: 3,
   });
 
+  // Show proctoring dialog when fullscreen is entered and proctoring is enabled
+  useEffect(() => {
+    console.log('Proctoring dialog check:', {
+      isFullscreen,
+      enableProctoring: attempt?.exam?.enableProctoring,
+      proctoringInitialized,
+      showProctoringDialog,
+    });
+    
+    if (isFullscreen && attempt?.exam?.enableProctoring && !proctoringInitialized && !showProctoringDialog) {
+      console.log('Showing proctoring dialog');
+      setShowProctoringDialog(true);
+    }
+  }, [isFullscreen, attempt?.exam?.enableProctoring, proctoringInitialized, showProctoringDialog]);
 
   // Section Navigation Hook
   const {
@@ -530,13 +550,32 @@ export default function ExamAttemptPage() {
     };
   }, [attempt, handleSubmitExam]);
 
+  // Extension Detection Trap
+  useEffect(() => {
+    if (attempt?.status === 'IN_PROGRESS' && hasExtensions && !isSubmitting) {
+      const distinctExtensions = Array.from(new Set(detectedExtensions));
+      const reason = distinctExtensions.length > 0 
+        ? `Malpractice Detected: Unauthorized Browser Extension(s) Detected: ${distinctExtensions.join(', ')}`
+        : 'Malpractice Detected: Unauthorized Browser Extension Detected (Trap)';
+        
+      handleSubmitExam(true, reason);
+    }
+  }, [hasExtensions, detectedExtensions, attempt?.status, isSubmitting, handleSubmitExam]);
+
   // Strict Fullscreen Enforcement: Auto-submit on exit
   useEffect(() => {
     if (isFullscreen) {
       hasEnteredFullscreenRef.current = true;
-    } else if (hasEnteredFullscreenRef.current && attempt?.status === 'IN_PROGRESS' && !isSubmitting) {
-      // User exited fullscreen after entering -> Strict Violation
-      handleSubmitExam(true, 'Malpractice Detected: Exited Fullscreen (Esc key or similar)');
+    } else if (hasEnteredFullscreenRef.current) {
+      // User exited fullscreen after entering
+      
+      // If we're not submitting, this is a violation
+      if (attempt?.status === 'IN_PROGRESS' && !isSubmitting) {
+        handleSubmitExam(true, 'Malpractice Detected: Exited Fullscreen (Esc key or similar)');
+      }
+      
+      // Reset proctoring state so dialog shows again if they somehow stay on page
+      setProctoringInitialized(false);
     }
   }, [isFullscreen, attempt?.status, isSubmitting, handleSubmitExam]);
 
@@ -613,6 +652,22 @@ export default function ExamAttemptPage() {
       {/* Fullscreen Requirement Modal */}
       {showFullscreenRequirement && (
         <FullscreenRequirement onEnterFullscreen={enterFullscreen} />
+      )}
+      
+      {/* Proctoring Initialization Dialog */}
+      {showProctoringDialog && attempt?.exam?.enableProctoring && (
+        <ProctoringInitialDialog
+          attemptId={attemptId}
+          onProctoringReady={() => {
+            setProctoringInitialized(true);
+            setShowProctoringDialog(false);
+          }}
+          onCancel={() => {
+            // Cancel the exam if user doesn't allow proctoring
+            handleSubmitExam(true, 'Exam cancelled - camera permission denied');
+            router.push(`/student/attempts/${attemptId}/results`);
+          }}
+        />
       )}
       
       <div className={showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}>

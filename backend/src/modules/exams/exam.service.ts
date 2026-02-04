@@ -53,6 +53,7 @@ export const createExam = async (input: CreateExamInput) => {
     randomizeQuestions: input.randomizeQuestions ?? false,
     allowedLanguages: input.allowedLanguages ? (input.allowedLanguages as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
     maxTabSwitches: input.maxTabSwitches ?? null,
+    enableProctoring: input.enableProctoring ?? false,
   };
 
   const newExam = await examRepo.createExam(dataToSave);
@@ -356,6 +357,9 @@ export const updateExam = async (examId: string, input: UpdateExamInput) => {
   }
   if (input.maxTabSwitches !== undefined) {
     dataToUpdate.maxTabSwitches = input.maxTabSwitches ?? null;
+  }
+  if (input.enableProctoring !== undefined) {
+    dataToUpdate.enableProctoring = input.enableProctoring;
   }
 
   // 3. --- Call Repository ---

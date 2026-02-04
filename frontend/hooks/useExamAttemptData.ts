@@ -42,7 +42,10 @@ export function useExamAttemptData(attemptId: string | undefined) {
       // Merge with server responses
       const mergedAnswers = mergeAnswersFromResponses(savedAnswers, attemptData.responses);
 
-      const fetchedQuestions = await fetchQuestionsData(attemptId!, attemptData);
+      let fetchedQuestions: Question[] = [];
+      if (attemptData.status === 'IN_PROGRESS') {
+        fetchedQuestions = await fetchQuestionsData(attemptId!, attemptData);
+      }
       setQuestions(fetchedQuestions);
 
       return { attemptData, mergedAnswers, fetchedQuestions };

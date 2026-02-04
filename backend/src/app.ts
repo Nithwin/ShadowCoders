@@ -51,13 +51,24 @@ export const createApp = () => {
     app.use(cors(corsOptions));
 
     // Rate limiting: 100 requests per 15 minutes
-    // Skip rate limiting for OPTIONS requests (CORS preflight)
+    // Skip rate limiting for OPTIONS requests (CORS preflight) and exam/proctoring endpoints
     const limiter = rateLimit({
         windowMs: 15 * 60 * 1000,
         max: 100,
         standardHeaders: true,
         legacyHeaders: false,
-        skip: (req) => req.method === 'OPTIONS', // Skip preflight requests
+        skip: (req) => {
+          // Skip preflight requests
+          if (req.method === 'OPTIONS') return true;
+          
+          // Skip exam attempt endpoints (students rapidly save answers during exams)
+          if (req.path.includes('/student/attempts/')) return true;
+          
+          // Skip proctoring endpoints
+          if (req.path.includes('/api/proctoring/')) return true;
+          
+          return false;
+        },
         message: {
             error: {
                 code: 'TOO_MANY_REQUESTS',
@@ -66,7 +77,7 @@ export const createApp = () => {
         }
     });
 
-    // Apply rate limiting to all requests (except OPTIONS)
+    // Apply rate limiting to all requests (except OPTIONS, exam attempts, and proctoring)
     app.use(limiter);
 
     // Request timeout middleware (prevents hanging requests)

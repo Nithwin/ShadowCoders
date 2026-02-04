@@ -105,6 +105,11 @@ export default function ExamForm({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('basic');
   
+  // If editing (title exists), mark all tabs as visited
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(
+    new Set(defaultValues?.title ? ['basic', 'timing', 'settings', 'security'] : ['basic'])
+  );
+  
   // Use external error if provided, otherwise use internal
   const displayError = externalApiError || apiError;
 
@@ -171,14 +176,25 @@ export default function ExamForm({
     security: !tabErrors.security,
   };
 
+  // Check if all tabs have been visited and completed
+  const allTabsVisited = visitedTabs.has('basic') && visitedTabs.has('timing') && visitedTabs.has('settings') && visitedTabs.has('security');
+  const allTabsValid = !tabErrors.basic && !tabErrors.timing && !tabErrors.settings && !tabErrors.security;
+  const canSubmit = allTabsVisited && allTabsValid && !!watch('title') && !!watch('startAt') && !!watch('endAt');
+
+  const handleTabChange = (tab: TabId) => {
+    setVisitedTabs(prev => new Set([...prev, tab]));
+    setActiveTab(tab);
+  };
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Tabbed Navigation */}
       <ExamFormTabs 
         activeTab={activeTab} 
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         errors={tabErrors}
         completed={tabCompleted}
+        visitedTabs={visitedTabs}
       />
 
       {/* Tab Content */}
@@ -236,7 +252,9 @@ export default function ExamForm({
               const tabs: TabId[] = ['basic', 'timing', 'settings', 'security'];
               const currentIndex = tabs.indexOf(activeTab);
               if (currentIndex > 0) {
-                setActiveTab(tabs[currentIndex - 1]);
+                const previousTab = tabs[currentIndex - 1];
+                setVisitedTabs(prev => new Set([...prev, previousTab]));
+                setActiveTab(previousTab);
               }
             }}
             variant="outline"
@@ -249,19 +267,32 @@ export default function ExamForm({
         <div className="flex-1" />
         
         {activeTab === 'security' ? (
-          <Button type="submit" disabled={isSubmitting || (!isDirty && !!defaultValues)} className="min-w-[150px]">
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                {submitLabel}
-              </>
+          <>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || !canSubmit} 
+              className="min-w-[150px]"
+              title={!canSubmit ? "Please complete all sections before submitting" : ""}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {submitLabel}
+                </>
+              )}
+            </Button>
+            {!canSubmit && (
+              <div className="ml-3 text-xs text-red-500 flex items-center gap-1">
+                <Info className="w-3 h-3" />
+                Please complete all sections
+              </div>
             )}
-          </Button>
+          </>
         ) : (
           <Button 
             type="button" 
@@ -269,7 +300,9 @@ export default function ExamForm({
               const tabs: TabId[] = ['basic', 'timing', 'settings', 'security'];
               const currentIndex = tabs.indexOf(activeTab);
               if (currentIndex < tabs.length - 1) {
-                setActiveTab(tabs[currentIndex + 1]);
+                const nextTab = tabs[currentIndex + 1];
+                setVisitedTabs(prev => new Set([...prev, nextTab]));
+                setActiveTab(nextTab);
               }
             }}
             className="min-w-[120px]"

@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2, Award } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2, Award, ShieldCheck, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
+
 
 type Exam = {
   id: string;
@@ -413,6 +414,9 @@ export default function ExamDetailPage() {
           </div>
         </div>
 
+        {/* Security Check Section */}
+
+
         {/* Start Button - At Bottom Full Width */}
         <div className="flex justify-end pt-3 border-t border-primary/10 gap-3">
           {/* View Results Button (Only show for submitted attempts, not IN_PROGRESS) */}
@@ -430,7 +434,7 @@ export default function ExamDetailPage() {
             <Button
               onClick={handleStartExam}
               disabled={isStarting}
-              className="bg-green-600 hover:bg-green-700 text-white border-0 min-w-[200px] h-11 text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+              className={`bg-green-600 hover:bg-green-700 text-white border-0 min-w-[200px] h-11 text-base shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all`}
             >
               {isStarting ? (
                 <>

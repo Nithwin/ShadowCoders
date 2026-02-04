@@ -40,7 +40,7 @@ export default function MeetingsPageContent() {
     <div className="container mx-auto p-6 md:p-8 space-y-8 max-w-7xl animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b pb-6">
         <div className="flex-1 min-w-0">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Meetings & Sessions
           </h1>
           <p className="text-muted-foreground mt-2 text-base md:text-lg">
@@ -56,7 +56,7 @@ export default function MeetingsPageContent() {
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="text-red-600 font-medium">{error}</p>
             <Button 

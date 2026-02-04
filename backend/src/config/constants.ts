@@ -21,7 +21,7 @@ export const RATE_LIMITS = {
   /** Auth endpoints: 5 attempts per 15 minutes */
   AUTH: {
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 50, // Increased for dev/testing
   },
   
   /** General API: 100 requests per 15 minutes */

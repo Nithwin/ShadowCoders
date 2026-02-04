@@ -44,9 +44,10 @@ interface ExamFormTabsProps {
   onTabChange: (tab: TabId) => void;
   errors?: Partial<Record<TabId, boolean>>;
   completed?: Partial<Record<TabId, boolean>>;
+  visitedTabs?: Set<TabId>;
 }
 
-export function ExamFormTabs({ activeTab, onTabChange, errors = {}, completed = {} }: ExamFormTabsProps) {
+export function ExamFormTabs({ activeTab, onTabChange, errors = {}, completed = {}, visitedTabs = new Set() }: ExamFormTabsProps) {
   return (
     <div className="mb-8">
       {/* Tab Navigation */}
@@ -57,6 +58,7 @@ export function ExamFormTabs({ activeTab, onTabChange, errors = {}, completed = 
             const isActive = activeTab === tab.id;
             const hasError = errors[tab.id];
             const isCompleted = completed[tab.id];
+            const isVisited = visitedTabs.has(tab.id);
             
             return (
               <button
@@ -82,6 +84,9 @@ export function ExamFormTabs({ activeTab, onTabChange, errors = {}, completed = 
                 )}
                 {isCompleted && !isActive && !hasError && (
                   <CheckCircle2 className="w-4 h-4 text-green-500" aria-label="Completed" />
+                )}
+                {!isCompleted && isVisited && !isActive && !hasError && (
+                  <div className="w-2 h-2 rounded-full bg-amber-500" aria-label="Visited" title="Section visited" />
                 )}
                 
                 {/* Step Number */}

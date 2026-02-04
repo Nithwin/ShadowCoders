@@ -1,0 +1,1 @@
+next.config.ts(50,5): error TS2353: Object literal may only specify known properties, and 'buildActivity' does not exist in type '{ position?: "bottom-right" | "top-left" | "top-right" | "bottom-left" | undefined; }'.
