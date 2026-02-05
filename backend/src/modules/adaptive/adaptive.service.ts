@@ -114,8 +114,9 @@ export class AdaptiveService {
     // Prisma doesn't support RAND() easily, so we fetch a few and pick one JS-side
     // Or fetch first one not in seen list
     
-    const candidate = await prisma.questionPool.findFirst({
+    const candidate = await (prisma.questionPool as any).findFirst({
       where: {
+        examId: examId, 
         difficulty: nextDifficulty,
         ...(allowedTopics.length > 0 ? { topic: { in: allowedTopics } } : {}),
         id: { notIn: seenPoolIds }
@@ -123,16 +124,18 @@ export class AdaptiveService {
     });
 
     if (!candidate) {
-      console.warn(`[Adaptive] No ${nextDifficulty} questions left for topic(s) ${allowedTopics}! Fallback to ANY.`);
-       // Fallback: try any difficulty if we ran out of specific level
-      const fallback = await prisma.questionPool.findFirst({
+      console.warn(`[Adaptive] No ${nextDifficulty} questions left for Exam ${examId}! Fallback to ANY difficulty for this exam.`);
+       // Fallback: try any difficulty but STILL RESTRICTED TO EXAM
+      const fallback = await (prisma.questionPool as any).findFirst({
          where: {
+           examId: examId,
           ...(allowedTopics.length > 0 ? { topic: { in: allowedTopics } } : {}),
            id: { notIn: seenPoolIds }
          }
        });
        if (!fallback) {
-         throw new Error("Question Pool is empty! Please ask admin to generate questions.");
+         console.error("[Adaptive] Question Pool is empty for exam", examId);
+         return null; // Return null instead of throwing to prevent 500
        }
        return this.instantiateQuestionForStudent(fallback, nextDifficulty, studentId, examId, session.id); // Use fallback
     }
@@ -158,8 +161,9 @@ export class AdaptiveService {
         type: QType.CODING,
         points: difficulty === 'HARD' ? 20 : (difficulty === 'MEDIUM' ? 10 : 5),
         prompt: poolData.problemStatement,
-        starterCode: poolData.starterCode?.[0]?.code || '', // Assuming JS/TS for now or first available
+        starterCode: '', // User requested NO snippet (IO format)
         testcases: poolData.testCases || [],
+        maxDurationSec: 300, // 5 minutes per question for dynamic mode
         order: 999, // Dynamic questions don't have order in sections
         config: {
           dynamic: true,
@@ -203,6 +207,110 @@ export class AdaptiveService {
       }
     });
   }
+
+
+  /**
+   * Starts a dynamic session for an attempt
+   */
+  async startSession(studentId: string, examId: string, attemptId: string) {
+    // 1. Create or Get Session
+    const session = await this.getOrCreateSession(studentId, examId);
+
+    // 2. Do we already have questions for this attempt?
+    // If getting an existing session, we might already have history.
+    // But for a NEW attempt (which triggered this), we MUST reset the session standard
+    // to ensure they don't inherit "finished" state from a previous attempt.
+    
+    // We assume if attempt.orderMap is empty, we need a question.
+    const attempt = await prisma.attempt.findUnique({ where: { id: attemptId } });
+    const orderMap = (attempt?.orderMap as string[]) || [];
+
+    if (orderMap.length > 0) {
+      return; // Already initialized, don't reset
+    }
+
+    // RESET SESSION for new attempt
+    await prisma.dynamicExamSession.update({
+      where: { id: session.id },
+      data: {
+        questionsAnswered: 0,
+        history: [],
+        currentDifficulty: 'MEDIUM' 
+      }
+    });
+
+    // 3. Get First Question
+    // Calculate difficulty based on empty history (MEDIUM)
+    const nextQuestion = await this.getNextQuestion(studentId, examId);
+    
+    if (nextQuestion) {
+      // 4. Update Attempt
+      await prisma.attempt.update({
+        where: { id: attemptId },
+        data: {
+          orderMap: [nextQuestion.id]
+        }
+      });
+    }
+  }
+
+  /**
+   * Progresses the session after a response (or timeout)
+   */
+  async progressSession(attemptId: string, lastResponse: { questionId: string; verdict: string | null; earnedPoints?: any; timeSpent?: number }) {
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      include: { exam: true }
+    });
+
+    if (!attempt || attempt.exam.mode !== 'DYNAMIC') return;
+
+    // 1. Get Session
+    const session = await this.getOrCreateSession(attempt.studentId, attempt.examId);
+
+    // 2. Identify the Question Pool ID from the Question Config
+    // We need to know which "Pool Item" this question corresponded to, to update history correctly.
+    const question = await prisma.question.findUnique({ where: { id: lastResponse.questionId } });
+    if (!question) return;
+    const config = question.config as any;
+    const poolId = config?.poolId;
+    const difficulty = config?.difficulty as Difficulty;
+
+    // 3. Record Result
+    if (poolId && difficulty) {
+      // Estimate time taken? 
+      // ideally we track start/end of question. For now use a heuristic or passed value.
+      // We can use (now - lastResponse.createdAt) or similar if we had it.
+      // Let's assume 5 mins if not known, or use the timer.
+      const timeTaken = lastResponse.timeSpent || 60; 
+      
+      const passed = lastResponse.verdict === 'PASS';
+      
+      await this.recordResult(session.id, question.id, poolId, difficulty, timeTaken, passed);
+    }
+
+    // 4. Get Next Question
+    const nextQuestion = await this.getNextQuestion(attempt.studentId, attempt.examId);
+
+    if (nextQuestion) {
+      // 5. Append to OrderMap
+      const currentMap = (attempt.orderMap as string[]) || [];
+      // Ensure unique
+      if (!currentMap.includes(nextQuestion.id)) {
+        await prisma.attempt.update({
+          where: { id: attemptId },
+          data: {
+            orderMap: [...currentMap, nextQuestion.id]
+          }
+        });
+      }
+    } else {
+        // No more questions - Mark exam as potentially complete?
+        // Or just let the user see the "Finish" screen.
+    }
+  }
+
+
 }
 
 export const adaptiveService = new AdaptiveService();

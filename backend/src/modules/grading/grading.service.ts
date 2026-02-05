@@ -38,7 +38,7 @@ export const runCode = async (
   // 2. --- Validation: Check Question ---
   const question = await prisma.question.findUnique({
     where: { id: questionId },
-    select: { examId: true, type: true, testcases: true, config: true },
+    select: { examId: true, type: true, testcases: true, config: true, points: true },
   });
 
   if (!question) {
@@ -261,7 +261,31 @@ export const runCode = async (
     result
   );
 
-  // 7. Return the execution result
+  // 7. --- Persist Score to Response ---
+  // If not a custom input run, update the Response record with auto-calculated score
+  if (customInput === undefined) {
+    const questionPoints = Number(question.points) || 0;
+    const passedRatio = result.total > 0 ? (result.passed / result.total) : 0;
+    const earnedPoints = parseFloat((passedRatio * questionPoints).toFixed(2));
+    
+    let verdict = 'FAIL';
+    if (result.passed === result.total && result.total > 0) {
+      verdict = 'PASS';
+    } else if (result.passed > 0) {
+      verdict = 'PARTIAL';
+    }
+
+    await prisma.response.update({
+      where: { id: response.id },
+      data: {
+        earnedPoints: earnedPoints,
+        verdict: verdict,
+        gradingMode: 'AUTO',
+      },
+    });
+  }
+
+  // 8. Return the execution result
   return finalJob.result;
 };
 

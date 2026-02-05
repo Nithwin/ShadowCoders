@@ -63,32 +63,9 @@ export const createExam = async (input: CreateExamInput) => {
   // Create default sections automatically
   await createDefaultSections(newExam.id);
 
-  // --- Auotmated Generation for Dynamic Exams ---
-  // If dynamic topics are provided, trigger generation in background
-  if (input.mode === 'DYNAMIC' && input.dynamicTopics && input.dynamicTopics.length > 0) {
-    const topic = input.dynamicTopics[0]; // Currently support 1st topic, or iterate
-    const count =  input.dynamicQuestionCount || 5; 
-    
-    // Run in background - do NOT await
-    // We generate 3x the count per level to ensure a good pool
-    // e.g. Count 5 -> 5 Easy, 5 Medium, 5 Hard = 15 total
-    
-    // Use the exported singleton directly
-    import('../generation/generation.service').then(({ generationService }) => {
-       console.log(`[ExamService] Triggering auto-generation for Exam ${newExam.id} (Topic: ${topic})`);
-       if (typeof topic === 'string') {
-         // Pass the custom prompt if it exists
-         generationService.bulkGenerate(
-           topic, 
-           count, 
-           ['EASY', 'MEDIUM', 'HARD'], 
-           input.generationPrompt || undefined
-         )
-         .then(res => console.log(`[ExamService] Auto-generation complete for ${newExam.id}:`, res))
-         .catch(err => console.error(`[ExamService] Auto-generation failed for ${newExam.id}:`, err));
-       }
-    });
-  }
+  // --- Auto-generation removed by request ---
+  // Questions will only be generated via manual trigger
+  
   
   return newExam;
 };
@@ -556,7 +533,7 @@ export const getExamByIdForStudent = async (studentId: string, examId: string) =
 };
 
 // Manual trigger for generation
-export const triggerManualGeneration = async (examId: string) => {
+export const triggerManualGeneration = async (examId: string, customPrompt?: string) => {
   const exam = await examRepo.findExamById(examId);
   if (!exam) throw { status: 404, message: 'Exam not found' };
   
@@ -566,6 +543,7 @@ export const triggerManualGeneration = async (examId: string) => {
 
   const topic = exam.dynamicTopics[0];
   const count = exam.dynamicQuestionCount || 5;
+  const promptToUse = customPrompt || exam.generationPrompt || undefined;
 
   // Run in background / detached
   // Use the exported singleton directly
@@ -576,7 +554,8 @@ export const triggerManualGeneration = async (examId: string) => {
            topic, 
            count, 
            ['EASY', 'MEDIUM', 'HARD'], 
-           exam.generationPrompt || undefined
+           promptToUse,
+           exam.id
         )
         .then(res => console.log(`[ExamService] Manual generation complete for ${exam.id}:`, res))
         .catch(err => console.error(`[ExamService] Manual generation failed for ${exam.id}:`, err));

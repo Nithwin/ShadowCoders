@@ -27,7 +27,7 @@ type CodingQuestionProps = {
   points: number;
   attemptId: string;
   answer?: { code?: string; language?: string };
-  onChange: (answer: { code: string; language: string; passed?: number; total?: number }) => void;
+  onChange: (answer: { code: string; language: string; passed?: number; total?: number; replayLog?: string }) => void;
   onNext?: () => void;
   onPrev?: () => void;
   canGoNext?: boolean;
@@ -125,6 +125,11 @@ export default function CodingQuestion({
   const previousQuestionIdRef = useRef<string>(questionId);
   const cooldownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Session Replay Log
+  const replayLogRef = useRef<Array<{ t: number; v: string }>>([]);
+  const lastSnapshotTimeRef = useRef<number>(0);
+
 
   // Get Monaco language for current language
   const monacoLanguage = availableLanguages.find(lang => lang.value === language)?.monacoLang || availableLanguages[0]?.monacoLang || 'javascript';
@@ -331,6 +336,29 @@ export default function CodingQuestion({
     const newCode = value || '';
     setCode(newCode);
     
+    // Capture snapshot for session replay (Ghost Mode)
+    const now = Date.now();
+    // Record if: first entry, or > 2 seconds since last, or significant length change (paste)
+    const lastSnapshot = replayLogRef.current[replayLogRef.current.length - 1];
+    const timeDiff = now - lastSnapshotTimeRef.current;
+    
+    if (
+      replayLogRef.current.length === 0 || 
+      timeDiff > 2000 || 
+      (lastSnapshot && Math.abs(newCode.length - lastSnapshot.v.length) > 10)
+    ) {
+      replayLogRef.current.push({ t: now, v: newCode });
+      lastSnapshotTimeRef.current = now;
+      
+      // Limit log size to prevent memory issues (keep last 1000 snapshots)
+      if (replayLogRef.current.length > 1000) {
+        // Keep first (start) and last 900
+        const first = replayLogRef.current[0];
+        const last = replayLogRef.current.slice(-900);
+        replayLogRef.current = [first, ...last];
+      }
+    }
+    
     // Mark that user has made edits - don't let answer prop overwrite
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -342,7 +370,11 @@ export default function CodingQuestion({
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
-      onChange({ code: newCode, language });
+      onChange({ 
+        code: newCode, 
+        language,
+        replayLog: JSON.stringify(replayLogRef.current) 
+      });
     }, 1000); // 1 second debounce for code auto-save
   };
 
@@ -527,7 +559,13 @@ export default function CodingQuestion({
       }
       
       // Then save the answer to the parent component and server
-      onChange({ code, language, passed, total });
+      onChange({ 
+        code, 
+        language, 
+        passed, 
+        total,
+        replayLog: JSON.stringify(replayLogRef.current)
+      });
       
       // Save to server via API
       await api.post(`/student/attempts/${attemptId}/responses`, {
@@ -536,7 +574,8 @@ export default function CodingQuestion({
           code: code.trim(),
           language: language,
           passed,
-          total
+          total,
+          replayLog: JSON.stringify(replayLogRef.current)
         },
       });
     } catch (err: unknown) {
@@ -553,6 +592,7 @@ export default function CodingQuestion({
           answer: {
             code: code.trim(),
             language: language,
+            replayLog: JSON.stringify(replayLogRef.current)
           },
         });
         setError('Failed to run tests, but your code has been saved. ' + (error.response?.data?.message || 'Please try running code manually.'));

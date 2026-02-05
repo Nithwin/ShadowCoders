@@ -97,6 +97,9 @@ export function ExamSettings({
                   max={20}
                   className="max-w-[150px]"
                 />
+                {errors.dynamicQuestionCount && (
+                  <p className="mt-1 text-xs text-red-500">{errors.dynamicQuestionCount.message as string}</p>
+                )}
                 <p className="text-xs text-primary/60 mt-1">
                   Each student will get this many generated questions.
                 </p>
@@ -111,28 +114,20 @@ export function ExamSettings({
                   onChange={(e) => {
                     const val = e.target.value;
                     const topics = val.split(',').map(t => t.trim()).filter(Boolean);
-                    setValue('dynamicTopics', topics, { shouldDirty: true });
+                    setValue('dynamicTopics', topics, { 
+                      shouldDirty: true,
+                      shouldValidate: true 
+                    });
                   }}
                 />
+                {errors.dynamicTopics && (
+                  <p className="mt-1 text-xs text-red-500">{errors.dynamicTopics.message as string}</p>
+                )}
                 <p className="text-xs text-primary/60 mt-1">
                   Questions will be generated from these topics.
                 </p>
-                <input type="hidden" {...register('dynamicTopics')} />
               </div>
               
-               <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Generation Prompt (Optional)
-                </label>
-                <textarea
-                  {...register('generationPrompt')}
-                  placeholder="e.g. Generate questions about array sorting algorithms focusing on time complexity, specifically QuickSort and MergeSort."
-                  className="flex min-h-[80px] w-full rounded-md border border-primary/20 bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                <p className="text-xs text-primary/60 mt-1">
-                  Provide custom instructions to guide the AI generation. If empty, it will use the topics.
-                </p>
-              </div>
             </div>
           </div>
         )}

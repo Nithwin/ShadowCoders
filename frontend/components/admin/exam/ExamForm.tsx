@@ -3,9 +3,9 @@
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TimingMode, SectionLockPolicy } from '@/types';
-import { Loader2, Save, Info, CheckCircle2 } from 'lucide-react';
+import { Loader2, Save, Info, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
@@ -55,7 +55,7 @@ export const examFormSchema = z.object({
   releaseResults: z.boolean().optional(),
   enableProctoring: z.boolean().optional(),
   mode: z.enum(['STANDARD', 'DYNAMIC']).default('STANDARD'),
-  dynamicQuestionCount: z.coerce.number().int().min(1).optional(),
+  dynamicQuestionCount: z.coerce.number().int().optional(),
   generationPrompt: z.string().optional(),
   dynamicTopics: z.array(z.string()).optional(),
 }).refine((data) => new Date(data.startAt) < new Date(data.endAt), {
@@ -131,6 +131,7 @@ export default function ExamForm({
     formState: { errors, isDirty },
     watch,
     setValue,
+    clearErrors,
   } = useForm<ExamFormInput>({
     resolver: zodResolver(examFormSchema),
     defaultValues: {
@@ -147,6 +148,15 @@ export default function ExamForm({
       ...defaultValues,
     },
   });
+  
+  const mode = watch('mode');
+  
+  // Clear dynamic errors when switching to STANDARD
+  useEffect(() => {
+    if (mode === 'STANDARD') {
+      clearErrors(['dynamicQuestionCount', 'dynamicTopics']);
+    }
+  }, [mode, clearErrors]);
 
   const handleFormSubmit = async (raw: ExamFormInput) => {
     setApiError(null);
@@ -182,8 +192,7 @@ export default function ExamForm({
       errors.negativeMarkPerWrong ||
       errors.allowedLanguages ||
       errors.releaseResults ||
-      errors.dynamicQuestionCount ||
-      errors.dynamicTopics
+      (watch('mode') === 'DYNAMIC' && (errors.dynamicQuestionCount || errors.dynamicTopics))
     ),
     security: !!(errors.maxAttempts || errors.maxTabSwitches),
   };
@@ -195,10 +204,11 @@ export default function ExamForm({
     security: !tabErrors.security,
   };
 
-  // Check if all tabs have been visited and completed
-  const allTabsVisited = visitedTabs.has('basic') && visitedTabs.has('timing') && visitedTabs.has('settings') && visitedTabs.has('security');
-  const allTabsValid = !tabErrors.basic && !tabErrors.timing && !tabErrors.settings && !tabErrors.security;
-  const canSubmit = allTabsVisited && allTabsValid && !!watch('title') && !!watch('startAt') && !!watch('endAt');
+  // Check if all necessary fields are valid
+  const currentMode = watch('mode');
+  const hasSettingsErrors = tabErrors.settings;
+  const allTabsValid = !tabErrors.basic && !tabErrors.timing && !hasSettingsErrors && !tabErrors.security;
+  const canSubmit = allTabsValid && !!watch('title') && !!watch('startAt') && !!watch('endAt');
 
   const handleTabChange = (tab: TabId) => {
     setVisitedTabs(prev => new Set([...prev, tab]));
@@ -293,7 +303,7 @@ export default function ExamForm({
               type="submit" 
               disabled={isSubmitting || !canSubmit} 
               className="min-w-[150px]"
-              title={!canSubmit ? "Please complete all sections before submitting" : ""}
+              title={!canSubmit ? "Please fill all required fields in all sections" : ""}
             >
               {isSubmitting ? (
                 <>
@@ -308,9 +318,28 @@ export default function ExamForm({
               )}
             </Button>
             {!canSubmit && (
-              <div className="ml-3 text-xs text-red-500 flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                Please complete all sections
+              <div className="ml-3 flex flex-col gap-1.5 bg-red-50 p-3 rounded-lg border border-red-200 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-1.5 text-red-700 font-bold text-xs uppercase tracking-wider">
+                  <AlertCircle className="w-4 h-4" />
+                  Form Incomplete
+                </div>
+                <div className="space-y-1">
+                  {tabErrors.basic && <p className="text-xs text-red-600">• Check <strong>Basic Info</strong> (Title is required)</p>}
+                  {tabErrors.timing && <p className="text-xs text-red-600">• Check <strong>Schedule & Timing</strong> (Check dates/duration)</p>}
+                  {tabErrors.settings && <p className="text-xs text-red-600">• Check <strong>Settings</strong> (Check Topics/Questions count)</p>}
+                  {tabErrors.security && <p className="text-xs text-red-600">• Check <strong>Security</strong></p>}
+                  
+                  {Object.keys(errors).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-red-200/50">
+                      <p className="text-[10px] font-bold text-red-800 uppercase">Field Errors:</p>
+                      {Object.entries(errors).map(([key, err]) => (
+                        <p key={key} className="text-[10px] text-red-600 italic">
+                          {key}: {err?.message as string || 'Invalid input'}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </>

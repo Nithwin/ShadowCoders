@@ -542,6 +542,11 @@ export const deleteExamAndChildren = (examId: string) => {
       where: { examId: examId },
     });
 
+    // 10.5 Delete Dynamic Exam Sessions
+    await tx.dynamicExamSession.deleteMany({
+      where: { examId: examId }
+    });
+
     // 11. Finally, delete the exam itself
     const deletedExam = await tx.exam.delete({
       where: { id: examId },

@@ -7,6 +7,7 @@ import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, resumeAtte
 import * as userRepo from "../auth/auth.repo";
 import { gradeMCQ, gradeCoding } from "../grading/grading.logic";
 import { executeCodeLocally, testCodeWithTestCasesLocally } from "../../lib/local-executor";
+import { adaptiveService } from "../adaptive/adaptive.service";
 
 export const startAttempt = async (studentId: string, examId: string) => {
   const exam = await prisma.exam.findUnique({
@@ -79,7 +80,7 @@ export const startAttempt = async (studentId: string, examId: string) => {
 
   // Use a transaction to prevent race conditions when multiple students start simultaneously
   // This ensures atomicity and prevents duplicate attempts
-  return await prisma.$transaction(async (tx) => {
+  const attempt = await prisma.$transaction(async (tx) => {
     // Re-fetch attempts within transaction to get latest state
     const currentAttempts = await tx.attempt.findMany({
       where: {
@@ -132,24 +133,9 @@ export const startAttempt = async (studentId: string, examId: string) => {
 
     let orderMap: Prisma.InputJsonValue | null = null;
     
-    if (exam.mode === 'DYNAMIC' && exam.questions.length > 0) {
-      // --- Adaptive Start: Pick 1st Question (Medium) ---
-      // --- Adaptive Start: Pick 1st Question (Medium) ---
-      // We purposefully do NOT assign all questions. We start with one.
-      const pool = exam.questions as any[]; // Cast to any to safely access difficulty
-      
-      // Try to find a MEDIUM question first (standard adaptive start)
-      let candidates = pool.filter(q => q.difficulty === 'MEDIUM');
-      if (candidates.length === 0) candidates = pool.filter(q => q.difficulty === 'EASY'); // Fallback to Easy
-      if (candidates.length === 0) candidates = pool; // Fallback to any
-
-      if (candidates.length > 0) {
-         // Pick random candidate
-         const randomQ = candidates[Math.floor(Math.random() * candidates.length)];
-         if (randomQ) {
-             orderMap = [randomQ.id];
-         }
-      }
+    if (exam.mode === 'DYNAMIC') {
+      // Dynamic exams start empty. The adaptive service will populate the first question.
+      orderMap = [];
     } else if (exam.randomizeQuestions && exam.questions.length > 0) {
       const questionIds = exam.questions.map((q) => q.id);
       orderMap = shuffleArray(questionIds) as Prisma.InputJsonValue;
@@ -217,7 +203,36 @@ export const startAttempt = async (studentId: string, examId: string) => {
     timeout: 10000, // 10 seconds
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable, // Strongest isolation
   });
+
+  // If dynamic, ensure session is initialized and first question assigned
+  if (exam.mode === 'DYNAMIC' && attempt) {
+    if (!attempt.orderMap || (Array.isArray(attempt.orderMap) && attempt.orderMap.length === 0)) {
+       await adaptiveService.startSession(studentId, examId, attempt.id);
+       
+       // Re-fetch to check if session start actually assigned a question
+       const freshAttempt = await prisma.attempt.findUnique({
+          where: { id: attempt.id },
+          select: {
+             id: true,
+             examId: true,
+             studentId: true,
+             startedAt: true,
+             status: true,
+             orderMap: true,
+             attemptNo: true,
+          }
+       });
+
+       if (!freshAttempt?.orderMap || (Array.isArray(freshAttempt.orderMap) && freshAttempt.orderMap.length === 0)) {
+         throw { status: 400, message: "No questions available for this dynamic exam. Please ask the administrator to 'Regenerate Questions' first." };
+       }
+       return freshAttempt;
+    }
+  }
+
+  return attempt;
 };
+
 
 type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
 
@@ -227,72 +242,11 @@ type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
  * Handles adaptive question assignment for Dynamic Exams.
  * Called after a response is submitted.
  */
-const handleAdaptiveProgression = async (attemptId: string, lastResponse: { questionId: string; verdict: string | null }) => {
-  // 1. Fetch Attempt & Exam info
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    include: { 
-      exam: { 
-        include: { questions: { select: { id: true, difficulty: true } } } 
-      } 
-    }
-  });
-
-
-
-  if (!attempt) return;
-  
-  if (attempt.exam.mode !== 'DYNAMIC') return;
-
-  // 2. Check if we reached the limit
-  const assignedIds = Array.isArray(attempt.orderMap) ? (attempt.orderMap as unknown as string[]) : [];
-  const targetCount = attempt.exam.dynamicQuestionCount || 5;
-
-  if (assignedIds.length >= targetCount) return; // Exam finished (question-wise)
-
-  // 3. Determine Next Difficulty
-  // Logic: Pass -> Increase Difficulty, Fail -> Decrease Difficulty
-  const currentQId = lastResponse.questionId;
-  const questions = attempt.exam.questions as any[];
-  const currentQ = questions.find((q) => q.id === currentQId);
-  const currentDiff = (currentQ?.difficulty as string) || 'MEDIUM';
-  
-  // Use verdict to decide (PASS = Harder, else Easier)
-  const isPass = lastResponse.verdict === 'PASS';
-  
-  let nextDiff = 'MEDIUM';
-  if (currentDiff === 'EASY') {
-    nextDiff = isPass ? 'MEDIUM' : 'EASY';
-  } else if (currentDiff === 'MEDIUM') {
-    nextDiff = isPass ? 'HARD' : 'EASY'; 
-  } else if (currentDiff === 'HARD') {
-    nextDiff = isPass ? 'HARD' : 'MEDIUM';
-  }
-
-  // 4. Pick a question from the pool
-  // Must match difficulty AND not be already assigned
-  const pool = questions;
-  let candidates = pool.filter((q) => q.difficulty === nextDiff && !assignedIds.includes(q.id));
-
-  // Fallback 1: If no candidates in nextDiff, try to start fresh with any unassigned
-  if (candidates.length === 0) {
-    candidates = pool.filter((q) => !assignedIds.includes(q.id));
-  }
-
-  if (candidates.length > 0) {
-    const nextQ = candidates[Math.floor(Math.random() * candidates.length)];
-    
-    if (nextQ) {
-        // 5. Update Attempt orderMap
-        const newOrderMap = [...assignedIds, nextQ.id];
-        await prisma.attempt.update({
-          where: { id: attemptId },
-          data: { orderMap: newOrderMap }
-        });
-        console.log(`[Adaptive] Assigned next question ${nextQ.id} (${nextQ.difficulty}) for attempt ${attemptId}`);
-    }
-  } else {
-    console.log(`[Adaptive] No more questions available for attempt ${attemptId}`);
+const handleAdaptiveProgression = async (attemptId: string, lastResponse: { questionId: string; verdict: string | null; earnedPoints?: any }) => {
+  try {
+     await adaptiveService.progressSession(attemptId, lastResponse);
+  } catch (err) {
+    console.error(`[Adaptive] Error progressing session for attempt ${attemptId}:`, err);
   }
 };
 
@@ -916,6 +870,25 @@ export const getAttemptDetails = async (
   // We'll leave this check out for now.
 
   // 4. Return the full attempt details
+  
+  // --- DYNAMIC EXAM FIX ---
+  const exam = attempt.exam as any;
+
+  console.log('[DEBUG] getAttemptDetails Mode:', exam?.mode);
+  console.log('[DEBUG] getAttemptDetails OrderMap:', attempt.orderMap);
+  console.log('[DEBUG] getAttemptDetails Total Questions:', exam?.questions?.length);
+
+  if (exam && exam.mode === 'DYNAMIC' && attempt.orderMap && Array.isArray(attempt.orderMap)) {
+     const visibleIds = attempt.orderMap as string[];
+     console.log('[DEBUG] Visible IDs:', visibleIds);
+     if (exam.questions && Array.isArray(exam.questions)) {
+        const questionMap = new Map(exam.questions.map((q: any) => [q.id, q]));
+        const filteredQuestions = visibleIds.map(id => questionMap.get(id)).filter(q => !!q);
+        console.log('[DEBUG] Filtered Questions Count:', filteredQuestions.length);
+        exam.questions = filteredQuestions;
+     }
+  }
+
   return attempt;
 };
 

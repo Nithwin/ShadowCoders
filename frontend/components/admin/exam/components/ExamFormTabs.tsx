@@ -79,7 +79,7 @@ export function ExamFormTabs({ activeTab, onTabChange, errors = {}, completed = 
                 <span>{tab.label}</span>
                 
                 {/* Status Indicators */}
-                {hasError && !isActive && (
+                {hasError && (
                   <AlertCircle className="w-4 h-4 text-red-500" aria-label="Has errors" />
                 )}
                 {isCompleted && !isActive && !hasError && (

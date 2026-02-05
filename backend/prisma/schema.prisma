@@ -70,6 +70,7 @@ model Exam {
   dynamicSessions      DynamicExamSession[]
   sections             ExamSection[]
   questions            Question[]
+  questionPool         QuestionPool[]
   reports              QuestionReport[]
 
   @@index([status])
@@ -598,9 +599,12 @@ model QuestionPool {
   difficulty  Difficulty
   data        Json
   isUsed      Boolean    @default(false)
+  examId      String?
+  exam        Exam?      @relation(fields: [examId], references: [id])
   createdAt   DateTime   @default(now())
 
   @@index([topic, difficulty])
+  @@index([examId])
   @@index([isUsed])
 }
 

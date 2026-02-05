@@ -24,7 +24,7 @@ export class GenerationService {
    * Generates 'count' questions for EACH difficulty level for a given topic.
    * e.g. count=5 -> 5 Easy, 5 Medium, 5 Hard = 15 questions total.
    */
-  async bulkGenerate(topic: string, countPerLevel: number, difficulties: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'], customPrompt?: string) {
+  async bulkGenerate(topic: string, countPerLevel: number, difficulties: Difficulty[] = ['EASY', 'MEDIUM', 'HARD'], customPrompt?: string, examId?: string) {
     const results = {
       success: 0,
       failed: 0,
@@ -47,12 +47,13 @@ export class GenerationService {
           }
 
           // 3. Save to Pool
-          await prisma.questionPool.create({
+          await (prisma.questionPool as any).create({
             data: {
               topic: topic,
               difficulty: difficulty,
               data: questionData as any, // Cast specific JSON structure
-              isUsed: false
+              isUsed: false,
+              examId: examId || null // Save examId if provided
             }
           });
 

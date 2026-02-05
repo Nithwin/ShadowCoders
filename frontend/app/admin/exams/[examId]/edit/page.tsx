@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Exam } from '@/types';
-import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy, RefreshCw, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import QuestionManager from '@/components/admin/QuestionManager';
 import ExamForm, { toDateTimeLocal, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
@@ -170,8 +170,10 @@ export default function EditExamPage() {
   };
 
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isGenerationModalOpen, setIsGenerationModalOpen] = useState(false);
+  const [manualPrompt, setManualPrompt] = useState('');
 
-  const handleRegenerate = async () => {
+  const handleOpenGenerationModal = () => {
     if (!examData) return;
     
     // Check if dynamic mode
@@ -179,21 +181,20 @@ export default function EditExamPage() {
       toast.error('Regeneration is only available for Dynamic exams.');
       return;
     }
+    setManualPrompt('');
+    setIsGenerationModalOpen(true);
+  };
 
-    const confirmed = await confirm({
-      title: 'Regenerate Questions?',
-      message: 'This will trigger the AI to generate new questions based on your configured topics. Existing questions will remain. Do you want to continue?',
-      confirmText: 'Generate',
-      cancelText: 'Cancel',
-      variant: 'default',
-    });
-
-    if (!confirmed) return;
+  const handleConfirmGeneration = async () => {
+    if (!examData) return;
 
     setIsRegenerating(true);
     try {
-      await api.post(`/admin/exams/${examId}/generate`);
+      await api.post(`/admin/exams/${examId}/generate`, {
+        prompt: manualPrompt
+      });
       toast.success('Generation started! Questions will appear in the pool shortly.');
+      setIsGenerationModalOpen(false);
     } catch (err: any) {
       console.error(err);
       toast.error('Failed to trigger generation');
@@ -289,7 +290,7 @@ export default function EditExamPage() {
             <div className="flex gap-2">
               {examData?.mode === 'DYNAMIC' && (
                 <Button
-                  onClick={handleRegenerate}
+                  onClick={handleOpenGenerationModal}
                   disabled={isRegenerating}
                   className="bg-blue-600 hover:bg-blue-700 text-white border-0"
                 >
@@ -476,6 +477,65 @@ export default function EditExamPage() {
                 </>
               ) : (
                 'Create Template'
+              )}
+            </Button>
+          </div>
+        </div>
+
+      </Modal>
+
+      {/* Manual Generation Prompt Modal */}
+      <Modal
+        open={isGenerationModalOpen}
+        onOpenChange={setIsGenerationModalOpen}
+        title="Generate Questions"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-sm border border-blue-200 flex items-start gap-2">
+            <Info className="w-4 h-4 mt-0.5 shrink-0" />
+            <p>
+              This will generate <b>{examData?.dynamicQuestionCount || 5} questions</b> for EACH difficulty level (Easy, Medium, Hard), totaling <b>{(examData?.dynamicQuestionCount || 5) * 3} questions</b>.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-primary/70 mb-1">
+              Custom Prompt (Optional)
+            </label>
+            <textarea
+              value={manualPrompt}
+              onChange={(e) => setManualPrompt(e.target.value)}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-accent/50 transition-colors min-h-[100px] text-primary"
+              placeholder="e.g. Generate questions focused on time complexity of sorting algorithms..."
+            />
+            <p className="text-xs text-primary/60 mt-1">
+              Leave empty to generate based solely on the configured topics.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              onClick={() => setIsGenerationModalOpen(false)}
+              className="!bg-white !text-black border border-gray-200 hover:!bg-gray-100"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmGeneration}
+              disabled={isRegenerating}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  Generate
+                </>
               )}
             </Button>
           </div>

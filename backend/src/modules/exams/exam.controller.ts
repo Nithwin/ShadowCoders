@@ -255,7 +255,8 @@ export const triggerGenerationHandler: RequestHandler = async (req, res, next) =
     if (!examId) {
       return next({ status: 400, message: 'Missing examId parameter' });
     }
-    const result = await examService.triggerManualGeneration(examId);
+    const { prompt } = req.body;
+    const result = await examService.triggerManualGeneration(examId, prompt);
     res.status(200).json(result);
   } catch (error) {
     next(error);

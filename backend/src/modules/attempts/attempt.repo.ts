@@ -86,6 +86,7 @@ export const getAttemptDetails = (attemptId: string) => {
       submittedAt: true,
       score: true,
       maxScore: true,
+      orderMap: true, // Required for dynamic exams
       responses: {
         select: {
           questionId: true,
@@ -103,6 +104,8 @@ export const getAttemptDetails = (attemptId: string) => {
           durationMins: true,
           allowedLanguages: true,
           maxAttempts: true,
+          mode: true, // Required for dynamic exams
+          dynamicQuestionCount: true, // Required for dynamic exams
           questions: {
             select: {
               id: true,

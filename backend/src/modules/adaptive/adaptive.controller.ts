@@ -4,7 +4,7 @@ import { adaptiveService } from './adaptive.service';
 export const getNextQuestionHandler = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { examId } = req.params;
-    const studentId = (req as any).user.id;
+    const studentId = (req as any).user.sub;
 
     if (!examId) throw { status: 400, message: "Exam ID required" };
 
