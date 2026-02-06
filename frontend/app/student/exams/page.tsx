@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useDebouncedCallback } from 'use-debounce';
-import { Search, Calendar, Clock, Play, CheckCircle2, Loader2, FileText, Award, TrendingUp, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
+import { Search, Calendar, Clock, Play, CheckCircle2, Loader2, FileText, Award, TrendingUp, ChevronLeft, ChevronRight, XCircle, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
@@ -22,6 +22,7 @@ type Exam = {
   attemptCount?: number;
   latestScore?: number | null;
   latestMaxScore?: number | null;
+  enableProctoring?: boolean;
 };
 
 type ApiMeta = {
@@ -319,6 +320,12 @@ export default function StudentExamsPage() {
                             {status.icon}
                             {status.label}
                           </span>
+                          {exam.enableProctoring && (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-700 border-red-500/30">
+                              <Eye className="w-3 h-3" />
+                              AI Tracking
+                            </span>
+                          )}
                         </div>
                         {exam.description && (
                           <p className="text-primary/70 text-sm line-clamp-2">{exam.description}</p>

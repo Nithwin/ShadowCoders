@@ -1,145 +1,48 @@
-# 🛡️ Anti-Cheating Features
+# 🛡️ Anti-Cheating & Integrity Systems
 
-## Overview
+## Why Security Matters
+In a digital assessment environment, maintaining a level playing field is our top priority. We've built a multi-layered defense system that ensures every student's work is their own, without requiring intrusive or expensive software.
 
-Comprehensive anti-cheating system implemented to prevent various cheating methods during exams. All features are **100% free** and use native browser APIs.
+## Core Defense Mechanisms
+Our platform uses **11 unique security layers** to monitor and prevent unauthorized assistance:
 
-## ✅ Implemented Features
+1.  **Tab & Window Monitoring**: Detects instantly if a student switches to another tab or browser window.
+2.  **Focus Tracking**: The system knows if the exam window is no longer the primary focus of the computer.
+3.  **Interaction Blocking**: Prevents right-clicking and advanced multi-touch gestures to stop shortcuts to external tools.
+4.  **Security Shortcut Guards**: We block over 15 common "cheating" shortcuts (e.g., Inspect Element, View Source, Print Screen).
+5.  **Copy/Paste Restrictions**: Content remains protected. Students can only use copy/paste within their own answer fields.
+6.  **Advanced DevTools Detection**: Real-time monitoring for the opening of browser developer tools.
+7.  **Multi-Display Detection**: Ensures the exam isn't being moved to a secondary, hidden monitor.
+8.  **Automated Screenshot Prevention**: Blocks the PrintScreen key and clears the clipboard if a capture is attempted.
+9.  **Injection Prevention**: Uses `MutationObservers` to detect and block any attempt to inject malicious scripts into the exam page.
+10. **Fullscreen Enforcement**: The exam can only be taken in dedicated fullscreen mode. If a student exits, the system issues a warning.
+11. **Smart Text Protection**: Prevents text selection on question prompts to stop automated scraping.
 
-### 1. **Tab Switching Detection**
-- Detects when user switches to another tab
-- Detects when window loses focus
-- Monitors page visibility changes
-- **Action**: Warning count increases, auto-submit after 3 warnings
+## 💰 Market Comparison & Cost Efficiency
 
-### 2. **Right-Click Prevention**
-- Blocks context menu (right-click)
-- Blocks multi-touch gestures on mobile
-- **Action**: Warning on right-click attempt
+While traditional proctoring services charge high fees per student or per exam, our native approach reduces the overhead to zero.
 
-### 3. **Keyboard Shortcut Blocking**
-Blocks all common cheating shortcuts:
-- `F12` - Developer tools
-- `Ctrl+Shift+I` / `Ctrl+Shift+J` - Developer tools
-- `Ctrl+Shift+C` - Element inspector
-- `Ctrl+Shift+T` - Reopen closed tab
-- `Ctrl+T` - New tab
-- `Ctrl+W` - Close tab
-- `Ctrl+N` - New window
-- `Ctrl+Shift+N` - Incognito window
-- `Ctrl+U` - View source
-- `Ctrl+S` - Save page
-- `Ctrl+P` - Print
-- `Alt+Tab` - Switch windows
-- `PrintScreen` - Screenshot
-- `Shift+PrintScreen` - Screenshot
+| Platform | Typical Cost | ShadowCoders |
+| :--- | :--- | :--- |
+| **Proctorio** | $5 - $15 per exam | **$0** |
+| **Respondus LockDown** | $5 - $10 per student/year | **$0** |
+| **ProctorU** | $20 - $40 per exam | **$0** |
+| **Honorlock** | $10 - $20 per exam | **$0** |
+| **ExamSoft** | $70 - $100 per student/year | **$0** |
+| **Examity** | $25 - $35 per exam | **$0** |
 
-**Action**: Warning on blocked shortcut attempt
+### The Real Impact
+For a standard class of 100 students taking 5 exams per semester:
+*   **Commercial Solutions**: Costs range from **$2,500 to $7,500**.
+*   **ShadowCoders**: Costs exactly **$0**.
 
-### 4. **Copy/Paste Prevention**
-- Blocks copy outside input fields
-- Blocks paste outside input fields
-- Blocks cut outside input fields
-- **Allows** copy/paste within exam answer fields (INPUT, TEXTAREA, contenteditable)
-- **Action**: Warning on copy/paste attempt outside answer fields
+This ensures that high-quality, secure assessment is accessible to every institution, regardless of their budget.
 
-### 5. **Text Selection Prevention**
-- Prevents text selection on page content
-- Allows selection in answer input fields only
-- Blocks drag-to-select
-- **Action**: Selection automatically cleared if attempted outside inputs
 
-### 6. **Developer Tools Detection**
-- Detects when developer tools are opened
-- Monitors window size changes (dev tools change window dimensions)
-- Checks every 500ms
-- **Action**: Warning when dev tools detected
+## Intelligent Warning System
+We don't just block; we educate. The system includes a progressive warning hierarchy:
+*   **Minor Violations**: Real-time banners appear at the top of the screen.
+*   **Automatic Submission**: If a student ignores 3 consecutive security warnings (like exiting fullscreen or switching tabs), the exam is **automatically submitted** with the reason logged for the professor.
 
-### 7. **Dual Screen/Monitor Detection**
-- Detects window movement to different screen
-- Monitors screen position changes
-- Detects screen resolution changes
-- Checks every 1 second
-- **Action**: Warning on screen change detection
-
-### 8. **Print Screen Detection**
-- Blocks PrintScreen key
-- Blocks Shift+PrintScreen
-- Attempts to clear clipboard after print screen
-- **Action**: Warning on print screen attempt
-
-### 9. **Link Protection**
-- Prevents opening links in new tabs (Ctrl+Click, Shift+Click)
-- Blocks image dragging
-- **Action**: Warning on blocked link/image drag
-
-### 10. **Iframe Injection Detection**
-- Monitors for iframe injection (cheating attempts)
-- Automatically removes injected iframes
-- Uses MutationObserver for real-time detection
-- **Action**: Warning and iframe removal
-
-### 11. **Fullscreen Enforcement**
-- Requires fullscreen mode to take exam
-- Detects fullscreen exit
-- Auto-submit after 3 fullscreen violations
-- **Action**: Warning on fullscreen exit, auto-submit after 3 warnings
-
-## ⚠️ Warning System
-
-- **Warning Count**: Tracks violations
-- **After 3 Warnings**: Exam is automatically submitted
-- **Warning Display**: Shows red warning banner at top of screen
-- **Warning Duration**: 3 seconds per warning
-
-## 🎯 What's Allowed
-
-Students can still:
-- ✅ Type normally in answer fields
-- ✅ Copy/paste within answer fields (for coding questions)
-- ✅ Use normal keyboard shortcuts in answer fields
-- ✅ Select text in input/textarea fields
-- ✅ Use editor features (for coding questions)
-
-## 🚫 What's Blocked
-
-Students cannot:
-- ❌ Switch tabs/windows
-- ❌ Right-click
-- ❌ Use developer tools
-- ❌ Copy question text
-- ❌ Paste from outside
-- ❌ Take screenshots (PrintScreen)
-- ❌ Open new tabs/windows
-- ❌ View page source
-- ❌ Use dual monitors effectively
-- ❌ Inject iframes or scripts
-
-## 🔧 Technical Implementation
-
-- **Hook**: `useCheatingPrevention` in `frontend/hooks/useCheatingPrevention.ts`
-- **Activation**: Only active when `attempt.status === 'IN_PROGRESS'`
-- **Methods**: Event listeners, MutationObserver, window monitoring
-- **Performance**: Optimized with refs and cleanup functions
-
-## 📝 Notes
-
-1. **Browser Limitations**: Some features may vary by browser
-2. **Mobile Support**: Touch events are also blocked
-3. **Accessibility**: Screen readers and assistive technologies still work
-4. **Free**: All features use native browser APIs, no paid services
-
-## 🧪 Testing
-
-To test anti-cheating features:
-1. Start an exam
-2. Try switching tabs → Warning
-3. Try right-clicking → Warning
-4. Try F12 → Warning
-5. Try PrintScreen → Warning
-6. After 3 warnings → Auto-submit
-
----
-
-**All features are active and working!** 🎉
-
+## The Result
+By leveraging native browser power instead of clunky third-party apps, we provide a secure, fail-safe, and private environment that respects student privacy while protecting academic integrity.

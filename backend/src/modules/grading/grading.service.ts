@@ -100,201 +100,33 @@ export const runCode = async (
   };
   const job = await gradingRepo.createGradingJob(jobData);
 
-  // 5. --- Execute Code (via Queue) ---
-  let result: any;
-
-  if (customInput !== undefined) {
-    // For SQL questions, test case input already contains CREATE TABLE + INSERT
-    // No need to prepend DDL anymore
-    const payloadInput = customInput;
-
-    const executionResult = await executionQueue.enqueue(async () => {
-      return await executeCodeLocally(code, language, payloadInput, 10000);
-    });
-
-    // Format result for custom input
-    // Format result for custom input
-    // The frontend expects testResults to be populated even for custom input
-    // and looks for expectedOutput === '(Custom Input)' to identify it
-    const isSuccess = executionResult.status.id === 3; // 3 is usually Accepted/Success in many judges, but let's rely on standard logic
-    // Actually, for custom input, we just want to show the output regardless of 'success' (exit code 0)
-    // But we mark it as passed if it ran successfully (exit code 0)
-    
-    result = {
-      passed: isSuccess ? 1 : 0,
-      total: 1,
-      testResults: [
-        {
-          input: customInput,
-          expectedOutput: '(Custom Input)', // Frontend uses this magic string to identify custom input
-          actualOutput: executionResult.stdout || '',
-          passed: isSuccess,
-          status: executionResult.status.description,
-          error: executionResult.stderr || ('compile_output' in executionResult ? executionResult.compile_output : null) || ('message' in executionResult ? executionResult.message : null) || ('error' in executionResult ? (executionResult as any).error : null) || null,
-          time: typeof executionResult.time === 'string' ? parseFloat(executionResult.time) : executionResult.time,
-          memory: executionResult.memory || 0,
-        }
-      ],
-      message: 'Custom input execution completed',
-      customOutput: {
-        input: customInput,
-        output: executionResult.stdout || '',
-        error: executionResult.stderr || ('compile_output' in executionResult ? executionResult.compile_output : null) || ('message' in executionResult ? executionResult.message : null) || ('error' in executionResult ? (executionResult as any).error : null) || null,
-        status: executionResult.status.description,
-        time: typeof executionResult.time === 'string' ? parseFloat(executionResult.time) : executionResult.time,
-        memory: executionResult.memory || 0,
-      },
-    };
-  } else {
-    // Run against visible test cases
-    if (!question.testcases || (question.testcases as any[]).length === 0) {
-      throw { status: 400, message: 'No test cases found for this question' };
-    }
-
-    const testCases = question.testcases as Array<{
-      input: string;
-      expectedOutput: string;
-      isHidden?: boolean;
-      timeoutMs?: number;
-    }>;
-    
-    // For SQL, we need to prepend DDL (Schema) to the input (DML) for each test case
-    if (question.type === QType.SQL) {
-      const config = question.config as { ddl?: string } | null;
-      const ddl = config?.ddl || '';
-      // Mutate or map testCases to include DDL
-      // We map below anyway
-    }
-
-    // Filter test cases: if runAllTests is true, use all test cases; otherwise only visible ones
-    const testCasesToRun = runAllTests 
-      ? testCases 
-      : testCases.filter((tc) => !tc.isHidden);
-
-    if (testCasesToRun.length === 0) {
-      const errorMessage = runAllTests 
-        ? 'No test cases found for this question'
-        : 'No visible test cases found for this question';
-      throw { status: 400, message: errorMessage };
-    }
-
-    // Test code against test cases using local executor - queued
-    // Map test cases with metadata (isHidden, originalIndex) for proper display
-    const testsWithMetadata = testCasesToRun.map((tc, idx) => {
-      // Prepend DDL for SQL questions (both QType.SQL and CODING with language="sql")
-      let input = tc.input;
-      const isSQLQuestion = question.type === QType.SQL || (question.type === QType.CODING && language === 'sql');
-      if (isSQLQuestion) {
-        const config = question.config as { ddl?: string } | null;
-        if (config?.ddl) {
-          input = `${config.ddl}\n${tc.input}`;
-        }
-      }
-
-      return {
-        input: input,
-        expectedOutput: tc.expectedOutput,
-        timeoutMs: tc.timeoutMs || 10000, // Default 10 seconds for local execution
-        isHidden: tc.isHidden || false,
-        originalIndex: runAllTests ? testCases.findIndex(origTc => origTc === tc) : idx,
-      };
-    });
-    
-    const testResults = await executionQueue.enqueue(async () => {
-      return await testCodeWithTestCasesLocally(
-        code,
-        language,
-        testsWithMetadata
-      );
-    });
-
-    // Format Result
-    result = {
-      passed: testResults.passed,
-      total: testResults.total,
-      testResults: testResults.results,
-      message: testResults.passed === testResults.total
-        ? 'All test cases passed!'
-        : `${testResults.passed}/${testResults.total} test cases passed`,
-        customOutput: null,
-      };
-  }
-
-  // --- Complexity Analysis ---
-  // We analyze the code for complexity metrics using AI
-  // We do this after execution so we don't block basic validation, but before returning result
-  let complexityAnalysis = null;
-  if (code && code.trim().length > 0) {
-    try {
-      // Lazy load generation service to avoid circular dependency issues if any
-      const { generationService } = await import('../generation/generation.service'); 
-      complexityAnalysis = await generationService.analyzeComplexity(code, language);
-      
-      // Save to Evaluation (so we have a record of it)
-      await prisma.evaluation.create({
-        data: {
-          responseId: response.id,
-          kind: 'AI',
-          score: -1, // -1 indicates metadata/analysis only, not a grade
-          comments: 'Complexity Analysis',
-          // @ts-ignore: Schema updated but client not generated due to server lock
-          complexity: complexityAnalysis,
-          isFinal: false,
-        }
-      });
-      
-      // Attach to result so frontend sees it immediately
-      result.complexity = complexityAnalysis;
-    } catch (e) {
-      console.error("[RunCode] Complexity analysis failed:", e);
-    }
-  }
-
-  // 6. --- Update Job with Result ---
-  const jobStatus = result.customOutput 
-    ? (result.customOutput.error ? 'FAILED' : 'SUCCEEDED')
-    : (result.passed === result.total ? 'SUCCEEDED' : 'FAILED');
+// 5. --- Execute Code (via ShadowQueue) ---
+  // The job is already created with status QUEUED.
+  // The ShadowQueue worker logic will pick it up automatically.
   
-  const finalJob = await gradingRepo.updateGradingJob(
-    job.id,
-    jobStatus,
-    result
-  );
-
-  // 7. --- Persist Score to Response ---
-  // If not a custom input run, update the Response record with auto-calculated score
-  if (customInput === undefined) {
-    const questionPoints = Number(question.points) || 0;
-    const passedRatio = result.total > 0 ? (result.passed / result.total) : 0;
-    const earnedPoints = parseFloat((passedRatio * questionPoints).toFixed(2));
-    
-    let verdict = 'FAIL';
-    if (result.passed === result.total && result.total > 0) {
-      verdict = 'PASS';
-    } else if (result.passed > 0) {
-      verdict = 'PARTIAL';
+  // We need to wait for the result to maintain API compatibility
+  // Note: For customInput, we might want a shorter timeout or different handling
+  // But generally 30s is fine.
+  
+  const { shadowQueue } = require('../../lib/shadow-queue');
+  try {
+    const jobResult = await shadowQueue.waitForResult(job.id, 15000); // Wait up to 15s
+    return jobResult;
+  } catch (err: any) {
+    if (err.message === 'Job timed out') {
+       throw { status: 504, message: 'Execution timed out' };
     }
-
-    await prisma.response.update({
-      where: { id: response.id },
-      data: {
-        earnedPoints: earnedPoints,
-        verdict: verdict,
-        gradingMode: 'AUTO',
-      },
-    });
+    throw err;
   }
-
-  // 8. Return the execution result
-  return finalJob.result;
 };
 
 // --- ESSAY GRADING LOGIC ---
 
 // Create a dedicated queue with concurrency 1 for essay grading to save CPU
 // This ensures only ONE essay is graded at a time by the local LLM
-import { ExecutionQueue } from '../../lib/execution-queue';
-const essayGradingQueue = new ExecutionQueue(1);
+// REFACTOR: Use ShadowQueue for persistence
+// import { ExecutionQueue } from '../../lib/execution-queue';
+// const essayGradingQueue = new ExecutionQueue(1);
 
 export const gradeEssay = async (responseId: string) => {
   // 1. Validation
@@ -326,6 +158,7 @@ export const gradeEssay = async (responseId: string) => {
   }
 
   // 3. Create GradingJob (Queued)
+  // This essentially "Enqueues" it for the ShadowQueue worker
   const jobData: Prisma.GradingJobCreateInput = {
     provider: env.AI_PROVIDER || 'gemini',
     status: 'QUEUED',
@@ -334,95 +167,8 @@ export const gradeEssay = async (responseId: string) => {
   };
   const job = await gradingRepo.createGradingJob(jobData);
 
-  // 4. Enqueue the grading task
-  essayGradingQueue.enqueue(async () => {
-    try {
-      
-      // Update job to RUNNING
-      await gradingRepo.updateGradingJob(job.id, 'RUNNING', null);
-
-      // Prepare Prompt
-      const questionPrompt = response.question.prompt || 'No prompt provided';
-      const maxPoints = response.question.points ? parseFloat(String(response.question.points)) : 0;
-      const rubricText = response.question.rubric 
-        ? JSON.stringify(response.question.rubric.criteria) 
-        : 'No specific rubric provided. Grade based on clarity, relevance, and completeness.';
-
-      const systemPrompt = `You are a strict academic grader. 
-Grade the following essay based on the provided Question and Rubric.
-
-**Question:**
-${questionPrompt}
-
-**Rubric/Criteria:**
-${rubricText}
-
-**Max Points:** ${maxPoints}
-
-**Student Answer:**
-${studentText}
-
-**INSTRUCTIONS:**
-1. Analyze the student's answer against the rubric.
-2. Assign a score between 0 and ${maxPoints}. Use decimal points if needed (e.g., 8.5).
-3. Provide constructive feedback explaining the score.
-4. Return ONLY a valid JSON object in this format:
-{
-  "score": <number>,
-  "feedback": "<string>"
-}
-`;
-
-      // Call AI Service
-      let aiResponseString = '';
-      if (env.AI_PROVIDER === 'ollama') {
-        const { generateJsonFromOllama } = await import('../../lib/ollama');
-        aiResponseString = await generateJsonFromOllama(systemPrompt);
-      } else {
-        const { generateJsonFromAi } = await import('../../lib/gemini');
-        aiResponseString = await generateJsonFromAi(systemPrompt);
-      }
-
-      // Parse Result
-      let cleaned = aiResponseString.trim();
-      if (cleaned.startsWith('```')) {
-        const lines = cleaned.split('\n');
-        lines.shift();
-        if (lines[lines.length - 1]?.trim() === '```') lines.pop();
-        cleaned = lines.join('\n');
-      }
-      
-      const resultJson = JSON.parse(cleaned);
-      
-      // Validate result structure
-      if (typeof resultJson.score !== 'number' || typeof resultJson.feedback !== 'string') {
-        throw new Error('AI returned invalid JSON structure');
-      }
-
-      // Save Evaluation
-      await prisma.evaluation.create({
-        data: {
-          responseId: response.id,
-          kind: 'AI',
-          score: resultJson.score,
-          comments: resultJson.feedback,
-          isFinal: false,
-          createdAt: new Date(),
-        }
-      });
-
-      // Complete Job
-      await gradingRepo.updateGradingJob(job.id, 'SUCCEEDED', resultJson);
-      
-      return resultJson;
-
-    } catch (error: any) {
-      console.error(`[EssayGrade] Job ${job.id} failed:`, error);
-      await gradingRepo.updateGradingJob(job.id, 'FAILED', { error: error.message });
-      throw error;
-    }
-  });
-
+  // 4. Return immediately (Async)
+  // The frontend should poll for updates or use a socket
   return { jobId: job.id, status: 'QUEUED', message: 'Essay grading has been queued.' };
 };
 

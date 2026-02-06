@@ -106,6 +106,8 @@ export const getAttemptDetails = (attemptId: string) => {
           maxAttempts: true,
           mode: true, // Required for dynamic exams
           dynamicQuestionCount: true, // Required for dynamic exams
+          enableProctoring: true, // Required for AI proctoring
+          maxTabSwitches: true, // Required for tab switch detection
           questions: {
             select: {
               id: true,

@@ -212,6 +212,7 @@ export const findExamByIdForStudent = async (params: {
       allowedLanguages: true, // Include allowed languages for coding questions
       maxAttempts: true, // Include maxAttempts
       mode: true, // Include mode to show adaptive instructions
+      enableProctoring: true, // Include proctoring flag for eye tracking
       // Include attempts to check if student has completed or has in-progress attempt
       attempts: {
         where: {
@@ -417,6 +418,7 @@ export const listExamsForStudent = async (params: {
       durationMins: true,
       status: true,
       maxAttempts: true,
+      enableProctoring: true, // Include proctoring flag for badges
       // Include ALL attempts (not just SUBMITTED) to get the latest attempt
       attempts: {
         where: {

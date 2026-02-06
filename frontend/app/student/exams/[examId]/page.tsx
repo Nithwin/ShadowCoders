@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2, Award, ShieldCheck, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, FileText, AlertCircle, Play, Loader2, CheckCircle2, Award, ShieldCheck, RefreshCw, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
+import { CameraPreview } from '@/components/student/exam/CameraPreview';
 
 
 type Exam = {
@@ -26,6 +27,7 @@ type Exam = {
   maxAttempts?: number | null;
   attemptCount?: number;
   mode?: 'STANDARD' | 'DYNAMIC';
+  enableProctoring?: boolean;
 };
 
 export default function ExamDetailPage() {
@@ -286,6 +288,12 @@ export default function ExamDetailPage() {
               Adaptive Difficulty
             </span>
           )}
+          {exam.enableProctoring && (
+            <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200 flex items-center gap-1">
+              <Eye className="w-3 h-3" />
+              AI Eye Tracking Enabled
+            </span>
+          )}
         </div>
         {exam.description && (
           <div className="mb-4">
@@ -356,6 +364,13 @@ export default function ExamDetailPage() {
                 )}
               </div>
             </div>
+
+            {/* Camera Preview for Eye Tracking */}
+            {exam.enableProctoring && (
+              <div className="border-t border-primary/10 pt-4">
+                <CameraPreview />
+              </div>
+            )}
 
             {/* Instructions */}
             <div className="border-t border-primary/10 pt-4">

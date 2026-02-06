@@ -95,7 +95,7 @@ Real-time Flow:
 - **Authentication**: JWT (jsonwebtoken) + bcrypt
 - **WebSocket**: Socket.IO 4.x
 - **Code Execution**: Judge0 API + Local Executor
-- **AI Service**: GPT-5.2-Codex (primary) / Google Generative AI (Gemini fallback)
+- **AI Service**: Advanced Local LLM Engine (Ollama / Gemini)
 - **File Upload**: Multer
 - **Security**: Helmet, CORS
 

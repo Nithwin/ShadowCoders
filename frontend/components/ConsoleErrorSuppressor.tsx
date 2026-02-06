@@ -108,6 +108,14 @@ export default function ConsoleErrorSuppressor() {
         return; // Don't log this error - it's expected when attempt is already submitted
       }
       
+      // Suppress TensorFlow Lite XNNPACK delegate info messages (from MediaPipe)
+      const isTensorFlowInfo = errorStr.includes('TensorFlow Lite XNNPACK delegate') ||
+                               errorStr.includes('INFO: Created TensorFlow') ||
+                               errorStr.includes('XNNPACK delegate for CPU');
+      if (isTensorFlowInfo) {
+        return; // Don't log TensorFlow info - it's just informational from MediaPipe
+      }
+      
       // Log all other errors normally
       originalError.apply(console, args);
     };

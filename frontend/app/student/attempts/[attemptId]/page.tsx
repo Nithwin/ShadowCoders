@@ -447,24 +447,26 @@ export default function ExamAttemptPage() {
     canvasRef,
   } = useEyeHeadTracking({
     attemptId: attemptId,
-    enabled: !!attempt && attempt.status === 'IN_PROGRESS' && isFullscreen && (attempt.exam.enableProctoring ?? false) && proctoringInitialized,
+    enabled: !!attempt && attempt.status === 'IN_PROGRESS' && (attempt.exam.enableProctoring ?? false) && proctoringInitialized,
     warningThreshold: 3,
   });
 
-  // Show proctoring dialog when fullscreen is entered and proctoring is enabled
+  // Show proctoring dialog immediately when exam loads if proctoring is enabled
   useEffect(() => {
     console.log('Proctoring dialog check:', {
-      isFullscreen,
+      attempt: !!attempt,
       enableProctoring: attempt?.exam?.enableProctoring,
       proctoringInitialized,
       showProctoringDialog,
+      status: attempt?.status,
     });
     
-    if (isFullscreen && attempt?.exam?.enableProctoring && !proctoringInitialized && !showProctoringDialog) {
-      console.log('Showing proctoring dialog');
+    // Show dialog immediately when exam is ready and proctoring is enabled
+    if (attempt && attempt.status === 'IN_PROGRESS' && attempt.exam?.enableProctoring && !proctoringInitialized && !showProctoringDialog) {
+      console.log('Showing proctoring dialog - requesting camera permission');
       setShowProctoringDialog(true);
     }
-  }, [isFullscreen, attempt?.exam?.enableProctoring, proctoringInitialized, showProctoringDialog]);
+  }, [attempt, attempt?.exam?.enableProctoring, proctoringInitialized, showProctoringDialog]);
 
   // Section Navigation Hook
   const {
@@ -829,7 +831,7 @@ export default function ExamAttemptPage() {
       </div>
 
       {/* Eye Tracking Monitor - Only show if proctoring is enabled */}
-      {attempt && attempt.status === 'IN_PROGRESS' && attempt.exam.enableProctoring && (
+      {attempt && attempt.status === 'IN_PROGRESS' && attempt.exam.enableProctoring && proctoringInitialized && (
         <EyeTrackingMonitor
           isTracking={isTracking}
           cameraPermission={cameraPermission}

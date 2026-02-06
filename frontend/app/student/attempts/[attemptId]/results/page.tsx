@@ -105,6 +105,27 @@ export default function ExamResultsPage() {
         res.data.score = calculatedScore;
       }
       
+      
+      // Check for ungraded ESSAY questions
+      // If there are essay questions and they haven't been graded (earnedPoints is null), lock the results
+      if (res.data?.exam?.questions) {
+         const essayQuestions = res.data.exam.questions.filter((q: any) => q.type === QType.ESSAY);
+         if (essayQuestions.length > 0) {
+            const hasUngradedEssay = essayQuestions.some((q: any) => {
+               const response = res.data.responses.find((r: any) => r.questionId === q.id);
+               // If response exists but earnedPoints is strictly null (not 0), it's ungraded
+               // If response doesn't exist, it might be skipped (0 points), but for essays we usually expect manual review
+               // Safer to assume if we entered this block, we check strict null
+               return response && response.earnedPoints === null;
+            });
+            
+            if (hasUngradedEssay) {
+               res.data.isLocked = true;
+               res.data.message = "Your assessment has been submitted. Your score will be released shortly after manual grading.";
+            }
+         }
+      }
+
       setResults(res.data);
       
       // Trigger confetti for high scores

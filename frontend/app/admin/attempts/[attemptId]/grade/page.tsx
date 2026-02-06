@@ -289,11 +289,30 @@ export default function AdminGradingPage() {
   const manualQs = attempt.responses.filter(r => r.question.type === QType.ESSAY || r.question.type === QType.SPEAKING);
   const unsavedCount = manualQs.filter(r => !savedResponses.has(r.id)).length;
 
+  // Markdown renderer for prompts
+  const renderMarkdown = (text: string): string => {
+    if (!text) return '';
+    let html = text
+      // Headers
+      .replace(/^###\s+(.+)$/gm, '<h3 class="text-sm font-semibold text-gray-900 mt-4 mb-2">$1</h3>')
+      .replace(/^##\s+(.+)$/gm, '<h2 class="text-base font-bold text-gray-900 mt-5 mb-3">$1</h2>')
+      .replace(/^#\s+(.+)$/gm, '<h1 class="text-lg font-bold text-gray-900 mt-6 mb-4">$1</h1>')
+      // Bold
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+      // Italic
+      .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em class="italic">$1</em>')
+      // Code
+      .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-sm text-pink-600">$1</code>')
+      // Line breaks
+      .replace(/\n/g, '<br/>');
+    return html;
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 pb-20 font-sans">
       
-      {/* 1. Header with Gradient Border */}
-      <div className="bg-white sticky top-0 z-40 border-b border-slate-200">
+      {/* 1. Header with Gradient Border - Not Sticky */}
+      <div className="bg-white z-40 border-b border-slate-200">
          {/* Colorful Top Strip */}
          <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
          
@@ -365,7 +384,7 @@ export default function AdminGradingPage() {
                            {saved && <span className="flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100"><CheckCircle2 className="w-3 h-3" /> Saved</span>}
                         </div>
                         <div className="text-lg font-medium text-slate-800 leading-relaxed font-serif">
-                           {q.prompt}
+                           <div dangerouslySetInnerHTML={{ __html: renderMarkdown(q.prompt || '') }} />
                         </div>
                      </div>
                      
@@ -384,18 +403,18 @@ export default function AdminGradingPage() {
                   </div>
 
                   {/* Layout Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2">
+                  <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
                      
                      {/* Left: Student Answer */}
-                     <div className="p-8 border-b lg:border-b-0 lg:border-r border-slate-100 bg-white">
+                     <div className="p-4 md:p-8 flex-1 bg-white min-w-0">
                         <div className="flex items-center gap-2 mb-4">
                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><FileText className="w-4 h-4" /></div>
                            <h4 className="text-sm font-bold text-slate-700">Student Response</h4>
                         </div>
                         
-                        <div className="text-slate-600 text-base leading-relaxed p-4 bg-slate-50/50 rounded-xl border border-slate-100 min-h-[200px]">
+                        <div className="text-slate-600 text-base leading-relaxed p-4 bg-slate-50/50 rounded-xl border border-slate-100 min-h-[200px] break-words overflow-x-auto">
                            {q.type === QType.ESSAY ? (
-                              <p className="whitespace-pre-wrap">{r.answer?.textAnswer || r.answer?.text || <em className="text-slate-400">No answer.</em>}</p>
+                              <p className="whitespace-pre-wrap break-words">{r.answer?.textAnswer || r.answer?.text || <em className="text-slate-400">No answer.</em>}</p>
                            ) : q.type === QType.SPEAKING ? (
                               <div className="flex items-center justify-center h-40">
                                  {r.audioAsset ? <AudioPlayer audioUrl={r.audioAsset.url} responseId={r.id} /> : <div className="text-slate-400 text-sm">No audio.</div>}
@@ -413,7 +432,7 @@ export default function AdminGradingPage() {
                      </div>
 
                      {/* Right: Evaluator */}
-                     <div className="p-8 bg-slate-50/30">
+                     <div className="p-4 md:p-8 bg-slate-50/30 lg:w-[400px] xl:w-[450px] shrink-0">
                         <div className="flex items-center gap-2 mb-6">
                            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600"><GraduationCap className="w-4 h-4" /></div>
                            <h4 className="text-sm font-bold text-slate-700">Evaluation</h4>

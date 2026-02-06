@@ -157,20 +157,20 @@ export default function EssayQuestion({
   }, [onChange]);
 
   return (
-    <div className="flex h-full overflow-hidden bg-gray-50">
+    <div className="flex flex-col md:flex-row h-full overflow-hidden bg-gray-50">
       {/* Left Panel - Question */}
       <div 
-        className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg transition-all"
-        style={{ width: `${100 - textareaWidth}%` }}
+        className="border-r border-gray-300 flex flex-col overflow-hidden bg-white shadow-lg transition-all !w-full md:!w-[var(--left-panel-width)]"
+        style={{ '--left-panel-width': `${100 - textareaWidth}%` } as React.CSSProperties}
       >
         {/* Question Header */}
-        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
+        <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="w-5 h-5 text-blue-600" />
+              <div className="p-1.5 bg-blue-100 rounded-lg">
+                <FileText className="w-4 h-4 text-blue-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Essay Question</h2>
+              <h2 className="text-sm font-bold text-gray-900">Essay Question</h2>
             </div>
             <div className="flex items-center gap-3">
               {reportButton}
@@ -187,8 +187,8 @@ export default function EssayQuestion({
         </div>
 
         {/* Question Prompt - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 custom-scrollbar bg-white">
-          <div className="prose prose-lg max-w-none">
+        <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar bg-white">
+          <div className="prose prose-sm max-w-none">
             <div
               className="text-gray-900 whitespace-pre-wrap leading-relaxed text-base font-medium"
               dangerouslySetInnerHTML={{ 
@@ -199,13 +199,13 @@ export default function EssayQuestion({
                   const processedLines = lines.map((line) => {
                     // Check for headers (must check in order: ###, ##, #)
                     if (/^###\s+(.+)$/.test(line)) {
-                      return line.replace(/^###\s+(.+)$/, '<h3 class="text-lg font-semibold text-gray-900 mt-6 mb-3">$1</h3>');
+                      return line.replace(/^###\s+(.+)$/, '<h3 class="text-sm font-semibold text-gray-900 mt-4 mb-2">$1</h3>');
                     }
                     if (/^##\s+(.+)$/.test(line)) {
-                      return line.replace(/^##\s+(.+)$/, '<h2 class="text-xl font-bold text-gray-900 mt-7 mb-4">$1</h2>');
+                      return line.replace(/^##\s+(.+)$/, '<h2 class="text-base font-bold text-gray-900 mt-5 mb-3">$1</h2>');
                     }
                     if (/^#\s+(.+)$/.test(line)) {
-                      return line.replace(/^#\s+(.+)$/, '<h1 class="text-2xl font-bold text-gray-900 mt-8 mb-5">$1</h1>');
+                      return line.replace(/^#\s+(.+)$/, '<h1 class="text-lg font-bold text-gray-900 mt-6 mb-4">$1</h1>');
                     }
                     return line;
                   });
@@ -232,7 +232,7 @@ export default function EssayQuestion({
       </div>
 
       {/* Resize Handle */}
-      <div className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group">
+      <div className="w-1 bg-gray-300 hover:bg-blue-500 cursor-col-resize flex-shrink-0 transition-colors relative group hidden md:block">
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-1 h-12 bg-gray-400 group-hover:bg-blue-500 rounded-full transition-colors" />
         </div>
@@ -249,11 +249,11 @@ export default function EssayQuestion({
 
       {/* Right Panel - Answer Textarea */}
       <div 
-        className="flex flex-col overflow-hidden bg-white shadow-lg transition-all"
-        style={{ width: `${textareaWidth}%` }}
+        className="flex flex-col overflow-hidden bg-white shadow-lg transition-all !w-full md:!w-[var(--right-panel-width)]"
+        style={{ '--right-panel-width': `${textareaWidth}%` } as React.CSSProperties}
       >
         {/* Textarea Header */}
-        <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-5 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        <div className="bg-gradient-to-r from-gray-50 to-white px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 bg-blue-100 rounded-lg">
               <FileText className="w-4 h-4 text-blue-600" />
@@ -355,19 +355,19 @@ export default function EssayQuestion({
               if (submitSuccess) setSubmitSuccess(false);
               if (submitError) setSubmitError('');
             }}
-            className="flex-1 w-full px-6 py-6 bg-white text-gray-900 focus:outline-none resize-none leading-relaxed text-base border-0 custom-scrollbar"
+            className="flex-1 w-full px-4 py-4 bg-white text-gray-900 focus:outline-none resize-none leading-relaxed text-sm border-0 custom-scrollbar"
             placeholder="Write your answer here... Be clear, concise, and address all aspects of the question."
           />
         </div>
 
         {/* Warning Message */}
         {isOverLimit && (
-          <div className="bg-red-50 border-t border-red-300 px-6 py-4 text-red-800 shadow-sm flex-shrink-0">
+          <div className="bg-red-50 border-t border-red-300 px-4 py-3 text-red-800 shadow-sm flex-shrink-0">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold mb-1">⚠️ Word Limit Exceeded</p>
-                <p className="text-sm">You have exceeded the word limit. Please reduce your answer to {wordLimit} words or less.</p>
+                <p className="font-bold mb-1 text-sm">⚠️ Word Limit Exceeded</p>
+                <p className="text-xs">You have exceeded the word limit. Please reduce your answer to {wordLimit} words or less.</p>
               </div>
             </div>
           </div>

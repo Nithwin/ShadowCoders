@@ -1488,7 +1488,14 @@ export const resetAttempts = async (input: ResetAttemptsInput) => {
     },
   });
 
-  // 6. Delete attempts
+  // 6. Delete proctoring events (references Attempt)
+  await prisma.proctoringEvent.deleteMany({
+    where: {
+      attemptId: { in: attemptIds },
+    },
+  });
+
+  // 7. Delete attempts
   const result = await prisma.attempt.deleteMany({
     where: whereClause,
   });

@@ -214,5 +214,9 @@ export const createApp = () => {
 
     app.use(errorHandler);
 
+    // Start ShadowQueue Worker
+    const { shadowQueue } = require('./lib/shadow-queue');
+    shadowQueue.start();
+
     return app;
 }
