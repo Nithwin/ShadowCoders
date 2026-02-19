@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import * as attemptService from './attempt.service';
-import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, runCodeSchema, forceSubmitAttemptSchema, resumeAttemptsSchema } from './attempt.zod';
+import { listAttemptsSchema, submitAnswerSchema, resetAttemptsSchema, forceSubmitAttemptSchema, resumeAttemptsSchema } from './attempt.zod';
 import z from 'zod';
 
 export const startAttemptHandler: RequestHandler = async (req, res, next) => {
@@ -50,35 +50,6 @@ export const submitAnswerHandler: RequestHandler = async (req, res, next) => {
     // Send a success response (e.g., 200 OK or 204 No Content)
     res.status(200).json({ message: 'Answer submitted successfully' });
 
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const runCodeHandler: RequestHandler = async (req, res, next) => {
-  try {
-    const studentId = req.user?.sub;
-    const attemptId = req.params.attemptId;
-    const { questionId, code, language, customInput, runAllTests } = req.body as z.infer<typeof runCodeSchema>['body'];
-
-    if (!studentId) {
-      return next({ status: 401, message: 'Unauthorized' });
-    }
-    if (!attemptId) {
-      return next({ status: 400, message: 'Attempt ID parameter is required' });
-    }
-
-    const result = await attemptService.runCode(
-      studentId,
-      attemptId,
-      questionId,
-      code,
-      language,
-      customInput,
-      runAllTests
-    );
-
-    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

@@ -1,5 +1,6 @@
 import { GradingMode } from "@prisma/client";
-import { testCodeWithTestCasesLocally } from '../../lib/local-executor';
+import { submitCodeJob, waitForJobResult } from '../../lib/queue';
+import { randomUUID } from 'crypto';
 
 export const areArraysEqual = (arr1: any[], arr2: any[]): boolean => {
   if (arr1.length !== arr2.length) return false;
@@ -80,15 +81,24 @@ export const gradeCoding = async (
   const language = answer.language || 'javascript';
 
   try {
-    const testResults = await testCodeWithTestCasesLocally(
+    const jobId = `grade-inline-${randomUUID()}`;
+    const mappedTestCases = testcases.map((tc) => ({
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      timeoutMs: tc.timeoutMs || 2000,
+    }));
+
+    await submitCodeJob({
+      jobId,
+      responseId: jobId,
       code,
       language,
-      testcases.map((tc) => ({
-        input: tc.input,
-        expectedOutput: tc.expectedOutput,
-        timeoutMs: tc.timeoutMs || 2000,
-      }))
-    );
+      testCases: mappedTestCases,
+      runAllTests: true,
+      maxPoints: points,
+    });
+
+    const testResults = await waitForJobResult(jobId, 60000);
 
     // Partial grading logic
     // Calculate ratio of passed test cases

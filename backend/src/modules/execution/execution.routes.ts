@@ -1,11 +1,25 @@
-import { Express } from 'express';
-// import { verifyAccess } from '../../middleware/auth'; // Optional: if you want to protect this
+import { Express, RequestHandler } from 'express';
 import * as executionController from './execution.controller';
 
-export const registerExecutionRoutes = (app: Express) => {
+interface ExecutionMiddleware {
+  throttleCodeSubmission: RequestHandler;
+  validateCodeInput: RequestHandler;
+}
+
+export const registerExecutionRoutes = (app: Express, middleware?: ExecutionMiddleware) => {
+  const handlers: RequestHandler[] = [];
+
+  // Apply throttle and validation middleware if provided
+  if (middleware?.throttleCodeSubmission) {
+    handlers.push(middleware.throttleCodeSubmission);
+  }
+  if (middleware?.validateCodeInput) {
+    handlers.push(middleware.validateCodeInput);
+  }
+
   app.post(
     '/api/execution/run',
-    // verifyAccess, // Uncomment to require login
+    ...handlers,
     executionController.runCodeHandler
   );
 };

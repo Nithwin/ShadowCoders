@@ -3,9 +3,8 @@ import { runCodeSchema } from './grading.zod';
 import * as gradingRepo from './grading.repo';
 import { prisma } from '../../lib/prisma';
 import { AttemptStatus, QType, Prisma } from '@prisma/client';
-import { testCodeWithTestCasesLocally, executeCodeLocally } from '../../lib/local-executor';
 import { env } from '../../config/env';
-import { executionQueue } from '../../lib/execution-queue';
+import { submitCodeJob, waitForJobResult, submitAiJob, CodeExecutionJobData } from '../../lib/queue';
 
 // Infer the TypeScript type from the Zod schema's body
 type RunCodeInput = z.infer<typeof runCodeSchema>['body'];
@@ -100,33 +99,54 @@ export const runCode = async (
   };
   const job = await gradingRepo.createGradingJob(jobData);
 
-// 5. --- Execute Code (via ShadowQueue) ---
-  // The job is already created with status QUEUED.
-  // The ShadowQueue worker logic will pick it up automatically.
-  
-  // We need to wait for the result to maintain API compatibility
-  // Note: For customInput, we might want a shorter timeout or different handling
-  // But generally 30s is fine.
-  
-  const { shadowQueue } = require('../../lib/shadow-queue');
+  // 5. --- Execute Code (via BullMQ) ---
+  // Build BullMQ job payload with full context needed by the worker
+  const queuePayload: CodeExecutionJobData = {
+    jobId: job.id,
+    responseId: response.id,
+    code,
+    language,
+    ...(customInput ? { customInput } : {}),
+    runAllTests: runAllTests || false,
+    timeoutMs: 10000,
+  };
+
+  // If not a custom input run, we need to attach test cases for the worker
+  if (!customInput) {
+    const testCases = question.testcases as Array<{
+      input: string;
+      expectedOutput: string;
+      isHidden?: boolean;
+      timeoutMs?: number;
+    }>;
+    if (testCases && testCases.length > 0) {
+      queuePayload.testCases = testCases.map((tc, idx) => ({
+        input: tc.input,
+        expectedOutput: tc.expectedOutput,
+        timeoutMs: tc.timeoutMs || 10000,
+        isHidden: tc.isHidden || false,
+        originalIndex: idx,
+      }));
+      queuePayload.maxPoints = Number(question.points) || 0;
+    }
+  }
+
   try {
-    const jobResult = await shadowQueue.waitForResult(job.id, 15000); // Wait up to 15s
+    await submitCodeJob(queuePayload);
+    const jobResult = await waitForJobResult(job.id, 15000); // Wait up to 15s
     return jobResult;
   } catch (err: any) {
-    if (err.message === 'Job timed out') {
+    if (err.message === 'Execution timed out') {
        throw { status: 504, message: 'Execution timed out' };
+    }
+    if (err.status === 503) {
+       throw err; // Pass through backpressure 503
     }
     throw err;
   }
 };
 
 // --- ESSAY GRADING LOGIC ---
-
-// Create a dedicated queue with concurrency 1 for essay grading to save CPU
-// This ensures only ONE essay is graded at a time by the local LLM
-// REFACTOR: Use ShadowQueue for persistence
-// import { ExecutionQueue } from '../../lib/execution-queue';
-// const essayGradingQueue = new ExecutionQueue(1);
 
 export const gradeEssay = async (responseId: string) => {
   // 1. Validation
@@ -158,7 +178,6 @@ export const gradeEssay = async (responseId: string) => {
   }
 
   // 3. Create GradingJob (Queued)
-  // This essentially "Enqueues" it for the ShadowQueue worker
   const jobData: Prisma.GradingJobCreateInput = {
     provider: env.AI_PROVIDER || 'gemini',
     status: 'QUEUED',
@@ -167,7 +186,14 @@ export const gradeEssay = async (responseId: string) => {
   };
   const job = await gradingRepo.createGradingJob(jobData);
 
-  // 4. Return immediately (Async)
+  // 4. Submit to BullMQ AI queue (async — frontend polls or uses socket for updates)
+  await submitAiJob({
+    jobId: job.id,
+    responseId: response.id,
+    provider: env.AI_PROVIDER || 'gemini',
+  });
+
+  // 5. Return immediately (Async)
   // The frontend should poll for updates or use a socket
   return { jobId: job.id, status: 'QUEUED', message: 'Essay grading has been queued.' };
 };

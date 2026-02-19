@@ -4,12 +4,16 @@ import { requireRole } from '../../middleware/auth';
 import { validate } from '../../middleware/validate';
 import { runCodeSchema, autoGradeEssaySchema } from './grading.zod';
 import * as gradingController from './grading.controller';
+import { throttleCodeSubmission } from '../../middleware/throttle';
+import { validateCodeInput } from '../../middleware/input-validation';
 
 export const registerGradingRoutes = (app: Express) => {
-  // Run code (for students)
+  // Run code (for students) — with per-user throttle + input validation
   app.post(
     '/api/student/attempts/:attemptId/run-code',
     verifyAccess,
+    throttleCodeSubmission,
+    validateCodeInput,
     validate(runCodeSchema),
     gradingController.runCodeHandler
   );

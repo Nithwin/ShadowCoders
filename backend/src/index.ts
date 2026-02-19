@@ -8,6 +8,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { initAutoSubmitCron } from './cron/auto-submit';
+import { closeQueues } from './lib/queue';
+import { closeRedis } from './lib/redis';
 
 const PORT = Number(env.PORT) || 4000;
 
@@ -33,23 +35,42 @@ process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) =>
     }
 });
 
-// Handle SIGTERM (used by process managers like PM2)
-process.on('SIGTERM', () => {
-    console.log('SIGTERM received, shutting down gracefully...');
-    server.close(() => {
-        console.log('Server closed');
+/**
+ * Graceful shutdown: close server → close queues → close Redis → exit
+ * Gives in-flight requests 10s to finish before force-killing.
+ */
+async function gracefulShutdown(signal: string) {
+    console.log(`\n${signal} received, shutting down gracefully...`);
+    
+    // 1. Stop accepting new connections
+    server.close(async () => {
+        console.log('[Shutdown] HTTP server closed');
+        
+        try {
+            // 2. Close BullMQ queues (drain producers)
+            await closeQueues();
+            console.log('[Shutdown] Queues closed');
+            
+            // 3. Close Redis connection
+            await closeRedis();
+            console.log('[Shutdown] Redis closed');
+        } catch (err) {
+            console.error('[Shutdown] Error during cleanup:', err);
+        }
+        
+        console.log('[Shutdown] Clean exit');
         process.exit(0);
     });
-});
+    
+    // Force kill after 10 seconds if graceful shutdown hangs
+    setTimeout(() => {
+        console.error('[Shutdown] Forced exit after 10s timeout');
+        process.exit(1);
+    }, 10000).unref();
+}
 
-// Handle SIGINT (Ctrl+C)
-process.on('SIGINT', () => {
-    console.log('\nSIGINT received, shutting down gracefully...');
-    server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
-    });
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 const app = createApp();
 

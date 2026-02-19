@@ -192,7 +192,7 @@ export function CameraPreview({ onPermissionGranted, onPermissionDenied }: Camer
   // Requesting state
   if (status === 'requesting') {
     return (
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-8 shadow-xl">
+      <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-8 shadow-xl">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
             <Video className="w-6 h-6 text-white" />
@@ -217,7 +217,7 @@ export function CameraPreview({ onPermissionGranted, onPermissionDenied }: Camer
   // Denied state
   if (status === 'denied') {
     return (
-      <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl border-2 border-red-300 p-8 shadow-xl">
+      <div className="bg-linear-to-br from-red-50 to-rose-50 rounded-xl border-2 border-red-300 p-8 shadow-xl">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-red-500 rounded-xl shadow-lg">
             <AlertCircle className="w-6 h-6 text-white" />
@@ -268,7 +268,7 @@ export function CameraPreview({ onPermissionGranted, onPermissionDenied }: Camer
   // Granted state
   if (status === 'granted') {
     return (
-      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 p-8 shadow-xl">
+      <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 p-8 shadow-xl">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-green-500 rounded-xl shadow-lg animate-pulse">
             <CheckCircle2 className="w-6 h-6 text-white" />

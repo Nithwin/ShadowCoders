@@ -326,6 +326,8 @@ model GradingJob {
   response   Response @relation(fields: [responseId], references: [id])
 
   @@index([responseId])
+  @@index([status, createdAt])  // For queue processing: find oldest QUEUED jobs
+  @@index([status])             // For queue stats queries
 }
 
 model RefreshToken {

@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 import * as gradingService from './grading.service';
 import { z } from 'zod';
 import { runCodeSchema, autoGradeEssaySchema } from './grading.zod';
-import { executionQueue } from '../../lib/execution-queue';
+import { getQueueStats } from '../../lib/queue';
 
 export const runCodeHandler: RequestHandler = async (req, res, next) => {
   try {
@@ -40,12 +40,11 @@ export const gradeEssayHandler: RequestHandler = async (req, res, next) => {
 
 export const getQueueStatusHandler: RequestHandler = async (req, res, next) => {
   try {
-    const stats = executionQueue.getStats();
-    const estimatedWaitTime = executionQueue.getEstimatedWaitTime();
+    const stats = await getQueueStats();
     
     res.status(200).json({
       ...stats,
-      estimatedWaitTimeMs: estimatedWaitTime,
+      estimatedWaitTimeMs: stats.estimatedWaitMs,
     });
   } catch (error) {
     next(error);

@@ -2,12 +2,16 @@ import express from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import cors from 'cors';
 import { env } from './config/env';
 import { buildAllowedOrigins, createCorsOptions } from './config/cors';
 import { errorHandler } from './middleware/error';
+import { circuitBreakerMiddleware, getSystemHealth } from './middleware/circuit-breaker';
+import { throttleCodeSubmission, throttleApiPerUser } from './middleware/throttle';
+import { validateCodeInput } from './middleware/input-validation';
 import { registerAuthRoutes } from './modules/auth/auth.routes';
 import { registerExamRoutes } from './modules/exams/exam.routes';
 import { registerQuestionRoutes } from './modules/questions/question.routes';
@@ -82,6 +86,18 @@ export const createApp = () => {
     // Apply rate limiting to all requests (except OPTIONS, exam attempts, and proctoring)
     app.use(limiter);
 
+    // Compression middleware (gzip responses > 1KB)
+    app.use(compression({
+      threshold: 1024,
+      filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        return compression.filter(req, res);
+      },
+    }));
+
+    // Circuit breaker: reject requests when system is overloaded (CPU>90% or mem>85%)
+    app.use(circuitBreakerMiddleware);
+
     // Request timeout middleware (prevents hanging requests)
     app.use((req, res, next) => {
         req.setTimeout(30000); // 30 seconds
@@ -89,8 +105,8 @@ export const createApp = () => {
         next();
     });
     
-    // Body parsing middleware
-    app.use(express.json());
+    // Body parsing middleware with size limit
+    app.use(express.json({ limit: '1mb' }));
 
     // Graceful handling of JSON parsing errors (prevents server crash on malformed JSON)
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -132,6 +148,7 @@ export const createApp = () => {
     app.get('/api/healthz', async (_req, res) => {
         const { checkDatabaseHealth } = await import('./lib/db-health');
         const dbHealth = await checkDatabaseHealth();
+        const system = getSystemHealth();
 
         if (dbHealth.connected) {
             res.json({
@@ -139,7 +156,8 @@ export const createApp = () => {
                 database: {
                     connected: true,
                     timestamp: dbHealth.timestamp,
-                }
+                },
+                system,
             });
         } else {
             res.status(503).json({
@@ -151,6 +169,7 @@ export const createApp = () => {
                     details: dbHealth.details,
                     timestamp: dbHealth.timestamp,
                 },
+                system,
                 help: 'See backend/DB_CONNECTION_FIX.md for troubleshooting steps'
             });
         }
@@ -181,9 +200,9 @@ export const createApp = () => {
     app.use('/api/proctoring', proctoringRoutes);
     app.use('/api/generation', generationRoutes);
     
-    // Generic Code Execution
+    // Generic Code Execution (with throttle + validation middleware)
     const { registerExecutionRoutes } = require('./modules/execution/execution.routes');
-    registerExecutionRoutes(app);
+    registerExecutionRoutes(app, { throttleCodeSubmission, validateCodeInput });
 
     app.use('/api/adaptive', adaptiveRoutes);
 
@@ -214,9 +233,16 @@ export const createApp = () => {
 
     app.use(errorHandler);
 
-    // Start ShadowQueue Worker
-    const { shadowQueue } = require('./lib/shadow-queue');
-    shadowQueue.start();
+    // Initialize Redis connection eagerly so BullMQ is ready
+    // (queues are lazy-initialized on first use, but we verify connectivity here)
+    import('./lib/redis').then(({ getRedisClient }) => {
+      try {
+        getRedisClient();
+        console.log('[App] Redis connection initialized for BullMQ');
+      } catch (err) {
+        console.warn('[App] Redis not available — code execution will fail until Redis is ready');
+      }
+    });
 
     return app;
 }
