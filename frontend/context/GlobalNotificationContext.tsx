@@ -75,6 +75,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [user, accessToken]);
 
   const markAsRead = async (id: string) => {
+    // Save previous state for rollback
+    const previousNotifications = notifications;
     try {
       // Optimistic update
       setNotifications(prev => 
@@ -84,16 +86,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       await api.put(`/notifications/${id}/read`);
     } catch (error) {
       console.error('Failed to mark as read:', error);
-      // Revert if failed (optional, but good practice)
+      // Revert optimistic update on failure
+      setNotifications(previousNotifications);
     }
   };
 
   const markAllAsRead = async () => {
+    const previousNotifications = notifications;
     try {
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       await api.put('/notifications/read-all');
     } catch (error) {
       console.error('Failed to mark all as read:', error);
+      setNotifications(previousNotifications);
     }
   };
 

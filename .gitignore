@@ -49,3 +49,10 @@ next-env.d.ts
 
 # User docs
 *.pdf
+
+# Infrastructure configs (contain tunnel secrets)
+config.yml
+local-config.yml
+
+# Redis dump
+dump.rdb

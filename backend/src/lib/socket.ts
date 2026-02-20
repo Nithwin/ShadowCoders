@@ -326,14 +326,18 @@ class ExamMonitoringService {
       }) => {
         if (!socket.attemptId) return;
 
+        // Validate input to prevent fake progress data
+        if (typeof data.currentQuestionIndex !== 'number' || typeof data.answeredCount !== 'number' || typeof data.timeSpent !== 'number') return;
+
         const activity = this.studentActivities.get(socket.attemptId);
         if (activity) {
-          activity.currentQuestionIndex = data.currentQuestionIndex;
-          activity.answeredCount = data.answeredCount;
-          activity.timeSpent = data.timeSpent;
+          // Cap values to prevent spoofed data
+          activity.currentQuestionIndex = Math.max(0, Math.min(data.currentQuestionIndex, activity.totalQuestions - 1));
+          activity.answeredCount = Math.max(0, Math.min(data.answeredCount, activity.totalQuestions));
+          activity.timeSpent = Math.max(0, data.timeSpent);
           activity.lastActivity = new Date();
           activity.status = data.status || activity.status;
-          if (data.currentSection !== undefined) {
+          if (typeof data.currentSection === 'string' && data.currentSection.length < 200) {
             activity.currentSection = data.currentSection;
           }
 
@@ -522,10 +526,13 @@ class ExamMonitoringService {
     });
 
     // Periodic cleanup of idle students (mark as idle if no activity for 2 minutes)
+    // Also prune stale entries to prevent unbounded memory growth
     setInterval(() => {
       const now = new Date();
       const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
+      // Mark idle students
       this.studentActivities.forEach((activity, attemptId) => {
         if (activity.lastActivity < twoMinutesAgo && activity.status === 'active') {
           activity.status = 'idle';
@@ -533,6 +540,27 @@ class ExamMonitoringService {
             attemptId,
             activity,
           });
+        }
+      });
+
+      // Prune submitted/stale activities older than 1 hour
+      this.studentActivities.forEach((activity, attemptId) => {
+        if (activity.lastActivity < oneHourAgo && (activity.status === 'submitted' || activity.status === 'idle')) {
+          this.studentActivities.delete(attemptId);
+        }
+      });
+
+      // Prune resolved keyboard violations older than 1 hour
+      this.keyboardViolations.forEach((violation, attemptId) => {
+        if (violation.resolved && violation.timestamp < oneHourAgo) {
+          this.keyboardViolations.delete(attemptId);
+        }
+      });
+
+      // Prune empty exam rooms
+      this.examRooms.forEach((sockets, examId) => {
+        if (sockets.size === 0) {
+          this.examRooms.delete(examId);
         }
       });
     }, 30000); // Check every 30 seconds

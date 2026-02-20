@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { env } from '../../config/env';
 import * as authRepo from './auth.repo';
 import { prisma } from '../../lib/prisma';
@@ -10,6 +11,7 @@ import { withDatabaseErrorHandling } from '../../lib/db-health';
 export interface UserPayLoad {
   sub: string;
   role: string;
+  tid?: string; // tokenId for O(1) DB lookup
 }
 
 const SALT_ROUNDS = 10;
@@ -36,17 +38,20 @@ export const generateAndSaveRefreshToken = async (userId: string): Promise<strin
     Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
   );
 
-  // 1. Create the raw token
-  const rawToken = jwt.sign({ sub: userId }, env.JWT_SECRET, {
+  // Generate a unique tokenId for O(1) DB lookup
+  const tokenId = crypto.randomBytes(16).toString('hex');
+
+  // 1. Create the raw token (includes tokenId for direct lookup)
+  const rawToken = jwt.sign({ sub: userId, tid: tokenId }, env.JWT_SECRET, {
     expiresIn: `${REFRESH_TOKEN_EXPIRY_DAYS}d`,
   });
 
   // 2. Hash the token
   const tokenHash = await bcrypt.hash(rawToken, SALT_ROUNDS);
 
-  // 3. Save the hash to the database
+  // 3. Save the hash + tokenId to the database
   try {
-    await authRepo.saveRefreshToken(userId, tokenHash, expiresAt);
+    await authRepo.saveRefreshToken(userId, tokenHash, expiresAt, tokenId);
   } catch (error) {
     // Failed to save refresh token to DB. Let caller handle the error.
     throw new Error('Could not save refresh token.');
@@ -71,19 +76,41 @@ export const verifyAndFindUser = async (
     return null; // Token is invalid, expired, or tampered with
   }
 
-  // 2. Get all saved token hashes for this user
+  // 2. Use tokenId for O(1) lookup if available (new tokens have it)
+  if (payload.tid) {
+    const tid = payload.tid;
+    const tokenRecord = await withDatabaseErrorHandling(
+      () => prisma.refreshToken.findUnique({
+        where: { tokenId: tid },
+      }),
+      'verifyAndFindUser - findUnique by tokenId'
+    );
+
+    if (!tokenRecord) return null;
+
+    // Single bcrypt compare to verify integrity
+    const isMatch = await bcrypt.compare(rawToken, tokenRecord.tokenHash);
+    if (!isMatch) return null;
+
+    // Check DB-side expiry
+    if (tokenRecord.expiresAt < new Date()) {
+      await authRepo.deleteRefreshTokenById(tokenRecord.tokenId).catch(() => {});
+      return null;
+    }
+
+    return await authRepo.findUserById(tokenRecord.userId);
+  }
+
+  // 3. Fallback: Legacy tokens without tokenId — O(N) scan (will be phased out)
   const userTokens = await withDatabaseErrorHandling(
     () => prisma.refreshToken.findMany({
       where: { userId: payload.sub },
     }),
-    'verifyAndFindUser - findMany refreshToken'
+    'verifyAndFindUser - findMany refreshToken (legacy)'
   );
 
-  if (userTokens.length === 0) {
-    return null; // User has no saved refresh tokens
-  }
+  if (userTokens.length === 0) return null;
 
-  // 3. Compare the raw token to all saved hashes
   let validTokenRecord: RefreshToken | null = null;
   for (const record of userTokens) {
     const isMatch = await bcrypt.compare(rawToken, record.tokenHash);
@@ -93,20 +120,14 @@ export const verifyAndFindUser = async (
     }
   }
 
-  if (!validTokenRecord) {
-    return null; // No matching hash found in the DB
-  }
+  if (!validTokenRecord) return null;
 
-  // 4. Check DB-side expiry (an extra layer of security)
   if (validTokenRecord.expiresAt < new Date()) {
-    // Clean up expired token
-    await authRepo.deleteRefreshToken(validTokenRecord.tokenHash).catch();
-    return null; // Token is expired
+    await authRepo.deleteRefreshToken(validTokenRecord.tokenHash).catch(() => {});
+    return null;
   }
 
-  // 5. Token is valid, return the user
-  const user = await authRepo.findUserById(validTokenRecord.userId);
-  return user;
+  return await authRepo.findUserById(validTokenRecord.userId);
 };
 
 export const findAndRemoveRefreshToken = async (
@@ -119,12 +140,32 @@ export const findAndRemoveRefreshToken = async (
     return false; // Invalid token, nothing to remove
   }
 
-  // Find the matching token hash in the DB
+  // Fast path: use tokenId for O(1) lookup if available
+  if (payload.tid) {
+    const tid = payload.tid;
+    const tokenRecord = await withDatabaseErrorHandling(
+      () => prisma.refreshToken.findUnique({
+        where: { tokenId: tid },
+      }),
+      'findAndRemoveRefreshToken - findUnique by tokenId'
+    );
+
+    if (tokenRecord) {
+      const isMatch = await bcrypt.compare(rawToken, tokenRecord.tokenHash);
+      if (isMatch) {
+        await authRepo.deleteRefreshTokenById(tokenRecord.tokenId);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Legacy fallback: O(N) scan for tokens without tokenId
   const userTokens = await withDatabaseErrorHandling(
     () => prisma.refreshToken.findMany({
       where: { userId: payload.sub },
     }),
-    'findAndRemoveRefreshToken - findMany refreshToken'
+    'findAndRemoveRefreshToken - findMany refreshToken (legacy)'
   );
 
   let validTokenHash: string | null = null;
@@ -137,7 +178,6 @@ export const findAndRemoveRefreshToken = async (
   }
 
   if (validTokenHash) {
-    // Delete the token from the DB
     await authRepo.deleteRefreshToken(validTokenHash);
     return true;
   }

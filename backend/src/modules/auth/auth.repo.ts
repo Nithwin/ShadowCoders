@@ -83,16 +83,29 @@ export const updateUser = (id: string, data: Prisma.UserUpdateInput) => {
     );
 }
 
-export const saveRefreshToken = (userId: string, tokenHash: string, expiresAt: Date) => {
+export const saveRefreshToken = (userId: string, tokenHash: string, expiresAt: Date, tokenId: string) => {
   return withDatabaseErrorHandling(
     () => prisma.refreshToken.create({
       data: {
         userId: userId,
         tokenHash: tokenHash,
+        tokenId: tokenId,
         expiresAt: expiresAt,
       },
     }),
     'saveRefreshToken'
+  );
+};
+
+/**
+ * Finds an active refresh token by its tokenId (O(1) lookup).
+ */
+export const findRefreshTokenById = (tokenId: string) => {
+  return withDatabaseErrorHandling(
+    () => prisma.refreshToken.findUnique({
+      where: { tokenId },
+    }),
+    'findRefreshTokenById'
   );
 };
 
@@ -109,6 +122,18 @@ export const findRefreshToken = (tokenHash: string) => {
       },
     }),
     'findRefreshToken'
+  );
+};
+
+/**
+ * Deletes a refresh token from the database by tokenId.
+ */
+export const deleteRefreshTokenById = (tokenId: string) => {
+  return withDatabaseErrorHandling(
+    () => prisma.refreshToken.delete({
+      where: { tokenId },
+    }),
+    'deleteRefreshTokenById'
   );
 };
 

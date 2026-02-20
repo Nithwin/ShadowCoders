@@ -26,11 +26,11 @@ export const getMyPointsHistory = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
     
-    const { page = 1, limit = 20, type } = req.query;
+    const { page = '1', limit = '20', type } = req.query;
     const result = await pointsService.getPointsHistory(
       userId,
-      page as number,
-      limit as number,
+      parseInt(page as string, 10) || 1,
+      parseInt(limit as string, 10) || 20,
       type as string
     );
     

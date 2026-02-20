@@ -29,8 +29,8 @@ export default function Error({
         </p>
 
         <div className="bg-red-50 border border-red-100 rounded-lg p-4 mb-8 text-left max-h-40 overflow-y-auto">
-             <p className="text-xs font-mono text-red-800 break-words">
-             {error.message || "Unknown error occurred"}
+             <p className="text-xs font-mono text-red-800 wrap-break-word">
+             {process.env.NODE_ENV === 'development' ? (error.message || "Unknown error occurred") : "An unexpected error occurred. Please try again."}
              </p>
         </div>
 

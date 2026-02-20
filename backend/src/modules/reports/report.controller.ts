@@ -30,9 +30,9 @@ export const getReports = async (req: AuthenticatedRequest, res: Response, next:
     
     // Only staff can see all reports
     if (req.user!.role !== Role.STAFF) {
-        // Students might only see their own? Or not needed.
-        // For now, restrict to staff
-        throw new Error('Unauthorized'); // Should be handled by middleware mostly
+        return res.status(403).json({
+          error: { code: 'FORBIDDEN', message: 'Only staff can view reports' }
+        });
     }
 
     const filters: any = {};

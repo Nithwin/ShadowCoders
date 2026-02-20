@@ -873,17 +873,11 @@ export const getAttemptDetails = async (
   // --- DYNAMIC EXAM FIX ---
   const exam = attempt.exam as any;
 
-  console.log('[DEBUG] getAttemptDetails Mode:', exam?.mode);
-  console.log('[DEBUG] getAttemptDetails OrderMap:', attempt.orderMap);
-  console.log('[DEBUG] getAttemptDetails Total Questions:', exam?.questions?.length);
-
   if (exam && exam.mode === 'DYNAMIC' && attempt.orderMap && Array.isArray(attempt.orderMap)) {
      const visibleIds = attempt.orderMap as string[];
-     console.log('[DEBUG] Visible IDs:', visibleIds);
      if (exam.questions && Array.isArray(exam.questions)) {
         const questionMap = new Map(exam.questions.map((q: any) => [q.id, q]));
         const filteredQuestions = visibleIds.map(id => questionMap.get(id)).filter(q => !!q);
-        console.log('[DEBUG] Filtered Questions Count:', filteredQuestions.length);
         exam.questions = filteredQuestions;
      }
   }

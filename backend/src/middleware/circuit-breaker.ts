@@ -104,8 +104,8 @@ class CircuitBreaker {
 
 // Singleton
 export const circuitBreaker = new CircuitBreaker({
-  cpuThreshold: 90,
-  memoryThreshold: 85,
+  cpuThreshold: 98,
+  memoryThreshold: 98,
   checkIntervalMs: 5000,
   cooldownMs: 10000,
 });

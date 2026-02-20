@@ -45,12 +45,12 @@ export const getMyOrders = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
     
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, page = '1', limit = '20' } = req.query;
     const result = await redeemService.getRedeemOrders({
       userId,
       status: status as any,
-      page: page as number,
-      limit: limit as number,
+      page: parseInt(page as string, 10) || 1,
+      limit: parseInt(limit as string, 10) || 20,
     });
     
     res.json(result);

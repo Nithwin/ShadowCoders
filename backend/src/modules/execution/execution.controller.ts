@@ -42,11 +42,11 @@ export const runCodeHandler = async (req: Request, res: Response) => {
       code,
       language: language.toLowerCase(),
       ...(input ? { customInput: input } : {}),
-      timeoutMs: 5000,  // 5 seconds for playground
+      timeoutMs: 15000,  // 15 seconds for playground (compiled languages need more)
     };
 
     await submitCodeJob(jobData);
-    const result = await waitForJobResult(jobId, 10000); // 10s timeout for playground
+    const result = await waitForJobResult(jobId, 20000); // 20s timeout for playground
 
     return res.json(result);
   } catch (error: any) {

@@ -29,8 +29,6 @@ model User {
   attempts              Attempt[]
   assessments           Evaluation[]         @relation("EvaluationAssessor")
   createdTemplates      ExamTemplate[]
-  hostedMeetings        Meeting[]            @relation("HostedMeetings")
-  meetingParticipations MeetingParticipant[]
   notifications         Notification[]
   pointsHistory         PointsHistory[]
   invalidatedQuestions  Question[]           @relation("QuestionInvalidator")
@@ -334,6 +332,7 @@ model RefreshToken {
   id        String   @id @default(cuid())
   userId    String
   tokenHash String   @unique
+  tokenId   String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -445,36 +444,6 @@ model Notification {
   @@index([isRead])
 }
 
-model Meeting {
-  id           String               @id @default(cuid())
-  title        String
-  description  String?
-  date         DateTime
-  meetLink     String?
-  hostId       String
-  transcript   String?
-  summary      String?
-  status       MeetingStatus        @default(SCHEDULED)
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  host         User                 @relation("HostedMeetings", fields: [hostId], references: [id])
-  participants MeetingParticipant[]
-
-  @@index([hostId])
-}
-
-model MeetingParticipant {
-  id        String   @id @default(cuid())
-  meetingId String
-  userId    String
-  joinedAt  DateTime @default(now())
-  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([meetingId, userId])
-  @@index([userId])
-}
-
 enum Role {
   STUDENT
   STAFF
@@ -574,13 +543,6 @@ enum SectionAttemptStatus {
 enum SubmissionType {
   NORMAL
   AUTO
-}
-
-enum MeetingStatus {
-  SCHEDULED
-  ONGOING
-  COMPLETED
-  CANCELLED
 }
 
 enum ExamMode {

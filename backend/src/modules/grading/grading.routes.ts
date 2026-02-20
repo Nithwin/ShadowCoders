@@ -21,20 +21,23 @@ export const registerGradingRoutes = (app: Express) => {
   // Auto-grade essay (for admins/staff)
   app.post(
     '/api/grading/essay',
-    // authorize([Role.STAFF]), // Ensure only staff can trigger this
+    verifyAccess,
+    requireRole('STAFF'),
     validate(autoGradeEssaySchema),
     gradingController.gradeEssayHandler
   );
 
-  // Queue status endpoint (public for students to check wait times)
+  // Queue status endpoint (requires authentication)
   app.get(
     '/api/queue/status',
+    verifyAccess,
     gradingController.getQueueStatusHandler
   );
 
   // Override grade (for admins)
   app.put(
     '/api/grading/response/:responseId/override',
+    verifyAccess,
     requireRole('STAFF'),
     gradingController.overrideResponseGradeHandler
   );

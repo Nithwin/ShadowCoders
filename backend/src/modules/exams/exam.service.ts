@@ -292,23 +292,18 @@ export const listExamsForStudent = async (studentId: string, query: StudentListE
     };
   });
 
-  // 5. Adjust totalCount for LIVE filter (since we filter in service layer)
-  // For LIVE, the actual count is the filtered exams count
-  // But we need to recalculate totalPages based on the actual filtered count
-  // Since we're doing pagination at DB level, we'll use the original totalCount
-  // but note that for LIVE, the actual visible count might be less
-  const adjustedTotalCount = filter === "LIVE" 
-    ? examsWithAttemptStatus.length // For LIVE, use filtered count (approximate)
-    : totalCount;
-
-  // 6. Return the data and metadata
+  // 5. Return the data and metadata
+  // Note: For LIVE filter, we filter after DB pagination so the count is approximate.
+  // We keep totalCount from DB (pre-filter) as a reasonable upper bound for pagination.
+  // This ensures pagination controls remain stable even though some pages may have
+  // fewer items than pageSize.
   return {
     data: examsWithAttemptStatus,
     meta: {
       page,
       pageSize,
-      totalCount: adjustedTotalCount,
-      totalPages: Math.ceil(adjustedTotalCount / pageSize),
+      totalCount,
+      totalPages: Math.ceil(totalCount / pageSize),
     },
   };
 };
@@ -546,7 +541,6 @@ export const triggerManualGeneration = async (examId: string, customPrompt?: str
   const promptToUse = customPrompt || exam.generationPrompt || undefined;
 
   // Run in background / detached
-  // Use the exported singleton directly
   import('../generation/generation.service').then(({ generationService }) => {
      console.log(`[ExamService] Manual generation trigger for Exam ${exam.id}`);
      if (typeof topic === 'string') {
@@ -560,6 +554,8 @@ export const triggerManualGeneration = async (examId: string, customPrompt?: str
         .then(res => console.log(`[ExamService] Manual generation complete for ${exam.id}:`, res))
         .catch(err => console.error(`[ExamService] Manual generation failed for ${exam.id}:`, err));
      }
+  }).catch(err => {
+     console.error(`[ExamService] Failed to load generation service for ${exam.id}:`, err);
   });
 
   return { message: 'Generation started in background' };

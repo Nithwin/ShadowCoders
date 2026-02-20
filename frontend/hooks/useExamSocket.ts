@@ -46,6 +46,8 @@ export const useExamSocket = (options: UseExamSocketOptions) => {
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
+      // Notify server we're leaving the exam room
+      socket.emit('leave-exam', { examId, attemptId });
       socket.off('exam-stats');
       socket.off('heartbeat-ack');
     };
@@ -65,8 +67,12 @@ export const useExamSocket = (options: UseExamSocketOptions) => {
   }, []);
 
   const disconnect = useCallback(() => {
+    // Emit leave-exam before disconnecting
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('leave-exam', { examId: options.examId, attemptId: options.attemptId });
+    }
     socketService.disconnect();
-  }, []);
+  }, [options.examId, options.attemptId]);
 
   return {
     emitActivity,

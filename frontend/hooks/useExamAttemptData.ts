@@ -15,51 +15,65 @@ export function useExamAttemptData(attemptId: string | undefined) {
 
   useEffect(() => {
     if (!attemptId) return;
-    fetchAttempt();
+    const abortController = new AbortController();
+    let cancelled = false;
+
+    const doFetch = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const attemptData = await fetchAttemptData(attemptId);
+        if (cancelled) return null;
+        setAttempt(attemptData);
+
+        // Load from localStorage
+        const savedAnswers: Record<string, { [key: string]: unknown }> = {};
+        try {
+          const key = `${STORAGE_KEY_PREFIX}${attemptId}`;
+          const saved = localStorage.getItem(key);
+          if (saved) {
+            Object.assign(savedAnswers, JSON.parse(saved));
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error loading from localStorage:', err);
+          }
+        }
+
+        // Merge with server responses
+        const mergedAnswers = mergeAnswersFromResponses(savedAnswers, attemptData.responses);
+
+        let fetchedQuestions: Question[] = [];
+        if (attemptData.status === 'IN_PROGRESS') {
+          fetchedQuestions = await fetchQuestionsData(attemptId, attemptData);
+        }
+        if (cancelled) return null;
+        setQuestions(fetchedQuestions);
+
+        return { attemptData, mergedAnswers, fetchedQuestions };
+      } catch (err: unknown) {
+        if (cancelled) return null;
+        const error = err as { response?: { data?: { error?: { message?: string } } } };
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error loading exam attempt:', err);
+        }
+        setError(error.response?.data?.error?.message || 'Failed to load exam attempt.');
+        return null;
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    doFetch();
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
-
-  const fetchAttempt = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const attemptData = await fetchAttemptData(attemptId!);
-      setAttempt(attemptData);
-
-      // Load from localStorage
-      const savedAnswers: Record<string, { [key: string]: unknown }> = {};
-      try {
-        const saved = localStorage.getItem(storageKey);
-        if (saved) {
-          Object.assign(savedAnswers, JSON.parse(saved));
-        }
-      } catch (err) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Error loading from localStorage:', err);
-        }
-      }
-
-      // Merge with server responses
-      const mergedAnswers = mergeAnswersFromResponses(savedAnswers, attemptData.responses);
-
-      let fetchedQuestions: Question[] = [];
-      if (attemptData.status === 'IN_PROGRESS') {
-        fetchedQuestions = await fetchQuestionsData(attemptId!, attemptData);
-      }
-      setQuestions(fetchedQuestions);
-
-      return { attemptData, mergedAnswers, fetchedQuestions };
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Error loading exam attempt:', err);
-      }
-      setError(error.response?.data?.error?.message || 'Failed to load exam attempt.');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const formatAnswersForStorage = (
     fetchedQuestions: Question[],
@@ -85,7 +99,6 @@ export function useExamAttemptData(attemptId: string | undefined) {
     questions,
     isLoading,
     error,
-    fetchAttempt,
     formatAnswersForStorage,
     storageKey,
     setQuestions, // Expose setter for socket updates

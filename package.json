@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "start": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "start:prod": "cd backend && npm install && npx prisma generate && npm run build && cd ../frontend && npm install && npm run build && cd .. && concurrently \"npm run start --prefix backend\" \"npm run start --prefix frontend\"",
+    "start:safe": "concurrently \"npm run dev:safe --prefix backend\" \"npm run dev --prefix frontend\"",
+    "start:prod": "cd backend && npm install && npx prisma generate && npm run build && cd ../frontend && npm install && npm run build && cd .. && concurrently \"npm run start:safe --prefix backend\" \"npm run start --prefix frontend\"",
     "start:full": "concurrently \"npm run start --prefix backend\" \"npm run start --prefix frontend\" \"cloudflared tunnel --config config.yml run\"",
     "dev": "npm run start",
+    "dev:safe": "npm run start:safe",
     "build": "concurrently \"npm install --prefix backend && npm run build --prefix backend\" \"npm install --prefix frontend && npm run build --prefix frontend\"",
     "build:prod": "cd backend && npm run build:prod",
     "backend": "npm run dev --prefix backend",

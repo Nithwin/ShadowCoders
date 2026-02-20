@@ -5,8 +5,15 @@ import { forceSubmitAttempt } from '../modules/attempts/attempt.service';
 import { AttemptStatus } from '@prisma/client';
 
 export const initAutoSubmitCron = () => {
+  let isRunning = false;
+
   // Run every minute
   cron.schedule('* * * * *', async () => {
+    if (isRunning) {
+      console.log('[AutoSubmit] Previous run still in progress, skipping this tick');
+      return;
+    }
+    isRunning = true;
     try {
       const now = new Date();
       // Calculate buffer (e.g., 2 minutes past end time to allow for clock drift/latency)
@@ -48,6 +55,8 @@ export const initAutoSubmitCron = () => {
       }
     } catch (error) {
       console.error('[AutoSubmit] Cron job error:', error);
+    } finally {
+      isRunning = false;
     }
   });
   

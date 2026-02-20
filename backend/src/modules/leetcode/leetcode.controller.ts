@@ -8,10 +8,8 @@ export const syncStats = async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     console.error('[LeetCode Sync] Error:', error);
-    console.error('[LeetCode Sync] Error stack:', error.stack);
     res.status(500).json({ 
-      message: 'Failed to sync LeetCode stats',
-      error: error.message 
+      message: 'Failed to sync LeetCode stats'
     });
   }
 };

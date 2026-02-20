@@ -250,9 +250,6 @@ export const updateQuestion = async (
   if (input.passageAssetId !== undefined && input.passageAssetId) {
     dataToUpdate.passageAsset = { connect: { id: input.passageAssetId } };
   }
-  if (input.config !== undefined) {
-      dataToUpdate.config = input.config as Prisma.InputJsonValue;
-  }
 
   // Call Repository
   const updatedQuestion = await questionRepo.updateQuestion(

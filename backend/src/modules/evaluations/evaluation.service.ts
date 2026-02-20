@@ -78,8 +78,10 @@ export const createManualEvaluation = async (
 
     return transactionResult;
     
-  } catch (error) {
-    // Transaction failed while creating evaluation; let the caller handle this error
-    throw { status: 500, message: 'Failed to save evaluation' };
+  } catch (error: any) {
+    // Preserve original Prisma errors for the global error handler
+    if (error.status) throw error; // Already a structured error
+    console.error('[Evaluation] Transaction failed:', error);
+    throw { status: 500, message: 'Failed to save evaluation', details: error.message };
   }
 };

@@ -1,5 +1,6 @@
 import { Express, RequestHandler } from 'express';
 import * as executionController from './execution.controller';
+import { verifyAccess } from '../../middleware/auth';
 
 interface ExecutionMiddleware {
   throttleCodeSubmission: RequestHandler;
@@ -19,6 +20,7 @@ export const registerExecutionRoutes = (app: Express, middleware?: ExecutionMidd
 
   app.post(
     '/api/execution/run',
+    verifyAccess,
     ...handlers,
     executionController.runCodeHandler
   );

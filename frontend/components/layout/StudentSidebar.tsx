@@ -13,8 +13,7 @@ import {
   Menu,
   X,
   Settings,
-  Gift,
-  Video
+  Gift
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -24,7 +23,6 @@ const navLinks = [
   { name: 'My Exams', href: '/student/exams', icon: FileText },
   { name: 'Results', href: '/student/results', icon: ClipboardCheck },
   { name: 'Redeem', href: '/student/redeem', icon: Gift },
-  { name: 'Meetings', href: '/student/meetings', icon: Video },
   { name: 'Settings', href: '/student/settings', icon: Settings },
 ];
 

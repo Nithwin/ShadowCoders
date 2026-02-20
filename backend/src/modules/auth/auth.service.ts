@@ -16,8 +16,8 @@ export const handleEmailLogin = async (input: any) => {
   try {
     // Normalize email to lowercase for consistent lookup and trim whitespace
     const normalizedEmail = input.email?.toLowerCase().trim();
-    // Trim password to remove any accidental whitespace
-    const password = input.password?.trim();
+    // Use password as-is — do NOT trim, spaces may be intentional
+    const password = input.password;
 
     
     if (!normalizedEmail || !password) {
@@ -136,6 +136,14 @@ export const changePassword = async (userId: string, { currentPassword, newPassw
   const user = await authRepo.findUserById(userId);
   if (!user || !user.password) {
     throw { status: 404, message: 'User not found' };
+  }
+
+  // Validate new password strength
+  if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+    throw { status: 400, message: 'New password must be at least 6 characters long' };
+  }
+  if (newPassword.length > 128) {
+    throw { status: 400, message: 'Password must not exceed 128 characters' };
   }
 
   const isPasswordValid = await bcrypt.compare(currentPassword, user.password);

@@ -31,6 +31,8 @@ export function useAutoSave({
   const AUTO_SAVE_DELAY = 2000; // 2 seconds debounce
 
   // Save a single answer to the server
+  const saveAnswerRef = useRef<(questionId: string, retryCount?: number) => Promise<boolean>>();
+
   const saveAnswer = useCallback(async (questionId: string, retryCount = 0): Promise<boolean> => {
     if (!attemptId || !enabled) return false;
 
@@ -63,12 +65,10 @@ export function useAutoSave({
       // Retry logic
       if (retryCount < MAX_RETRIES) {
         const retryDelay = 1000 * Math.pow(2, retryCount); // Exponential backoff
-        if (process.env.NODE_ENV === 'development') {
-
-        }
         
         setTimeout(() => {
-          saveAnswer(questionId, retryCount + 1);
+          // Use ref to always get the latest saveAnswer closure
+          saveAnswerRef.current?.(questionId, retryCount + 1);
         }, retryDelay);
       } else {
         // Max retries reached - mark as failed
@@ -79,6 +79,11 @@ export function useAutoSave({
       return false;
     }
   }, [attemptId, questions, answers, enabled, onSaveSuccess, onSaveError]);
+
+  // Keep ref in sync with latest closure
+  useEffect(() => {
+    saveAnswerRef.current = saveAnswer;
+  }, [saveAnswer]);
 
   // Debounced save function
   const scheduleSave = useCallback((questionId: string) => {
@@ -101,12 +106,20 @@ export function useAutoSave({
     saveTimeoutsRef.current.set(questionId, timeout);
   }, [saveAnswer]);
 
-  // Auto-save when answers change
+  // Auto-save when answers change — only schedule saves for questions in the queue
+  const prevAnswersRef = useRef<Record<string, { [key: string]: unknown }>>({});
+
   useEffect(() => {
     if (!enabled || !attemptId) return;
 
-    // Schedule save for all changed answers
-    Object.keys(answers).forEach(questionId => {
+    // Only schedule saves for answers that actually changed
+    const changedKeys = Object.keys(answers).filter(key => {
+      const prev = prevAnswersRef.current[key];
+      return !prev || JSON.stringify(prev) !== JSON.stringify(answers[key]);
+    });
+    prevAnswersRef.current = answers;
+
+    changedKeys.forEach(questionId => {
       scheduleSave(questionId);
     });
 
@@ -124,10 +137,7 @@ export function useAutoSave({
     const retryInterval = setInterval(() => {
       failedSavesRef.current.forEach((retryCount, questionId) => {
         if (retryCount < MAX_RETRIES) {
-          if (process.env.NODE_ENV === 'development') {
-
-          }
-          saveAnswer(questionId, retryCount);
+          saveAnswerRef.current?.(questionId, retryCount);
         }
       });
     }, 30000); // Retry every 30 seconds

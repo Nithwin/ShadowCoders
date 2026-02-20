@@ -9,7 +9,9 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { initAutoSubmitCron } from './cron/auto-submit';
 import { closeQueues } from './lib/queue';
-import { closeRedis } from './lib/redis';
+import { closeRedis, createRedisConnection } from './lib/redis';
+import { Worker, Job } from 'bullmq';
+import { executeCodeLocally, testCodeWithTestCasesLocally } from './lib/local-executor';
 
 const PORT = Number(env.PORT) || 4000;
 
@@ -97,10 +99,7 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 // Initialize Socket.IO
 const io = examMonitoring.initialize(server);
 
-import { meetingHandler } from './socket/meeting.handler';
-if (io) {
-    meetingHandler(io);
-}
+
 
 
 // Get local IP address for LAN access
@@ -141,6 +140,45 @@ server.listen(PORT, HOST, () => {
     console.log(`🧪 CORS Test:     http://localhost:${PORT}/api/test-cors`);
     console.log(`🔌 Socket.IO:     WebSocket server initialized`);
     console.log('='.repeat(60) + '\n');
+
+    // ============================================================
+    // Inline BullMQ Worker (Local Executor — no Docker required)
+    // Processes code-execution jobs using local compilers/interpreters
+    // ============================================================
+    try {
+        const workerConnection = createRedisConnection();
+        const localWorker = new Worker(
+            'code-execution',
+            async (job: Job) => {
+                const { code, language, testCases, customInput, runAllTests, timeoutMs } = job.data;
+                console.log(`[LocalWorker] Processing job ${job.id} (${language})`);
+                const start = Date.now();
+
+                try {
+                    let result;
+                    if (testCases && testCases.length > 0 && runAllTests) {
+                        result = await testCodeWithTestCasesLocally(code, language, testCases);
+                    } else {
+                        result = await executeCodeLocally(code, language, customInput || '', timeoutMs || 10000);
+                    }
+                    console.log(`[LocalWorker] Job ${job.id} done in ${Date.now() - start}ms`);
+                    return result;
+                } catch (err: any) {
+                    console.error(`[LocalWorker] Job ${job.id} failed:`, err.message);
+                    throw err;
+                }
+            },
+            {
+                connection: workerConnection as any,
+                concurrency: parseInt(process.env.MAX_CONCURRENT_EXECUTIONS || '3', 10),
+            }
+        );
+
+        localWorker.on('error', (err) => console.error('[LocalWorker] Error:', err.message));
+        console.log('[LocalWorker] Inline code execution worker started');
+    } catch (err: any) {
+        console.error('[LocalWorker] Failed to start:', err.message);
+    }
 });
 
 

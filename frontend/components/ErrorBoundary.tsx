@@ -36,6 +36,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     Logger.error('ErrorBoundary caught an error', error, { 
       componentStack: errorInfo.componentStack 
     });
+    // Call onError prop if provided
+    this.props.onError?.(error, errorInfo);
   }
 
   handleReset = () => {
@@ -63,10 +65,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       // Default error UI
       return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
           <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
             <div className="flex items-center gap-4 mb-6">
-              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+              <div className="shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
               <div>

@@ -173,56 +173,70 @@ export async function waitForJobResult(
   const queue = getCodeQueue();
   const events = getCodeQueueEvents();
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      settled = true;
+      clearTimeout(timeout);
+      events.off('completed', onCompleted);
+      events.off('failed', onFailed);
+    };
+
     const timeout = setTimeout(() => {
-      reject(new Error('Execution timed out'));
+      if (!settled) {
+        cleanup();
+        reject(new Error('Execution timed out'));
+      }
     }, timeoutMs);
 
-    try {
-      // Check if already completed
-      const existingJob = await queue.getJob(jobId);
-      if (existingJob) {
-        const state = await existingJob.getState();
-        if (state === 'completed') {
-          clearTimeout(timeout);
-          return resolve(existingJob.returnvalue);
-        }
-        if (state === 'failed') {
-          clearTimeout(timeout);
-          return reject(new Error(existingJob.failedReason || 'Job failed'));
+    const onCompleted = (args: { jobId: string; returnvalue: string }) => {
+      if (args.jobId === jobId && !settled) {
+        cleanup();
+        try {
+          const result = JSON.parse(args.returnvalue);
+          resolve(result);
+        } catch {
+          resolve(args.returnvalue);
         }
       }
+    };
 
-      // Wait for completion event
-      const onCompleted = async (args: { jobId: string; returnvalue: string }) => {
-        if (args.jobId === jobId) {
-          clearTimeout(timeout);
-          events.off('completed', onCompleted);
-          events.off('failed', onFailed);
-          try {
-            const result = JSON.parse(args.returnvalue);
-            resolve(result);
-          } catch {
-            resolve(args.returnvalue);
+    const onFailed = (args: { jobId: string; failedReason: string }) => {
+      if (args.jobId === jobId && !settled) {
+        cleanup();
+        reject(new Error(args.failedReason || 'Job failed'));
+      }
+    };
+
+    // Check if already completed before subscribing to events
+    queue.getJob(jobId).then((existingJob) => {
+      if (settled) return;
+      if (existingJob) {
+        existingJob.getState().then((state) => {
+          if (settled) return;
+          if (state === 'completed') {
+            cleanup();
+            resolve(existingJob.returnvalue);
+          } else if (state === 'failed') {
+            cleanup();
+            reject(new Error(existingJob.failedReason || 'Job failed'));
+          } else {
+            // Not finished yet, subscribe to events
+            events.on('completed', onCompleted);
+            events.on('failed', onFailed);
           }
-        }
-      };
-
-      const onFailed = async (args: { jobId: string; failedReason: string }) => {
-        if (args.jobId === jobId) {
-          clearTimeout(timeout);
-          events.off('completed', onCompleted);
-          events.off('failed', onFailed);
-          reject(new Error(args.failedReason || 'Job failed'));
-        }
-      };
-
-      events.on('completed', onCompleted);
-      events.on('failed', onFailed);
-    } catch (err) {
-      clearTimeout(timeout);
-      reject(err);
-    }
+        }).catch((err) => {
+          if (!settled) { cleanup(); reject(err); }
+        });
+      } else {
+        // Job not found yet, subscribe to events
+        events.on('completed', onCompleted);
+        events.on('failed', onFailed);
+      }
+    }).catch((err) => {
+      if (!settled) { cleanup(); reject(err); }
+    });
   });
 }
 

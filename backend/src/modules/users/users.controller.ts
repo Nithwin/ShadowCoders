@@ -1,8 +1,8 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import * as userService from './users.service';
 import { Role } from '@prisma/client';
 
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { role, department, year, sortBy, sortOrder } = req.query;
     
@@ -23,12 +23,11 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const users = await userService.getAllUsers(params);
     res.json(users);
   } catch (error) {
-    console.error('Error getting users:', error);
-    res.status(500).json({ message: 'Failed to fetch users' });
+    next(error);
   }
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -40,12 +39,11 @@ export const getUserById = async (req: Request, res: Response) => {
     }
     res.json(user);
   } catch (error) {
-    console.error('Error getting user:', error);
-    res.status(500).json({ message: 'Failed to fetch user' });
+    next(error);
   }
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -59,12 +57,11 @@ export const updateUser = async (req: Request, res: Response) => {
     const user = await userService.updateUser(id, updateData);
     res.json(user);
   } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ message: 'Failed to update user' });
+    next(error);
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -73,12 +70,11 @@ export const deleteUser = async (req: Request, res: Response) => {
     await userService.deleteUser(id);
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ message: 'Failed to delete user' });
+    next(error);
   }
 };
 
-export const createUser = async (req: Request, res: Response) => {
+export const createUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const userData = req.body;
         // Basic validation - only email and password are required
@@ -98,15 +94,14 @@ export const createUser = async (req: Request, res: Response) => {
         const newUser = await userService.createUser(userData);
         res.status(201).json(newUser);
     } catch (error: any) {
-        console.error('Error creating user:', error);
         if (error.code === 'P2002') {
             return res.status(409).json({ message: 'Email already exists' });
         }
-        res.status(500).json({ message: 'Failed to create user' });
+        next(error);
     }
 }
 
-export const getUserPicture = async (req: Request, res: Response) => {
+export const getUserPicture = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     if (!id) {
@@ -128,7 +123,6 @@ export const getUserPicture = async (req: Request, res: Response) => {
     res.setHeader('Content-Type', pictureData.pictureMimeType || 'image/jpeg');
     res.send(pictureData.pictureData);
   } catch(error) {
-      console.error('Error serving user picture:', error);
-      res.status(500).send('Error serving picture');
+      next(error);
   }
 }

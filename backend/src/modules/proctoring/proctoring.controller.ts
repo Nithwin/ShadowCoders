@@ -85,9 +85,12 @@ export class ProctoringController {
   async getRecentEvents(req: Request, res: Response, next: NextFunction) {
     try {
       const { attemptId } = req.params;
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      if (!attemptId) {
+        return res.status(400).json({ success: false, error: 'attemptId is required' });
+      }
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) || 10 : 10;
 
-      const events = await proctoringService.getRecentEvents(attemptId || '', limit);
+      const events = await proctoringService.getRecentEvents(attemptId, limit);
 
       res.json({
         success: true,

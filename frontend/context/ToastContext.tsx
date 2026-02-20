@@ -22,9 +22,15 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const MAX_TOASTS = 10;
+
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => {
+      const next = [...prev, { id, message, type }];
+      // Cap toasts to prevent unbounded growth
+      return next.length > MAX_TOASTS ? next.slice(-MAX_TOASTS) : next;
+    });
   }, []);
 
   const removeToast = useCallback((id: string) => {

@@ -8,9 +8,11 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "npx prisma db push && ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev:safe": "npx prisma generate && ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "jest",
     "build": "tsc",
     "start": "npx prisma db push && node dist/index.js",
+    "start:safe": "npx prisma generate && node dist/index.js",
     "build:prod": "node scripts/build-with-frontend.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",

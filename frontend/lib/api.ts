@@ -1,4 +1,9 @@
-import axios from 'axios';
+import axios, { AxiosInstance } from 'axios';
+
+// Extend AxiosInstance to include our refresh promise tracker
+interface ExtendedAxiosInstance extends AxiosInstance {
+  _refreshPromise?: Promise<string> | null;
+}
 
 // Auto-detect API URL from current hostname (supports LAN IP access)
 export function getApiBaseUrl(): string {
@@ -27,7 +32,7 @@ export function getApiBaseUrl(): string {
   return 'http://localhost:4000/api';
 }
 
-export const api = axios.create({
+export const api: ExtendedAxiosInstance = axios.create({
   baseURL: getApiBaseUrl(),
   withCredentials: true,
 });
@@ -98,9 +103,33 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._isRetry) {
       originalRequest._isRetry = true;
 
+      // Prevent concurrent refresh requests — queue them behind the first one
+      if (!api._refreshPromise) {
+        api._refreshPromise = api.post('/auth/refresh')
+          .then(({ data }) => data.accessToken)
+          .catch((refreshError) => {
+            // Token refresh failed - clear everything and logout
+            setAuthToken(null);
+            
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('accessToken');
+            }
+            
+            if (handleUnauthorized) {
+              handleUnauthorized();
+            } else if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+              window.location.href = '/login';
+            }
+            
+            throw refreshError;
+          })
+          .finally(() => {
+            api._refreshPromise = null;
+          });
+      }
+
       try {
-        const { data } = await api.post('/auth/refresh');
-        const newAccessToken = data.accessToken;
+        const newAccessToken = await api._refreshPromise;
         
         setAuthToken(newAccessToken);
         
@@ -112,23 +141,8 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError) {
-        // Token refresh failed - clear everything and logout
-        setAuthToken(null);
-        
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-        }
-        
-        if (handleUnauthorized) {
-          handleUnauthorized();
-        } else if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          // Force redirect to login
-          window.location.href = '/login';
-        }
-        
-        // Return null/empty promise to prevent downstream errors/warnings
-        // We are redirecting anyway, so the component doesn't need to know it failed violently
-        return new Promise(() => {}); 
+        // Refresh already handled the logout above — reject cleanly
+        return Promise.reject(refreshError);
       }
     }
 
