@@ -5,42 +5,64 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { 
-  Users, 
-  FileText, 
-  ClipboardCheck, 
-  TrendingUp,
+import { motion } from 'framer-motion';
+import {
+  Users,
+  FileText,
+  ClipboardCheck,
   BarChart3,
   PieChart,
   Activity,
-  Award,
-  Loader2, 
+  Loader2,
   Plus,
   Trophy,
-  Clock
+  Clock,
+  ArrowRight,
+  Sparkles,
+  CalendarDays,
+  Zap,
+  Target,
+  GraduationCap,
 } from 'lucide-react';
 import AnimatedStatCard from '@/components/admin/dashboard/AnimatedStatCard';
 import LeaderboardWidget from '@/components/admin/dashboard/LeaderboardWidget';
 import ActivityFeed from '@/components/admin/dashboard/ActivityFeed';
 
-// Lazy load chart components
-const StatusPieChart = dynamic(() => import('@/components/admin/dashboard/StatusPieChart'), { 
-  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
-  ssr: false 
-});
-const SubmissionsAreaChart = dynamic(() => import('@/components/admin/dashboard/SubmissionsAreaChart'), { 
-  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
-  ssr: false 
-});
-const SubmissionsBarChart = dynamic(() => import('@/components/admin/dashboard/SubmissionsBarChart'), { 
-  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
-  ssr: false 
-});
-const PerformanceBarChart = dynamic(() => import('@/components/admin/dashboard/PerformanceBarChart'), { 
-  loading: () => <div className="h-[300px] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary/20" /></div>,
-  ssr: false 
-});
+/* ── lazy-loaded charts ── */
+const StatusPieChart = dynamic(
+  () => import('@/components/admin/dashboard/StatusPieChart'),
+  {
+    loading: () => (
+      <div className="h-[300px] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
+const SubmissionsBarChart = dynamic(
+  () => import('@/components/admin/dashboard/SubmissionsBarChart'),
+  {
+    loading: () => (
+      <div className="h-[300px] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
+/* ── framer-motion helpers ── */
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.06, duration: 0.45, ease: [0.25, 0.4, 0.25, 1] as [number, number, number, number] },
+  }),
+};
+
+/* ── types ── */
 type DashboardOverview = {
   overview: {
     totalUsers: number;
@@ -83,12 +105,64 @@ type Exam = {
   status: string;
   startAt: string;
   updatedAt: string;
-  _count?: {
-    attempts: number;
-    assignments: number;
-  };
+  _count?: { attempts: number; assignments: number };
 };
 
+/* ── card wrapper shared by every bento tile ── */
+function BentoCard({
+  children,
+  className = '',
+  custom = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  custom?: number;
+}) {
+  return (
+    <motion.div
+      variants={fadeUp}
+      initial="hidden"
+      animate="show"
+      custom={custom}
+      className={`bg-white rounded-3xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] p-6 ${className}`}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  title,
+  subtitle,
+  action,
+}: {
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-xl ${iconBg}`}>
+          <Icon className={`w-[18px] h-[18px] ${iconColor}`} />
+        </div>
+        <div>
+          <h2 className="text-[15px] font-semibold text-gray-900">{title}</h2>
+          <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════ PAGE ═══════════════════════════════════════ */
 export default function AdminDashboardPage() {
   useAuth();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
@@ -105,60 +179,81 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch new analytics endpoints
       const [overviewRes, leaderboardRes, examsRes] = await Promise.all([
         api.get<DashboardOverview>('/admin/analytics/overview'),
         api.get<LeaderboardEntry[]>('/admin/analytics/leaderboard?limit=5'),
         api.get<{ data: Exam[]; meta: any }>('/admin/exams?pageSize=100'),
       ]);
-
       setOverview(overviewRes.data);
       setLeaderboard(leaderboardRes.data);
       setExams(examsRes.data.data);
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: { message?: string } } } };
+      const e = err as { response?: { data?: { error?: { message?: string } } } };
       console.error(err);
-      setError(error.response?.data?.error?.message || 'Failed to fetch dashboard data.');
+      setError(e.response?.data?.error?.message || 'Failed to fetch dashboard data.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Exam status distribution
+  /* ── derived data ── */
   const examStatusData = useMemo(() => {
-    const statusCounts = {
-      'PUBLISHED': 0,
-      'DRAFT': 0,
-      'CLOSED': 0
-    };
-    
-    exams.forEach(exam => {
-      if (exam.status in statusCounts) {
-        statusCounts[exam.status as keyof typeof statusCounts]++;
-      }
+    const counts = { PUBLISHED: 0, DRAFT: 0, CLOSED: 0 };
+    exams.forEach((e) => {
+      if (e.status in counts) counts[e.status as keyof typeof counts]++;
     });
-    
-    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [exams]);
 
-  // Submissions by exam
   const submissionsByExam = useMemo(() => {
     return exams
-      .filter(e => e._count && e._count.attempts > 0)
-      .map(exam => ({
-        name: exam.title.length > 15 ? exam.title.substring(0, 15) + '...' : exam.title,
-        submissions: exam._count?.attempts || 0
+      .filter((e) => e._count && e._count.attempts > 0)
+      .map((e) => ({
+        name: e.title.length > 15 ? e.title.substring(0, 15) + '...' : e.title,
+        submissions: e._count?.attempts || 0,
       }))
       .sort((a, b) => b.submissions - a.submissions)
       .slice(0, 8);
   }, [exams]);
 
+  const insights = useMemo(() => {
+    if (!overview) return [];
+    const o = overview.overview;
+    const activeExams = exams.filter((e) => e.status === 'PUBLISHED').length;
+    const avgScore =
+      leaderboard.length > 0
+        ? Math.round(leaderboard.reduce((s, l) => s + l.averageScore, 0) / leaderboard.length)
+        : 0;
+    const completionRate =
+      o.totalStudents > 0
+        ? Math.round(
+            (o.totalSubmissions / Math.max(o.totalStudents * Math.max(exams.length, 1), 1)) * 100
+          )
+        : 0;
+    return [
+      { label: 'Active Exams', value: activeExams, icon: Zap, accent: '#2563eb' },
+      { label: 'This Week', value: o.submissionsThisWeek, icon: CalendarDays, accent: '#0d9488' },
+      { label: 'Avg Score', value: avgScore, icon: Target, accent: '#7c3aed', suffix: '%' },
+      { label: 'Completion', value: completionRate, icon: GraduationCap, accent: '#d97706', suffix: '%' },
+    ];
+  }, [overview, exams, leaderboard]);
+
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+  /* ── loading ── */
   if (isLoading) {
     return (
-      <div className="flex-center min-h-screen">
+      <div className="flex-center min-h-[80vh]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-primary/70">Loading dashboard...</p>
+          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <Sparkles className="w-7 h-7 text-white" />
+          </div>
+          <p className="text-gray-400 text-sm font-medium">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -166,105 +261,163 @@ export default function AdminDashboardPage() {
 
   if (error || !overview) {
     return (
-      <div className="text-primary">
-        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          <p>{error || 'Failed to load dashboard'}</p>
+      <div className="p-6">
+        <div className="p-5 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm font-medium">
+          {error || 'Failed to load dashboard'}
         </div>
       </div>
     );
   }
 
+  const o = overview.overview;
+
   return (
-    <div className="text-primary">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-4xl font-bold font-alan-sans mb-2">Dashboard</h1>
-          <p className="text-primary/70">Overview of exams and student performance</p>
+    <div className="max-w-[1600px] mx-auto space-y-5">
+      {/* ═══════ Hero ═══════ */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="relative overflow-hidden rounded-3xl bg-blue-50/80 p-7 md:p-9 shadow-[0_2px_20px_rgba(0,0,0,0.06)]"
+      >
+        {/* subtle dot grid */}
+        <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]">
+          <div className="absolute inset-0 bg-[radial-gradient(#93c5fd33_1px,transparent_1px)] [background-size:16px_16px] opacity-60" />
         </div>
-        <Link
-          href="/admin/exams/new"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-secondary rounded-lg shadow-md hover:bg-primary/80 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Create New Exam
-        </Link>
+        {/* soft glow */}
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-indigo-200/20 rounded-full blur-3xl" />
+
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+          <div>
+            <p className="text-blue-500 text-sm font-medium mb-1.5">{greeting}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+              Dashboard Overview
+            </h1>
+            <p className="text-slate-500 text-sm mt-1.5 max-w-lg leading-relaxed">
+              Monitor exams, track student performance, and manage your platform.
+            </p>
+          </div>
+          <Link
+            href="/admin/exams/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-500 active:scale-[0.97] transition-all duration-150 shadow-lg shadow-blue-600/25 self-start md:self-center"
+          >
+            <Plus className="w-4 h-4" />
+            Create Exam
+          </Link>
+        </div>
+      </motion.div>
+
+      {/* ═══════ Stat Cards ═══════ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <AnimatedStatCard idx={0} title="Total Exams" value={o.totalExams} icon={FileText} color="#2563eb" growth={o.examGrowth} />
+        <AnimatedStatCard idx={1} title="Total Students" value={o.totalStudents} icon={Users} color="#0d9488" growth={o.userGrowth} />
+        <AnimatedStatCard idx={2} title="Submissions" value={o.totalSubmissions} icon={ClipboardCheck} color="#7c3aed" growth={o.submissionGrowth} />
+        <AnimatedStatCard idx={3} title="Avg Completion" value={Math.round(o.avgCompletionTime / 60)} icon={Clock} color="#d97706" suffix="min" />
       </div>
 
-      {/* Animated Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <AnimatedStatCard
-          title="Total Exams"
-          value={overview.overview.totalExams}
-          icon={FileText}
-          gradient="from-blue-500/10 to-blue-600/5 border-blue-500/20"
-          iconColor="text-blue-500"
-          growth={overview.overview.examGrowth}
-        />
-        <AnimatedStatCard
-          title="Total Students"
-          value={overview.overview.totalStudents}
-          icon={Users}
-          gradient="from-green-500/10 to-green-600/5 border-green-500/20"
-          iconColor="text-green-500"
-          growth={overview.overview.userGrowth}
-        />
-        <AnimatedStatCard
-          title="Total Submissions"
-          value={overview.overview.totalSubmissions}
-          icon={ClipboardCheck}
-          gradient="from-purple-500/10 to-purple-600/5 border-purple-500/20"
-          iconColor="text-purple-500"
-          growth={overview.overview.submissionGrowth}
-        />
-        <AnimatedStatCard
-          title="Avg Completion Time"
-          value={Math.round(overview.overview.avgCompletionTime / 60)}
-          icon={Clock}
-          gradient="from-orange-500/10 to-orange-600/5 border-orange-500/20"
-          iconColor="text-orange-500"
-          suffix="m"
-        />
-      </div>
-
-      {/* Top Row: Leaderboard + Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {/* Leaderboard */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Top Performers</h2>
+      {/* ═══════ Quick Metrics Ribbon ═══════ */}
+      <motion.div
+        variants={fadeUp}
+        initial="hidden"
+        animate="show"
+        custom={5}
+        className="grid grid-cols-2 md:grid-cols-4 gap-3"
+      >
+        {insights.map((item) => (
+          <div
+            key={item.label}
+            className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-shadow duration-200"
+          >
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: item.accent + '10' }}
+            >
+              <item.icon className="w-4 h-4" style={{ color: item.accent }} />
+            </div>
+            <div>
+              <p className="text-[11px] text-gray-400 font-medium leading-none mb-1">{item.label}</p>
+              <p className="text-lg font-bold text-gray-900 leading-none">
+                {item.value}
+                {item.suffix && <span className="text-xs font-semibold text-gray-400 ml-0.5">{item.suffix}</span>}
+              </p>
+            </div>
           </div>
-          <LeaderboardWidget data={leaderboard} />
+        ))}
+      </motion.div>
+
+      {/* ═══════ Bento Grid ═══════ */}
+      <div className="grid grid-cols-12 gap-4 md:gap-5">
+        {/* ── Bar Chart (8 cols) ── */}
+        <div className="col-span-12 lg:col-span-8">
+          <BentoCard custom={6} className="h-full">
+            <SectionHeader
+              icon={BarChart3}
+              iconBg="bg-blue-50"
+              iconColor="text-blue-600"
+              title="Submissions by Exam"
+              subtitle="Total attempts per exam"
+              action={
+                <Link
+                  href="/admin/submissions"
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                >
+                  View all <ArrowRight className="w-3 h-3" />
+                </Link>
+              }
+            />
+            <SubmissionsBarChart data={submissionsByExam} />
+          </BentoCard>
         </div>
 
-        {/* Activity Feed */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Recent Activity</h2>
-          </div>
-          <ActivityFeed data={overview.recentActivity} />
-        </div>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-        {/* Exam Status Distribution */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChart className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Exam Status</h2>
-          </div>
-          <StatusPieChart data={examStatusData} />
+        {/* ── Donut (4 cols) ── */}
+        <div className="col-span-12 lg:col-span-4">
+          <BentoCard custom={7} className="h-full">
+            <SectionHeader
+              icon={PieChart}
+              iconBg="bg-violet-50"
+              iconColor="text-violet-600"
+              title="Exam Status"
+              subtitle="Distribution overview"
+            />
+            <StatusPieChart data={examStatusData} />
+          </BentoCard>
         </div>
 
-        {/* Submissions by Exam */}
-        <div className="bg-secondary rounded-xl p-6 border border-primary/10">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-semibold text-primary">Submissions by Exam</h2>
-          </div>
-          <SubmissionsBarChart data={submissionsByExam} />
+        {/* ── Top Performers (7 cols) ── */}
+        <div className="col-span-12 lg:col-span-7">
+          <BentoCard custom={8} className="h-full">
+            <SectionHeader
+              icon={Trophy}
+              iconBg="bg-amber-50"
+              iconColor="text-amber-600"
+              title="Top Performers"
+              subtitle="Highest scoring students"
+              action={
+                <Link
+                  href="/admin/users"
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                >
+                  All students <ArrowRight className="w-3 h-3" />
+                </Link>
+              }
+            />
+            <LeaderboardWidget data={leaderboard} />
+          </BentoCard>
+        </div>
+
+        {/* ── Recent Activity (5 cols) ── */}
+        <div className="col-span-12 lg:col-span-5">
+          <BentoCard custom={9} className="h-full">
+            <SectionHeader
+              icon={Activity}
+              iconBg="bg-teal-50"
+              iconColor="text-teal-600"
+              title="Recent Activity"
+              subtitle="Latest submissions"
+            />
+            <ActivityFeed data={overview.recentActivity} />
+          </BentoCard>
         </div>
       </div>
     </div>

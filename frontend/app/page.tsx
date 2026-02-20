@@ -1,13 +1,5 @@
-import { redirect } from 'next/navigation'
+import LandingPage from '@/components/Landing/LandingPage';
 
-function Home() {
-  redirect('/login');
-  // return (
-  //   <section className='bg-primary relative'>
-  //     <Header />
-  //     <Hero />
-  //   </section>
-  // )
+export default function Home() {
+  return <LandingPage />;
 }
-
-export default Home

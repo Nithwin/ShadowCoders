@@ -1,80 +1,82 @@
 'use client';
 
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  Tooltip, 
-  ResponsiveContainer 
-} from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart as PieIcon } from 'lucide-react';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  PUBLISHED: { label: 'Published', color: '#2563eb', bg: 'bg-blue-50 text-blue-700' },
+  DRAFT:     { label: 'Draft',     color: '#94a3b8', bg: 'bg-gray-100 text-gray-600' },
+  CLOSED:    { label: 'Closed',    color: '#7c3aed', bg: 'bg-violet-50 text-violet-700' },
+};
 
 type Props = {
   data: { name: string; value: number }[];
 };
 
+/* custom dark tooltip */
+function CustomTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const entry = payload[0];
+  const cfg = STATUS_CONFIG[entry.name] || { label: entry.name, color: '#666' };
+  return (
+    <div className="bg-[#0f172a] text-white text-xs rounded-lg px-3.5 py-2.5 shadow-xl border border-slate-700/50">
+      <p className="font-semibold">{cfg.label}</p>
+      <p style={{ color: cfg.color }}>{entry.value} exam{entry.value !== 1 ? 's' : ''}</p>
+    </div>
+  );
+}
+
 export default function StatusPieChart({ data }: Props) {
-  if (!data.some(d => d.value > 0)) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+
+  if (!data.some((d) => d.value > 0)) {
     return (
-      <div className="h-[300px] flex items-center justify-center text-primary/50">
-        <p>No exams yet</p>
+      <div className="h-[280px] flex flex-col items-center justify-center text-gray-400">
+        <PieIcon className="w-10 h-10 text-gray-200 mb-3" />
+        <p className="text-sm font-medium">No exams yet</p>
       </div>
     );
   }
 
   return (
     <div className="w-full">
-      <ResponsiveContainer width="100%" height={280}>
+      <ResponsiveContainer width="100%" height={200}>
         <PieChart>
           <Pie
             data={data}
             cx="50%"
-            cy="45%"
-            labelLine={false}
+            cy="50%"
+            innerRadius={52}
             outerRadius={80}
-            fill="#8884d8"
             dataKey="value"
-            paddingAngle={2}
+            paddingAngle={4}
+            cornerRadius={6}
+            stroke="none"
           >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            {data.map((entry) => (
+              <Cell
+                key={entry.name}
+                fill={STATUS_CONFIG[entry.name]?.color || '#94a3b8'}
+              />
             ))}
           </Pie>
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: '#1f2937', 
-              border: '1px solid #374151', 
-              borderRadius: '8px',
-              padding: '8px 12px'
-            }}
-            labelStyle={{ color: '#f3f4f6', marginBottom: '4px' }}
-            formatter={(value: number, name: string) => [value, name]}
-          />
+          <Tooltip content={<CustomTooltip />} />
         </PieChart>
       </ResponsiveContainer>
-      {/* Custom Legend */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 px-2">
-        {data.map((entry, index) => {
-          const total = data.reduce((sum, d) => sum + d.value, 0);
-          const percentage = total > 0 ? ((entry.value / total) * 100).toFixed(0) : 0;
+
+      {/* stat pills */}
+      <div className="flex items-center justify-center gap-2 mt-4">
+        {data.map((entry) => {
+          const cfg = STATUS_CONFIG[entry.name] || { label: entry.name, bg: 'bg-gray-100 text-gray-600' };
+          const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
           return (
-            <div 
-              key={entry.name} 
-              className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-colors"
+            <div
+              key={entry.name}
+              className={`flex flex-col items-center px-4 py-2.5 rounded-xl text-center ${cfg.bg}`}
             >
-              <div 
-                className="w-3 h-3 rounded-full flex-shrink-0" 
-                style={{ backgroundColor: COLORS[index % COLORS.length] }}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs sm:text-sm text-primary/80 font-medium truncate">
-                  {entry.name}
-                </div>
-                <div className="text-xs text-primary/60">
-                  {entry.value} exam{entry.value !== 1 ? 's' : ''} • {percentage}%
-                </div>
-              </div>
+              <span className="text-[11px] font-medium leading-none mb-1 opacity-80">{cfg.label}</span>
+              <span className="text-xl font-bold leading-none">{entry.value}</span>
+              <span className="text-[10px] opacity-60 mt-0.5">{pct}%</span>
             </div>
           );
         })}

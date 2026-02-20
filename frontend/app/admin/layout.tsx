@@ -30,7 +30,7 @@ export default function AdminLayout({
 
   // If loading is done and user is 'STAFF', render the layout
   return (
-    <div className="flex h-screen bg-secondary text-primary">
+    <div className="flex h-screen bg-[#f4f2fb] text-slate-900">
       <AdminSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <AdminHeader />

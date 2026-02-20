@@ -49,7 +49,7 @@ export default function StudentLayout({
   // If loading is done and user is STUDENT, render the layout with sidebar
   return (
     <>
-      <div className="flex h-screen bg-secondary text-primary">
+      <div className="flex h-screen bg-[#f4f2fb] text-slate-900">
         <StudentSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <StudentHeader />

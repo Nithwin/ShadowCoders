@@ -19,22 +19,22 @@ body{
 
 @theme {
     --color-background: #ffffff;
-    --color-foreground: #000000;
+    --color-foreground: #0f172a;
 
-    --color-primary: #000000;
+    --color-primary: #1e1b4b;
     --color-primary-foreground: #ffffff;
 
     --color-secondary: #ffffff;
-    --color-secondary-foreground: #000000;
+    --color-secondary-foreground: #1e1b4b;
 
     --color-destructive: #ef4444;
     --color-destructive-foreground: #ffffff;
 
-    --color-accent: #f3f4f6;
-    --color-accent-foreground: #000000;
+    --color-accent: #eef2ff;
+    --color-accent-foreground: #1e1b4b;
 
-    --color-input: #e5e7eb;
-    --color-ring: #000000;
+    --color-input: #c7d2fe;
+    --color-ring: #6366f1;
 
     --font-poppins: var(--font-poppins);
     --font-inter: var(--font-inter);
@@ -101,6 +101,80 @@ body{
 }
 
 @layer components {
+    /* ═══ Landing page button effects (uiverse.io inspired) ═══ */
+
+    /* Shine sweep — diagonal glint on hover */
+    .btn-shine {
+        position: relative;
+        overflow: hidden;
+    }
+    .btn-shine::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -60%;
+        width: 40%;
+        height: 200%;
+        background: linear-gradient(
+            105deg,
+            transparent 40%,
+            rgba(255, 255, 255, 0.5) 45%,
+            rgba(255, 255, 255, 0.7) 50%,
+            rgba(255, 255, 255, 0.5) 55%,
+            transparent 60%
+        );
+        transform: skewX(-20deg);
+        transition: none;
+        pointer-events: none;
+    }
+    .btn-shine:hover::after {
+        animation: shine-sweep 0.6s ease-in-out;
+    }
+    @keyframes shine-sweep {
+        0% { left: -60%; }
+        100% { left: 120%; }
+    }
+
+    /* Glow primary — blue pulsing glow on hover */
+    .btn-glow {
+        position: relative;
+        transition: box-shadow 0.3s ease, transform 0.2s ease;
+    }
+    .btn-glow:hover {
+        box-shadow: 0 0 20px rgba(37, 99, 235, 0.4), 0 0 40px rgba(37, 99, 235, 0.15);
+        transform: translateY(-2px);
+    }
+    .btn-glow:active {
+        transform: translateY(0);
+        box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Fill-up — background sweeps up from bottom */
+    .btn-fill {
+        position: relative;
+        overflow: hidden;
+        z-index: 0;
+        transition: color 0.35s ease, transform 0.2s ease;
+    }
+    .btn-fill::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: #1d4ed8;
+        z-index: -1;
+        transform: scaleY(0);
+        transform-origin: bottom;
+        transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+        border-radius: inherit;
+    }
+    .btn-fill:hover::before {
+        transform: scaleY(1);
+    }
+    .btn-fill:hover {
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
     /* Custom Scrollbar */
     .custom-scrollbar::-webkit-scrollbar {
         width: 8px;
@@ -125,7 +199,7 @@ body{
         background: #ffffff;
         
         h1{
-            @apply text-center text-xl sm:text-2xl md:text-3xl text-black font-bold font-alan-sans tracking-tight
+            @apply text-center text-xl sm:text-2xl md:text-3xl text-primary font-bold font-alan-sans tracking-tight
         }
 
         .box{
@@ -144,10 +218,10 @@ body{
 
         input {
             @apply w-full px-3.5 py-2.5
-            text-sm text-black
-            bg-gray-50 border border-gray-200 rounded-lg
+            text-sm text-primary
+            bg-indigo-50/30 border border-indigo-100 rounded-lg
             outline-none 
-            focus:border-black focus:bg-white focus:ring-1 focus:ring-black
+            focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500/30
             transition-all duration-200
             placeholder:text-gray-400
             font-medium
@@ -156,11 +230,12 @@ body{
         button[type="submit"]{
             @apply w-full py-2.5
             text-sm font-bold text-white 
-            bg-black
+            bg-blue-600
             rounded-lg
-            hover:bg-gray-800
+            hover:bg-blue-700
             active:scale-[0.98]
-            disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black
+            shadow-md shadow-blue-500/20
+            disabled:opacity-50 disabled:cursor-not-allowed
             transition-all duration-200
             font-alan-sans
             tracking-wide

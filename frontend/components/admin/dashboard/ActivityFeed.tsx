@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Clock, CheckCircle2, TrendingUp, Activity } from 'lucide-react';
 
 type ActivityEntry = {
   id: string;
@@ -17,77 +17,75 @@ type ActivityFeedProps = {
 };
 
 export default function ActivityFeed({ data }: ActivityFeedProps) {
-  const getScoreColor = (percentage: number) => {
-    if (percentage >= 90) return 'text-green-600 bg-green-500/20';
-    if (percentage >= 75) return 'text-blue-600 bg-blue-500/20';
-    if (percentage >= 60) return 'text-yellow-600 bg-yellow-500/20';
-    return 'text-red-600 bg-red-500/20';
+  const getScoreBadge = (pct: number) => {
+    if (pct >= 90) return 'bg-emerald-50 text-emerald-700';
+    if (pct >= 75) return 'bg-blue-50 text-blue-700';
+    if (pct >= 50) return 'bg-amber-50 text-amber-700';
+    return 'bg-red-50 text-red-600';
+  };
+
+  const getIconColor = (pct: number) => {
+    if (pct >= 90) return 'text-emerald-500 bg-emerald-50';
+    if (pct >= 75) return 'text-blue-500 bg-blue-50';
+    if (pct >= 50) return 'text-amber-500 bg-amber-50';
+    return 'text-red-500 bg-red-50';
   };
 
   const formatTimeAgo = (date: Date | string | null) => {
     if (!date) return 'Just now';
-    const now = new Date();
-    const then = new Date(date);
-    const diffMs = now.getTime() - then.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const diff = Date.now() - new Date(date).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   if (data.length === 0) {
     return (
-      <div className="h-[400px] flex flex-col items-center justify-center text-primary/50">
-        <Clock className="w-16 h-16 mb-4 text-primary/30" />
-        <p className="text-lg font-medium">No recent activity</p>
-        <p className="text-sm mt-1">Submissions will appear here in real-time</p>
+      <div className="h-[260px] flex flex-col items-center justify-center text-gray-400">
+        <Activity className="w-10 h-10 text-gray-200 mb-3" />
+        <p className="text-sm font-medium">No recent activity</p>
+        <p className="text-xs mt-1 text-gray-300">Submissions appear here in real-time</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-      {data.map((activity) => (
+    <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+      {data.map((a) => (
         <div
-          key={activity.id}
-          className="flex items-start gap-3 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:bg-primary/10 transition-all duration-200"
+          key={a.id}
+          className="flex items-start gap-2.5 p-3 rounded-xl bg-gray-50/70 border border-gray-200/50 hover:bg-gray-100/70 transition-colors duration-150"
         >
-          {/* Icon */}
-          <div className="flex-shrink-0 mt-1">
-            <div className={`p-2 rounded-lg ${getScoreColor(activity.percentage)}`}>
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
+          <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${getIconColor(a.percentage)}`}>
+            <CheckCircle2 className="w-3.5 h-3.5" />
           </div>
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-primary">
-              <span className="font-bold">{activity.studentName}</span> completed{' '}
-              <span className="font-semibold">{activity.examTitle}</span>
+            <p className="text-[13px] text-gray-700 leading-snug">
+              <span className="font-semibold text-gray-900">{a.studentName}</span>{' '}
+              <span className="text-gray-400">completed</span>{' '}
+              <span className="font-medium">{a.examTitle}</span>
             </p>
-            <div className="flex items-center gap-3 mt-1 text-xs text-primary/60">
-              <span className="flex items-center gap-1">
+            <div className="flex items-center gap-3 mt-1.5">
+              <span className="flex items-center gap-1 text-[11px] text-gray-400">
                 <Clock className="w-3 h-3" />
-                {formatTimeAgo(activity.submittedAt)}
+                {formatTimeAgo(a.submittedAt)}
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 text-[11px] text-gray-400">
                 <TrendingUp className="w-3 h-3" />
-                {activity.score.toFixed(1)} / {activity.maxScore.toFixed(1)}
+                {a.score.toFixed(1)}/{a.maxScore.toFixed(1)}
               </span>
             </div>
           </div>
 
-          {/* Score Badge */}
-          <div className="flex-shrink-0">
-            <div className={`px-3 py-1 rounded-full ${getScoreColor(activity.percentage)}`}>
-              <span className="text-sm font-bold">{activity.percentage}%</span>
-            </div>
-          </div>
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md shrink-0 ${getScoreBadge(a.percentage)}`}>
+            {a.percentage}%
+          </span>
         </div>
       ))}
     </div>

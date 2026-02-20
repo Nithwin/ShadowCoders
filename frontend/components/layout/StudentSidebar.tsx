@@ -53,7 +53,8 @@ export default function StudentSidebar() {
       {/* Sidebar */}
       <div 
         className={`
-          flex flex-col w-64 h-screen p-4 bg-primary text-secondary
+          flex flex-col w-64 h-screen p-4 text-secondary
+          bg-[#0f172a]
           fixed lg:static lg:translate-x-0
           transition-transform duration-300 ease-in-out
           z-50

@@ -19,71 +19,76 @@ type LeaderboardWidgetProps = {
 
 export default function LeaderboardWidget({ data }: LeaderboardWidgetProps) {
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
-    if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
-    if (rank === 3) return <Award className="w-6 h-6 text-amber-600" />;
-    return <span className="text-lg font-bold text-primary/60">#{rank}</span>;
+    if (rank === 1) return <Trophy className="w-4 h-4 text-amber-500" />;
+    if (rank === 2) return <Medal className="w-4 h-4 text-gray-400" />;
+    if (rank === 3) return <Award className="w-4 h-4 text-orange-500" />;
+    return <span className="text-xs font-bold text-gray-400">#{rank}</span>;
   };
 
-  const getRankBg = (rank: number) => {
-    if (rank === 1) return 'from-yellow-500/20 to-yellow-600/10 border-yellow-500/30';
-    if (rank === 2) return 'from-gray-400/20 to-gray-500/10 border-gray-400/30';
-    if (rank === 3) return 'from-amber-500/20 to-amber-600/10 border-amber-500/30';
-    return 'from-primary/5 to-primary/10 border-primary/10';
+  const getRowBg = (rank: number) => {
+    if (rank === 1) return 'bg-amber-50/60 border-amber-200/50';
+    if (rank === 2) return 'bg-gray-50/60 border-gray-200/50';
+    if (rank === 3) return 'bg-orange-50/40 border-orange-200/40';
+    return 'bg-gray-50/40 border-gray-200/40';
+  };
+
+  const getScoreBadge = (score: number) => {
+    if (score >= 90) return 'bg-emerald-50 text-emerald-700';
+    if (score >= 75) return 'bg-blue-50 text-blue-700';
+    if (score >= 50) return 'bg-amber-50 text-amber-700';
+    return 'bg-red-50 text-red-600';
   };
 
   if (data.length === 0) {
     return (
-      <div className="h-[400px] flex flex-col items-center justify-center text-primary/50">
-        <Trophy className="w-16 h-16 mb-4 text-primary/30" />
-        <p className="text-lg font-medium">No leaderboard data yet</p>
-        <p className="text-sm mt-1">Students will appear here after completing exams</p>
+      <div className="h-[260px] flex flex-col items-center justify-center text-gray-400">
+        <Trophy className="w-10 h-10 text-gray-200 mb-3" />
+        <p className="text-sm font-medium">No leaderboard data yet</p>
+        <p className="text-xs mt-1 text-gray-300">Students will appear here after exams</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {data.map((entry) => (
         <div
           key={entry.studentId}
-          className={`flex items-center gap-4 p-4 bg-gradient-to-r ${getRankBg(entry.rank)} rounded-xl border transition-all duration-300 hover:scale-[1.02] hover:shadow-md`}
+          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all duration-150 hover:shadow-sm ${getRowBg(entry.rank)}`}
         >
-          {/* Rank */}
-          <div className="flex-shrink-0 w-12 flex items-center justify-center">
+          {/* rank */}
+          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
             {getRankIcon(entry.rank)}
           </div>
 
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            {entry.pictureUrl ? (
-              <img
-                src={entry.pictureUrl}
-                alt={entry.studentName}
-                className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/20">
-                <span className="text-lg font-bold text-primary">
-                  {entry.studentName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-            )}
-          </div>
+          {/* avatar */}
+          {entry.pictureUrl ? (
+            <img
+              src={entry.pictureUrl}
+              alt={entry.studentName}
+              className="w-9 h-9 rounded-full border-2 border-white shadow-sm object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-[#0f172a] flex items-center justify-center border-2 border-white shadow-sm shrink-0">
+              <span className="text-xs font-bold text-white">
+                {entry.studentName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
 
-          {/* Info */}
+          {/* name */}
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-primary truncate">{entry.studentName}</p>
-            <p className="text-sm text-primary/60 truncate">
+            <p className="text-[13px] font-semibold text-gray-800 truncate">{entry.studentName}</p>
+            <p className="text-[11px] text-gray-400 truncate">
               {entry.studentRegNo || entry.studentEmail}
             </p>
           </div>
 
-          {/* Stats */}
-          <div className="flex-shrink-0 text-right">
-            <p className="text-2xl font-bold text-primary">{entry.averageScore}%</p>
-            <p className="text-xs text-primary/60">{entry.totalExams} exams</p>
-          </div>
+          {/* exams count + score */}
+          <span className="text-[11px] text-gray-400 hidden sm:inline shrink-0">{entry.totalExams} exams</span>
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-lg shrink-0 ${getScoreBadge(entry.averageScore)}`}>
+            {entry.averageScore}%
+          </span>
         </div>
       ))}
     </div>
