@@ -11,12 +11,12 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  
+
   const { login, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   // Google login removed
-  const handleGoogleResponse = async () => {};
+  const handleGoogleResponse = async () => { };
 
 
 
@@ -78,7 +78,7 @@ export default function LoginPage() {
       <div className="box">
         {/* Logo and Title */}
         <div className="flex flex-col items-center gap-2 mb-3">
-          <Image 
+          <Image
             src={"/images/codepath.png"}
             width={48}
             height={48}
@@ -90,7 +90,7 @@ export default function LoginPage() {
             Welcome back
           </p>
         </div>
-        
+
         <form id="form" onSubmit={handleSubmit}>
           <input
             type="email"
@@ -108,7 +108,7 @@ export default function LoginPage() {
             required
             disabled={isLoading}
           />
-          
+
           {error && (
             <div className="text-red-600 text-xs text-center font-medium bg-red-50 py-2 px-3 rounded-lg border border-red-200">
               {error}

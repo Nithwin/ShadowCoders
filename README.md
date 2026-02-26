@@ -63,6 +63,7 @@ A comprehensive online examination platform built with Next.js 16 and Express.js
 ---
 
 ## 🚀 Quick Start
+**Production Users (Ubuntu):** Check the [Ubuntu Production Guide](./STARTUP_GUIDE.md) for management commands and exam readiness tips.
 
 ### Prerequisites
 

@@ -7,7 +7,7 @@ import * as os from 'os';
  * Docker Sandbox Executor
  * 
  * Executes untrusted code inside a Docker container with:
- * - Memory limit (128MB)
+ * - Memory limit (256MB)
  * - CPU limit (0.5 cores)
  * - No network access
  * - Read-only filesystem
@@ -17,9 +17,9 @@ import * as os from 'os';
  */
 
 const DOCKER_IMAGE = process.env.DOCKER_IMAGE || 'shadowcoders-sandbox';
-const MAX_MEMORY = process.env.MAX_MEMORY || '128m';
+const MAX_MEMORY = process.env.MAX_MEMORY || '256m';
 const MAX_CPUS = process.env.MAX_CPUS || '0.5';
-const MAX_PIDS = process.env.MAX_PIDS || '32';
+const MAX_PIDS = process.env.MAX_PIDS || '128';
 const MAX_OUTPUT_SIZE = 1024 * 256; // 256KB max output
 
 interface ExecutionResult {
@@ -125,6 +125,10 @@ export async function executeInDocker(
     }
 
     // Build Docker run command with ALL security flags
+    // NOTE: Do NOT use --ulimit nproc here! It counts ALL processes by UID
+    // across the ENTIRE HOST (not per-container), causing "resource temporarily
+    // unavailable" when multiple workers run containers simultaneously.
+    // --pids-limit is per-container and handles fork-bomb protection properly.
     const dockerArgs = [
       'run',
       '--rm',                                    // Auto-remove container
@@ -132,13 +136,12 @@ export async function executeInDocker(
       '--memory', MAX_MEMORY,                    // Memory limit
       '--memory-swap', MAX_MEMORY,               // No swap (hard limit)
       '--cpus', MAX_CPUS,                        // CPU limit
-      '--pids-limit', MAX_PIDS,                  // Process limit (anti fork-bomb)
+      '--pids-limit', MAX_PIDS,                  // Process limit (anti fork-bomb, per-container)
       '--read-only',                             // Read-only root filesystem
-      '--tmpfs', '/tmp:rw,size=16m,noexec',      // Small writable /tmp
+      '--tmpfs', '/tmp:rw,size=64m',             // Writable /tmp (64MB for JVM + compiled output)
       '--security-opt', 'no-new-privileges',     // No privilege escalation
-      '--ulimit', 'nproc=32:32',                 // Process limit backup
-      '--ulimit', 'fsize=1048576:1048576',       // Max 1MB file write
-      '--ulimit', 'nofile=64:64',                // Max 64 open files
+      '--ulimit', 'fsize=4194304:4194304',       // Max 4MB file write
+      '--ulimit', 'nofile=256:256',              // Max 256 open files (JVM needs many)
       '--user', 'sandbox',                       // Non-root user
       '-v', `${tempDir}:/sandbox:ro`,            // Mount code read-only
       '-w', '/sandbox',                          // Working directory
@@ -216,9 +219,9 @@ export async function executeInDocker(
         // Check for compilation errors
         if (stderr && langConfig.compileCmd) {
           const stderrLower = stderr.toLowerCase();
-          if (stderrLower.includes('error:') && 
-              (stderrLower.includes('.c:') || stderrLower.includes('.cpp:') || 
-               stderrLower.includes('.java:') || stderrLower.includes('cannot find symbol'))) {
+          if (stderrLower.includes('error:') &&
+            (stderrLower.includes('.c:') || stderrLower.includes('.cpp:') ||
+              stderrLower.includes('.java:') || stderrLower.includes('cannot find symbol'))) {
             resolve({
               stdout: null,
               stderr: null,
