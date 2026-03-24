@@ -17,7 +17,7 @@ export const initAutoSubmitCron = () => {
     try {
       const now = new Date();
       // Calculate buffer (e.g., 2 minutes past end time to allow for clock drift/latency)
-    //   const bufferTime = new Date(now.getTime() - 2 * 60 * 1000); 
+      //   const bufferTime = new Date(now.getTime() - 2 * 60 * 1000); 
 
       // Find all IN_PROGRESS attempts for exams that have ended
       // We look for exams where endAt < NOW and the attempt is still IN_PROGRESS
@@ -34,7 +34,7 @@ export const initAutoSubmitCron = () => {
           id: true,
           studentId: true,
           exam: {
-              select: { title: true }
+            select: { title: true }
           }
         },
         take: 50, // Process in batches of 50 to avoid overloading logic
@@ -42,16 +42,16 @@ export const initAutoSubmitCron = () => {
 
       if (expiredAttempts.length > 0) {
         console.log(`[AutoSubmit] Found ${expiredAttempts.length} expired attempts. Force submitting...`);
-        
-        // Process sequentially or with limited concurrency to be safe
-        for (const attempt of expiredAttempts) {
+
+        // Process in parallel for significantly better performance
+        await Promise.all(expiredAttempts.map(async (attempt) => {
           try {
             await forceSubmitAttempt(attempt.id, 'Auto-submitted by system (Time Expired)');
             console.log(`[AutoSubmit] Successfully submitted attempt ${attempt.id} for student ${attempt.studentId}`);
           } catch (err) {
             console.error(`[AutoSubmit] Failed to submit attempt ${attempt.id}:`, err);
           }
-        }
+        }));
       }
     } catch (error) {
       console.error('[AutoSubmit] Cron job error:', error);
@@ -59,6 +59,6 @@ export const initAutoSubmitCron = () => {
       isRunning = false;
     }
   });
-  
+
   console.log('[Cron] Auto-submit job initialized (running every minute)');
 };

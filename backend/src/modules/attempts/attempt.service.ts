@@ -131,7 +131,7 @@ export const startAttempt = async (studentId: string, examId: string) => {
     const nextAttemptNo = currentAttempts.length + 1;
 
     let orderMap: Prisma.InputJsonValue | null = null;
-    
+
     if (exam.mode === 'DYNAMIC') {
       // Dynamic exams start empty. The adaptive service will populate the first question.
       orderMap = [];
@@ -199,33 +199,33 @@ export const startAttempt = async (studentId: string, examId: string) => {
     }
   }, {
     // Increase timeout for transaction (in case of high concurrency)
-    timeout: 10000, // 10 seconds
+    timeout: 180000, // 3 minutes
     isolationLevel: Prisma.TransactionIsolationLevel.Serializable, // Strongest isolation
   });
 
   // If dynamic, ensure session is initialized and first question assigned
   if (exam.mode === 'DYNAMIC' && attempt) {
     if (!attempt.orderMap || (Array.isArray(attempt.orderMap) && attempt.orderMap.length === 0)) {
-       await adaptiveService.startSession(studentId, examId, attempt.id);
-       
-       // Re-fetch to check if session start actually assigned a question
-       const freshAttempt = await prisma.attempt.findUnique({
-          where: { id: attempt.id },
-          select: {
-             id: true,
-             examId: true,
-             studentId: true,
-             startedAt: true,
-             status: true,
-             orderMap: true,
-             attemptNo: true,
-          }
-       });
+      await adaptiveService.startSession(studentId, examId, attempt.id);
 
-       if (!freshAttempt?.orderMap || (Array.isArray(freshAttempt.orderMap) && freshAttempt.orderMap.length === 0)) {
-         throw { status: 400, message: "No questions available for this dynamic exam. Please ask the administrator to 'Regenerate Questions' first." };
-       }
-       return freshAttempt;
+      // Re-fetch to check if session start actually assigned a question
+      const freshAttempt = await prisma.attempt.findUnique({
+        where: { id: attempt.id },
+        select: {
+          id: true,
+          examId: true,
+          studentId: true,
+          startedAt: true,
+          status: true,
+          orderMap: true,
+          attemptNo: true,
+        }
+      });
+
+      if (!freshAttempt?.orderMap || (Array.isArray(freshAttempt.orderMap) && freshAttempt.orderMap.length === 0)) {
+        throw { status: 400, message: "No questions available for this dynamic exam. Please ask the administrator to 'Regenerate Questions' first." };
+      }
+      return freshAttempt;
     }
   }
 
@@ -243,7 +243,7 @@ type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
  */
 const handleAdaptiveProgression = async (attemptId: string, lastResponse: { questionId: string; verdict: string | null; earnedPoints?: any }) => {
   try {
-     await adaptiveService.progressSession(attemptId, lastResponse);
+    await adaptiveService.progressSession(attemptId, lastResponse);
   } catch (err) {
     console.error(`[Adaptive] Error progressing session for attempt ${attemptId}:`, err);
   }
@@ -430,28 +430,56 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
     }
 
     if (response) {
-      // 3. --- USE STORED GRADING RESULT ---
-      // We no longer re-grade on submit. We trust the incremental grading (client-side or previous server-side).
+      // 3. --- SERVER-SIDE GRADING VERIFICATION ---
+      // For coding questions: if stored earnedPoints is 0, re-grade server-side.
+      // This prevents zero scores caused by CORS failures, Docker errors,
+      // or frontend failing to persist grading results.
+      let points = Number(response.earnedPoints) || 0;
+      let verdict = response.verdict || 'FAIL';
+      let gradingMode = (response.gradingMode || GradingMode.AUTO) as GradingMode;
 
-      // Add to total score
-      const points = Number(response.earnedPoints) || 0;
+      // Re-grade coding questions that show 0 points but have code submitted
+      if (question.type === QType.CODING && points === 0) {
+        const answerData = response.answer as { code?: string; language?: string } | null;
+        if (answerData?.code && answerData.code.trim().length > 0) {
+          try {
+            console.log(`[Submit] Re-grading coding question ${question.id} (had 0 points with code submitted)`);
+            const gradingResult = await gradeCoding(
+              answerData,
+              question.testcases as any[],
+              questionPoints
+            );
+            points = gradingResult.earnedPoints;
+            verdict = gradingResult.verdict;
+            gradingMode = gradingResult.gradingMode;
+            console.log(`[Submit] Re-graded: ${points}/${questionPoints} (${verdict})`);
+          } catch (err) {
+            console.error(`[Submit] Re-grading failed for question ${question.id}:`, err);
+            // Keep 0 points on error
+          }
+        }
+      }
+
+      // Server-side MCQ verification (always re-grade to prevent tampering)
+      if (question.type === QType.MCQ && question.correctOptionIds) {
+        const mcqResult = gradeMCQ(
+          response.answer as { chosenOptionIds?: string[] },
+          question.correctOptionIds as string[],
+          questionPoints
+        );
+        points = mcqResult.earnedPoints;
+        verdict = mcqResult.verdict;
+        gradingMode = mcqResult.gradingMode;
+      }
+
       totalScore += points;
-
-      // Ensure we have a verdict and grading mode, defaulting if missing
-      const verdict = response.verdict || (points >= questionPoints ? 'PASS' : (points > 0 ? 'PARTIAL' : 'FAIL'));
-      const gradingMode = response.gradingMode || GradingMode.AUTO; // Default to AUTO if missing
-
-      // Add to update list (to ensure consistency, though strictly strictly strictly strictly not needed if we trust DB, 
-      // but good to enforce "Snapshotting" the final state in case we want to lock it down)
-      // Actually, if we just trust the DB, we might not need to update anything unless we want to "Seal" it.
-      // But preserving the existing logic structure:
 
       responseUpdates.push({
         questionId: question.id,
         earnedPoints: points,
         verdict: verdict,
-        gradingMode: gradingMode as GradingMode,
-        feedback: undefined // Or keep existing feedback?
+        gradingMode: gradingMode,
+        feedback: undefined
       });
     } else {
       // No response, 0 points
@@ -508,7 +536,7 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
 
     return submittedAttempt;
   }, {
-    timeout: 30000, // Increased timeout for transaction (grading is done outside, but just in case)
+    timeout: 180000, // 3 minutes
     isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted
   });
 };
@@ -518,7 +546,7 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
  * Used by admins to fix "wrong marks" or "zero marks" issues.
  */
 export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = false) => {
-  console.log(`[Re-evaluate] Starting re-evaluation for attempts ${attemptId} (dryRun=${dryRun})`);
+  console.log(`[Re-evaluate] Starting re-evaluation for attempt ${attemptId} (dryRun=${dryRun})`);
 
   // 1. Fetch attempt and exam data
   const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
@@ -527,66 +555,45 @@ export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = fal
     throw { status: 404, message: 'Attempt not found' };
   }
 
-  // Allow re-evaluation for SUBMITTED or IN_PROGRESS (though usually SUBMITTED)
-
-  let totalScore = 0;
-  let maxScore = 0;
-
-  // Prepare updates
-  const responseUpdates: Array<{
-    questionId: string;
-    earnedPoints: number;
-    verdict: string;
-    gradingMode: GradingMode;
-    feedback?: string | undefined;
-  }> = [];
-
-  // 2. Serialize Grading Loop
-  for (const question of attempt.exam.questions) {
+  // 2. Parallel Grading Loop
+  const gradingPromises = attempt.exam.questions.map(async (question) => {
     const questionPoints = Number(question.points);
-    maxScore += questionPoints;
-
     const response = attempt.responses.find((r) => r.questionId === question.id);
 
     // Force full marks override
     const config = (question as any).config;
     if (config && config.forceFullMarks === true) {
       if (response) {
-        responseUpdates.push({
+        return {
           questionId: question.id,
           earnedPoints: questionPoints,
           verdict: 'PASS',
           gradingMode: GradingMode.AUTO,
           feedback: 'Full marks awarded by staff override.',
-        });
-        totalScore += questionPoints;
+          maxScoreContribution: questionPoints,
+          totalScoreContribution: questionPoints
+        };
       }
-      continue;
+      return { maxScoreContribution: questionPoints, totalScoreContribution: 0 };
     }
 
     if (response && response.answer) {
-      let gradingResult: any = {
-        earnedPoints: 0,
-        verdict: 'FAIL',
-        gradingMode: GradingMode.MANUAL,
-      };
-
-      // Preserve existing manual grades if we want?
-      // User asked to "re-sub coding... and grade again".
-      // Usually re-evaluation implies re-running AUTO grading. Manual grades might be overridden?
-      // Let's assume we re-run EVERYTHING that is auto-gradable.
-      // If it was manually graded (ESSAY), we skip re-grading but keep points?
-      // For safety, let's only re-grade AUTO types (MCQ, CODING, SQL).
-
       const isAutoGradable = [QType.MCQ, QType.CODING, QType.SQL].includes(question.type as any);
 
       if (!isAutoGradable) {
-        // Keep existing score for manual questions
-        totalScore += Number(response.earnedPoints) || 0;
-        continue;
+        return {
+          maxScoreContribution: questionPoints,
+          totalScoreContribution: Number(response.earnedPoints) || 0
+        };
       }
 
       try {
+        let gradingResult: any = {
+          earnedPoints: 0,
+          verdict: 'FAIL',
+          gradingMode: GradingMode.AUTO, // Default to AUTO for re-evaluation
+        };
+
         switch (question.type) {
           case QType.MCQ:
             gradingResult = gradeMCQ(
@@ -598,9 +605,6 @@ export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = fal
 
           case QType.CODING:
             console.log(`[Re-evaluate] Grading Coding Question ${question.id}...`);
-            // Add a small delay to let system breathe if needed
-            await new Promise(r => setTimeout(r, 100));
-
             gradingResult = await gradeCoding(
               response.answer as { code?: string; language?: string },
               question.testcases as any[],
@@ -624,33 +628,50 @@ export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = fal
             );
             break;
         }
+
+        return {
+          questionId: question.id,
+          earnedPoints: gradingResult.earnedPoints,
+          verdict: gradingResult.verdict,
+          gradingMode: gradingResult.gradingMode,
+          maxScoreContribution: questionPoints,
+          totalScoreContribution: gradingResult.earnedPoints
+        };
       } catch (err) {
         console.error(`[Re-evaluate] Error grading question ${question.id}:`, err);
-        // On error, keep 0
+        return { maxScoreContribution: questionPoints, totalScoreContribution: 0 };
       }
-
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-        totalScore += gradingResult.earnedPoints;
-      }
-
-      responseUpdates.push({
-        questionId: question.id,
-        earnedPoints: gradingResult.earnedPoints,
-        verdict: gradingResult.verdict,
-        gradingMode: gradingResult.gradingMode,
-        feedback: undefined
-      });
-    } else {
-      // No response, 0 points
     }
-  }
+
+    return { maxScoreContribution: questionPoints, totalScoreContribution: 0 };
+  });
+
+  const results = await Promise.all(gradingPromises);
+
+  let totalScore = 0;
+  let maxScore = 0;
+  const responseUpdates: any[] = [];
+
+  results.forEach(res => {
+    maxScore += res.maxScoreContribution;
+    totalScore += res.totalScoreContribution;
+    if (res.questionId) {
+      responseUpdates.push({
+        questionId: res.questionId,
+        earnedPoints: res.earnedPoints,
+        verdict: res.verdict,
+        gradingMode: res.gradingMode,
+        feedback: res.feedback
+      });
+    }
+  });
 
   // If dry run, return results without updating DB
   if (dryRun) {
     return {
       message: 'Dry run complete',
       newScore: totalScore,
-      responseUpdates // Return the full grading data
+      responseUpdates
     };
   }
 
@@ -702,7 +723,7 @@ export const applyReevaluationResults = async (
       }
     });
   }, {
-    timeout: 30000
+    timeout: 180000
   });
 };
 
@@ -718,113 +739,95 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
     throw { status: 403, message: `Attempt has already been ${attempt.status.toLowerCase()}` };
   }
 
-  let totalScore = 0;
-  let maxScore = 0;
-
-  for (const question of attempt.exam.questions) {
-    // Add question's points to the max possible score
+  // 3. Parallel Grading Loop
+  const gradingPromises = attempt.exam.questions.map(async (question) => {
     const questionPoints = Number(question.points);
-    maxScore += questionPoints;
-
-    // Find the student's response for this question
     const response = attempt.responses.find((r) => r.questionId === question.id);
 
     // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
     const config = (question as any).config;
     if (config && config.forceFullMarks === true) {
-      totalScore += questionPoints;
+      const updateData = {
+        earnedPoints: questionPoints,
+        verdict: 'PASS',
+        gradingMode: GradingMode.AUTO,
+        feedback: 'Full marks awarded by staff override.',
+      };
 
       if (response) {
         await prisma.response.updateMany({
-          where: {
-            attemptId: attemptId,
-            questionId: question.id,
-          },
-          data: {
-            earnedPoints: questionPoints,
-            verdict: 'PASS',
-            gradingMode: GradingMode.AUTO,
-            feedback: 'Full marks awarded by staff override.',
-          },
+          where: { attemptId, questionId: question.id },
+          data: updateData,
         });
       }
-      continue;
+      return { totalScoreContribution: questionPoints, maxScoreContribution: questionPoints };
     }
 
-    if (response && response.answer) {
-      // Auto-grade based on question type
-      let gradingResult: any = {
-        earnedPoints: 0,
-        verdict: 'FAIL',
-        gradingMode: GradingMode.MANUAL,
-      }; switch (question.type) {
-        case QType.MCQ:
-          gradingResult = gradeMCQ(
-            response.answer as { chosenOptionIds?: string[] },
-            question.correctOptionIds as string[],
-            questionPoints
-          );
-          break;
+    if (response) {
+      let points = Number(response.earnedPoints) || 0;
+      let verdict = response.verdict || 'FAIL';
+      let gradingMode = (response.gradingMode || GradingMode.AUTO) as GradingMode;
 
-        case QType.CODING:
-          gradingResult = await gradeCoding(
-            response.answer as { code?: string; language?: string },
-            question.testcases as any[],
-            questionPoints
-          );
-          break;
-
-        case QType.SQL:
-          const sqlConfigForce = (question as any).config;
-          const ddlForce = sqlConfigForce?.ddl || '';
-          const sqlTestCasesForce = (question.testcases as any[]).map((tc) => ({
-            ...tc,
-            input: ddlForce ? `${ddlForce}\n${tc.input}` : tc.input,
-          }));
-
-          gradingResult = await gradeCoding(
-            response.answer as { code?: string; language?: string },
-            sqlTestCasesForce,
-            questionPoints
-          );
-          break;
-
-        case QType.ESSAY:
-        case QType.SPEAKING:
-          gradingResult = {
-            earnedPoints: 0,
-            verdict: 'PENDING',
-            gradingMode: GradingMode.MANUAL,
-          };
-          break;
-
-        default:
-          gradingResult = {
-            earnedPoints: 0,
-            verdict: 'FAIL',
-            gradingMode: GradingMode.MANUAL,
-          };
+      // Re-grade coding questions that show 0 points but have code submitted
+      if (question.type === QType.CODING && points === 0) {
+        const answerData = response.answer as { code?: string; language?: string } | null;
+        if (answerData?.code && answerData.code.trim().length > 0) {
+          try {
+            console.log(`[ForceSubmit] Re-grading coding question ${question.id} (had 0 points with code submitted)`);
+            const gradingResult = await gradeCoding(
+              answerData,
+              question.testcases as any[],
+              questionPoints
+            );
+            points = gradingResult.earnedPoints;
+            verdict = gradingResult.verdict;
+            gradingMode = gradingResult.gradingMode;
+            console.log(`[ForceSubmit] Re-graded: ${points}/${questionPoints} (${verdict})`);
+          } catch (err) {
+            console.error(`[ForceSubmit] Re-grading failed for question ${question.id}:`, err);
+          }
+        }
       }
 
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-        totalScore += gradingResult.earnedPoints;
+      // Server-side MCQ verification
+      if (question.type === QType.MCQ && question.correctOptionIds) {
+        const mcqResult = gradeMCQ(
+          response.answer as { chosenOptionIds?: string[] },
+          question.correctOptionIds as string[],
+          questionPoints
+        );
+        points = mcqResult.earnedPoints;
+        verdict = mcqResult.verdict;
+        gradingMode = mcqResult.gradingMode;
       }
 
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-        await prisma.response.updateMany({
-          where: {
-            attemptId: attemptId,
-            questionId: question.id,
-          },
-          data: {
-            earnedPoints: gradingResult.earnedPoints,
-            verdict: gradingResult.verdict,
-            gradingMode: gradingResult.gradingMode,
-          },
-        });
-      }
+      // Update the response to "Lock in" the final points and verdict
+      await prisma.response.updateMany({
+        where: {
+          attemptId: attemptId,
+          questionId: question.id,
+        },
+        data: {
+          earnedPoints: points,
+          verdict: verdict,
+          gradingMode: gradingMode,
+        },
+      });
+
+      return { totalScoreContribution: points, maxScoreContribution: questionPoints };
     }
-  }
+
+    return { totalScoreContribution: 0, maxScoreContribution: questionPoints };
+  });
+
+  const results = await Promise.all(gradingPromises);
+
+  let totalScore = 0;
+  let maxScore = 0;
+  results.forEach(res => {
+    totalScore += res.totalScoreContribution;
+    maxScore += res.maxScoreContribution;
+  });
 
   // Update the Attempt in the Database
   const submittedAttempt = await prisma.attempt.update({
@@ -869,17 +872,17 @@ export const getAttemptDetails = async (
   // We'll leave this check out for now.
 
   // 4. Return the full attempt details
-  
+
   // --- DYNAMIC EXAM FIX ---
   const exam = attempt.exam as any;
 
   if (exam && exam.mode === 'DYNAMIC' && attempt.orderMap && Array.isArray(attempt.orderMap)) {
-     const visibleIds = attempt.orderMap as string[];
-     if (exam.questions && Array.isArray(exam.questions)) {
-        const questionMap = new Map(exam.questions.map((q: any) => [q.id, q]));
-        const filteredQuestions = visibleIds.map(id => questionMap.get(id)).filter(q => !!q);
-        exam.questions = filteredQuestions;
-     }
+    const visibleIds = attempt.orderMap as string[];
+    if (exam.questions && Array.isArray(exam.questions)) {
+      const questionMap = new Map(exam.questions.map((q: any) => [q.id, q]));
+      const filteredQuestions = visibleIds.map(id => questionMap.get(id)).filter(q => !!q);
+      exam.questions = filteredQuestions;
+    }
   }
 
   return attempt;

@@ -113,21 +113,21 @@ export default function ExamAttemptPage() {
 
     // Listen for question updates
     const handleQuestionUpdate = (payload: { questionId: string; data: any }) => {
-        // Update local questions state
-        setQuestions(prev => prev.map(q => {
-            if (q.id === payload.questionId) {
-                // Merge update. 
-                // Note: payload.data might be the full question or partial.
-                // It comes from question.service update notification which sends verifiedQuestion (full).
-                return { ...q, ...payload.data };
-            }
-            return q;
-        }));
+      // Update local questions state
+      setQuestions(prev => prev.map(q => {
+        if (q.id === payload.questionId) {
+          // Merge update. 
+          // Note: payload.data might be the full question or partial.
+          // It comes from question.service update notification which sends verifiedQuestion (full).
+          return { ...q, ...payload.data };
+        }
+        return q;
+      }));
     };
 
     // Listen for report creation (to lock button)
     const handleReportCreated = (report: any) => {
-        setReportedQuestions(prev => new Set(prev).add(report.questionId));
+      setReportedQuestions(prev => new Set(prev).add(report.questionId));
     };
 
     // Listen for violation resolution
@@ -149,9 +149,9 @@ export default function ExamAttemptPage() {
     socket.on('violation-resolved', handleViolationResolved);
 
     return () => {
-        socket.off('question-updated', handleQuestionUpdate);
-        socket.off('report-created', handleReportCreated);
-        socket.off('violation-resolved', handleViolationResolved);
+      socket.off('question-updated', handleQuestionUpdate);
+      socket.off('report-created', handleReportCreated);
+      socket.off('violation-resolved', handleViolationResolved);
     };
   }, [socket, attempt, setQuestions, attemptId, handleSubmitExam, removeViolation]);
 
@@ -163,7 +163,7 @@ export default function ExamAttemptPage() {
       try {
         const res = await api.get(`/student/attempts/${attemptId}`);
         const updatedAttempt = res.data;
-        
+
         // If attempt was submitted or status changed, close the violation popup
         if (updatedAttempt.submittedAt || updatedAttempt.status !== 'IN_PROGRESS') {
           setShowKeyboardViolation(false);
@@ -191,15 +191,15 @@ export default function ExamAttemptPage() {
 
   // Sync initial reported status from questions
   useEffect(() => {
-      if (questions.length > 0) {
-          const initialReported = new Set<string>();
-          questions.forEach(q => {
-              if ((q as any).isReported) {
-                  initialReported.add(q.id);
-              }
-          });
-          setReportedQuestions(initialReported);
-      }
+    if (questions.length > 0) {
+      const initialReported = new Set<string>();
+      questions.forEach(q => {
+        if ((q as any).isReported) {
+          initialReported.add(q.id);
+        }
+      });
+      setReportedQuestions(initialReported);
+    }
   }, [questions]);
 
   // --- DYNAMIC EXAM LOGIC ---
@@ -207,59 +207,59 @@ export default function ExamAttemptPage() {
   const isDynamicMode = attempt?.exam?.mode === 'DYNAMIC';
 
   const fetchNextDynamicQuestion = async () => {
-      if (!attempt || isFetchingNext) return;
-      setIsFetchingNext(true);
-      try {
-          // Save current answer first? useExamSubmission handles auto-save usually, 
-          // but we might want to ensure it's saved before getting next.
-          // For now, assume auto-save worked or user clicked submit.
-          
-          const res = await api.get(`/adaptive/${attempt.exam.id}/next-question`);
-          const data = res.data;
-          
-          if (data.finished) {
-              // Exam done!
-              handleSubmitExam(false, "Dynamic exam completed");
-              return;
-          }
-          
-          if (data.question) {
-              // Append question
-              // We need to merge it into 'questions' state
-              setQuestions(prev => {
-                  // Check if already exists to avoid dupes
-                  if (prev.find(q => q.id === data.question.id)) return prev;
-                  return [...prev, data.question];
-              });
-              // Move to it
-              setTimeout(() => {
-                  setCurrentQuestionIndex(prev => prev + 1);
-              }, 100);
-          }
-      } catch (err) {
-          console.error("Failed to fetch next question", err);
-          // show toast?
-      } finally {
-          setIsFetchingNext(false);
+    if (!attempt || isFetchingNext) return;
+    setIsFetchingNext(true);
+    try {
+      // Save current answer first? useExamSubmission handles auto-save usually, 
+      // but we might want to ensure it's saved before getting next.
+      // For now, assume auto-save worked or user clicked submit.
+
+      const res = await api.get(`/adaptive/${attempt.exam.id}/next-question`);
+      const data = res.data;
+
+      if (data.finished) {
+        // Exam done!
+        handleSubmitExam(false, "Dynamic exam completed");
+        return;
       }
+
+      if (data.question) {
+        // Append question
+        // We need to merge it into 'questions' state
+        setQuestions(prev => {
+          // Check if already exists to avoid dupes
+          if (prev.find(q => q.id === data.question.id)) return prev;
+          return [...prev, data.question];
+        });
+        // Move to it
+        setTimeout(() => {
+          setCurrentQuestionIndex(prev => prev + 1);
+        }, 100);
+      }
+    } catch (err) {
+      console.error("Failed to fetch next question", err);
+      // show toast?
+    } finally {
+      setIsFetchingNext(false);
+    }
   };
 
   // Initial fetch for dynamic (if no questions)
   useEffect(() => {
-      if (attempt && isDynamicMode && questions.length === 0 && !isLoading && !isFetchingNext) {
-          fetchNextDynamicQuestion();
-      }
+    if (attempt && isDynamicMode && questions.length === 0 && !isLoading && !isFetchingNext) {
+      fetchNextDynamicQuestion();
+    }
   }, [attempt, isDynamicMode, questions.length, isLoading]);
 
   const handleNavigateQuestionWrapped = (direction: 'next' | 'prev') => {
-      if (isDynamicMode && direction === 'next') {
-          // If at last loaded question, fetch next
-          if (currentQuestionIndex === questions.length - 1) {
-              fetchNextDynamicQuestion();
-              return;
-          }
+    if (isDynamicMode && direction === 'next') {
+      // If at last loaded question, fetch next
+      if (currentQuestionIndex === questions.length - 1) {
+        fetchNextDynamicQuestion();
+        return;
       }
-      navigateQuestion(direction);
+    }
+    navigateQuestion(direction);
   };
 
 
@@ -288,25 +288,25 @@ export default function ExamAttemptPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger on input fields (allow normal typing)
       const target = e.target as HTMLElement;
-      const isInputField = target.tagName === 'INPUT' || 
-                          target.tagName === 'TEXTAREA' || 
-                          target.isContentEditable ||
-                          target.closest('[contenteditable="true"]') ||
-                          target.closest('input') ||
-                          target.closest('textarea');
-      
+      const isInputField = target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"]') ||
+        target.closest('input') ||
+        target.closest('textarea');
+
       // Allow normal typing in input fields
       if (isInputField) return;
 
       // ALLOWED KEYS - Don't trigger violation for these
       const modifierKeys = ['Control', 'Ctrl', 'Shift', 'Alt', 'Meta', 'OS'];
       const isModifierKey = modifierKeys.includes(e.key);
-      
+
       // Allow modifier keys when pressed alone (Ctrl alone, Shift alone, Meta/Command alone, etc.)
       if (isModifierKey) {
         return; // Don't trigger violation
       }
-      
+
       // Allow Command key (Meta) on Mac - it's used for many legitimate shortcuts
       if (e.metaKey && !e.ctrlKey && !e.altKey) {
         // Allow Command + common shortcuts (V, C, A, Z, Y, X) similar to Ctrl
@@ -321,17 +321,17 @@ export default function ExamAttemptPage() {
         // For other Command combinations, allow them (Mac users need Command for many things)
         return; // Don't trigger violation for Command key combinations
       }
-      
+
       // Allow Caps Lock key
       if (e.key === 'CapsLock' || e.key === 'Caps') {
         return; // Don't trigger violation
       }
-      
+
       // Allow Shift + alphabet keys (for capitalization)
       if (e.shiftKey && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
         return; // Don't trigger violation
       }
-      
+
       // Allow Ctrl + allowed shortcuts (V, C, A, Z, Y, X) - even outside input fields
       // Also allow Ctrl+Shift+Z for redo
       if (e.ctrlKey && !e.altKey && !e.metaKey) {
@@ -345,17 +345,17 @@ export default function ExamAttemptPage() {
           return; // Don't trigger violation for allowed Ctrl shortcuts
         }
       }
-      
+
       // BLOCK: Ctrl+Space, Alt+Space, Ctrl+Shift (except Ctrl+Shift+Z for redo which is already handled above)
       if ((e.ctrlKey && (e.key === ' ' || e.key === 'Space')) ||
-          (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
-          (e.ctrlKey && e.shiftKey && e.key.toLowerCase() !== 'z')) {
+        (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
+        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() !== 'z')) {
         e.preventDefault();
         e.stopPropagation();
         // Emit keyboard violation event (only once per attempt)
         if (socket?.connected && !showKeyboardViolation && attempt) {
-          socket.emit('keyboard-violation', { 
-            key: e.ctrlKey && e.shiftKey ? 'Ctrl+Shift' : e.ctrlKey ? 'Ctrl+Space' : 'Alt+Space' 
+          socket.emit('keyboard-violation', {
+            key: e.ctrlKey && e.shiftKey ? 'Ctrl+Shift' : e.ctrlKey ? 'Ctrl+Space' : 'Alt+Space'
           });
           setShowKeyboardViolation(true);
           // Add to violation context for notification
@@ -370,7 +370,7 @@ export default function ExamAttemptPage() {
         }
         return;
       }
-      
+
       // ALLOWED NAVIGATION AND TYPING KEYS - Allow these everywhere (not just in input fields)
       const allowedKeys = [
         // Navigation keys
@@ -387,12 +387,12 @@ export default function ExamAttemptPage() {
         ';', ':', "'", '"', ',', '.', '<', '>', '/', '?',
         '`', '~',
       ];
-      
+
       // Allow navigation and editing keys
       if (allowedKeys.includes(e.key)) {
         return; // Don't trigger violation
       }
-      
+
       // Allow any single character (letters, numbers, special chars) when not using modifiers
       if (!e.ctrlKey && !e.altKey && !e.metaKey && e.key.length === 1) {
         return; // Don't trigger violation for normal typing
@@ -431,7 +431,7 @@ export default function ExamAttemptPage() {
     fullscreenWarning: cheatingWarning,
     warningMessage,
   } = useCheatingPrevention(
-    attempt, 
+    attempt,
     handleAutoSubmit,
     attempt?.exam?.maxTabSwitches ?? null
   );
@@ -460,7 +460,7 @@ export default function ExamAttemptPage() {
       showProctoringDialog,
       status: attempt?.status,
     });
-    
+
     // Show dialog immediately when exam is ready and proctoring is enabled
     if (attempt && attempt.status === 'IN_PROGRESS' && attempt.exam?.enableProctoring && !proctoringInitialized && !showProctoringDialog) {
       console.log('Showing proctoring dialog - requesting camera permission');
@@ -549,13 +549,13 @@ export default function ExamAttemptPage() {
       }
 
       // Merge with server responses if available
-      const mergedAnswers = attempt.responses 
+      const mergedAnswers = attempt.responses
         ? mergeAnswersFromResponses(savedAnswers, attempt.responses)
         : savedAnswers;
 
       // Format answers based on question types
       const formattedAnswers = formatAnswersForStorage(questions, mergedAnswers);
-      
+
       // Update answers if we have any
       if (Object.keys(formattedAnswers).length > 0) {
         updateAnswers(formattedAnswers);
@@ -566,81 +566,34 @@ export default function ExamAttemptPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questions, attempt]);
 
-  // STRICT Malpractice Prevention (User Request)
-  // Auto-submit immediately on:
-  // 1. Tab switching / Window minimization (visibilitychange)
-  // 2. Focus loss (blur)
-  // 3. Escape key press (keydown)
-  useEffect(() => {
-    if (!attempt || attempt.status !== 'IN_PROGRESS') return;
+  // Malpractice prevention is now handled by useCheatingPrevention hook with warnings
+  // instead of immediate auto-submit for better compatibility with older systems.
 
-    const handleStrictViolation = (reason: string) => {
-      // Immediate auto-submit
-      handleSubmitExam(true, `Malpractice Detected: ${reason}`);
-    };
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        handleStrictViolation('Tab switching or window minimized');
-      }
-    };
-
-    const handleBlur = () => {
-      // Check if it's an iframe (some editors use iframes) or actual window blur
-      // But for strict mode, we assume any window blur is a violation
-      handleStrictViolation('Window focus lost (switched window or tab)');
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Block Escape key specifically
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        handleStrictViolation('Escape key pressed');
-      }
-    };
-
-    // Attach listeners
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    // Use capture=true for keydown to ensure we catch it before others
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    };
-  }, [attempt, handleSubmitExam]);
-
-  // Extension Detection Trap
+  // Extension Detection Trap - DISABLED
+  /*
   useEffect(() => {
     if (attempt?.status === 'IN_PROGRESS' && hasExtensions && !isSubmitting) {
       const distinctExtensions = Array.from(new Set(detectedExtensions));
-      const reason = distinctExtensions.length > 0 
+      const reason = distinctExtensions.length > 0
         ? `Malpractice Detected: Unauthorized Browser Extension(s) Detected: ${distinctExtensions.join(', ')}`
         : 'Malpractice Detected: Unauthorized Browser Extension Detected (Trap)';
-        
+
       handleSubmitExam(true, reason);
     }
   }, [hasExtensions, detectedExtensions, attempt?.status, isSubmitting, handleSubmitExam]);
+  */
 
-  // Strict Fullscreen Enforcement: Auto-submit on exit
+  // Strict Fullscreen Enforcement - DISABLED auto-submit on exit
   useEffect(() => {
     if (isFullscreen) {
       hasEnteredFullscreenRef.current = true;
     } else if (hasEnteredFullscreenRef.current) {
       // User exited fullscreen after entering
-      
-      // If we're not submitting, this is a violation
-      if (attempt?.status === 'IN_PROGRESS' && !isSubmitting) {
-        handleSubmitExam(true, 'Malpractice Detected: Exited Fullscreen (Esc key or similar)');
-      }
-      
-      // Reset proctoring state so dialog shows again if they somehow stay on page
+      // No longer auto-submitting here, just allowing them to re-enter
       setProctoringInitialized(false);
     }
-  }, [isFullscreen, attempt?.status, isSubmitting, handleSubmitExam]);
+  }, [isFullscreen, attempt?.status, isSubmitting]);
 
   // Loading state
   if (isLoading) {
@@ -659,7 +612,7 @@ export default function ExamAttemptPage() {
 
   // Determine the current section ID - prioritize selectedSectionId so section button changes are immediate
   const currentSectionId = selectedSectionId || questions[currentQuestionIndex]?.sectionId || undefined;
-  
+
   // Get the section type from the selected section (not current question)
   let currentSectionType: QType | undefined;
   if (selectedSectionId) {
@@ -668,15 +621,15 @@ export default function ExamAttemptPage() {
   } else {
     currentSectionType = getCurrentSectionType(currentSectionId, attempt, questions);
   }
-  
+
   // Filter questions to show only those matching the current section type
   const filteredQuestions = getFilteredQuestions(questions, currentSectionId, currentSectionType);
-  
+
   const currentQuestion = questions[currentQuestionIndex];
-  
+
   // Get essay questions for navigation (only from filtered questions)
   const essayQuestions = getEssayQuestions(filteredQuestions, questions);
-  
+
   // Get essay answers for navigation display
   const essayAnswers = essayQuestions.reduce((acc, eq) => {
     acc[eq.id] = answers[eq.id] || {};
@@ -693,8 +646,8 @@ export default function ExamAttemptPage() {
 
   return (
     <div ref={containerRef} className="h-screen overflow-hidden bg-gray-50 text-gray-900 flex flex-col">
-      <KeyboardViolationPopup 
-        show={showKeyboardViolation} 
+      <KeyboardViolationPopup
+        show={showKeyboardViolation}
         onResolved={() => {
           setShowKeyboardViolation(false);
           removeViolation(attemptId);
@@ -706,17 +659,17 @@ export default function ExamAttemptPage() {
         }}
         attemptId={attemptId}
       />
-      <FullscreenWarning 
-        warningCount={warningCount} 
-        show={showFullscreenWarning} 
+      <FullscreenWarning
+        warningCount={warningCount}
+        show={showFullscreenWarning}
         maxTabSwitches={attempt?.exam?.maxTabSwitches}
       />
-      
+
       {/* Fullscreen Requirement Modal */}
       {showFullscreenRequirement && (
         <FullscreenRequirement onEnterFullscreen={enterFullscreen} />
       )}
-      
+
       {/* Proctoring Initialization Dialog */}
       {showProctoringDialog && attempt?.exam?.enableProctoring && (
         <ProctoringInitialDialog
@@ -732,7 +685,7 @@ export default function ExamAttemptPage() {
           }}
         />
       )}
-      
+
       <div className={showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}>
         <ExamHeader
           examTitle={attempt.exam.title}
@@ -765,66 +718,66 @@ export default function ExamAttemptPage() {
       <div className={`flex-1 flex overflow-hidden ${showFullscreenRequirement ? 'pointer-events-none opacity-50' : ''}`}>
         {/* Question Navigation Sidebar - Hide for Dynamic Mode */}
         {!isDynamicMode && (
-        <QuestionNavigation
-          questions={questions}
-          sections={sectionsWithQuestions}
-          currentQuestionIndex={currentQuestionIndex}
-          currentSectionId={selectedSectionId || currentQuestion?.sectionId}
-          answers={answers}
-          onQuestionClick={handleQuestionClick}
-          onSectionClick={(sectionId) => {
-            setSelectedSectionId(sectionId);
-            // Get all questions in this section
-            const sectionQuestions = questions.filter(q => q.sectionId === sectionId);
-            if (sectionQuestions.length > 0) {
-              const sectionType = sectionQuestions[0].type;
-              // Find first question of this section and type
-              const firstQuestionIndex = questions.findIndex((q) => 
-                q.sectionId === sectionId && q.type === sectionType
-              );
-              if (firstQuestionIndex !== -1) {
-                setCurrentQuestionIndex(firstQuestionIndex);
-              } else {
-                // Fallback to any question in section
-                const fallbackIndex = questions.findIndex(q => q.sectionId === sectionId);
-                if (fallbackIndex !== -1) {
-                  setCurrentQuestionIndex(fallbackIndex);
+          <QuestionNavigation
+            questions={questions}
+            sections={sectionsWithQuestions}
+            currentQuestionIndex={currentQuestionIndex}
+            currentSectionId={selectedSectionId || currentQuestion?.sectionId}
+            answers={answers}
+            onQuestionClick={handleQuestionClick}
+            onSectionClick={(sectionId) => {
+              setSelectedSectionId(sectionId);
+              // Get all questions in this section
+              const sectionQuestions = questions.filter(q => q.sectionId === sectionId);
+              if (sectionQuestions.length > 0) {
+                const sectionType = sectionQuestions[0].type;
+                // Find first question of this section and type
+                const firstQuestionIndex = questions.findIndex((q) =>
+                  q.sectionId === sectionId && q.type === sectionType
+                );
+                if (firstQuestionIndex !== -1) {
+                  setCurrentQuestionIndex(firstQuestionIndex);
+                } else {
+                  // Fallback to any question in section
+                  const fallbackIndex = questions.findIndex(q => q.sectionId === sectionId);
+                  if (fallbackIndex !== -1) {
+                    setCurrentQuestionIndex(fallbackIndex);
+                  }
                 }
               }
-            }
-          }}
-          showQuestionNumbers={true}
-          currentQuestionType={currentQuestion?.type}
-          filteredQuestions={filteredQuestions}
-        />
+            }}
+            showQuestionNumbers={true}
+            currentQuestionType={currentQuestion?.type}
+            filteredQuestions={filteredQuestions}
+          />
         )}
-        
+
         {/* Question Content Area */}
         <div className={`flex-1 flex flex-col overflow-hidden ${[QType.CODING, QType.ESSAY, QType.MCQ, QType.SQL].includes(currentQuestion?.type) ? '' : 'p-6'}`}>
           {currentQuestion && (
             <div className="relative h-full flex flex-col">
-                <ExamContentArea
-                    currentQuestion={currentQuestion}
-                    questions={questions}
-                    currentQuestionIndex={currentQuestionIndex}
-                    answers={answers}
-                    attemptId={attemptId}
-                    isSubmitting={isSubmitting || isFetchingNext}
-                    onAnswerChange={handleAnswerChange}
-                    onNavigateQuestion={handleNavigateQuestionWrapped}
-                    onSubmitExam={handleSubmitExamClick}
-                    allowedLanguages={attempt?.exam?.allowedLanguages}
-                    reportButton={
-                        <ReportQuestionButton 
-                            questionId={currentQuestion.id}
-                            examId={attempt?.exam?.id || ''}
-                            isReported={reportedQuestions.has(currentQuestion.id)}
-                            onReported={() => {
-                                setReportedQuestions(prev => new Set(prev).add(currentQuestion.id));
-                            }}
-                        />
-                    }
-                />
+              <ExamContentArea
+                currentQuestion={currentQuestion}
+                questions={questions}
+                currentQuestionIndex={currentQuestionIndex}
+                answers={answers}
+                attemptId={attemptId}
+                isSubmitting={isSubmitting || isFetchingNext}
+                onAnswerChange={handleAnswerChange}
+                onNavigateQuestion={handleNavigateQuestionWrapped}
+                onSubmitExam={handleSubmitExamClick}
+                allowedLanguages={attempt?.exam?.allowedLanguages}
+                reportButton={
+                  <ReportQuestionButton
+                    questionId={currentQuestion.id}
+                    examId={attempt?.exam?.id || ''}
+                    isReported={reportedQuestions.has(currentQuestion.id)}
+                    onReported={() => {
+                      setReportedQuestions(prev => new Set(prev).add(currentQuestion.id));
+                    }}
+                  />
+                }
+              />
             </div>
           )}
         </div>

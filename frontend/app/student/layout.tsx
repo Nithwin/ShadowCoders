@@ -60,7 +60,7 @@ export default function StudentLayout({
       </div>
       {/* LeetCode ID Prompt Popup - Only shows for students without LeetCode ID */}
       <LeetCodeIdPrompt />
-      
+
       {/* Global Asset Preloader - Caches Wasm runtimes in background */}
       <GlobalPreloader />
     </>

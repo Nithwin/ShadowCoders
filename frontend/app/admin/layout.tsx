@@ -16,7 +16,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'STAFF')) {
-      router.push('/student/dashboard'); 
+      router.push('/student/dashboard');
     }
   }, [user, isLoading, router]);
 
