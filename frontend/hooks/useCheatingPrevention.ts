@@ -24,7 +24,7 @@ export function useCheatingPrevention(
 
   // Increment warning and auto-submit if needed (defined as ref callback to avoid dependency issues)
   const incrementWarningRef = useRef<((reason: string) => void) | undefined>(undefined);
-  
+
   useEffect(() => {
     incrementWarningRef.current = (reason: string) => {
       const now = Date.now();
@@ -37,11 +37,15 @@ export function useCheatingPrevention(
       setWarningCount(prev => {
         const newCount = prev + 1;
         const limit = maxTabSwitches === 0 ? Infinity : (maxTabSwitches ?? 3); // 0 means unlimited
-        
+
         if (limit !== Infinity && newCount >= limit) {
-          if (handleSubmitExamRef.current) {
-            handleSubmitExamRef.current(`Auto-submitted due to: ${reason} (Warning limit reached)`);
-          }
+          // DISABLED: Auto-submit on warning limit reached
+          // if (handleSubmitExamRef.current) {
+          //   handleSubmitExamRef.current(`Auto-submitted due to: ${reason} (Warning limit reached)`);
+          // }
+          setWarningMessage(`${reason} (Warning limit reached - Please stay on this page!)`);
+          setFullscreenWarning(true);
+          setTimeout(() => setFullscreenWarning(false), 5000);
         } else {
           setWarningMessage(reason);
           setFullscreenWarning(true);
@@ -61,31 +65,31 @@ export function useCheatingPrevention(
     // Check if page was reloaded (only works after page loads)
     const isPageReload = () => {
       if (typeof window === 'undefined' || typeof performance === 'undefined') return false;
-      
+
       // Modern API
       const navigationEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
       if (navigationEntries.length > 0) {
         return navigationEntries[0].type === 'reload';
       }
-      
+
       // Fallback for older browsers
       if ('navigation' in performance && (performance as any).navigation) {
         return (performance as any).navigation.type === 1; // RELOAD = 1
       }
-      
+
       return false;
     };
 
-    // Check if we're in the initial load phase (first 2 seconds) - likely a reload
+    // Check if we're in the initial load phase (first 5 seconds) - likely a reload or system noise
     const isInitialLoad = () => {
-      return Date.now() - initialLoadTimeRef.current < 2000;
+      return Date.now() - initialLoadTimeRef.current < 5000;
     };
 
     const handleVisibilityChange = () => {
       // Don't trigger warnings during page reload or initial load
       // Only warn for actual tab switches, not page reloads
       if (isInitialLoad() || isPageReload()) return;
-      
+
       // WHITELIST: If a dialog/modal is open (like Report Issue), ignore
       if (document.querySelector('[role="dialog"]') || document.querySelector('[data-state="open"]')) {
         return;
@@ -105,7 +109,7 @@ export function useCheatingPrevention(
       if (document.querySelector('[role="dialog"]') || document.querySelector('[data-state="open"]')) {
         return;
       }
-      
+
       // Window lost focus (switched to another app/window or tab)
       incrementWarningRef.current?.('Window lost focus');
     };
@@ -116,7 +120,7 @@ export function useCheatingPrevention(
         lastFocusTimeRef.current = Date.now();
         return;
       }
-      
+
       // Check if focus was lost for too long (tab switch detection)
       // This detects when user switches tabs and comes back
       const timeDiff = Date.now() - lastFocusTimeRef.current;
@@ -173,22 +177,22 @@ export function useCheatingPrevention(
       // 1. ALLOWED KEYS - Modifier keys alone, Caps Lock, Shift + alphabet
       const modifierKeys = ['Control', 'Ctrl', 'Shift', 'Alt', 'Meta', 'OS'];
       const isModifierKeyOnly = modifierKeys.includes(e.key);
-      
+
       // Allow modifier keys when pressed alone
       if (isModifierKeyOnly) {
         return; // Allow Ctrl alone, Shift alone, etc.
       }
-      
+
       // Allow Caps Lock key
       if (e.key === 'CapsLock' || e.key === 'Caps') {
         return; // Allow Caps Lock
       }
-      
+
       // Allow Shift + alphabet keys (for capitalization)
       if (e.shiftKey && e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
         return; // Allow Shift + A-Z for capital letters
       }
-      
+
       // 2. ALLOWED CTRL SHORTCUTS - Allow Ctrl+V, Ctrl+C, Ctrl+A, Ctrl+Z, Ctrl+Y everywhere
       if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
         const key = e.key.toLowerCase();
@@ -196,14 +200,14 @@ export function useCheatingPrevention(
         if (key === 'v' || key === 'c' || key === 'a' || key === 'z' || key === 'y') {
           return; // Allow - don't block these shortcuts
         }
-        
+
         // Block Ctrl+S (Save page) even in editors
         if (key === 's') {
           e.preventDefault(); // Prevent browser save dialog
           return; // Don't show warning, just prevent
         }
       }
-      
+
       // 3. ALLOWED NAVIGATION AND TYPING KEYS - Allow these everywhere
       const allowedNavigationKeys = [
         // Navigation keys
@@ -220,17 +224,17 @@ export function useCheatingPrevention(
         ';', ':', "'", '"', ',', '.', '<', '>', '/', '?',
         '`', '~',
       ];
-      
+
       // Allow navigation and editing keys
       if (allowedNavigationKeys.includes(e.key)) {
         return; // Allow these keys
       }
-      
+
       // 4. ALLOWED SHORTCUTS (Whitelist)
       // Allow standard typing and navigation keys without modifiers
       // This includes all single characters (letters, numbers, special chars)
       if (!e.ctrlKey && !e.altKey && !e.metaKey) {
-        return; 
+        return;
       }
 
       // 4. BLOCK EVERYTHING ELSE WITH MODIFIERS
@@ -247,34 +251,34 @@ export function useCheatingPrevention(
             return; // Allow these shortcuts - don't block
           }
         }
-        
+
         // BLOCK: Ctrl+Space, Alt+Space, Ctrl+Shift (any key with Ctrl+Shift)
         if ((e.ctrlKey && (e.key === ' ' || e.key === 'Space')) ||
-            (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
-            (e.ctrlKey && e.shiftKey)) {
+          (e.altKey && (e.key === ' ' || e.key === 'Space')) ||
+          (e.ctrlKey && e.shiftKey)) {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
           incrementWarningRef.current?.(
-            e.ctrlKey && e.shiftKey 
-              ? 'Restricted shortcut: Ctrl+Shift' 
-              : e.ctrlKey 
-              ? 'Restricted shortcut: Ctrl+Space'
-              : 'Restricted shortcut: Alt+Space'
+            e.ctrlKey && e.shiftKey
+              ? 'Restricted shortcut: Ctrl+Shift'
+              : e.ctrlKey
+                ? 'Restricted shortcut: Ctrl+Space'
+                : 'Restricted shortcut: Alt+Space'
           );
           return false;
         }
-        
+
         // Handle Space key explicitly (can be ' ' or 'Space')
         const keyName = e.key === ' ' || e.key === 'Space' ? 'Space' : e.key;
-        
+
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        
+
         // Specific messages for clarity
         let reason = 'Restricted shortcut used';
-        
+
         // Detailed logging for clearer feedback
         if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 's') {
           reason = 'Screenshot Shortcut (Win+Shift+S)';
@@ -296,16 +300,16 @@ export function useCheatingPrevention(
           }
           reason = `Restricted shortcut: ${parts.join('+')}`;
         }
-        
+
         incrementWarningRef.current?.(reason);
         return false;
       }
 
       // Block F-keys
       if (e.key.startsWith('F') && e.key.length > 1) {
-         e.preventDefault();
-         incrementWarningRef.current?.(`Restricted key: ${e.key}`);
-         return false;
+        e.preventDefault();
+        incrementWarningRef.current?.(`Restricted key: ${e.key}`);
+        return false;
       }
     };
 
@@ -324,7 +328,7 @@ export function useCheatingPrevention(
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
-      
+
       if (!isInput && !isContentEditable) {
         e.preventDefault();
         return false;
@@ -335,7 +339,7 @@ export function useCheatingPrevention(
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
-      
+
       if (!isInput && !isContentEditable) {
         window.getSelection()?.removeAllRanges();
       }
@@ -345,7 +349,7 @@ export function useCheatingPrevention(
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
-      
+
       if (!isInput && !isContentEditable) {
         e.preventDefault();
         return false;
@@ -396,9 +400,9 @@ export function useCheatingPrevention(
 
     // Clear clipboard on mount AND on focus
     const clearClipboard = () => {
-       navigator.clipboard?.writeText('').catch(() => {});
+      navigator.clipboard?.writeText('').catch(() => { });
     };
-    
+
     clearClipboard();
     window.addEventListener('focus', clearClipboard);
 
@@ -406,14 +410,14 @@ export function useCheatingPrevention(
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
-      
+
       // Allow copy ONLY from within inputs/editors
       if (!isInput && !isContentEditable) {
         // Check if inside Monaco editor
         const isMonacoEditor = target.closest('.monaco-editor') !== null ||
-                              target.closest('[class*="monaco"]') !== null ||
-                              target.closest('[data-uri]') !== null ||
-                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+          target.closest('[class*="monaco"]') !== null ||
+          target.closest('[data-uri]') !== null ||
+          (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
 
         if (!isMonacoEditor) {
           e.preventDefault();
@@ -429,21 +433,21 @@ export function useCheatingPrevention(
       // BUT since we clear clipboard on focus (window switch), 
       // external content should be gone.
       // We just need to ensure they are pasting INTO an editor.
-      
+
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
-      
+
       // Check if inside Monaco editor
       const isMonacoEditor = target.closest('.monaco-editor') !== null ||
-                            target.closest('[class*="monaco"]') !== null ||
-                            target.closest('[data-uri]') !== null ||
-                            (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+        target.closest('[class*="monaco"]') !== null ||
+        target.closest('[data-uri]') !== null ||
+        (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
 
       if (!isInput && !isContentEditable && !isMonacoEditor) {
-          e.preventDefault();
-          incrementWarningRef.current?.('Pasting outside editor is restricted');
-          return false;
+        e.preventDefault();
+        incrementWarningRef.current?.('Pasting outside editor is restricted');
+        return false;
       }
     };
 
@@ -451,13 +455,13 @@ export function useCheatingPrevention(
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isContentEditable = target.isContentEditable;
-      
+
       if (!isInput && !isContentEditable) {
         // Check if inside Monaco editor
         const isMonacoEditor = target.closest('.monaco-editor') !== null ||
-                              target.closest('[class*="monaco"]') !== null ||
-                              target.closest('[data-uri]') !== null ||
-                              (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
+          target.closest('[class*="monaco"]') !== null ||
+          target.closest('[data-uri]') !== null ||
+          (target.ownerDocument !== document && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA');
 
         if (!isMonacoEditor) {
           e.preventDefault();
@@ -489,7 +493,7 @@ export function useCheatingPrevention(
     const checkDevTools = () => {
       const widthThreshold = window.outerWidth - window.innerWidth > 160;
       const heightThreshold = window.outerHeight - window.innerHeight > 160;
-      
+
       if (widthThreshold || heightThreshold) {
         if (!devToolsOpenRef.current) {
           devToolsOpenRef.current = true;
@@ -569,7 +573,7 @@ export function useCheatingPrevention(
         e.preventDefault();
         incrementWarningRef.current?.('Screenshot attempt detected');
         // Clear clipboard
-        navigator.clipboard?.writeText('').catch(() => {});
+        navigator.clipboard?.writeText('').catch(() => { });
       }
     };
 

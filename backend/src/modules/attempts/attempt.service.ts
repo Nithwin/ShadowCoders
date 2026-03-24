@@ -546,7 +546,7 @@ export const submitAttempt = async (studentId: string, attemptId: string, submis
  * Used by admins to fix "wrong marks" or "zero marks" issues.
  */
 export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = false) => {
-  console.log(`[Re-evaluate] Starting re-evaluation for attempts ${attemptId} (dryRun=${dryRun})`);
+  console.log(`[Re-evaluate] Starting re-evaluation for attempt ${attemptId} (dryRun=${dryRun})`);
 
   // 1. Fetch attempt and exam data
   const attempt = await attemptRepo.getAttemptForSubmission(attemptId);
@@ -555,66 +555,45 @@ export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = fal
     throw { status: 404, message: 'Attempt not found' };
   }
 
-  // Allow re-evaluation for SUBMITTED or IN_PROGRESS (though usually SUBMITTED)
-
-  let totalScore = 0;
-  let maxScore = 0;
-
-  // Prepare updates
-  const responseUpdates: Array<{
-    questionId: string;
-    earnedPoints: number;
-    verdict: string;
-    gradingMode: GradingMode;
-    feedback?: string | undefined;
-  }> = [];
-
-  // 2. Serialize Grading Loop
-  for (const question of attempt.exam.questions) {
+  // 2. Parallel Grading Loop
+  const gradingPromises = attempt.exam.questions.map(async (question) => {
     const questionPoints = Number(question.points);
-    maxScore += questionPoints;
-
     const response = attempt.responses.find((r) => r.questionId === question.id);
 
     // Force full marks override
     const config = (question as any).config;
     if (config && config.forceFullMarks === true) {
       if (response) {
-        responseUpdates.push({
+        return {
           questionId: question.id,
           earnedPoints: questionPoints,
           verdict: 'PASS',
           gradingMode: GradingMode.AUTO,
           feedback: 'Full marks awarded by staff override.',
-        });
-        totalScore += questionPoints;
+          maxScoreContribution: questionPoints,
+          totalScoreContribution: questionPoints
+        };
       }
-      continue;
+      return { maxScoreContribution: questionPoints, totalScoreContribution: 0 };
     }
 
     if (response && response.answer) {
-      let gradingResult: any = {
-        earnedPoints: 0,
-        verdict: 'FAIL',
-        gradingMode: GradingMode.MANUAL,
-      };
-
-      // Preserve existing manual grades if we want?
-      // User asked to "re-sub coding... and grade again".
-      // Usually re-evaluation implies re-running AUTO grading. Manual grades might be overridden?
-      // Let's assume we re-run EVERYTHING that is auto-gradable.
-      // If it was manually graded (ESSAY), we skip re-grading but keep points?
-      // For safety, let's only re-grade AUTO types (MCQ, CODING, SQL).
-
       const isAutoGradable = [QType.MCQ, QType.CODING, QType.SQL].includes(question.type as any);
 
       if (!isAutoGradable) {
-        // Keep existing score for manual questions
-        totalScore += Number(response.earnedPoints) || 0;
-        continue;
+        return {
+          maxScoreContribution: questionPoints,
+          totalScoreContribution: Number(response.earnedPoints) || 0
+        };
       }
 
       try {
+        let gradingResult: any = {
+          earnedPoints: 0,
+          verdict: 'FAIL',
+          gradingMode: GradingMode.AUTO, // Default to AUTO for re-evaluation
+        };
+
         switch (question.type) {
           case QType.MCQ:
             gradingResult = gradeMCQ(
@@ -626,9 +605,6 @@ export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = fal
 
           case QType.CODING:
             console.log(`[Re-evaluate] Grading Coding Question ${question.id}...`);
-            // Add a small delay to let system breathe if needed
-            await new Promise(r => setTimeout(r, 100));
-
             gradingResult = await gradeCoding(
               response.answer as { code?: string; language?: string },
               question.testcases as any[],
@@ -652,33 +628,50 @@ export const reevaluateAttempt = async (attemptId: string, dryRun: boolean = fal
             );
             break;
         }
+
+        return {
+          questionId: question.id,
+          earnedPoints: gradingResult.earnedPoints,
+          verdict: gradingResult.verdict,
+          gradingMode: gradingResult.gradingMode,
+          maxScoreContribution: questionPoints,
+          totalScoreContribution: gradingResult.earnedPoints
+        };
       } catch (err) {
         console.error(`[Re-evaluate] Error grading question ${question.id}:`, err);
-        // On error, keep 0
+        return { maxScoreContribution: questionPoints, totalScoreContribution: 0 };
       }
-
-      if (gradingResult.gradingMode === GradingMode.AUTO) {
-        totalScore += gradingResult.earnedPoints;
-      }
-
-      responseUpdates.push({
-        questionId: question.id,
-        earnedPoints: gradingResult.earnedPoints,
-        verdict: gradingResult.verdict,
-        gradingMode: gradingResult.gradingMode,
-        feedback: undefined
-      });
-    } else {
-      // No response, 0 points
     }
-  }
+
+    return { maxScoreContribution: questionPoints, totalScoreContribution: 0 };
+  });
+
+  const results = await Promise.all(gradingPromises);
+
+  let totalScore = 0;
+  let maxScore = 0;
+  const responseUpdates: any[] = [];
+
+  results.forEach(res => {
+    maxScore += res.maxScoreContribution;
+    totalScore += res.totalScoreContribution;
+    if (res.questionId) {
+      responseUpdates.push({
+        questionId: res.questionId,
+        earnedPoints: res.earnedPoints,
+        verdict: res.verdict,
+        gradingMode: res.gradingMode,
+        feedback: res.feedback
+      });
+    }
+  });
 
   // If dry run, return results without updating DB
   if (dryRun) {
     return {
       message: 'Dry run complete',
       newScore: totalScore,
-      responseUpdates // Return the full grading data
+      responseUpdates
     };
   }
 
@@ -746,43 +739,31 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
     throw { status: 403, message: `Attempt has already been ${attempt.status.toLowerCase()}` };
   }
 
-  let totalScore = 0;
-  let maxScore = 0;
-
-  for (const question of attempt.exam.questions) {
-    // Add question's points to the max possible score
+  // 3. Parallel Grading Loop
+  const gradingPromises = attempt.exam.questions.map(async (question) => {
     const questionPoints = Number(question.points);
-    maxScore += questionPoints;
-
-    // Find the student's response for this question
     const response = attempt.responses.find((r) => r.questionId === question.id);
 
     // CHECK FOR FORCE FULL MARKS OVERRIDE via Question Config
     const config = (question as any).config;
     if (config && config.forceFullMarks === true) {
-      totalScore += questionPoints;
+      const updateData = {
+        earnedPoints: questionPoints,
+        verdict: 'PASS',
+        gradingMode: GradingMode.AUTO,
+        feedback: 'Full marks awarded by staff override.',
+      };
 
       if (response) {
         await prisma.response.updateMany({
-          where: {
-            attemptId: attemptId,
-            questionId: question.id,
-          },
-          data: {
-            earnedPoints: questionPoints,
-            verdict: 'PASS',
-            gradingMode: GradingMode.AUTO,
-            feedback: 'Full marks awarded by staff override.',
-          },
+          where: { attemptId, questionId: question.id },
+          data: updateData,
         });
       }
-      continue;
+      return { totalScoreContribution: questionPoints, maxScoreContribution: questionPoints };
     }
 
     if (response) {
-      // --- SERVER-SIDE GRADING VERIFICATION ---
-      // Re-grade coding questions server-side if earnedPoints is 0 but code was submitted.
-      // This prevents zero scores from CORS/Docker failures being locked in during auto-submit.
       let points = Number(response.earnedPoints) || 0;
       let verdict = response.verdict || 'FAIL';
       let gradingMode = (response.gradingMode || GradingMode.AUTO) as GradingMode;
@@ -804,12 +785,11 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
             console.log(`[ForceSubmit] Re-graded: ${points}/${questionPoints} (${verdict})`);
           } catch (err) {
             console.error(`[ForceSubmit] Re-grading failed for question ${question.id}:`, err);
-            // Keep 0 points on error
           }
         }
       }
 
-      // Server-side MCQ verification (always re-grade to prevent tampering)
+      // Server-side MCQ verification
       if (question.type === QType.MCQ && question.correctOptionIds) {
         const mcqResult = gradeMCQ(
           response.answer as { chosenOptionIds?: string[] },
@@ -820,8 +800,6 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
         verdict = mcqResult.verdict;
         gradingMode = mcqResult.gradingMode;
       }
-
-      totalScore += points;
 
       // Update the response to "Lock in" the final points and verdict
       await prisma.response.updateMany({
@@ -835,8 +813,21 @@ export const forceSubmitAttempt = async (attemptId: string, submissionReason?: s
           gradingMode: gradingMode,
         },
       });
+
+      return { totalScoreContribution: points, maxScoreContribution: questionPoints };
     }
-  }
+
+    return { totalScoreContribution: 0, maxScoreContribution: questionPoints };
+  });
+
+  const results = await Promise.all(gradingPromises);
+
+  let totalScore = 0;
+  let maxScore = 0;
+  results.forEach(res => {
+    totalScore += res.totalScoreContribution;
+    maxScore += res.maxScoreContribution;
+  });
 
   // Update the Attempt in the Database
   const submittedAttempt = await prisma.attempt.update({
