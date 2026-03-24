@@ -126,13 +126,13 @@ export interface AiGradingJobData {
  */
 export async function submitCodeJob(data: CodeExecutionJobData) {
   const queue = getCodeQueue();
-  
+
   // Check queue depth for backpressure
   const waiting = await queue.getWaitingCount();
   const active = await queue.getActiveCount();
-  
+
   const MAX_QUEUE_DEPTH = parseInt(process.env.MAX_QUEUE_SIZE || '500', 10);
-  
+
   if (waiting > MAX_QUEUE_DEPTH) {
     const estimatedWait = Math.ceil((waiting / 4) * 5); // 4 workers, ~5s/job
     const error = new Error(
@@ -168,7 +168,7 @@ export async function submitAiJob(data: AiGradingJobData) {
  */
 export async function waitForJobResult(
   jobId: string,
-  timeoutMs: number = 30000
+  timeoutMs: number = 120000
 ): Promise<any> {
   const queue = getCodeQueue();
   const events = getCodeQueueEvents();

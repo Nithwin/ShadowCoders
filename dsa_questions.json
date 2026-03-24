@@ -1,0 +1,259 @@
+{
+    "questions": [
+        {
+            "type": "CODING",
+            "order": 1,
+            "points": 10,
+            "prompt": "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.\n\n**Input Format:**\nThe first line contains an integer `target`.\nThe second line contains an integer `n` representing the size of the array.\nThe third line contains `n` space-separated integers representing the array elements.\n\n**Output Format:**\nPrint two space-separated integers representing the indices of the two numbers that add up to the target. The indices should be sorted in ascending order.\n\n**Constraints:**\n- `2 <= n <= 10^4`\n- `-10^9 <= nums[i] <= 10^9`\n- `-10^9 <= target <= 10^9`\n- Only one valid answer exists.",
+            "starterCode": "// write your code here",
+            "testcases": [
+                {
+                    "input": "9\n4\n2 7 11 15",
+                    "expectedOutput": "0 1",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "6\n3\n3 2 4",
+                    "expectedOutput": "1 2",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "6\n2\n3 3",
+                    "expectedOutput": "0 1",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "0\n4\n0 4 3 0",
+                    "expectedOutput": "0 3",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "-8\n5\n-1 -2 -3 -4 -5",
+                    "expectedOutput": "2 4",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "100\n6\n10 20 30 40 50 60",
+                    "expectedOutput": "3 5",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "20\n5\n5 10 15 25 30",
+                    "expectedOutput": "0 2",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                }
+            ]
+        },
+        {
+            "type": "CODING",
+            "order": 2,
+            "points": 10,
+            "prompt": "Given a string `s` containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and `']'`, determine if the input string is valid.\n\nAn input string is valid if:\n1. Open brackets must be closed by the same type of brackets.\n2. Open brackets must be closed in the correct order.\n3. Every close bracket has a corresponding open bracket of the same type.\n\n**Input Format:**\nThe first line contains a single string `s`.\n\n**Output Format:**\nPrint `true` if the string is valid, and `false` otherwise.\n\n**Constraints:**\n- `1 <= s.length <= 10^4`\n- `s` consists of parentheses only `'()[]{}'`.",
+            "starterCode": "// write your code here",
+            "testcases": [
+                {
+                    "input": "()",
+                    "expectedOutput": "true",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "()[]{}",
+                    "expectedOutput": "true",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "(]",
+                    "expectedOutput": "false",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "([)]",
+                    "expectedOutput": "false",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "{[]}",
+                    "expectedOutput": "true",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "((",
+                    "expectedOutput": "false",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "]",
+                    "expectedOutput": "false",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                }
+            ]
+        },
+        {
+            "type": "CODING",
+            "order": 3,
+            "points": 15,
+            "prompt": "Given a string `s`, find the length of the longest substring without repeating characters.\n\n**Input Format:**\nThe first line contains a single string `s`.\n\n**Output Format:**\nPrint a single integer representing the length of the longest substring without repeating characters.\n\n**Constraints:**\n- `0 <= s.length <= 5 * 10^4`\n- `s` consists of English letters, digits, symbols and spaces.",
+            "starterCode": "// write your code here",
+            "testcases": [
+                {
+                    "input": "abcabcbb",
+                    "expectedOutput": "3",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "bbbbb",
+                    "expectedOutput": "1",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "pwwkew",
+                    "expectedOutput": "3",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": " ",
+                    "expectedOutput": "1",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "au",
+                    "expectedOutput": "2",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "dvdf",
+                    "expectedOutput": "3",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "tmmzuxt",
+                    "expectedOutput": "5",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                }
+            ]
+        },
+        {
+            "type": "CODING",
+            "order": 4,
+            "points": 15,
+            "prompt": "Evaluate the value of an arithmetic expression in Reverse Polish Notation.\n\nValid operators are `+`, `-`, `*`, and `/`. Each operand may be an integer or another expression.\n\nNote that division between two integers should truncate toward zero.\n\nIt is guaranteed that the given RPN expression is always valid. That means the expression would always evaluate to a result, and there will not be any division by zero operation.\n\n**Input Format:**\nThe first line contains an integer `n` representing the number of tokens.\nThe second line contains `n` space-separated strings representing the tokens in the RPN expression.\n\n**Output Format:**\nPrint a single integer representing the evaluated result.\n\n**Constraints:**\n- `1 <= n <= 10^4`\n- tokens[i] is either an operator: `\"+\"`, `\"-\"`, `\"*\"`, or `\"/\"`, or an integer in the range `[-200, 200]`.",
+            "starterCode": "// write your code here",
+            "testcases": [
+                {
+                    "input": "5\n2 1 + 3 *",
+                    "expectedOutput": "9",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "5\n4 13 5 / +",
+                    "expectedOutput": "6",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "13\n10 6 9 3 + -11 * / * 17 + 5 +",
+                    "expectedOutput": "22",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "1\n18",
+                    "expectedOutput": "18",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "3\n3 -4 -",
+                    "expectedOutput": "7",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "7\n4 2 + 3 5 1 - * +",
+                    "expectedOutput": "18",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "3\n5 2 /",
+                    "expectedOutput": "2",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                }
+            ]
+        },
+        {
+            "type": "CODING",
+            "order": 5,
+            "points": 15,
+            "prompt": "You are given an array of integers `temperatures` represents the daily temperatures, return an array `answer` such that `answer[i]` is the number of days you have to wait after the `i-th` day to get a warmer temperature. If there is no future day for which this is possible, keep `answer[i] == 0` instead.\n\n**Input Format:**\nThe first line contains an integer `n` representing the number of temperatures.\nThe second line contains `n` space-separated integers representing the sequence of temperatures.\n\n**Output Format:**\nPrint `n` space-separated integers denoting the number of days to wait for a warmer temperature for each day.\n\n**Constraints:**\n- `1 <= n <= 10^5`\n- `30 <= temperatures[i] <= 100`",
+            "starterCode": "// write your code here",
+            "testcases": [
+                {
+                    "input": "8\n73 74 75 71 69 72 76 73",
+                    "expectedOutput": "1 1 4 2 1 1 0 0",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "4\n30 40 50 60",
+                    "expectedOutput": "1 1 1 0",
+                    "isHidden": false,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "4\n30 60 90 120",
+                    "expectedOutput": "1 1 1 0",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "3\n30 30 30",
+                    "expectedOutput": "0 0 0",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "5\n89 62 70 58 47",
+                    "expectedOutput": "0 1 0 0 0",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "6\n50 50 49 48 47 51",
+                    "expectedOutput": "5 4 3 2 1 0",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                },
+                {
+                    "input": "4\n30 20 10 40",
+                    "expectedOutput": "3 2 1 0",
+                    "isHidden": true,
+                    "timeoutMs": 2000
+                }
+            ]
+        }
+    ]
+}

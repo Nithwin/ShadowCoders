@@ -28,8 +28,8 @@ RUN groupadd -g 1000 sandbox && \
 RUN mkdir -p /sandbox && chown sandbox:sandbox /sandbox
 
 # Set resource limits in profile
-RUN echo "ulimit -f 1024" >> /home/sandbox/.profile && \
-    echo "ulimit -v 131072" >> /home/sandbox/.profile && \
+RUN echo "ulimit -f 8192" >> /home/sandbox/.profile && \
+    echo "ulimit -v 262144" >> /home/sandbox/.profile && \
     echo "ulimit -t 10" >> /home/sandbox/.profile
 
 # Default working directory
