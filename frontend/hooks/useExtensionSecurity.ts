@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { detectBrowserExtensionsAsync, detectBrowserExtensions, type ExtensionDetectionResult } from '@/utils/extension-detection';
 
-export function useExtensionSecurity() {
+export function useExtensionSecurity(enabled: boolean = true) {
   const [detectionResult, setDetectionResult] = useState<ExtensionDetectionResult>({
     hasExtensions: false,
     detectedExtensions: [],
@@ -12,6 +12,12 @@ export function useExtensionSecurity() {
   const [isScanning, setIsScanning] = useState(true);
 
   const scan = useCallback(async () => {
+    if (!enabled) {
+      setDetectionResult({ hasExtensions: false, detectedExtensions: [], message: '' });
+      setIsScanning(false);
+      return;
+    }
+
     setIsScanning(true);
     try {
       // First do a quick sync scan
@@ -26,9 +32,15 @@ export function useExtensionSecurity() {
     } finally {
       setIsScanning(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setDetectionResult({ hasExtensions: false, detectedExtensions: [], message: '' });
+      setIsScanning(false);
+      return;
+    }
+
     scan();
     
     // Also set up a periodic check (less frequent)
@@ -40,7 +52,7 @@ export function useExtensionSecurity() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [scan]);
+  }, [scan, enabled]);
 
   return {
     ...detectionResult,

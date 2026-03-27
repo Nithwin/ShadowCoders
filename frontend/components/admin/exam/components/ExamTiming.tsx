@@ -14,6 +14,8 @@ interface ExamTimingProps {
 export function ExamTiming({ register, errors, watch }: ExamTimingProps) {
   const startAtVal = watch('startAt');
   const endAtVal = watch('endAt');
+  const timingMode = watch('timingMode');
+  const lockPolicy = watch('sectionLockPolicy');
   const dateOrderInvalid = startAtVal && endAtVal && new Date(startAtVal) >= new Date(endAtVal);
 
   return (
@@ -94,33 +96,44 @@ export function ExamTiming({ register, errors, watch }: ExamTimingProps) {
 
         {/* Duration and Timing Settings */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="durationMins" className="block text-sm font-semibold text-primary mb-2 flex items-center gap-2">
-              Duration (minutes) <span className="text-red-500">*</span>
-              <Tooltip>
-                <TooltipTrigger type="button">
-                  <HelpCircle className="w-3.5 h-3.5 text-primary/50" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>How long students have to complete the exam</p>
-                </TooltipContent>
-              </Tooltip>
-            </label>
-            <Input
-              id="durationMins"
-              type="number"
-              min={1}
-              {...register('durationMins')}
-              className="w-full"
-              placeholder="e.g. 60"
-            />
-            {errors.durationMins && (
-              <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                {errors.durationMins.message}
-              </p>
-            )}
-          </div>
+          {timingMode === TimingMode.OVERALL_ONLY ? (
+            <div>
+              <label htmlFor="durationMins" className="block text-sm font-semibold text-primary mb-2 flex items-center gap-2">
+                Overall Duration (minutes) <span className="text-red-500">*</span>
+                <Tooltip>
+                  <TooltipTrigger type="button">
+                    <HelpCircle className="w-3.5 h-3.5 text-primary/50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>How long students have to complete the full exam</p>
+                  </TooltipContent>
+                </Tooltip>
+              </label>
+              <Input
+                id="durationMins"
+                type="number"
+                min={1}
+                {...register('durationMins')}
+                className="w-full"
+                placeholder="e.g. 60"
+              />
+              {errors.durationMins && (
+                <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                  <Info className="w-3 h-3" />
+                  {errors.durationMins.message}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="md:col-span-1">
+              <label className="block text-sm font-semibold text-primary mb-2">Overall Duration</label>
+              <div className="h-10 px-3 rounded-md border border-primary/20 bg-primary/5 text-primary/60 flex items-center text-sm">
+                Auto-calculated from section durations in Both mode
+              </div>
+              {/* Keep required form field registered with existing value for backend compatibility. */}
+              <input type="hidden" {...register('durationMins')} />
+            </div>
+          )}
           <div>
             <label htmlFor="timingMode" className="block text-sm font-semibold text-primary mb-2 flex items-center gap-2">
               Timing Mode <span className="text-red-500">*</span>
@@ -129,7 +142,7 @@ export function ExamTiming({ register, errors, watch }: ExamTimingProps) {
                   <HelpCircle className="w-3.5 h-3.5 text-primary/50" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Overall: One timer for entire exam<br/>Per Section: Separate timer per section<br/>Both: Both timers active</p>
+                  <p>Overall: One timer for entire exam<br/>Both: Total timer is auto-calculated from section timings</p>
                 </TooltipContent>
               </Tooltip>
             </label>
@@ -139,7 +152,6 @@ export function ExamTiming({ register, errors, watch }: ExamTimingProps) {
               className="flex h-10 w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
               <option value={TimingMode.OVERALL_ONLY}>Overall Only</option>
-              <option value={TimingMode.PER_SECTION_ONLY}>Per Section Only</option>
               <option value={TimingMode.BOTH}>Both</option>
             </select>
             {errors.timingMode && (
@@ -178,6 +190,33 @@ export function ExamTiming({ register, errors, watch }: ExamTimingProps) {
             )}
           </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="p-3 rounded-lg border border-primary/15 bg-primary/5">
+            <p className="text-xs font-semibold text-primary/90">Current Timing Strategy</p>
+            <p className="text-xs text-primary/70 mt-1">
+              {timingMode === TimingMode.OVERALL_ONLY && 'One global exam timer. Section durations are optional and informational.'}
+              {timingMode === TimingMode.BOTH && 'Section timers are required. Total exam duration is auto-calculated from all section durations.'}
+            </p>
+          </div>
+          <div className="p-3 rounded-lg border border-primary/15 bg-primary/5">
+            <p className="text-xs font-semibold text-primary/90">Current Lock Strategy</p>
+            <p className="text-xs text-primary/70 mt-1">
+              {lockPolicy === SectionLockPolicy.NONE && 'Sections are unlocked. Students can navigate freely.'}
+              {lockPolicy === SectionLockPolicy.LOCK_ON_COMPLETE && 'Students begin with first section, unlock next after completion, and cannot go back.'}
+              {lockPolicy === SectionLockPolicy.LINEAR_NO_BACKTRACK && 'Strict sequence. Students cannot move backward to earlier sections.'}
+            </p>
+          </div>
+        </div>
+
+        {timingMode === TimingMode.BOTH && (
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <Info className="w-4 h-4 text-amber-700 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              Configure duration for each section in the <b>Sections</b> tab. The total exam timer will be calculated automatically.
+            </p>
+          </div>
+        )}
       </div>
     </TooltipProvider>
   );

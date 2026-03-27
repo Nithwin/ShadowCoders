@@ -38,6 +38,8 @@ export type Attempt = {
     id: string;
     title: string;
     durationMins: number;
+    timingMode?: 'OVERALL_ONLY' | 'PER_SECTION_ONLY' | 'BOTH';
+    sectionLockPolicy?: 'NONE' | 'LOCK_ON_COMPLETE' | 'LINEAR_NO_BACKTRACK';
     maxTabSwitches?: number | null;
     allowedLanguages?: string[] | null;
 
@@ -49,6 +51,7 @@ export type Attempt = {
       id: string;
       title: string;
       order: number;
+      durationMins?: number | null;
       sectionQuestions: Array<{
         questionId: string;
         order: number;

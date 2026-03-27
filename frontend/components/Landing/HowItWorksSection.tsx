@@ -80,19 +80,6 @@ export default function HowItWorksSection() {
         );
       });
 
-      /* connector lines draw in from left */
-      gsap.fromTo(
-        '.hiw-line',
-        { scaleX: 0 },
-        {
-          scaleX: 1,
-          stagger: 0.2,
-          duration: 0.9,
-          ease: 'power3.inOut',
-          scrollTrigger: { trigger: '.hiw-grid', start: 'top 78%', once: true },
-        }
-      );
-
       /* step numbers: count up effect */
       const numEls = gsap.utils.toArray<HTMLElement>('.hiw-num');
       numEls.forEach((el, i) => {
@@ -115,18 +102,18 @@ export default function HowItWorksSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-16 sm:py-20 bg-gray-50/60">
+    <section ref={sectionRef} className="py-16 sm:py-20 bg-gray-50/60 dark:bg-slate-900/40">
       <div className="max-w-6xl mx-auto px-6">
         {/* Heading */}
         <div className="hiw-heading invisible text-center mb-16">
-          <span className="inline-flex items-center text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-100 rounded-full px-3 py-1 mb-4">
+          <span className="inline-flex items-center text-xs font-semibold text-violet-700 dark:text-violet-200 bg-violet-50 dark:bg-slate-900 border border-violet-100 dark:border-slate-700 rounded-full px-3 py-1 mb-4">
             How it works
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-slate-100">
             From signup to{' '}
             <span className="text-violet-600">leaderboard</span> in minutes
           </h2>
-          <p className="text-gray-500 mt-3 max-w-lg mx-auto">
+          <p className="text-gray-500 dark:text-slate-300 mt-3 max-w-lg mx-auto">
             A streamlined flow designed to get you coding fast.
           </p>
         </div>
@@ -135,11 +122,6 @@ export default function HowItWorksSection() {
         <div className="hiw-grid grid sm:grid-cols-2 lg:grid-cols-4 gap-8 relative">
           {steps.map((s, i) => (
             <div key={s.num} className="hiw-step invisible relative text-center sm:text-left">
-              {/* Connector line (hidden on mobile, shown lg) */}
-              {i < steps.length - 1 && (
-                <div className="hiw-line hidden lg:block absolute top-8 left-[calc(50%+32px)] w-[calc(100%-64px)] h-px bg-gray-200 origin-left" />
-              )}
-
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto sm:mx-0 mb-4 transition-transform duration-300 hover:scale-110"
                 style={{ backgroundColor: s.accent + '12' }}
@@ -153,10 +135,10 @@ export default function HowItWorksSection() {
               >
                 Step {s.num}
               </span>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 {s.title}
               </h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-300 leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>

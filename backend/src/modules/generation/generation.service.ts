@@ -9,14 +9,22 @@ export class GenerationService {
   private provider: AIProvider;
 
   constructor() {
-    // Default to Gemini if not specified or typo
+    // Prefer LocalProvider when explicitly selected.
     if (env.AI_PROVIDER === 'ollama' || env.AI_PROVIDER === 'local') {
       console.log('Initialize GenerationService with LocalProvider (Ollama)');
       this.provider = new LocalProvider();
-    } else {
-      console.log('Initialize GenerationService with GeminiProvider');
-      this.provider = new GeminiProvider();
+      return;
     }
+
+    // Gemini is default, but do not crash the entire API if key is missing.
+    if (!env.GOOGLE_API_KEY) {
+      console.warn('[Generation] GOOGLE_API_KEY missing. Falling back to LocalProvider.');
+      this.provider = new LocalProvider();
+      return;
+    }
+
+    console.log('Initialize GenerationService with GeminiProvider');
+    this.provider = new GeminiProvider();
   }
 
   /**

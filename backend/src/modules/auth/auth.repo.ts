@@ -23,6 +23,7 @@ export const findUserByEmail = (email: string) => {
                 year: true,
                 section: true,
                 leetcodeId: true,
+                leetcodeStats: true,
                 settings: true,
                 // Excluding pictureData
             }

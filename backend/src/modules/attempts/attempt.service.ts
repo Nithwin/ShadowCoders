@@ -14,6 +14,24 @@ export const startAttempt = async (studentId: string, examId: string) => {
     include: {
       assignments: true,
       questions: { select: { id: true, difficulty: true } },
+      sections: {
+        select: {
+          id: true,
+          order: true,
+          sectionQuestions: {
+            select: {
+              questionId: true,
+              order: true,
+            },
+            orderBy: {
+              order: 'asc',
+            },
+          },
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      },
       attempts: {
         where: {
           studentId: studentId,
@@ -80,6 +98,48 @@ export const startAttempt = async (studentId: string, examId: string) => {
   // Use a transaction to prevent race conditions when multiple students start simultaneously
   // This ensures atomicity and prevents duplicate attempts
   const attempt = await prisma.$transaction(async (tx) => {
+    // Build deterministic question order (section-first if sections are configured).
+    const buildOrderedQuestionIds = () => {
+      const questionIdsFromSections = exam.sections.flatMap((section) =>
+        section.sectionQuestions.map((sq) => sq.questionId)
+      );
+
+      if (questionIdsFromSections.length === 0) {
+        return exam.questions.map((q) => q.id);
+      }
+
+      const seen = new Set<string>();
+      const orderedFromSections: string[] = [];
+      for (const id of questionIdsFromSections) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          orderedFromSections.push(id);
+        }
+      }
+
+      const orphanIds = exam.questions.map((q) => q.id).filter((id) => !seen.has(id));
+      return [...orderedFromSections, ...orphanIds];
+    };
+
+    const orderedQuestionIds = buildOrderedQuestionIds();
+
+    const buildRandomizedQuestionIds = () => {
+      // If no sections are configured, randomize all questions directly.
+      if (exam.sections.length === 0 || exam.sections.every((s) => s.sectionQuestions.length === 0)) {
+        return shuffleArray([...orderedQuestionIds]);
+      }
+
+      const randomizedBySection = exam.sections.flatMap((section) => {
+        const sectionIds = section.sectionQuestions.map((sq) => sq.questionId);
+        return shuffleArray([...sectionIds]);
+      });
+
+      const sectionSet = new Set(randomizedBySection);
+      const orphanIds = orderedQuestionIds.filter((id) => !sectionSet.has(id));
+
+      return [...randomizedBySection, ...shuffleArray([...orphanIds])];
+    };
+
     // Re-fetch attempts within transaction to get latest state
     const currentAttempts = await tx.attempt.findMany({
       where: {
@@ -135,9 +195,11 @@ export const startAttempt = async (studentId: string, examId: string) => {
     if (exam.mode === 'DYNAMIC') {
       // Dynamic exams start empty. The adaptive service will populate the first question.
       orderMap = [];
-    } else if (exam.randomizeQuestions && exam.questions.length > 0) {
-      const questionIds = exam.questions.map((q) => q.id);
-      orderMap = shuffleArray(questionIds) as Prisma.InputJsonValue;
+    } else if (exam.randomizeQuestions && orderedQuestionIds.length > 0) {
+      orderMap = buildRandomizedQuestionIds() as Prisma.InputJsonValue;
+    } else if (orderedQuestionIds.length > 0) {
+      // Persist explicit order for standard exams as well, so section ordering remains stable.
+      orderMap = orderedQuestionIds as Prisma.InputJsonValue;
     }
 
     const attemptData: Prisma.AttemptCreateInput = {
@@ -235,6 +297,30 @@ export const startAttempt = async (studentId: string, examId: string) => {
 
 type SubmitAnswerInput = z.infer<typeof submitAnswerSchema>["body"];
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const findForbiddenKeyword = (code: string, forbiddenKeywords?: string): string | null => {
+  if (!forbiddenKeywords) return null;
+
+  const keywords = forbiddenKeywords
+    .split(',')
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
+
+  for (const keyword of keywords) {
+    const escapedKeyword = escapeRegex(keyword);
+    const boundaryPattern = /^[A-Za-z0-9_]+$/.test(keyword)
+      ? `\\b${escapedKeyword}\\b`
+      : escapedKeyword;
+    const regex = new RegExp(boundaryPattern, 'i');
+    if (regex.test(code)) {
+      return keyword;
+    }
+  }
+
+  return null;
+};
+
 
 
 /**
@@ -256,14 +342,44 @@ export const submitAnswer = async (
 ) => {
   const { questionId, answer } = input;
 
+  const withCodeSizeBytes = (value: unknown): unknown => {
+    if (!value || typeof value !== 'object' || !('code' in (value as Record<string, unknown>))) {
+      return value;
+    }
+
+    const answerObj = value as Record<string, unknown>;
+    const code = String(answerObj.code || '');
+    return {
+      ...answerObj,
+      codeSizeBytes: Buffer.byteLength(code, 'utf8'),
+    };
+  };
+
   // First, fetch question to determine if we need queue (coding questions have more frequent auto-saves)
   const question = await prisma.question.findUnique({
     where: { id: questionId },
-    select: { examId: true, type: true },
+    select: { examId: true, type: true, config: true },
   });
 
   if (!question) {
     throw { status: 404, message: "Question not found" };
+  }
+
+  if (
+    (question.type === QType.CODING || question.type === QType.SQL) &&
+    answer &&
+    typeof answer === 'object' &&
+    'code' in answer
+  ) {
+    const code = String((answer as Record<string, unknown>).code || '');
+    const config = question.config as { forbiddenKeywords?: string } | null;
+    const blockedKeyword = findForbiddenKeyword(code, config?.forbiddenKeywords);
+    if (blockedKeyword) {
+      throw {
+        status: 400,
+        message: `Forbidden keyword used: "${blockedKeyword}"`,
+      };
+    }
   }
 
   // Use queue system for all question types to prevent race conditions
@@ -346,10 +462,14 @@ export const submitAnswer = async (
         gradingMode = gradingResult.gradingMode;
       }
 
+      const answerToPersist = (question.type === QType.CODING || question.type === QType.SQL)
+        ? withCodeSizeBytes(answer)
+        : answer;
+
       const responseData: Parameters<typeof attemptRepo.upsertResponse>[0] = {
         attemptId: attemptId,
         questionId: questionId,
-        answer: answer ? (answer as Prisma.InputJsonValue) : Prisma.JsonNull,
+        answer: answerToPersist ? (answerToPersist as Prisma.InputJsonValue) : Prisma.JsonNull,
         type: question.type,
         ...(audioAssetId !== undefined && { audioAssetId }),
         // Pass grading fields

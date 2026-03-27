@@ -9,6 +9,7 @@ export type AnswerData = {
   language?: string;
   textAnswer?: string;
   text?: string;
+  skipServerSync?: boolean;
   [key: string]: unknown;
 };
 
@@ -98,7 +99,8 @@ export function useAnswerManagement(attemptId: string | undefined, initialAnswer
     });
 
     // Submit answer to backend outside the state updater
-    if (attemptId) {
+    // Some inputs (e.g. forbidden-keyword coding drafts) should remain local-only.
+    if (attemptId && !answer.skipServerSync) {
       api.post(`/student/attempts/${attemptId}/responses`, {
         questionId,
         answer

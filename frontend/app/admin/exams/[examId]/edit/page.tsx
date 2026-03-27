@@ -7,6 +7,7 @@ import { Exam } from '@/types';
 import { ArrowLeft, Loader2, CheckCircle2, Info, AlertTriangle, ClipboardCopy, RefreshCw, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 import QuestionManager from '@/components/admin/QuestionManager';
+import SectionManager from '@/components/admin/exam/SectionManager';
 import ExamForm, { toDateTimeLocal, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
 import ExamTabs from '@/components/admin/exam/ExamTabs';
 import AssignmentManager from '@/components/admin/exam/AssignmentManager';
@@ -26,7 +27,7 @@ export default function EditExamPage() {
 
   const [examData, setExamData] = useState<Exam | null>(null);
   const [isLoadingExam, setIsLoadingExam] = useState(true);
-  const [activeTab, setActiveTab] = useState<'settings' | 'questions' | 'assignments'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'sections' | 'questions' | 'assignments'>('settings');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +43,7 @@ export default function EditExamPage() {
   // Sync tab with URL
   useEffect(() => {
     const tab = searchParams?.get('tab');
-    if (tab === 'questions' || tab === 'assignments' || tab === 'settings') {
+    if (tab === 'questions' || tab === 'assignments' || tab === 'settings' || tab === 'sections') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -387,6 +388,15 @@ export default function EditExamPage() {
 
       {activeTab === 'questions' && (
         <QuestionManager examId={examId} />
+      )}
+
+      {activeTab === 'sections' && examData && (
+        <SectionManager
+          examId={examId}
+          questions={Array.isArray((examData as any).questions) ? (examData as any).questions : []}
+          timingMode={(examData as any).timingMode}
+          sectionLockPolicy={(examData as any).sectionLockPolicy}
+        />
       )}
 
       {activeTab === 'assignments' && examData && (

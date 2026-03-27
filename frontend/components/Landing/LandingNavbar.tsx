@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
 
 export default function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -18,7 +20,7 @@ export default function LandingNavbar() {
     <nav
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-white/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+          ? 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.4)]'
           : 'bg-transparent'
       }`}
     >
@@ -31,15 +33,24 @@ export default function LandingNavbar() {
             alt="ShadowCoders"
             className="drop-shadow-sm"
           />
-          <span className="font-semibold text-lg tracking-tight text-gray-900">
+          <span className="font-semibold text-lg tracking-tight text-gray-900 dark:text-gray-100">
             Shadow<span className="text-blue-600">Coders</span>
           </span>
         </Link>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-slate-500 transition-colors"
+            aria-label="Toggle theme"
+            title="Toggle theme"
+          >
+            {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <Link
             href="/login"
-            className="hidden sm:inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-4 py-2"
+            className="hidden sm:inline-flex items-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-4 py-2"
           >
             Sign in
           </Link>

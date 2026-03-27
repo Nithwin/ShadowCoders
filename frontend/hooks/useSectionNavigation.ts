@@ -2,11 +2,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { Question, Attempt } from '../types/exam';
 import { QType } from '../types';
 
+type AnswerMap = Record<string, {
+  chosenOptionIds?: string[];
+  code?: string;
+  textAnswer?: string;
+  [key: string]: unknown;
+}>;
+
 export function useSectionNavigation(
   attempt: Attempt | null,
   questions: Question[],
   currentQuestionIndex: number,
-  setCurrentQuestionIndex: (index: number) => void
+  setCurrentQuestionIndex: (index: number) => void,
+  answers: AnswerMap
 ) {
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
 
@@ -92,6 +100,68 @@ export function useSectionNavigation(
     
     const section = attempt?.exam?.sections?.find(s => s.id === sectionId);
     if (!section) return;
+
+    const policy = attempt?.exam?.sectionLockPolicy;
+    const sortedSections = [...(attempt?.exam?.sections || [])].sort((a, b) => a.order - b.order);
+    const currentQuestion = questions[currentQuestionIndex];
+    const effectiveCurrentSectionId = selectedSectionId || currentQuestion?.sectionId;
+    const currentSection = sortedSections.find((s) => s.id === effectiveCurrentSectionId);
+
+    const isQuestionAnswered = (question: Question): boolean => {
+      const answer = answers[question.id];
+      if (!answer) return false;
+
+      if (question.type === QType.MCQ) {
+        return Array.isArray(answer.chosenOptionIds) && answer.chosenOptionIds.length > 0;
+      }
+
+      if (question.type === QType.CODING || question.type === QType.SQL) {
+        return typeof answer.code === 'string' && answer.code.trim().length > 0;
+      }
+
+      if (question.type === QType.ESSAY) {
+        return typeof answer.textAnswer === 'string' && answer.textAnswer.trim().length > 0;
+      }
+
+      return false;
+    };
+
+    const getSectionQuestions = (sectionIdValue: string): Question[] => {
+      const sectionDef = sortedSections.find((s) => s.id === sectionIdValue);
+      if (!sectionDef) return [];
+
+      const sectionQuestionIds = sectionDef.sectionQuestions?.map((sq) => sq.questionId) || [];
+      if (sectionQuestionIds.length > 0) {
+        return questions.filter((q) => sectionQuestionIds.includes(q.id));
+      }
+
+      return questions.filter((q) => q.sectionId === sectionIdValue);
+    };
+
+    const isSectionCompleted = (sectionIdValue: string): boolean => {
+      const sectionQuestions = getSectionQuestions(sectionIdValue);
+      if (sectionQuestions.length === 0) return true;
+      return sectionQuestions.every((q) => isQuestionAnswered(q));
+    };
+
+    if ((policy === 'LINEAR_NO_BACKTRACK' || policy === 'LOCK_ON_COMPLETE') && currentSection) {
+      const targetIndex = sortedSections.findIndex((s) => s.id === sectionId);
+      const currentIndex = sortedSections.findIndex((s) => s.id === currentSection.id);
+
+      if (targetIndex < currentIndex) {
+        return;
+      }
+
+      // Only allow moving to next section in sequence, and only after completing current section.
+      if (targetIndex > currentIndex) {
+        if (targetIndex !== currentIndex + 1) {
+          return;
+        }
+        if (!isSectionCompleted(currentSection.id)) {
+          return;
+        }
+      }
+    }
     
     let sectionQuestions: Question[] = [];
     

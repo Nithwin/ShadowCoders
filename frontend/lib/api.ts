@@ -73,9 +73,17 @@ api.interceptors.response.use(
     const isAuthCheck = originalRequest?.url?.includes('/auth/refresh') || originalRequest?.url?.includes('/auth/me');
     const isUnauthorized = error.response?.status === 401;
 
-    // Suppress logging for all 401s as they are handled by retry/logout logic
-    // Also suppress auth checks
-    if (!isAuthCheck && !isUnauthorized) {
+    const isForbiddenKeywordValidation =
+      error.response?.status === 400 &&
+      originalRequest?.url?.includes('/student/attempts/') &&
+      originalRequest?.url?.includes('/responses') &&
+      String(error.response?.data?.message || error.response?.data?.error?.message || '')
+        .toLowerCase()
+        .includes('forbidden keyword');
+
+    // Suppress logging for all 401s as they are handled by retry/logout logic,
+    // and for expected forbidden-keyword validation responses.
+    if (!isAuthCheck && !isUnauthorized && !isForbiddenKeywordValidation) {
       console.error(`[API ERROR] ${error.response?.status} ${originalRequest?.url}`, error.response?.data);
     }
 

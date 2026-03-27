@@ -2,7 +2,7 @@
 
 import { api } from '@/lib/api';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Layers3, Settings2, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import ExamForm, { localDateTimeValue, type ExamForm as ExamFormType } from '@/components/admin/exam/ExamForm';
 import { TimingMode, SectionLockPolicy } from '@/types';
@@ -50,8 +50,9 @@ export default function CreateExamPage() {
       }
       
       const newExamId = response.data.id;
-      // On success, redirect to the "Edit" page with Questions tab active
-      router.push(`/admin/exams/${newExamId}/edit?tab=questions`);
+      // On success, redirect to the "Edit" page with Sections tab active.
+      // This supports section-wise setup before adding questions.
+      router.push(`/admin/exams/${newExamId}/edit?tab=sections`);
     } catch (error) {
       console.error('Failed to create exam:', error);
       alert('Failed to create exam');
@@ -86,6 +87,36 @@ export default function CreateExamPage() {
             ? `Creating a new exam based on "${templateData?.title || 'template'}". Settings have been pre-filled.`
             : 'Configure the core exam settings. You can add sections and questions after saving.'}
         </p>
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="p-4 rounded-lg border border-primary/15 bg-primary/5">
+          <div className="flex items-center gap-2 text-primary mb-2">
+            <Settings2 className="w-4 h-4" />
+            <p className="text-sm font-semibold">1. Configure Settings</p>
+          </div>
+          <p className="text-xs text-primary/70">
+            Set timing, lock policy, randomization, and security options.
+          </p>
+        </div>
+        <div className="p-4 rounded-lg border border-primary/15 bg-primary/5">
+          <div className="flex items-center gap-2 text-primary mb-2">
+            <Layers3 className="w-4 h-4" />
+            <p className="text-sm font-semibold">2. Build Sections</p>
+          </div>
+          <p className="text-xs text-primary/70">
+            Create custom sections like Grammar MCQ, Technical MCQ, Easy Coding, Advanced Coding.
+          </p>
+        </div>
+        <div className="p-4 rounded-lg border border-primary/15 bg-primary/5">
+          <div className="flex items-center gap-2 text-primary mb-2">
+            <ListChecks className="w-4 h-4" />
+            <p className="text-sm font-semibold">3. Add Questions</p>
+          </div>
+          <p className="text-xs text-primary/70">
+            Add or generate questions and assign them section-wise for production-ready delivery.
+          </p>
+        </div>
       </div>
 
       <ExamForm

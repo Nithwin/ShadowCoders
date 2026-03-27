@@ -171,17 +171,17 @@ export default function AdminProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-lg font-medium text-primary/70">Loading user data...</p>
+          <p className="text-lg font-medium text-primary/70 dark:text-slate-300">Loading user data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="text-primary min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="text-primary dark:text-slate-100 min-h-screen bg-gradient-to-br from-background via-background to-primary/5 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
       <div className="max-w-5xl mx-auto p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -189,7 +189,7 @@ export default function AdminProfilePage() {
             <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
               My Profile
             </h1>
-            <p className="text-lg text-primary/70 font-medium">Manage your account settings and information</p>
+            <p className="text-lg text-primary/70 dark:text-slate-300 font-medium">Manage your account settings and information</p>
           </div>
           {!isEditing && (
             <button
@@ -203,7 +203,7 @@ export default function AdminProfilePage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-xl text-red-800 shadow-lg">
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border-2 border-red-200 dark:border-red-900 rounded-xl text-red-800 dark:text-red-300 shadow-lg">
             <div className="flex items-center gap-2">
               <X className="w-5 h-5" />
               <p className="font-semibold">{error}</p>
@@ -213,44 +213,44 @@ export default function AdminProfilePage() {
 
         {/* Stats Cards - LeetCode Style */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-xl border-2 border-primary/10 dark:border-slate-800 p-5 shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 bg-blue-500/20 rounded-lg">
                 <Target className="w-5 h-5 text-blue-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-primary">{stats?.totalExams || 0}</p>
-            <p className="text-sm text-primary/70 mt-1">Exams Completed</p>
+            <p className="text-2xl font-bold text-primary dark:text-slate-100">{stats?.totalExams || 0}</p>
+            <p className="text-sm text-primary/70 dark:text-slate-400 mt-1">Exams Completed</p>
           </div>
           
-          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-xl border-2 border-primary/10 dark:border-slate-800 p-5 shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 bg-green-500/20 rounded-lg">
                 <TrendingUp className="w-5 h-5 text-green-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-primary">{stats?.averageScore || 0}%</p>
-            <p className="text-sm text-primary/70 mt-1">Average Score</p>
+            <p className="text-2xl font-bold text-primary dark:text-slate-100">{stats?.averageScore || 0}%</p>
+            <p className="text-sm text-primary/70 dark:text-slate-400 mt-1">Average Score</p>
           </div>
           
-          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-xl border-2 border-primary/10 dark:border-slate-800 p-5 shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 bg-orange-500/20 rounded-lg">
                 <Flame className="w-5 h-5 text-orange-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-primary">{stats?.currentStreak || 0}</p>
-            <p className="text-sm text-primary/70 mt-1">Current Streak</p>
+            <p className="text-2xl font-bold text-primary dark:text-slate-100">{stats?.currentStreak || 0}</p>
+            <p className="text-sm text-primary/70 dark:text-slate-400 mt-1">Current Streak</p>
           </div>
           
-          <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-xl border-2 border-primary/10 p-5 shadow-lg hover:shadow-xl transition-shadow">
+          <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-xl border-2 border-primary/10 dark:border-slate-800 p-5 shadow-lg hover:shadow-xl transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 bg-purple-500/20 rounded-lg">
                 <Trophy className="w-5 h-5 text-purple-600" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-primary">{stats?.longestStreak || 0}</p>
-            <p className="text-sm text-primary/70 mt-1">Longest Streak</p>
+            <p className="text-2xl font-bold text-primary dark:text-slate-100">{stats?.longestStreak || 0}</p>
+            <p className="text-sm text-primary/70 dark:text-slate-400 mt-1">Longest Streak</p>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ export default function AdminProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Picture & Basic Info Card */}
           <div className="lg:col-span-1">
-            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
+            <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-2xl shadow-xl p-8 border-2 border-primary/10 dark:border-slate-800">
               <div className="flex flex-col items-center">
                 {/* Profile Picture */}
                 <div className="relative mb-6">
@@ -283,14 +283,14 @@ export default function AdminProfilePage() {
                           }}
                         />
                       ) : null}
-                      <div 
-                        className={`w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/30 shadow-lg ${formData.pictureUrl ? 'hidden' : ''}`}
+                      <div
+                        className={`w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center border-4 border-primary/30 dark:border-slate-600 shadow-lg ${formData.pictureUrl ? 'hidden' : ''}`}
                       >
-                        <UserCircle className="w-20 h-20 text-primary/50" />
+                        <UserCircle className="w-20 h-20 text-primary/50 dark:text-slate-400" />
                       </div>
                       <button
                         type="button"
-                        className="absolute bottom-0 right-0 bg-gradient-to-r from-primary to-primary/90 text-white p-3 rounded-full cursor-pointer hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-secondary"
+                        className="absolute bottom-0 right-0 bg-gradient-to-r from-primary to-primary/90 text-white p-3 rounded-full cursor-pointer hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-secondary dark:border-slate-700"
                         title="Edit profile picture URL"
                       >
                         <Camera className="w-5 h-5" />
@@ -317,36 +317,36 @@ export default function AdminProfilePage() {
                             if (placeholder) placeholder.style.display = 'flex';
                           }}
                         />
-                        <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 hidden items-center justify-center border-4 border-primary/30 shadow-lg">
-                          <UserCircle className="w-20 h-20 text-primary/50" />
+                        <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-slate-800 dark:to-slate-700 hidden items-center justify-center border-4 border-primary/30 dark:border-slate-600 shadow-lg">
+                          <UserCircle className="w-20 h-20 text-primary/50 dark:text-slate-400" />
                         </div>
                       </>
                     ) : (
-                      <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border-4 border-primary/30 shadow-lg">
-                        <UserCircle className="w-20 h-20 text-primary/50" />
+                      <div className="w-[140px] h-[140px] rounded-full bg-gradient-to-br from-primary/20 to-primary/10 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center border-4 border-primary/30 dark:border-slate-600 shadow-lg">
+                        <UserCircle className="w-20 h-20 text-primary/50 dark:text-slate-400" />
                       </div>
                     )
                   )}
                 </div>
 
-                <h2 className="text-2xl font-bold text-primary mb-2 text-center">
+                <h2 className="text-2xl font-bold text-primary dark:text-slate-100 mb-2 text-center">
                   {isEditing ? (
                     <input
                       type="text"
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="text-center bg-transparent border-b-2 border-primary/30 focus:border-primary focus:outline-none px-2 py-1 w-full max-w-[200px]"
+                      className="text-center bg-transparent border-b-2 border-primary/30 dark:border-slate-600 focus:border-primary dark:focus:border-primary focus:outline-none px-2 py-1 w-full max-w-[200px] text-primary dark:text-slate-100"
                       placeholder="Your Name"
                     />
                   ) : (
                     user.name || 'No Name'
                   )}
                 </h2>
-                <p className="text-primary/60 text-sm mb-4 text-center">{user.email}</p>
+                <p className="text-primary/60 dark:text-slate-400 text-sm mb-4 text-center">{user.email}</p>
                 
                 {/* Role Badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full border border-primary/20 shadow-sm">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/20 to-primary/10 dark:from-slate-800 dark:to-slate-700 rounded-full border border-primary/20 dark:border-slate-700 shadow-sm">
                   <Shield className="w-4 h-4 text-primary" />
                   <span className="text-sm font-semibold capitalize text-primary">{user.role.toLowerCase()}</span>
                 </div>
@@ -356,22 +356,22 @@ export default function AdminProfilePage() {
 
           {/* Main Information Card */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
-              <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-primary/10">
+            <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-2xl shadow-xl p-8 border-2 border-primary/10 dark:border-slate-800">
+              <div className="flex items-center gap-3 mb-8 pb-4 border-b-2 border-primary/10 dark:border-slate-800">
                 <div className="p-2.5 bg-blue-500/20 rounded-lg">
                   <User className="w-6 h-6 text-blue-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-primary">Personal Information</h2>
+                <h2 className="text-2xl font-bold text-primary dark:text-slate-100">Personal Information</h2>
               </div>
 
               <div className="space-y-6">
                 {/* Registration Number */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                <div className="flex items-start gap-4 p-4 bg-primary/5 dark:bg-slate-800/60 rounded-xl border border-primary/10 dark:border-slate-700 hover:border-primary/20 dark:hover:border-slate-600 transition-colors">
                   <div className="p-2.5 bg-blue-500/20 rounded-lg">
                     <Hash className="w-5 h-5 text-blue-600" />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                    <label className="block text-sm font-semibold text-primary/70 dark:text-slate-400 mb-2">
                       Registration Number
                     </label>
                     {isEditing ? (
@@ -380,43 +380,43 @@ export default function AdminProfilePage() {
                         name="reg_no"
                         value={formData.reg_no}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
+                        className="w-full px-4 py-2.5 bg-secondary dark:bg-slate-800 border-2 border-primary/20 dark:border-slate-700 rounded-xl text-primary dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:focus:ring-primary/30 focus:border-primary/30 transition-all shadow-sm hover:shadow-md font-medium"
                         placeholder="Enter registration number"
                       />
                     ) : (
-                      <p className="text-lg font-semibold text-primary">{user.reg_no || 'Not set'}</p>
+                      <p className="text-lg font-semibold text-primary dark:text-slate-100">{user.reg_no || 'Not set'}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Email - Read Only */}
-                <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                <div className="flex items-start gap-4 p-4 bg-primary/5 dark:bg-slate-800/60 rounded-xl border border-primary/10 dark:border-slate-700">
                   <div className="p-2.5 bg-yellow-500/20 rounded-lg">
                     <Mail className="w-5 h-5 text-yellow-600" />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">
+                    <label className="block text-sm font-semibold text-primary/70 dark:text-slate-400 mb-2">
                       Email Address
                     </label>
-                    <p className="text-lg font-semibold text-primary">{user.email}</p>
-                    <p className="text-xs text-primary/50 mt-1">Email cannot be changed</p>
+                    <p className="text-lg font-semibold text-primary dark:text-slate-100">{user.email}</p>
+                    <p className="text-xs text-primary/50 dark:text-slate-500 mt-1">Email cannot be changed</p>
                   </div>
                 </div>
 
                 {/* Profile Picture URL - Editable */}
                 {isEditing && (
-                  <div className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/20 transition-colors">
+                  <div className="flex items-start gap-4 p-4 bg-primary/5 dark:bg-slate-800/60 rounded-xl border border-primary/10 dark:border-slate-700 hover:border-primary/20 dark:hover:border-slate-600 transition-colors">
                     <div className="p-2.5 bg-pink-500/20 rounded-lg">
                       <Camera className="w-5 h-5 text-pink-600" />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-sm font-semibold text-primary/70 mb-2">
+                      <label className="block text-sm font-semibold text-primary/70 dark:text-slate-400 mb-2">
                         Profile Picture
                       </label>
                       <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 px-4 py-2 bg-secondary border border-primary/20 rounded-lg cursor-pointer hover:bg-primary/5 transition-colors">
+                        <label className="flex items-center gap-2 px-4 py-2 bg-secondary dark:bg-slate-800 border border-primary/20 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-primary/5 dark:hover:bg-slate-700 transition-colors">
                           <Upload className="w-4 h-4" />
-                          <span className="text-sm font-medium">Upload New</span>
+                          <span className="text-sm font-medium text-primary dark:text-slate-100">Upload New</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -424,7 +424,7 @@ export default function AdminProfilePage() {
                             className="hidden"
                           />
                         </label>
-                        <p className="text-xs text-primary/50">Max 5MB. JPG, PNG, GIF.</p>
+                        <p className="text-xs text-primary/50 dark:text-slate-500">Max 5MB. JPG, PNG, GIF.</p>
                       </div>
                     </div>
                   </div>
@@ -433,71 +433,71 @@ export default function AdminProfilePage() {
             </div>
 
             {/* Account Information Card */}
-            <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+            <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-2xl shadow-xl p-8 border-2 border-primary/10 dark:border-slate-800">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10 dark:border-slate-800">
                 <div className="p-2.5 bg-indigo-500/20 rounded-lg">
                   <Clock className="w-6 h-6 text-indigo-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-primary">Account Information</h2>
+                <h2 className="text-2xl font-bold text-primary dark:text-slate-100">Account Information</h2>
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <span className="text-sm font-semibold text-primary/70 flex items-center gap-2">
+                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 dark:bg-slate-800/60 rounded-xl border border-primary/10 dark:border-slate-700">
+                  <span className="text-sm font-semibold text-primary/70 dark:text-slate-400 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-green-500" />
                     Member Since
                   </span>
-                  <span className="text-primary font-semibold">{formatDate(user.createdAt)}</span>
+                  <span className="text-primary dark:text-slate-100 font-semibold">{formatDate(user.createdAt)}</span>
                 </div>
-                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 rounded-xl border border-primary/10">
-                  <span className="text-sm font-semibold text-primary/70 flex items-center gap-2">
+                <div className="flex items-center justify-between py-3 px-4 bg-primary/5 dark:bg-slate-800/60 rounded-xl border border-primary/10 dark:border-slate-700">
+                  <span className="text-sm font-semibold text-primary/70 dark:text-slate-400 flex items-center gap-2">
                     <Clock className="w-4 h-4 text-blue-500" />
                     Last Updated
                   </span>
-                  <span className="text-primary font-semibold">{formatDate(user.updatedAt)}</span>
+                  <span className="text-primary dark:text-slate-100 font-semibold">{formatDate(user.updatedAt)}</span>
                 </div>
               </div>
             </div>
 
             {/* Password Change Card */}
             {isEditing && (
-              <div className="bg-gradient-to-br from-secondary to-secondary/50 rounded-2xl shadow-xl p-8 border-2 border-primary/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10">
+              <div className="bg-gradient-to-br from-secondary to-secondary/50 dark:from-slate-900 dark:to-slate-900/80 rounded-2xl shadow-xl p-8 border-2 border-primary/10 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary/10 dark:border-slate-800">
                   <div className="p-2.5 bg-red-500/20 rounded-lg">
                     <Lock className="w-6 h-6 text-red-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-primary">Security</h2>
+                  <h2 className="text-2xl font-bold text-primary dark:text-slate-100">Security</h2>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-primary/70 mb-2">Current Password</label>
+                    <label className="block text-sm font-semibold text-primary/70 dark:text-slate-400 mb-2">Current Password</label>
                     <input
                       type="password"
                       value={passwordData.currentPassword}
                       onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                      className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm font-medium"
+                      className="w-full px-4 py-2.5 bg-secondary dark:bg-slate-800 border-2 border-primary/20 dark:border-slate-700 rounded-xl text-primary dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:focus:ring-primary/30 focus:border-primary/30 transition-all shadow-sm font-medium"
                       placeholder="••••••••"
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold text-primary/70 mb-2">New Password</label>
+                      <label className="block text-sm font-semibold text-primary/70 dark:text-slate-400 mb-2">New Password</label>
                       <input
                         type="password"
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm font-medium"
+                        className="w-full px-4 py-2.5 bg-secondary dark:bg-slate-800 border-2 border-primary/20 dark:border-slate-700 rounded-xl text-primary dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:focus:ring-primary/30 focus:border-primary/30 transition-all shadow-sm font-medium"
                         placeholder="••••••••"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-primary/70 mb-2">Confirm Password</label>
+                      <label className="block text-sm font-semibold text-primary/70 dark:text-slate-400 mb-2">Confirm Password</label>
                       <input
                         type="password"
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                        className="w-full px-4 py-2.5 bg-secondary border-2 border-primary/20 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all shadow-sm font-medium"
+                        className="w-full px-4 py-2.5 bg-secondary dark:bg-slate-800 border-2 border-primary/20 dark:border-slate-700 rounded-xl text-primary dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary/50 dark:focus:ring-primary/30 focus:border-primary/30 transition-all shadow-sm font-medium"
                         placeholder="••••••••"
                       />
                     </div>
@@ -529,7 +529,7 @@ export default function AdminProfilePage() {
                 <button
                   onClick={handleCancel}
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-8 py-3 bg-secondary border-2 border-primary/20 text-primary rounded-xl hover:bg-primary/5 hover:border-primary/30 transition-all duration-300 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  className="flex items-center gap-2 px-8 py-3 bg-secondary dark:bg-slate-800 border-2 border-primary/20 dark:border-slate-700 text-primary dark:text-slate-100 rounded-xl hover:bg-primary/5 dark:hover:bg-slate-700 hover:border-primary/30 dark:hover:border-slate-600 transition-all duration-300 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                 >
                   <X className="w-5 h-5" />
                   Cancel

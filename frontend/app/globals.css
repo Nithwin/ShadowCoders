@@ -1,8 +1,20 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 body{
     overflow-x: hidden;
     background: #ffffff;
+    color: #0f172a;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html.dark body {
+    background: #0b1220;
+    color: #e2e8f0;
+}
+
+html.dark #nav ul {
+    background: rgba(15, 23, 42, 0.5);
 }
 
 /* Hide Next.js dev indicator and build watcher */
@@ -196,20 +208,19 @@ body{
     }
 
     #login{
-        background: #ffffff;
-        
         h1{
-            @apply text-center text-xl sm:text-2xl md:text-3xl text-primary font-bold font-alan-sans tracking-tight
+            @apply text-center text-xl sm:text-2xl md:text-3xl text-primary dark:text-slate-100 font-bold font-alan-sans tracking-tight
         }
 
         .box{
-            @apply bg-white rounded-lg sm:rounded-xl
+            @apply bg-white/95 dark:bg-slate-900/90 rounded-lg sm:rounded-xl
             p-4 sm:p-5 md:p-6
-            border border-gray-200 
+            border border-gray-200 dark:border-slate-800
             flex flex-col gap-3
             w-full max-w-[360px] mx-auto
-            shadow-sm
+            shadow-lg shadow-slate-200/60 dark:shadow-black/30
             overflow-hidden
+            backdrop-blur-sm
         }
 
         #form {
@@ -218,12 +229,12 @@ body{
 
         input {
             @apply w-full px-3.5 py-2.5
-            text-sm text-primary
-            bg-indigo-50/30 border border-indigo-100 rounded-lg
+            text-sm text-primary dark:text-slate-100
+            bg-indigo-50/30 dark:bg-slate-800/70 border border-indigo-100 dark:border-slate-700 rounded-lg
             outline-none 
-            focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500/30
+            focus:border-blue-500 dark:focus:border-blue-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-blue-500/30
             transition-all duration-200
-            placeholder:text-gray-400
+            placeholder:text-gray-400 dark:placeholder:text-slate-500
             font-medium
         }
 
@@ -282,5 +293,173 @@ body{
         li{
             @apply text-2xl text-gray-700 font-alan-sans lg:text-lg 
         }
+    }
+
+    /* Admin-wide theme harmonization (scoped to admin shell) */
+    #admin-root {
+        color-scheme: light;
+    }
+
+    html.dark #admin-root {
+        color-scheme: dark;
+    }
+
+    html.dark #admin-root .bg-white {
+        background-color: #0f172a !important;
+    }
+
+    html.dark #admin-root .bg-gray-50,
+    html.dark #admin-root .bg-gray-100 {
+        background-color: #111827 !important;
+    }
+
+    html.dark #admin-root .bg-secondary,
+    html.dark #admin-root [class*="bg-secondary"] {
+        background-color: #0f172a !important;
+    }
+
+    html.dark #admin-root [class*="bg-primary/5"],
+    html.dark #admin-root [class*="bg-primary/10"],
+    html.dark #admin-root [class*="bg-primary/20"] {
+        background-color: rgba(30, 41, 59, 0.85) !important;
+    }
+
+    html.dark #admin-root .bg-blue-50,
+    html.dark #admin-root [class*="bg-blue-50"],
+    html.dark #admin-root [class*="bg-blue-100"] {
+        background-color: rgba(30, 58, 138, 0.22) !important;
+    }
+
+    html.dark #admin-root .bg-green-50,
+    html.dark #admin-root [class*="bg-green-50"],
+    html.dark #admin-root [class*="bg-green-100"] {
+        background-color: rgba(22, 101, 52, 0.22) !important;
+    }
+
+    html.dark #admin-root .bg-red-50,
+    html.dark #admin-root [class*="bg-red-50"],
+    html.dark #admin-root [class*="bg-red-100"] {
+        background-color: rgba(127, 29, 29, 0.24) !important;
+    }
+
+    html.dark #admin-root .bg-amber-50,
+    html.dark #admin-root [class*="bg-amber-50"],
+    html.dark #admin-root [class*="bg-amber-100"],
+    html.dark #admin-root [class*="bg-yellow-50"] {
+        background-color: rgba(120, 53, 15, 0.24) !important;
+    }
+
+    html.dark #admin-root .bg-purple-50,
+    html.dark #admin-root [class*="bg-purple-50"],
+    html.dark #admin-root [class*="bg-violet-50"],
+    html.dark #admin-root [class*="bg-indigo-50"] {
+        background-color: rgba(76, 29, 149, 0.24) !important;
+    }
+
+    html.dark #admin-root .border-gray-100,
+    html.dark #admin-root .border-gray-200,
+    html.dark #admin-root .border-gray-300 {
+        border-color: #334155 !important;
+    }
+
+    html.dark #admin-root .border-primary\/10,
+    html.dark #admin-root .border-primary\/20,
+    html.dark #admin-root [class*="border-primary/"] {
+        border-color: #334155 !important;
+    }
+
+    html.dark #admin-root .border-blue-100,
+    html.dark #admin-root .border-blue-200,
+    html.dark #admin-root .border-blue-300 {
+        border-color: rgba(59, 130, 246, 0.35) !important;
+    }
+
+    html.dark #admin-root .border-green-100,
+    html.dark #admin-root .border-green-200 {
+        border-color: rgba(34, 197, 94, 0.35) !important;
+    }
+
+    html.dark #admin-root .border-red-100,
+    html.dark #admin-root .border-red-200 {
+        border-color: rgba(248, 113, 113, 0.35) !important;
+    }
+
+    html.dark #admin-root .text-gray-900 {
+        color: #f1f5f9 !important;
+    }
+
+    html.dark #admin-root .text-gray-800,
+    html.dark #admin-root .text-gray-700 {
+        color: #e2e8f0 !important;
+    }
+
+    html.dark #admin-root .text-gray-600,
+    html.dark #admin-root .text-gray-500,
+    html.dark #admin-root .text-gray-400 {
+        color: #94a3b8 !important;
+    }
+
+    html.dark #admin-root .text-primary,
+    html.dark #admin-root [class*="text-primary"] {
+        color: #e2e8f0 !important;
+    }
+
+    html.dark #admin-root .text-secondary,
+    html.dark #admin-root [class*="text-secondary"] {
+        color: #e2e8f0 !important;
+    }
+
+    html.dark #admin-root input,
+    html.dark #admin-root select,
+    html.dark #admin-root textarea {
+        background-color: #111827 !important;
+        color: #e2e8f0 !important;
+        border-color: #334155 !important;
+    }
+
+    html.dark #admin-root input::placeholder,
+    html.dark #admin-root textarea::placeholder {
+        color: #64748b !important;
+    }
+
+    html.dark #admin-root table {
+        background-color: transparent !important;
+    }
+
+    html.dark #admin-root thead,
+    html.dark #admin-root thead tr,
+    html.dark #admin-root th {
+        background-color: #0f172a !important;
+        color: #cbd5e1 !important;
+        border-color: #334155 !important;
+    }
+
+    html.dark #admin-root tbody tr {
+        border-color: #1e293b !important;
+    }
+
+    html.dark #admin-root tbody tr:hover {
+        background-color: #111827 !important;
+    }
+
+    html.dark #admin-root .hover\:bg-gray-50:hover,
+    html.dark #admin-root .hover\:bg-gray-100:hover,
+    html.dark #admin-root [class*="hover:bg-gray-"]:hover {
+        background-color: #1f2937 !important;
+    }
+
+    html.dark #admin-root [class*="from-blue-"],
+    html.dark #admin-root [class*="to-blue-"],
+    html.dark #admin-root [class*="from-indigo-"],
+    html.dark #admin-root [class*="to-indigo-"] {
+        filter: saturate(0.9) brightness(0.95);
+    }
+
+    html.dark #admin-root .shadow-sm,
+    html.dark #admin-root .shadow,
+    html.dark #admin-root .shadow-md,
+    html.dark #admin-root .shadow-lg,
+    html.dark #admin-root [class*="shadow-"] {
+        box-shadow: 0 12px 32px rgba(2, 6, 23, 0.35) !important;
     }
 }

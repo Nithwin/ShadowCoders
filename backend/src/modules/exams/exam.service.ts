@@ -378,6 +378,17 @@ export const updateExam = async (examId: string, input: UpdateExamInput) => {
     dataToUpdate.generationPrompt = input.generationPrompt ?? null;
   }
 
+  const effectiveTimingMode = input.timingMode ?? existingExam.timingMode;
+  if (effectiveTimingMode === 'BOTH') {
+    const configuredDurations = (existingExam.sections || [])
+      .map((section) => section.durationMins)
+      .filter((duration): duration is number => typeof duration === 'number' && duration > 0);
+
+    if (configuredDurations.length > 0) {
+      dataToUpdate.durationMins = configuredDurations.reduce((sum, mins) => sum + mins, 0);
+    }
+  }
+
 
   // 3. --- Call Repository ---
   // Note: We allow editing even if the exam is published

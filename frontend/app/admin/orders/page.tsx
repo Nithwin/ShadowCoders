@@ -110,13 +110,13 @@ export default function AdminOrdersPage() {
     switch (status) {
       case 'APPROVED':
       case 'COMPLETED':
-        return 'text-green-600 bg-green-50 border-green-200';
+        return 'text-green-600 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-950/30 dark:border-green-900';
       case 'REJECTED':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'text-red-600 bg-red-50 border-red-200 dark:text-red-300 dark:bg-red-950/30 dark:border-red-900';
       case 'PENDING':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-300 dark:bg-yellow-950/30 dark:border-yellow-900';
       default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
+        return 'text-gray-600 bg-gray-50 border-gray-200 dark:text-slate-300 dark:bg-slate-800 dark:border-slate-700';
     }
   };
 
@@ -136,23 +136,23 @@ export default function AdminOrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-lg font-medium text-primary/70">Loading orders...</p>
+          <p className="text-lg font-medium text-primary/70 dark:text-slate-300">Loading orders...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="text-primary min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="text-primary dark:text-slate-100 min-h-screen bg-gradient-to-br from-background via-background to-primary/5 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
       <div className="mb-8">
         <div className="mb-6">
           <h1 className="text-5xl font-bold font-alan-sans mb-3 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
             Orders Management
           </h1>
-          <p className="text-lg text-primary/70 font-medium">Manage student redemption orders</p>
+          <p className="text-lg text-primary/70 dark:text-slate-300 font-medium">Manage student redemption orders</p>
         </div>
 
         {/* Filter */}
@@ -163,8 +163,8 @@ export default function AdminOrdersPage() {
               onClick={() => setFilter(status)}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 filter === status
-                  ? 'bg-primary text-secondary'
-                  : 'bg-secondary text-primary hover:bg-primary/10'
+                  ? 'bg-primary text-secondary dark:text-slate-100'
+                  : 'bg-secondary dark:bg-slate-800 text-primary dark:text-slate-200 hover:bg-primary/10 dark:hover:bg-slate-700 border border-primary/10 dark:border-slate-700'
               }`}
             >
               {status}
@@ -178,21 +178,21 @@ export default function AdminOrdersPage() {
             {orders.map((order) => (
               <div
                 key={order.id}
-                className="bg-secondary rounded-xl p-6 border-2 border-primary/10 shadow-lg"
+                className="bg-secondary dark:bg-slate-900 rounded-xl p-6 border-2 border-primary/10 dark:border-slate-800 shadow-lg"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-primary mb-2">{order.item.name}</h3>
-                    <div className="space-y-2 text-sm text-primary/70">
+                    <h3 className="text-lg font-bold text-primary dark:text-slate-100 mb-2">{order.item.name}</h3>
+                    <div className="space-y-2 text-sm text-primary/70 dark:text-slate-400">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
                         <span>{order.user.name || 'N/A'}</span>
-                        <span className="text-primary/50">•</span>
+                        <span className="text-primary/50 dark:text-slate-500">•</span>
                         <Mail className="w-4 h-4" />
                         <span>{order.user.email}</span>
                         {order.user.reg_no && (
                           <>
-                            <span className="text-primary/50">•</span>
+                            <span className="text-primary/50 dark:text-slate-500">•</span>
                             <span>Reg: {order.user.reg_no}</span>
                           </>
                         )}
@@ -230,15 +230,15 @@ export default function AdminOrdersPage() {
                   </div>
                 </div>
                 {order.adminNotes && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm font-medium text-blue-800 mb-1">Admin Notes:</p>
-                    <p className="text-sm text-blue-700">{order.adminNotes}</p>
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Admin Notes:</p>
+                    <p className="text-sm text-blue-700 dark:text-blue-200">{order.adminNotes}</p>
                   </div>
                 )}
                 {order.rejectionReason && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
-                    <p className="text-sm text-red-700">{order.rejectionReason}</p>
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg">
+                    <p className="text-sm font-medium text-red-800 dark:text-red-300 mb-1">Rejection Reason:</p>
+                    <p className="text-sm text-red-700 dark:text-red-200">{order.rejectionReason}</p>
                   </div>
                 )}
                 {order.reportUrl && (
@@ -247,7 +247,7 @@ export default function AdminOrdersPage() {
                       href={order.reportUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary hover:text-primary/80 font-medium text-sm flex items-center gap-2"
+                      className="text-primary dark:text-slate-200 hover:text-primary/80 dark:hover:text-white font-medium text-sm flex items-center gap-2"
                     >
                       <FileText className="w-4 h-4" />
                       View Report
@@ -258,9 +258,9 @@ export default function AdminOrdersPage() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-secondary rounded-xl border-2 border-primary/10">
-            <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-primary/30" />
-            <p className="text-lg font-medium text-primary/70">No orders found</p>
+          <div className="text-center py-12 bg-secondary dark:bg-slate-900 rounded-xl border-2 border-primary/10 dark:border-slate-800">
+            <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-primary/30 dark:text-slate-600" />
+            <p className="text-lg font-medium text-primary/70 dark:text-slate-300">No orders found</p>
           </div>
         )}
       </div>
@@ -268,23 +268,23 @@ export default function AdminOrdersPage() {
       {/* Modal for Processing Order */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-secondary rounded-xl p-6 border-2 border-primary/10 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-primary mb-4">Process Order</h2>
+          <div className="bg-secondary dark:bg-slate-900 rounded-xl p-6 border-2 border-primary/10 dark:border-slate-800 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-primary dark:text-slate-100 mb-4">Process Order</h2>
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-primary/70 mb-1">Item</p>
-                <p className="text-primary font-semibold">{selectedOrder.item.name}</p>
+                <p className="text-sm font-medium text-primary/70 dark:text-slate-400 mb-1">Item</p>
+                <p className="text-primary dark:text-slate-100 font-semibold">{selectedOrder.item.name}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-primary/70 mb-1">Student</p>
-                <p className="text-primary">{selectedOrder.user.name || 'N/A'} ({selectedOrder.user.email})</p>
+                <p className="text-sm font-medium text-primary/70 dark:text-slate-400 mb-1">Student</p>
+                <p className="text-primary dark:text-slate-100">{selectedOrder.user.name || 'N/A'} ({selectedOrder.user.email})</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary/70 mb-2">
+                <label className="block text-sm font-medium text-primary/70 dark:text-slate-400 mb-2">
                   Action
                 </label>
                 <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-primary dark:text-slate-200">
                     <input
                       type="radio"
                       value="APPROVED"
@@ -293,7 +293,7 @@ export default function AdminOrdersPage() {
                     />
                     <span>Approve</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-primary dark:text-slate-200">
                     <input
                       type="radio"
                       value="REJECTED"
@@ -307,38 +307,38 @@ export default function AdminOrdersPage() {
               {actionData.status === 'APPROVED' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-primary/70 mb-2">
+                    <label className="block text-sm font-medium text-primary/70 dark:text-slate-400 mb-2">
                       Admin Notes (Optional)
                     </label>
                     <textarea
                       value={actionData.adminNotes}
                       onChange={(e) => setActionData({ ...actionData, adminNotes: e.target.value })}
-                      className="w-full border border-primary/20 rounded-lg px-4 py-2 text-primary bg-background"
+                      className="w-full border border-primary/20 dark:border-slate-700 rounded-lg px-4 py-2 text-primary dark:text-slate-100 bg-background dark:bg-slate-800"
                       rows={3}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-primary/70 mb-2">
+                    <label className="block text-sm font-medium text-primary/70 dark:text-slate-400 mb-2">
                       Report URL (Optional)
                     </label>
                     <input
                       type="url"
                       value={actionData.reportUrl}
                       onChange={(e) => setActionData({ ...actionData, reportUrl: e.target.value })}
-                      className="w-full border border-primary/20 rounded-lg px-4 py-2 text-primary bg-background"
+                      className="w-full border border-primary/20 dark:border-slate-700 rounded-lg px-4 py-2 text-primary dark:text-slate-100 bg-background dark:bg-slate-800"
                       placeholder="https://..."
                     />
                   </div>
                 </>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-primary/70 mb-2">
+                  <label className="block text-sm font-medium text-primary/70 dark:text-slate-400 mb-2">
                     Rejection Reason *
                   </label>
                   <textarea
                     value={actionData.rejectionReason}
                     onChange={(e) => setActionData({ ...actionData, rejectionReason: e.target.value })}
-                    className="w-full border border-primary/20 rounded-lg px-4 py-2 text-primary bg-background"
+                    className="w-full border border-primary/20 dark:border-slate-700 rounded-lg px-4 py-2 text-primary dark:text-slate-100 bg-background dark:bg-slate-800"
                     rows={3}
                     required
                   />
@@ -369,7 +369,7 @@ export default function AdminOrdersPage() {
                       reportUrl: '',
                     });
                   }}
-                  className="px-4 py-2 bg-secondary text-primary border border-primary/20 rounded-lg hover:bg-primary/10 transition-colors font-medium"
+                  className="px-4 py-2 bg-secondary dark:bg-slate-800 text-primary dark:text-slate-100 border border-primary/20 dark:border-slate-700 rounded-lg hover:bg-primary/10 dark:hover:bg-slate-700 transition-colors font-medium"
                 >
                   Cancel
                 </button>

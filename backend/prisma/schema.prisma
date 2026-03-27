@@ -23,6 +23,9 @@ model User {
   settings              Json?
   leetcodeId            String?
   leetcodeStats         Json?
+  githubUrl             String?
+  githubStats           Json?
+  githubStatsUpdatedAt  DateTime?
   pictureData           Bytes?
   pictureMimeType       String?
   points                Int                  @default(0)

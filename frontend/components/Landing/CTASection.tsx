@@ -75,7 +75,7 @@ export default function CTASection() {
   return (
     <section ref={sectionRef} className="py-20">
       <div className="max-w-4xl mx-auto px-6">
-        <div className="cta-card invisible relative rounded-3xl bg-gray-900 text-white p-10 sm:p-14 text-center overflow-hidden">
+        <div className="cta-card invisible relative rounded-3xl bg-gray-900 dark:bg-slate-900 text-white p-10 sm:p-14 text-center overflow-hidden border border-transparent dark:border-slate-700">
           {/* Dot grid */}
           <div
             className="absolute inset-0 opacity-[0.04]"
@@ -92,13 +92,13 @@ export default function CTASection() {
             <h2 className="text-2xl sm:text-3xl font-bold mb-3">
               Ready to level up?
             </h2>
-            <p className="text-gray-400 max-w-md mx-auto mb-8">
+            <p className="text-gray-300 dark:text-slate-300 max-w-md mx-auto mb-8">
               Join ShadowCoders and take your coding skills to the next level
               with real challenges and real-time feedback.
             </p>
             <Link
               href="/login"
-              className="btn-shine inline-flex items-center gap-2 text-base font-semibold text-gray-900 bg-white hover:bg-gray-100 rounded-xl px-7 py-3.5 transition-colors"
+              className="btn-shine inline-flex items-center gap-2 text-base font-semibold text-gray-900 bg-white hover:bg-gray-100 rounded-xl px-7 py-3.5 transition-colors shadow-sm"
             >
               Get Started Now
               <ArrowRight className="w-4 h-4" />

@@ -84,17 +84,17 @@ export default function StatsSection() {
   return (
     <section ref={sectionRef} className="py-12 sm:py-16">
       <div className="max-w-3xl mx-auto px-6">
-        <div className="stats-container invisible grid grid-cols-2 sm:grid-cols-4 gap-6 p-8 rounded-2xl bg-gray-50/80 border border-gray-100">
+        <div className="stats-container invisible grid grid-cols-2 sm:grid-cols-4 gap-6 p-8 rounded-2xl bg-gray-50/80 dark:bg-slate-900/70 border border-gray-100 dark:border-slate-800 shadow-sm dark:shadow-none">
           {stats.map((s) => (
             <div key={s.label} className="stat-item invisible text-center">
               <div
-                className="stat-number text-2xl sm:text-3xl font-bold text-gray-900"
+                className="stat-number text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100"
                 data-value={s.value}
                 data-suffix={s.suffix}
               >
                 0{s.suffix}
               </div>
-              <div className="text-xs text-gray-400 mt-1 font-medium uppercase tracking-wider">
+              <div className="text-xs text-gray-400 dark:text-slate-400 mt-1 font-medium uppercase tracking-wider">
                 {s.label}
               </div>
             </div>

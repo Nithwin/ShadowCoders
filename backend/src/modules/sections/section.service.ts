@@ -9,6 +9,39 @@ import { prisma } from '../../lib/prisma';
 // Infer the TypeScript type from the Zod schema's body
 type CreateSectionInput = z.infer<typeof createSectionSchema>['body'];
 
+const syncExamDurationForBothMode = async (examId: string) => {
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: {
+      timingMode: true,
+      durationMins: true,
+      sections: {
+        select: {
+          durationMins: true,
+        },
+      },
+    },
+  });
+
+  if (!exam || exam.timingMode !== 'BOTH') {
+    return;
+  }
+
+  const configuredDurations = exam.sections
+    .map((section) => section.durationMins)
+    .filter((duration): duration is number => typeof duration === 'number' && duration > 0);
+
+  if (configuredDurations.length === 0) {
+    return;
+  }
+
+  const totalDuration = configuredDurations.reduce((sum, mins) => sum + mins, 0);
+
+  if (totalDuration !== exam.durationMins) {
+    await examRepo.updateExam(examId, { durationMins: totalDuration });
+  }
+};
+
 export const createSection = async (
   examId: string,
   input: CreateSectionInput
@@ -30,6 +63,7 @@ export const createSection = async (
 
   // 3. --- Call Repository ---
   const newSection = await sectionRepo.createSection(examId, dataToSave);
+  await syncExamDurationForBothMode(examId);
   return newSection;
 };
 
@@ -92,7 +126,7 @@ export const updateSection = async (
   // We can use prisma directly for this simple check
   const existingSection = await prisma.examSection.findUnique({
     where: { id: sectionId },
-    select: { id: true },
+    select: { id: true, examId: true },
   });
 
   if (!existingSection) {
@@ -119,6 +153,7 @@ export const updateSection = async (
 
   // 3. --- Call Repository ---
   const updatedSection = await sectionRepo.updateSection(sectionId, dataToUpdate);
+  await syncExamDurationForBothMode(existingSection.examId);
 
   return updatedSection;
 };
@@ -127,9 +162,11 @@ export const deleteSection = async (sectionId: string) => {
   // 1. --- Validation: Check if the section exists ---
   const existingSection = await prisma.examSection.findUnique({
     where: { id: sectionId },
-    include: {
+    select: {
+      id: true,
+      examId: true,
       _count: {
-        select: { attempts: true }, // Count how many AttemptSection records exist
+        select: { attempts: true },
       },
     },
   });
@@ -148,6 +185,7 @@ export const deleteSection = async (sectionId: string) => {
 
   // 3. --- Call Repository (if safe) ---
   await sectionRepo.deleteSection(sectionId);
+  await syncExamDurationForBothMode(existingSection.examId);
 
   return { message: 'Section and all related question links deleted successfully' };
 };

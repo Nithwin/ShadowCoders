@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Github, ExternalLink, Activity, GitFork, Star, Users, FileCode2 } from 'lucide-react';
 import { useToastNotification } from '@/context/ToastContext';
 
 export default function EditUserPage() {
@@ -16,6 +16,9 @@ export default function EditUserPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [githubStats, setGithubStats] = useState<any | null>(null);
+  const [isLoadingGithubStats, setIsLoadingGithubStats] = useState(false);
+  const [githubStatsError, setGithubStatsError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -27,6 +30,7 @@ export default function EditUserPage() {
     year: '',
     section: '',
     leetcodeId: '',
+    githubUrl: '',
     points: '',
     pictureUrl: '',
   });
@@ -50,6 +54,7 @@ export default function EditUserPage() {
         year: user.year ? String(user.year) : '',
         section: user.section || '',
         leetcodeId: user.leetcodeId || '',
+        githubUrl: user.githubUrl || '',
         points: user.points ? String(user.points) : '0',
         pictureUrl: user.pictureUrl || '',
       });
@@ -60,6 +65,28 @@ export default function EditUserPage() {
       setIsLoading(false);
     }
   };
+
+  const fetchGithubStats = async () => {
+    setIsLoadingGithubStats(true);
+    setGithubStatsError(null);
+    try {
+      const res = await api.get(`/users/${userId}/github-stats`);
+      setGithubStats(res.data);
+    } catch (err: any) {
+      console.error(err);
+      setGithubStats(null);
+      setGithubStatsError(
+        err?.response?.data?.message ||
+        'Failed to load GitHub stats. Please check that a GitHub URL is linked and try refresh.'
+      );
+    } finally {
+      setIsLoadingGithubStats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGithubStats();
+  }, [userId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -86,6 +113,7 @@ export default function EditUserPage() {
 
       // LeetCode ID - available for all users
       payload.leetcodeId = formData.leetcodeId?.trim() || null;
+      payload.githubUrl = formData.githubUrl?.trim() || null;
 
       // Points - available for all users
       payload.points = formData.points ? parseInt(formData.points) : 0;
@@ -108,6 +136,7 @@ export default function EditUserPage() {
       }
 
       await api.put(`/users/${userId}`, payload);
+      await fetchGithubStats();
       toast.success('User updated successfully!');
       router.push('/admin/users');
     } catch (err: any) {
@@ -216,6 +245,20 @@ export default function EditUserPage() {
 
             <div>
               <label className="block text-sm font-medium text-primary/70 mb-1">
+                GitHub Profile URL
+              </label>
+              <input
+                type="url"
+                name="githubUrl"
+                value={formData.githubUrl}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-lg bg-primary/5 border border-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                placeholder="https://github.com/username"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-primary/70 mb-1">
                 Points
               </label>
               <input
@@ -318,6 +361,100 @@ export default function EditUserPage() {
             </button>
           </div>
         </form>
+
+        <div id="github-details" className="mt-8 border-t border-primary/10 pt-6 scroll-mt-24">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-primary/90 flex items-center gap-2">
+              <Github className="w-5 h-5" /> GitHub Details
+            </h3>
+            <button
+              type="button"
+              onClick={fetchGithubStats}
+              className="text-sm px-3 py-1.5 rounded-md border border-primary/20 hover:bg-primary/5"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {isLoadingGithubStats && (
+            <p className="text-sm text-primary/60">Loading GitHub stats...</p>
+          )}
+
+          {!isLoadingGithubStats && githubStatsError && (
+            <div className="p-4 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700">
+              {githubStatsError}
+            </div>
+          )}
+
+          {!isLoadingGithubStats && !githubStatsError && githubStats?.hasGithub === false && (
+            <div className="p-4 rounded-lg border border-primary/10 bg-primary/5 text-sm text-primary/70">
+              {githubStats?.message || 'No GitHub profile linked.'}
+            </div>
+          )}
+
+          {!isLoadingGithubStats && !githubStatsError && githubStats?.hasGithub && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-primary/10 bg-primary/5">
+                <div>
+                  <p className="font-semibold text-primary">@{githubStats.github.username}</p>
+                  <a
+                    href={githubStats.github.profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                  >
+                    Open GitHub Profile <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-xs text-primary/60">{githubStats.github.note}</p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60 flex items-center gap-1"><FileCode2 className="w-3 h-3" /> Repos</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.publicRepos}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60 flex items-center gap-1"><Users className="w-3 h-3" /> Followers</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.followers}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60 flex items-center gap-1"><Star className="w-3 h-3" /> Stars</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.totals.stars}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60 flex items-center gap-1"><GitFork className="w-3 h-3" /> Forks</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.totals.forks}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60">Repo Size (KB)</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.totals.repoSizeKB}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60">Estimated Lines</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.totals.estimatedLines}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60 flex items-center gap-1"><Activity className="w-3 h-3" /> Pushes (30d)</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.recentActivity.pushEventsLast30d}</p>
+                </div>
+                <div className="p-3 rounded-lg border border-primary/10 bg-white">
+                  <p className="text-xs text-primary/60">Commits (30d)</p>
+                  <p className="text-lg font-semibold text-primary">{githubStats.github.recentActivity.commitsLast30d}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!isLoadingGithubStats && !githubStatsError && !githubStats && (
+            <div className="p-4 rounded-lg border border-primary/10 bg-primary/5 text-sm text-primary/70">
+              No GitHub stats available yet. Click Refresh to fetch latest details.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

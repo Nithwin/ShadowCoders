@@ -1,17 +1,36 @@
-import { UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form';
+import { UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 import { Input } from '@/components/ui/Input';
 import { ExamFormInput } from '../ExamForm';
-import { Shield, Info, HelpCircle, Eye, Camera } from 'lucide-react';
+import { Shield, Info, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ExamSecurityProps {
   register: UseFormRegister<ExamFormInput>;
   errors: FieldErrors<ExamFormInput>;
   watch?: UseFormWatch<ExamFormInput>;
+  setValue: UseFormSetValue<ExamFormInput>;
 }
 
-export function ExamSecurity({ register, errors, watch }: ExamSecurityProps) {
+export function ExamSecurity({ register, errors, watch, setValue }: ExamSecurityProps) {
   const enableProctoring = watch?.('enableProctoring');
+  const maxTabSwitches = watch?.('maxTabSwitches');
+  const extensionDetectionEnabled = maxTabSwitches !== null && maxTabSwitches !== undefined && maxTabSwitches !== '';
+
+  const toggleExtensionDetection = (enabled: boolean) => {
+    if (enabled) {
+      setValue('maxTabSwitches', (maxTabSwitches === null || maxTabSwitches === undefined || maxTabSwitches === '') ? 1 : maxTabSwitches, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      return;
+    }
+
+    setValue('maxTabSwitches', null, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -57,7 +76,7 @@ export function ExamSecurity({ register, errors, watch }: ExamSecurityProps) {
           </div>
           <div>
             <label htmlFor="maxTabSwitches" className="flex items-center gap-2 text-sm font-semibold text-primary mb-2">
-              Max Tab Switches
+              Max Tab Switches (12 Layer Extension Detection)
               <Tooltip>
                 <TooltipTrigger type="button">
                   <HelpCircle className="w-3.5 h-3.5 text-primary/50" />
@@ -74,8 +93,13 @@ export function ExamSecurity({ register, errors, watch }: ExamSecurityProps) {
             {...register('maxTabSwitches')}
             placeholder="Unlimited if empty"
             className="w-full"
+            disabled={!extensionDetectionEnabled}
           />
-            <p className="text-xs text-primary/60 mt-1">Warning shown on switch. Auto-submit if exceeded.</p>
+            <p className="text-xs text-primary/60 mt-1">
+              {extensionDetectionEnabled
+                ? 'Strict mode active: warnings on tab switch and fullscreen violations.'
+                : 'Disabled until 12 Layer Extension Detection is turned on.'}
+            </p>
             {errors.maxTabSwitches && (
               <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
                 <Info className="w-3 h-3" />
@@ -85,52 +109,105 @@ export function ExamSecurity({ register, errors, watch }: ExamSecurityProps) {
           </div>
         </div>
 
-        {/* Proctoring Section */}
+        {/* Extension Detection Section */}
         <div className="border-t border-primary/10 pt-6">
           <div className="flex items-center gap-4 p-4 bg-linear-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-              <Camera className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <Shield className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1">
-              <label htmlFor="enableProctoring" className="flex items-center gap-2 text-sm font-semibold text-primary mb-1">
-                Enable Eye & Head Tracking Proctoring
+              <label htmlFor="enableExtensionDetection" className="flex items-center gap-2 text-sm font-semibold text-primary mb-1">
+                12 Layer Extension Detection
                 <Tooltip>
                   <TooltipTrigger type="button">
                     <HelpCircle className="w-3.5 h-3.5 text-primary/50" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Enable automated eye and head tracking using student's camera</p>
-                    <p className="text-xs mt-2">Monitors if student looks away or head turns away from screen</p>
+                    <p>Master switch for strict monitoring.</p>
+                    <p className="text-xs mt-2">When enabled: extension scan, tab switch checks, and fullscreen enforcement are active.</p>
+                    <p className="text-xs mt-2">When disabled: tab switching and fullscreen exit are ignored.</p>
                   </TooltipContent>
                 </Tooltip>
               </label>
-              <p className="text-xs text-primary/60">Track student attention using camera during the exam</p>
+              <p className="text-xs text-primary/60">Enable strict anti-cheat monitoring for this exam</p>
             </div>
             <input
-              id="enableProctoring"
+              id="enableExtensionDetection"
               type="checkbox"
-              {...register('enableProctoring')}
+              checked={extensionDetectionEnabled}
+              onChange={(e) => toggleExtensionDetection(e.target.checked)}
               className="w-6 h-6 rounded border-2 border-primary/20 accent-blue-600 cursor-pointer"
             />
           </div>
 
-          {enableProctoring && (
+          {extensionDetectionEnabled && (
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-start gap-2 text-sm text-blue-800 dark:text-blue-300">
                 <Info className="w-4 h-4 mt-0.5 shrink-0" />
                 <div>
-                  <p className="font-semibold mb-1">Proctoring Features Enabled:</p>
+                  <p className="font-semibold mb-1">Strict Monitoring Enabled:</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Eye tracking detection - warns if student looks away</li>
-                    <li>Head position monitoring - detects if head turns away</li>
-                    <li>Real-time violation logging</li>
-                    <li>Violation summary shown after exam submission</li>
-                    <li>Students will be asked for camera permission</li>
+                    <li>12-layer extension detection checks run during attempt</li>
+                    <li>Tab switching and window focus violations tracked</li>
+                    <li>Fullscreen exit is treated as a strict violation</li>
+                    <li>Max tab switch limit is enforced</li>
                   </ul>
                 </div>
               </div>
             </div>
           )}
+
+          {!extensionDetectionEnabled && (
+            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <div className="flex items-start gap-2 text-sm text-emerald-800">
+                <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold mb-1">Strict Monitoring Disabled:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Tab switching is allowed</li>
+                    <li>Exiting fullscreen will not auto-submit</li>
+                    <li>Extension detection checks are skipped</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* AI Tracking Section */}
+        <div className="border-t border-primary/10 pt-6">
+          <div className="flex items-center gap-4 p-4 bg-linear-to-r from-rose-50 to-orange-50 rounded-lg border border-rose-200">
+            <div className="p-3 bg-rose-100 rounded-lg">
+              <Shield className="w-6 h-6 text-rose-600" />
+            </div>
+            <div className="flex-1">
+              <label htmlFor="enableProctoring" className="flex items-center gap-2 text-sm font-semibold text-primary mb-1">
+                AI Tracking (Camera Proctoring)
+                <Tooltip>
+                  <TooltipTrigger type="button">
+                    <HelpCircle className="w-3.5 h-3.5 text-primary/50" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Uses camera-based eye and head tracking during exam attempt.</p>
+                    <p className="text-xs mt-2">This is independent from 12 Layer Extension Detection.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </label>
+              <p className="text-xs text-primary/60">Enable AI-powered camera monitoring</p>
+            </div>
+            <input
+              id="enableProctoring"
+              type="checkbox"
+              {...register('enableProctoring')}
+              className="w-6 h-6 rounded border-2 border-primary/20 accent-rose-600 cursor-pointer"
+            />
+          </div>
+
+          <div className="mt-4 p-4 bg-primary/5 border border-primary/15 rounded-lg">
+            <p className="text-xs text-primary/75">
+              AI Tracking is currently <b>{enableProctoring ? 'enabled' : 'disabled'}</b>. This controls only camera proctoring and does not control tab/fullscreen extension checks.
+            </p>
+          </div>
         </div>
       </div>
     </TooltipProvider>

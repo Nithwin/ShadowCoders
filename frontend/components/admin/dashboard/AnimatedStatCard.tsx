@@ -55,7 +55,7 @@ export default function AnimatedStatCard({
       initial="hidden"
       animate="show"
       custom={idx}
-      className="bg-white rounded-3xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] p-5 flex flex-col justify-between group hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-shadow duration-200"
+      className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_10px_26px_rgba(2,6,23,0.35)] p-5 flex flex-col justify-between group hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_14px_30px_rgba(2,6,23,0.45)] transition-shadow duration-200"
     >
       <div className="flex items-start justify-between mb-4">
         <div
@@ -85,14 +85,14 @@ export default function AnimatedStatCard({
 
       <div>
         <div className="flex items-baseline gap-1">
-          <span ref={countRef} className="text-[28px] font-extrabold tracking-tight text-gray-900">
+          <span ref={countRef} className="text-[28px] font-extrabold tracking-tight text-gray-900 dark:text-slate-100">
             {value}
           </span>
           {suffix && (
-            <span className="text-sm font-semibold text-gray-400">{suffix}</span>
+            <span className="text-sm font-semibold text-gray-400 dark:text-slate-400">{suffix}</span>
           )}
         </div>
-        <p className="text-[13px] text-gray-500 font-medium mt-0.5">{title}</p>
+        <p className="text-[13px] text-gray-500 dark:text-slate-400 font-medium mt-0.5">{title}</p>
       </div>
     </motion.div>
   );

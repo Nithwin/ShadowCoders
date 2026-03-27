@@ -102,6 +102,8 @@ export const getAttemptDetails = (attemptId: string) => {
           id: true,
           title: true,
           durationMins: true,
+          timingMode: true,
+          sectionLockPolicy: true,
           allowedLanguages: true,
           maxAttempts: true,
           mode: true, // Required for dynamic exams
@@ -122,6 +124,7 @@ export const getAttemptDetails = (attemptId: string) => {
               id: true,
               title: true,
               order: true,
+              durationMins: true,
               sectionQuestions: {
                 select: {
                   questionId: true,

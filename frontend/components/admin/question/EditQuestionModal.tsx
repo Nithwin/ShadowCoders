@@ -3,7 +3,7 @@
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { QType } from '@/types';
 import { Loader2, Save, Plus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
@@ -83,6 +83,25 @@ const questionSchema = z.discriminatedUnion('type', [
 
 type QuestionFormData = z.input<typeof questionSchema>;
 
+const RESTRICTED_KEYWORD_OPTIONS = [
+  'sort',
+  'reverse',
+  'split',
+  'eval',
+  'exec',
+  'system',
+  'subprocess',
+  'fetch',
+  'axios',
+  'requests',
+];
+
+const normalizeKeywordList = (value?: string) =>
+  (value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+
 interface EditQuestionModalProps {
   question: {
     id: string;
@@ -145,6 +164,12 @@ export default function EditQuestionModal({
   });
 
   const questionType = watch('type');
+  const watchedStarterCode = watch('starterCode') || '';
+  const watchedForbiddenKeywords = watch('config.forbiddenKeywords') || '';
+  const selectedForbiddenKeywords = useMemo(
+    () => new Set(normalizeKeywordList(watchedForbiddenKeywords).map((k) => k.toLowerCase())),
+    [watchedForbiddenKeywords]
+  );
 
   const {
     fields: optionFields,
@@ -172,6 +197,20 @@ export default function EditQuestionModal({
       ? current.filter((id) => id !== optionId)
       : [...current, optionId];
     setValue('correctOptionIds', newCorrectOptions, { shouldValidate: true });
+  };
+
+  const toggleForbiddenKeyword = (keyword: string) => {
+    const current = normalizeKeywordList(watch('config.forbiddenKeywords'));
+    const currentLower = new Set(current.map((item) => item.toLowerCase()));
+
+    const updated = currentLower.has(keyword.toLowerCase())
+      ? current.filter((item) => item.toLowerCase() !== keyword.toLowerCase())
+      : [...current, keyword];
+
+    setValue('config.forbiddenKeywords', updated.join(', '), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   // Reset form when question changes
@@ -255,16 +294,14 @@ export default function EditQuestionModal({
         updateData.starterCode = validatedData.starterCode || null;
         
         // Handle config (DDL and Forbidden Keywords)
-        const config: any = {};
-        if (validatedData.config?.ddl) {
-          config.ddl = validatedData.config.ddl;
+        const config: Record<string, string> = {};
+        if (validatedData.config?.ddl?.trim()) {
+          config.ddl = validatedData.config.ddl.trim();
         }
-        if (validatedData.config?.forbiddenKeywords) {
-          config.forbiddenKeywords = validatedData.config.forbiddenKeywords;
+        if (validatedData.config?.forbiddenKeywords?.trim()) {
+          config.forbiddenKeywords = validatedData.config.forbiddenKeywords.trim();
         }
-        if (Object.keys(config).length > 0) {
-          updateData.config = config;
-        }
+        updateData.config = config;
 
         // Ensure testcases are properly formatted
         if (validatedData.testcases && Array.isArray(validatedData.testcases) && validatedData.testcases.length > 0) {
@@ -472,6 +509,7 @@ export default function EditQuestionModal({
                       className="flex w-full rounded-md border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-mono text-primary placeholder:text-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 resize-y min-h-[250px]"
                       placeholder="function solution() {&#10;  // Your code here&#10;}"
                     />
+                    <p className="mt-1 text-xs text-primary/60">Starter code size: {new TextEncoder().encode(watchedStarterCode).length} bytes</p>
                   </div>
 
                   {/* Forbidden Keywords */}
@@ -479,6 +517,25 @@ export default function EditQuestionModal({
                     <label className="block text-sm font-semibold text-primary mb-2">
                       Forbidden Keywords (Optional)
                     </label>
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {RESTRICTED_KEYWORD_OPTIONS.map((keyword) => {
+                        const isSelected = selectedForbiddenKeywords.has(keyword.toLowerCase());
+                        return (
+                          <button
+                            key={keyword}
+                            type="button"
+                            onClick={() => toggleForbiddenKeyword(keyword)}
+                            className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${
+                              isSelected
+                                ? 'bg-primary text-white border-primary'
+                                : 'bg-primary/5 text-primary/80 border-primary/20 hover:bg-primary/10'
+                            }`}
+                          >
+                            {keyword}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <Input
                       {...register('config.forbiddenKeywords')}
                       placeholder="e.g. sort, reverse, split (comma separated)"

@@ -15,15 +15,8 @@ export default function LoginPage() {
   const { login, user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  // Google login removed
-  const handleGoogleResponse = async () => { };
-
-
-
   useEffect(() => {
-    console.log('[Login Page] Auth State Check:', { user: user?.email, role: user?.role, authLoading });
     if (!authLoading && user) {
-      console.log('[Login Page] Redirecting user based on role:', user.role);
       if (user.role === 'STAFF') {
         router.replace('/admin/dashboard');
       } else {
@@ -74,7 +67,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main id="login" className="flex-center min-h-screen bg-gray-50 p-4">
+    <main
+      id="login"
+      className="flex-center min-h-screen p-4 bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900"
+    >
       <div className="box">
         {/* Logo and Title */}
         <div className="flex flex-col items-center gap-2 mb-3">
@@ -86,7 +82,7 @@ export default function LoginPage() {
             className="drop-shadow-sm w-10 h-10 sm:w-12 sm:h-12"
           />
           <h1>ShadowCoders</h1>
-          <p className="text-center text-gray-500 text-xs -mt-0.5">
+          <p className="text-center text-gray-500 dark:text-slate-400 text-xs -mt-0.5">
             Welcome back
           </p>
         </div>
@@ -110,7 +106,7 @@ export default function LoginPage() {
           />
 
           {error && (
-            <div className="text-red-600 text-xs text-center font-medium bg-red-50 py-2 px-3 rounded-lg border border-red-200">
+            <div className="text-red-600 dark:text-red-300 text-xs text-center font-medium bg-red-50 dark:bg-red-900/20 py-2 px-3 rounded-lg border border-red-200 dark:border-red-800/60">
               {error}
             </div>
           )}

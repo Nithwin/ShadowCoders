@@ -189,6 +189,8 @@ export const updateQuestion = async (
     case QType.CODING:
       if (input.starterCode !== undefined)
         dataToUpdate.starterCode = input.starterCode ?? null;
+      if (input.config !== undefined)
+        dataToUpdate.config = input.config as Prisma.InputJsonValue;
       if (input.testcases !== undefined) {
         // Validate that testcases is an array and has at least one item
         if (Array.isArray(input.testcases)) {

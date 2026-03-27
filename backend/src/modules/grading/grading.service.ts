@@ -9,6 +9,30 @@ import { submitCodeJob, waitForJobResult, submitAiJob, CodeExecutionJobData } fr
 // Infer the TypeScript type from the Zod schema's body
 type RunCodeInput = z.infer<typeof runCodeSchema>['body'];
 
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const findForbiddenKeyword = (code: string, forbiddenKeywords?: string): string | null => {
+  if (!forbiddenKeywords) return null;
+
+  const keywords = forbiddenKeywords
+    .split(',')
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
+
+  for (const keyword of keywords) {
+    const escapedKeyword = escapeRegex(keyword);
+    const boundaryPattern = /^[A-Za-z0-9_]+$/.test(keyword)
+      ? `\\b${escapedKeyword}\\b`
+      : escapedKeyword;
+    const regex = new RegExp(boundaryPattern, 'i');
+    if (regex.test(code)) {
+      return keyword;
+    }
+  }
+
+  return null;
+};
+
 /**
  * Handles the logic for running a student's code submission.
  */
@@ -18,6 +42,11 @@ export const runCode = async (
   input: RunCodeInput
 ) => {
   const { questionId, code, language, customInput, runAllTests } = input;
+  const answerWithSize = {
+    code,
+    language,
+    codeSizeBytes: Buffer.byteLength(code, 'utf8'),
+  };
 
   // 1. --- Validation: Check Attempt ---
   const attempt = await prisma.attempt.findUnique({
@@ -52,13 +81,9 @@ export const runCode = async (
 
   // --- Validation: Forbidden Keywords ---
   const config = question.config as { forbiddenKeywords?: string } | null;
-  if (config?.forbiddenKeywords) {
-    const keywords = config.forbiddenKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
-    for (const keyword of keywords) {
-      if (code.includes(keyword)) {
-        throw { status: 400, message: `Forbidden keyword used: "${keyword}"` };
-      }
-    }
+  const blockedKeyword = findForbiddenKeyword(code, config?.forbiddenKeywords);
+  if (blockedKeyword) {
+    throw { status: 400, message: `Forbidden keyword used: "${blockedKeyword}"` };
   }
   
   // 3. --- Upsert Response (create if doesn't exist) ---
@@ -75,7 +100,7 @@ export const runCode = async (
         attemptId: attemptId,
         questionId: questionId,
         type: question.type,
-        answer: { code, language },
+        answer: answerWithSize,
       },
       select: { id: true }
     });
@@ -85,7 +110,7 @@ export const runCode = async (
     await prisma.response.update({
       where: { id: response.id },
       data: {
-        answer: { code, language },
+        answer: answerWithSize,
       },
     });
   }

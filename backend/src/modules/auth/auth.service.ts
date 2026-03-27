@@ -62,7 +62,20 @@ export const handleEmailLogin = async (input: any) => {
 
 // --- (Your existing findUserById function) ---
 export const findUserById = async (id: string) => {
-  return authRepo.findUserById(id);
+  const user = await authRepo.findUserById(id);
+  if (!user) return null;
+
+  const settings = (user.settings && typeof user.settings === 'object' && !Array.isArray(user.settings))
+    ? user.settings as Record<string, unknown>
+    : {};
+  const githubUrlValue = (user as Record<string, unknown>).githubUrl;
+  const githubUrl = (typeof githubUrlValue === 'string' ? githubUrlValue : null)
+    ?? (typeof settings.githubUrl === 'string' ? settings.githubUrl : null);
+
+  return {
+    ...user,
+    githubUrl,
+  };
 };
 
 // --- **NEW FUNCTION TO ADD** ---
@@ -105,6 +118,7 @@ export const updateUserProfile = async (userId: string, updateData: {
   section?: string | null;
   pictureUrl?: string | null;
   leetcodeId?: string | null;
+  githubUrl?: string | null;
 }) => {
   // Only allow updating specific fields
   const dataToUpdate: any = {};
@@ -128,8 +142,28 @@ export const updateUserProfile = async (userId: string, updateData: {
   if (updateData.leetcodeId !== undefined) {
     dataToUpdate.leetcodeId = updateData.leetcodeId;
   }
+  if (updateData.githubUrl !== undefined) {
+    const existingUser = await authRepo.findUserById(userId);
+    const existingSettings =
+      existingUser?.settings && typeof existingUser.settings === 'object' && !Array.isArray(existingUser.settings)
+        ? { ...(existingUser.settings as Record<string, unknown>) }
+        : {};
+    existingSettings.githubUrl = updateData.githubUrl?.trim() || null;
+    dataToUpdate.settings = existingSettings;
+  }
 
-  return authRepo.updateUser(userId, dataToUpdate);
+  const updated = await authRepo.updateUser(userId, dataToUpdate);
+  const settings = (updated.settings && typeof updated.settings === 'object' && !Array.isArray(updated.settings))
+    ? updated.settings as Record<string, unknown>
+    : {};
+  const githubUrlValue = (updated as Record<string, unknown>).githubUrl;
+  const githubUrl = (typeof githubUrlValue === 'string' ? githubUrlValue : null)
+    ?? (typeof settings.githubUrl === 'string' ? settings.githubUrl : null);
+
+  return {
+    ...updated,
+    githubUrl,
+  };
 };
 
 export const changePassword = async (userId: string, { currentPassword, newPassword }: any) => {

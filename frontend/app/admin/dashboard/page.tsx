@@ -124,7 +124,7 @@ function BentoCard({
       initial="hidden"
       animate="show"
       custom={custom}
-      className={`bg-white rounded-3xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] p-6 ${className}`}
+      className={`bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_32px_rgba(2,6,23,0.35)] p-6 ${className}`}
     >
       {children}
     </motion.div>
@@ -153,8 +153,8 @@ function SectionHeader({
           <Icon className={`w-[18px] h-[18px] ${iconColor}`} />
         </div>
         <div>
-          <h2 className="text-[15px] font-semibold text-gray-900">{title}</h2>
-          <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
+          <h2 className="text-[15px] font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
+          <p className="text-[11px] text-gray-400 dark:text-slate-400 mt-0.5">{subtitle}</p>
         </div>
       </div>
       {action}
@@ -253,7 +253,7 @@ export default function AdminDashboardPage() {
           <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Sparkles className="w-7 h-7 text-white" />
           </div>
-          <p className="text-gray-400 text-sm font-medium">Loading dashboard...</p>
+          <p className="text-gray-400 dark:text-slate-400 text-sm font-medium">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -262,7 +262,7 @@ export default function AdminDashboardPage() {
   if (error || !overview) {
     return (
       <div className="p-6">
-        <div className="p-5 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm font-medium">
+        <div className="p-5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-2xl text-red-600 dark:text-red-300 text-sm font-medium">
           {error || 'Failed to load dashboard'}
         </div>
       </div>
@@ -278,23 +278,23 @@ export default function AdminDashboardPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-3xl bg-blue-50/80 p-7 md:p-9 shadow-[0_2px_20px_rgba(0,0,0,0.06)]"
+        className="relative overflow-hidden rounded-3xl bg-blue-50/80 dark:bg-slate-900 p-7 md:p-9 border border-blue-100 dark:border-slate-800 shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_32px_rgba(2,6,23,0.35)]"
       >
         {/* subtle dot grid */}
         <div className="absolute inset-0 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]">
-          <div className="absolute inset-0 bg-[radial-gradient(#93c5fd33_1px,transparent_1px)] [background-size:16px_16px] opacity-60" />
+          <div className="absolute inset-0 bg-[radial-gradient(#93c5fd33_1px,transparent_1px)] [background-size:16px_16px] dark:opacity-30 opacity-60" />
         </div>
         {/* soft glow */}
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-indigo-200/20 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-200/30 dark:bg-blue-500/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-56 h-56 bg-indigo-200/20 dark:bg-indigo-500/20 rounded-full blur-3xl" />
 
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5">
           <div>
             <p className="text-blue-500 text-sm font-medium mb-1.5">{greeting}</p>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
               Dashboard Overview
             </h1>
-            <p className="text-slate-500 text-sm mt-1.5 max-w-lg leading-relaxed">
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1.5 max-w-lg leading-relaxed">
               Monitor exams, track student performance, and manage your platform.
             </p>
           </div>
@@ -327,7 +327,7 @@ export default function AdminDashboardPage() {
         {insights.map((item) => (
           <div
             key={item.label}
-            className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-shadow duration-200"
+            className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_10px_24px_rgba(2,6,23,0.35)] hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_14px_30px_rgba(2,6,23,0.45)] transition-shadow duration-200"
           >
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center"
@@ -337,9 +337,9 @@ export default function AdminDashboardPage() {
             </div>
             <div>
               <p className="text-[11px] text-gray-400 font-medium leading-none mb-1">{item.label}</p>
-              <p className="text-lg font-bold text-gray-900 leading-none">
+              <p className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-none">
                 {item.value}
-                {item.suffix && <span className="text-xs font-semibold text-gray-400 ml-0.5">{item.suffix}</span>}
+                {item.suffix && <span className="text-xs font-semibold text-gray-400 dark:text-slate-400 ml-0.5">{item.suffix}</span>}
               </p>
             </div>
           </div>
@@ -360,7 +360,7 @@ export default function AdminDashboardPage() {
               action={
                 <Link
                   href="/admin/submissions"
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
                 >
                   View all <ArrowRight className="w-3 h-3" />
                 </Link>
@@ -396,7 +396,7 @@ export default function AdminDashboardPage() {
               action={
                 <Link
                   href="/admin/users"
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition-colors"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
                 >
                   All students <ArrowRight className="w-3 h-3" />
                 </Link>

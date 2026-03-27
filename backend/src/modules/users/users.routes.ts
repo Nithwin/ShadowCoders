@@ -19,6 +19,7 @@ export const registerUserRoutes = (app: Express) => {
     adminRouter.get('/', userController.getAllUsers);
     adminRouter.post('/', userController.createUser);
     adminRouter.get('/:id', userController.getUserById);
+    adminRouter.get('/:id/github-stats', userController.getUserGithubStats);
     adminRouter.put('/:id', userController.updateUser);
     adminRouter.delete('/:id', userController.deleteUser);
     

@@ -21,8 +21,7 @@ export function ExamSettings({
   showNegativeMarking = true,
 }: ExamSettingsProps) {
   const selectedLanguages = watch('allowedLanguages') || [];
-  const dynamicTopics = watch('dynamicTopics') || [];
-  const dynamicTopicsText = dynamicTopics.join(', ');
+  const randomizeEnabled = watch('randomizeQuestions') || false;
 
   const toggleLanguage = (langValue: string) => {
     const current = selectedLanguages || [];
@@ -46,107 +45,35 @@ export function ExamSettings({
         </div>
       </div>
 
-      {/* Exam Mode Selection */}
-      <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-primary">
-              Exam Mode
-            </label>
-            <p className="text-xs text-primary/60">
-              Standard uses fixed questions. Dynamic generates questions per student.
-            </p>
-          </div>
-          <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
-            Adaptive
-          </span>
-        </div>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              value="STANDARD"
-              {...register('mode')}
-              className="w-4 h-4 text-primary focus:ring-primary"
-            />
-            <span className="text-sm">Standard (Fixed Questions)</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              value="DYNAMIC"
-              {...register('mode')}
-              className="w-4 h-4 text-primary focus:ring-primary"
-            />
-            <span className="text-sm">Dynamic (Adaptive Generation)</span>
-          </label>
-        </div>
-
-        {/* Dynamic Settings */}
-        {watch('mode') === 'DYNAMIC' && (
-          <div className="mt-4 p-4 rounded-lg bg-white/60 border border-primary/10 space-y-4 animate-in fade-in slide-in-from-top-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Questions per Student
-                </label>
-                <Input
-                  type="number"
-                  {...register('dynamicQuestionCount')}
-                  min={1}
-                  max={20}
-                  className="max-w-[150px]"
-                />
-                {errors.dynamicQuestionCount && (
-                  <p className="mt-1 text-xs text-red-500">{errors.dynamicQuestionCount.message as string}</p>
-                )}
-                <p className="text-xs text-primary/60 mt-1">
-                  Each student will get this many generated questions.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">
-                  Topics (Comma separated)
-                </label>
-                <Input
-                  placeholder="e.g. Arrays, Dynamic Programming, Strings"
-                  value={dynamicTopicsText}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const topics = val.split(',').map(t => t.trim()).filter(Boolean);
-                    setValue('dynamicTopics', topics, { 
-                      shouldDirty: true,
-                      shouldValidate: true 
-                    });
-                  }}
-                />
-                {errors.dynamicTopics && (
-                  <p className="mt-1 text-xs text-red-500">{errors.dynamicTopics.message as string}</p>
-                )}
-                <p className="text-xs text-primary/60 mt-1">
-                  Questions will be generated from these topics.
-                </p>
-              </div>
-              
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Standard mode enforced on this form */}
+      <input type="hidden" value="STANDARD" {...register('mode')} />
 
       {/* Additional Options */}
       {(showRandomize || showNegativeMarking) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {showRandomize && (
-            <div className="flex items-center gap-3">
-              <input
-                id="randomizeQuestions"
-                type="checkbox"
-                {...register('randomizeQuestions')}
-                className="h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50"
-              />
-              <label htmlFor="randomizeQuestions" className="text-sm font-medium text-primary/80 cursor-pointer">
-                Randomize Question Order
-              </label>
+            <div className="md:col-span-2 p-4 rounded-lg border border-primary/15 bg-primary/5">
+              <div className="flex items-start gap-3">
+                <input
+                  id="randomizeQuestions"
+                  type="checkbox"
+                  {...register('randomizeQuestions')}
+                  className="mt-1 h-4 w-4 rounded border-primary/20 text-primary focus:ring-primary/50"
+                />
+                <div className="flex flex-col">
+                  <label htmlFor="randomizeQuestions" className="text-sm font-semibold text-primary/90 cursor-pointer">
+                    Randomize Question Order Per Student
+                  </label>
+                  <span className="text-xs text-primary/70 mt-1">
+                    Each student gets a different question order. Correct answers and scoring stay mapped to question IDs, so grading remains accurate.
+                  </span>
+                  {randomizeEnabled && (
+                    <div className="mt-2 inline-flex items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-2.5 py-1 w-fit">
+                      Enabled: section-aware shuffle with per-attempt stable order
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           <div className="flex items-start gap-3">
@@ -212,6 +139,15 @@ export function ExamSettings({
           ))}
         </div>
         <input type="hidden" {...register('allowedLanguages')} />
+      </div>
+
+      <div className="pt-2">
+        <div className="p-3 rounded-lg border border-primary/15 bg-primary/5">
+          <p className="text-xs font-semibold text-primary/80">Section-Wise Exam Builder</p>
+          <p className="text-xs text-primary/70 mt-1">
+            After saving, use the <b>Sections</b> tab to create custom sections like Grammar MCQ, Technical MCQ, Easy Coding, and Advanced Coding, then assign questions section-wise.
+          </p>
+        </div>
       </div>
     </div>
   );

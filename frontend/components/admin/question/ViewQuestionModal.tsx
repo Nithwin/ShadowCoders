@@ -16,6 +16,7 @@ type Question = {
   testcases?: Array<{ input: string; expectedOutput: string; isHidden: boolean; timeoutMs: number }>;
   starterCode?: string | null;
   wordLimit?: number | null;
+  config?: { forbiddenKeywords?: string; ddl?: string } | null;
 };
 
 interface ViewQuestionModalProps {
@@ -214,9 +215,25 @@ export default function ViewQuestionModal({ question, open, onOpenChange }: View
 
           {question.type === QType.CODING && (
             <>
+              {question.config?.forbiddenKeywords && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Forbidden Keywords</h3>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <span className="text-sm text-red-800 font-mono font-semibold">
+                      {question.config.forbiddenKeywords.split(',').map((k) => k.trim()).filter((k) => k.length > 0).join(', ')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {question.starterCode && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Starter Code</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900">Starter Code</h3>
+                    <span className="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-3 py-1">
+                      {new TextEncoder().encode(question.starterCode).length} bytes
+                    </span>
+                  </div>
                   <div className="bg-[#1e1e1e] border border-gray-300 rounded-lg p-4 overflow-x-auto">
                     <pre className="text-sm text-gray-100 font-mono">
                       <code>{question.starterCode}</code>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Plus, Search, Edit, Trash2, User as UserIcon, Filter, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User as UserIcon, Filter, ArrowUpDown, RefreshCw, Github, BarChart3 } from 'lucide-react';
 import { useConfirmationDialog } from '@/context/ConfirmationContext';
 import { useToastNotification } from '@/context/ToastContext';
 
@@ -18,6 +18,7 @@ type User = {
   year?: number;
   section?: string;
   leetcodeId?: string | null;
+  githubUrl?: string | null;
   points?: number;
 };
 
@@ -34,6 +35,7 @@ export default function UserManagementPage() {
   const [yearFilter, setYearFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [githubFilter, setGithubFilter] = useState<'all' | 'linked' | 'unlinked'>('all');
   
   // Search is still client-side or can be server-side if backend supports 'q' param (we didn't add 'q' yet, so keep client-side or add 'q' to backend later)
   // Actually, let's keep search client-side for now as per previous implementation, 
@@ -102,15 +104,25 @@ export default function UserManagementPage() {
 
   // Client-side search filtering on top of server-side filtered results
   const filteredUsers = users.filter(user => {
+      const hasGithub = Boolean(user.githubUrl?.trim());
+
+      if (githubFilter === 'linked' && !hasGithub) return false;
+      if (githubFilter === 'unlinked' && hasGithub) return false;
+
       if (!search) return true;
       const lowerSearch = search.toLowerCase();
       return (
         (user.name?.toLowerCase() || '').includes(lowerSearch) ||
         user.email.toLowerCase().includes(lowerSearch) ||
         (user.reg_no?.toLowerCase() || '').includes(lowerSearch) ||
-        (user.leetcodeId?.toLowerCase() || '').includes(lowerSearch)
+        (user.leetcodeId?.toLowerCase() || '').includes(lowerSearch) ||
+        (user.githubUrl?.toLowerCase() || '').includes(lowerSearch)
       );
   });
+
+  const totalUsers = users.length;
+  const linkedGithubUsers = users.filter((u) => Boolean(u.githubUrl?.trim())).length;
+  const visibleUsers = filteredUsers.length;
 
   return (
     <div className="text-primary">
@@ -132,6 +144,21 @@ export default function UserManagementPage() {
             <Plus className="w-5 h-5" />
             Add New User
             </Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="bg-secondary border border-primary/10 rounded-xl p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-primary/50">Total Users</p>
+          <p className="mt-1 text-2xl font-bold text-primary">{totalUsers}</p>
+        </div>
+        <div className="bg-secondary border border-primary/10 rounded-xl p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-primary/50 flex items-center gap-1"><Github className="w-3 h-3" /> GitHub Linked</p>
+          <p className="mt-1 text-2xl font-bold text-primary">{linkedGithubUsers}</p>
+        </div>
+        <div className="bg-secondary border border-primary/10 rounded-xl p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide text-primary/50 flex items-center gap-1"><BarChart3 className="w-3 h-3" /> Visible Rows</p>
+          <p className="mt-1 text-2xl font-bold text-primary">{visibleUsers}</p>
         </div>
       </div>
 
@@ -180,6 +207,16 @@ export default function UserManagementPage() {
                 <option value="3">3rd Year</option>
                 <option value="4">4th Year</option>
             </select>
+
+              <select
+                value={githubFilter}
+                onChange={(e) => setGithubFilter(e.target.value as 'all' | 'linked' | 'unlinked')}
+                className="px-3 py-1.5 rounded-md bg-primary/5 border border-primary/10 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
+              >
+                <option value="all">All GitHub</option>
+                <option value="linked">Linked Only</option>
+                <option value="unlinked">Not Linked</option>
+              </select>
         </div>
 
         <div className="relative w-full md:w-64">
@@ -236,6 +273,7 @@ export default function UserManagementPage() {
                   </th>
                   <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Dept/Year/Sec</th>
                   <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">LeetCode ID</th>
+                  <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">GitHub</th>
                   <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Points</th>
                   <th className="p-3 text-left text-xs font-semibold uppercase tracking-wider text-primary/60">Actions</th>
                 </tr>
@@ -264,6 +302,22 @@ export default function UserManagementPage() {
                         {user.department || '-'}/{user.year || '-'}/{user.section || '-'}
                     </td>
                     <td className="p-3 text-sm">{user.leetcodeId || '-'}</td>
+                    <td className="p-3 text-sm">
+                      {user.githubUrl ? (
+                        <span className="inline-flex items-center gap-2">
+                          <a href={user.githubUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            Linked
+                          </a>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-700">
+                            READY
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600">
+                          MISSING
+                        </span>
+                      )}
+                    </td>
                     <td className="p-3 text-sm">{user.points || 0}</td>
                     <td className="p-3">
                       <div className="flex gap-2 text-primary/70">
@@ -273,6 +327,13 @@ export default function UserManagementPage() {
                           className="p-1.5 hover:text-green-600"
                         >
                           <Edit className="w-4 h-4" />
+                        </Link>
+                        <Link
+                          href={`/admin/users/${user.id}#github-details`}
+                          title="View GitHub Stats"
+                          className="p-1.5 hover:text-blue-600"
+                        >
+                          <Github className="w-4 h-4" />
                         </Link>
                         <button
                           onClick={() => handleDelete(user.id)}

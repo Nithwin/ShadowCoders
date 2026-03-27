@@ -22,7 +22,7 @@ export default function AdminLayout({
 
   if (isLoading || !user || user.role !== 'STAFF') { // <-- Added role check here
     return (
-      <div className="flex-center h-screen bg-secondary">
+      <div className="flex-center h-screen bg-secondary dark:bg-slate-950 text-primary dark:text-slate-100">
         <div>Loading admin portal...</div> {/* Or a full-page spinner */}
       </div>
     );
@@ -30,11 +30,11 @@ export default function AdminLayout({
 
   // If loading is done and user is 'STAFF', render the layout
   return (
-    <div className="flex h-screen bg-[#f4f2fb] text-slate-900">
+    <div id="admin-root" className="admin-theme flex h-screen bg-[#f4f2fb] dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       <AdminSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <AdminHeader />
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main className="admin-main flex-1 p-4 md:p-8 overflow-y-auto">
           {children}
         </main>
       </div>

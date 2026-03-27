@@ -85,8 +85,8 @@ export default function HeroSection() {
     <section ref={sectionRef} className="relative pt-32 pb-20 sm:pt-40 sm:pb-28 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 -z-10">
-        <div className="hero-blob-1 absolute top-20 left-1/4 w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-3xl" />
-        <div className="hero-blob-2 absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-violet-100/30 rounded-full blur-3xl" />
+        <div className="hero-blob-1 absolute top-20 left-1/4 w-[500px] h-[500px] bg-blue-100/40 dark:bg-blue-500/20 rounded-full blur-3xl" />
+        <div className="hero-blob-2 absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-violet-100/30 dark:bg-cyan-500/15 rounded-full blur-3xl" />
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -99,14 +99,14 @@ export default function HeroSection() {
       <div className="max-w-4xl mx-auto px-6 text-center">
         {/* Badge */}
         <div className="hero-badge invisible flex justify-center mb-6">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-full px-3.5 py-1.5">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-200 bg-blue-50 dark:bg-slate-900/70 border border-blue-100 dark:border-slate-700 rounded-full px-3.5 py-1.5">
             <GraduationCap className="w-3.5 h-3.5" />
             Built for Competitive Programming
           </span>
         </div>
 
         {/* Heading with character split */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6 text-gray-900 dark:text-slate-100">
           {splitText('Where Code Meets ')}
           <span className="hero-gradient text-blue-600 whitespace-nowrap">
             {splitText('Competition')}
@@ -114,7 +114,7 @@ export default function HeroSection() {
         </h1>
 
         {/* Subtitle */}
-        <p className="hero-sub invisible text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed mb-8">
+        <p className="hero-sub invisible text-lg sm:text-xl text-gray-500 dark:text-slate-300 max-w-2xl mx-auto leading-relaxed mb-8">
           A modern exam platform with real-time code evaluation, anti-cheating
           safeguards, and gamified learning — designed to push your programming
           skills to the next level.
@@ -131,12 +131,13 @@ export default function HeroSection() {
           </Link>
           <a
             href="#features"
-            className="hero-cta invisible group inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-blue-600 border border-gray-200 hover:border-blue-200 hover:bg-blue-50/50 rounded-xl px-5 py-3 transition-all duration-300"
+            className="hero-cta invisible group inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 border border-gray-200 dark:border-slate-700 hover:border-blue-200 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-slate-900 rounded-xl px-5 py-3 transition-all duration-300"
           >
             Explore features
             <ChevronRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
           </a>
         </div>
+
       </div>
     </section>
   );

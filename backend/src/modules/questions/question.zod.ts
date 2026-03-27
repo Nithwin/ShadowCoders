@@ -144,6 +144,7 @@ const codingUpdateSchema = z.object({
   language: z.string().optional(), // For SQL questions
   config: z.object({
     ddl: z.string().optional(),
+    forbiddenKeywords: z.string().optional(),
   }).optional(),
   testcases: z.array(z.object({
     input: z.string(),

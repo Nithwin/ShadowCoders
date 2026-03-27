@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Play, Loader2, CheckCircle2, XCircle, AlertCircle, Terminal, Info, Code, FileText, ArrowLeft, ArrowRight, Send, RotateCcw, ChevronDown, ChevronUp, Eye, EyeOff, Maximize2, Minimize2, Database, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
@@ -27,7 +27,7 @@ type CodingQuestionProps = {
   points: number;
   attemptId: string;
   answer?: { code?: string; language?: string };
-  onChange: (answer: { code: string; language: string; passed?: number; total?: number; replayLog?: string }) => void;
+  onChange: (answer: { code: string; language: string; passed?: number; total?: number; replayLog?: string; skipServerSync?: boolean }) => void;
   onNext?: () => void;
   onPrev?: () => void;
   canGoNext?: boolean;
@@ -370,10 +370,13 @@ export default function CodingQuestion({
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
+      const hasBlockedKeyword = checkForbiddenKeywords(newCode) !== null;
       onChange({ 
         code: newCode, 
         language,
-        replayLog: JSON.stringify(replayLogRef.current) 
+        replayLog: JSON.stringify(replayLogRef.current),
+        // Keep local progress while preventing noisy forbidden-keyword 400s.
+        skipServerSync: hasBlockedKeyword,
       });
     }, 1000); // 1 second debounce for code auto-save
   };
@@ -389,21 +392,39 @@ export default function CodingQuestion({
     // Mark as no longer initial mount
     isInitialMount.current = false;
     // Immediately update parent
-    onChange({ code: newCode, language });
+    onChange({ code: newCode, language, skipServerSync: false });
   }, [starterCode, language, onChange]);
 
-  // Check for forbidden keywords logic
-  const checkForbiddenKeywords = (codeToCheck: string): string | null => {
-    if (!config?.forbiddenKeywords) return null;
-    
-    // Split by comma and trim
-    const keywords = config.forbiddenKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
-    if (keywords.length === 0) return null;
+  const forbiddenKeywords = useMemo(() => {
+    if (!config?.forbiddenKeywords) return [] as string[];
+    return config.forbiddenKeywords
+      .split(',')
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+  }, [config?.forbiddenKeywords]);
 
-    // Check if any keyword exists in code
-    const found = keywords.find(keyword => codeToCheck.includes(keyword));
-    return found || null;
-  };
+  const codeByteSize = useMemo(() => new TextEncoder().encode(code).length, [code]);
+
+  const checkForbiddenKeywords = useCallback((codeToCheck: string): string | null => {
+    if (forbiddenKeywords.length === 0) return null;
+
+    const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    for (const keyword of forbiddenKeywords) {
+      const escapedKeyword = escapeRegex(keyword);
+      const boundaryPattern = /^[A-Za-z0-9_]+$/.test(keyword)
+        ? `\\b${escapedKeyword}\\b`
+        : escapedKeyword;
+      const regex = new RegExp(boundaryPattern, 'i');
+      if (regex.test(codeToCheck)) {
+        return keyword;
+      }
+    }
+
+    return null;
+  }, [forbiddenKeywords]);
+
+  const blockedKeyword = useMemo(() => checkForbiddenKeywords(code), [checkForbiddenKeywords, code]);
 
   // Run code with visible test cases only (for testing) - memoized to prevent flicker
   const handleRunCode = useCallback(async () => {
@@ -413,9 +434,7 @@ export default function CodingQuestion({
     }
 
     // Check for forbidden keywords
-    const forbiddenWord = checkForbiddenKeywords(code);
-    if (forbiddenWord) {
-      setError(`Your code contains a forbidden keyword: "${forbiddenWord}". Please remove it to run your code.`);
+    if (blockedKeyword) {
       return;
     }
 
@@ -506,7 +525,7 @@ export default function CodingQuestion({
     } finally {
       setIsRunning(false);
     }
-  }, [code, language, questionId, attemptId, showCustomInput, customInput, config, executionMode, visibleTestCases, checkForbiddenKeywords]);
+  }, [code, language, questionId, attemptId, showCustomInput, customInput, executionMode, visibleTestCases, blockedKeyword]);
 
   // Submit code (runs ALL test cases including hidden ones, then saves) - memoized to prevent flicker
   const handleSubmitCode = useCallback(async () => {
@@ -516,9 +535,7 @@ export default function CodingQuestion({
     }
 
     // Check for forbidden keywords
-    const forbiddenWord = checkForbiddenKeywords(code);
-    if (forbiddenWord) {
-      setError(`Your code contains a forbidden keyword: "${forbiddenWord}". Please remove it to submit.`);
+    if (blockedKeyword) {
       return;
     }
 
@@ -580,13 +597,19 @@ export default function CodingQuestion({
       });
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
+      const serverMessage = error.response?.data?.message || '';
+
+      if (serverMessage.toLowerCase().includes('forbidden keyword')) {
+        return;
+      }
+
       if (process.env.NODE_ENV === 'development') {
         console.error('Error submitting code:', err);
       }
       
       // Try to save anyway even if run fails
       try {
-        onChange({ code, language });
+        onChange({ code, language, skipServerSync: false });
         await api.post(`/student/attempts/${attemptId}/responses`, {
           questionId,
           answer: {
@@ -605,7 +628,7 @@ export default function CodingQuestion({
       // 5 seconds for LOCAL/CLIENT execution, 30 seconds for SERVER
       setSubmitCooldown((executionMode === 'LOCAL' || executionMode === 'CLIENT') ? 5 : 30);
     }
-  }, [code, language, questionId, attemptId, onChange, submitCooldown, config]);
+  }, [code, language, questionId, attemptId, onChange, submitCooldown, blockedKeyword, executionMode]);
 
   // Calculate widths based on fullscreen state
   const editorWidth = isEditorFullscreen ? 100 : 50;
@@ -661,10 +684,9 @@ export default function CodingQuestion({
           <div className="px-6 py-3 bg-red-50 border-b border-red-100 flex items-start gap-3">
              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
              <div className="text-sm text-red-800">
-               <span className="font-bold">Restricted: </span>
-               The following keywords are forbidden in your code:
+               <span className="font-bold">Restricted Keywords: </span>
                <span className="font-mono font-bold ml-1 bg-red-100 px-1.5 py-0.5 rounded text-red-700">
-                 {config.forbiddenKeywords.split(',').map(k => k.trim()).join(', ')}
+                 {config.forbiddenKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0).join(', ')}
                </span>
              </div>
           </div>
@@ -922,6 +944,10 @@ export default function CodingQuestion({
             ))}
           </select>
 
+          <div className="px-3 py-1.5 bg-[#2d2d2d] text-gray-300 border border-gray-600 rounded text-xs font-semibold flex-shrink-0">
+            Size: {codeByteSize} bytes
+          </div>
+
           {/* Fullscreen Toggle Button - Increased Visibility */}
           <button
             onClick={toggleEditorFullscreen}
@@ -954,9 +980,10 @@ export default function CodingQuestion({
           {/* Run Button - Fixed width, larger icon */}
           <button
             onClick={handleRunCode}
-            disabled={isRunning || isSubmitting || !code.trim()}
+            disabled={isRunning || isSubmitting || !code.trim() || !!blockedKeyword}
             type="button"
             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-blue-600 flex-shrink-0 w-auto whitespace-nowrap min-w-[90px]"
+            title={sqlDdl ? 'Run query' : 'Run code'}
           >
             {isRunning ? (
               <>
@@ -973,7 +1000,7 @@ export default function CodingQuestion({
           {/* Submit Button - Fixed width, larger icon */}
           <button
             onClick={handleSubmitCode}
-            disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0}
+            disabled={isRunning || isSubmitting || !code.trim() || submitCooldown > 0 || !!blockedKeyword}
             type="button"
             className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white border border-green-700 rounded text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 disabled:hover:bg-green-600 flex-shrink-0 w-[100px]"
             title={submitCooldown > 0 ? `Please wait ${submitCooldown} second${submitCooldown !== 1 ? 's' : ''} before submitting again` : (sqlDdl ? 'Submit your query' : 'Submit your code')}

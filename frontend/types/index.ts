@@ -86,6 +86,7 @@ export interface User {
   section: string | null;
   pictureUrl: string | null;
   leetcodeId: string | null;
+  githubUrl?: string | null;
   leetcodeStats: LeetCodeStats | null;
   points: number;
   createdAt: string;

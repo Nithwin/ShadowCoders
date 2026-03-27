@@ -9,7 +9,7 @@ import LandingFooter from './LandingFooter';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-gray-900 dark:text-slate-100 overflow-x-hidden transition-colors duration-300">
       <LandingNavbar />
       <HeroSection />
       <StatsSection />

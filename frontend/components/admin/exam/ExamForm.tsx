@@ -47,10 +47,13 @@ export const examFormSchema = z.object({
     .transform((val) => (val === '' || val === undefined ? undefined : Number(val)))
     .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer (0 for unlimited)'),
   maxTabSwitches: z
-    .union([z.string(), z.number()])
+    .union([z.string(), z.number(), z.null()])
     .optional()
-    .transform((val) => (val === '' || val === undefined ? undefined : Number(val)))
-    .refine((val) => val === undefined || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer (0 for unlimited)'),
+    .transform((val) => {
+      if (val === null) return null;
+      return (val === '' || val === undefined) ? undefined : Number(val);
+    })
+    .refine((val) => val === undefined || val === null || !isNaN(val) && Number.isInteger(val) && val >= 0, 'Must be a non-negative integer (0 for unlimited)'),
   allowedLanguages: z.array(z.string()).optional(),
   releaseResults: z.boolean().optional(),
   enableProctoring: z.boolean().optional(),
@@ -125,6 +128,11 @@ export default function ExamForm({
   // Use external error if provided, otherwise use internal
   const displayError = externalApiError || apiError;
 
+  const normalizedTimingMode =
+    defaultValues?.timingMode === TimingMode.PER_SECTION_ONLY
+      ? TimingMode.BOTH
+      : (defaultValues?.timingMode ?? TimingMode.OVERALL_ONLY);
+
   const {
     register,
     handleSubmit,
@@ -135,7 +143,7 @@ export default function ExamForm({
   } = useForm<ExamFormInput>({
     resolver: zodResolver(examFormSchema),
     defaultValues: {
-      timingMode: TimingMode.OVERALL_ONLY,
+      timingMode: normalizedTimingMode,
       sectionLockPolicy: SectionLockPolicy.NONE,
       durationMins: 60,
       startAt: localDateTimeValue(new Date()),
@@ -162,7 +170,14 @@ export default function ExamForm({
     setApiError(null);
     setSuccessMessage(null);
     try {
-      const data = examFormSchema.parse(raw) as ExamForm;
+      const normalizedRaw = {
+        ...raw,
+        timingMode:
+          raw.timingMode === TimingMode.PER_SECTION_ONLY
+            ? TimingMode.BOTH
+            : raw.timingMode,
+      };
+      const data = examFormSchema.parse(normalizedRaw) as ExamForm;
       await onSubmit(data);
       setSuccessMessage('Saved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
@@ -248,7 +263,7 @@ export default function ExamForm({
         )}
         
         {activeTab === 'security' && (
-          <ExamSecurity register={register} errors={errors} watch={watch} />
+          <ExamSecurity register={register} errors={errors} watch={watch} setValue={setValue} />
         )}
       </div>
 

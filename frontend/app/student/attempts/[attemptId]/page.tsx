@@ -46,7 +46,6 @@ export default function ExamAttemptPage() {
   const [proctoringInitialized, setProctoringInitialized] = useState(false);
   const [showProctoringDialog, setShowProctoringDialog] = useState(false);
   const { addViolation, removeViolation } = useViolationNotifications();
-  const { hasExtensions, detectedExtensions } = useExtensionSecurity();
 
   // Fetch attempt and questions data
   const {
@@ -58,6 +57,9 @@ export default function ExamAttemptPage() {
     storageKey,
     setQuestions,
   } = useExamAttemptData(attemptId);
+
+  const strictMonitoringEnabled = attempt?.exam?.maxTabSwitches !== null && attempt?.exam?.maxTabSwitches !== undefined;
+  const { hasExtensions, detectedExtensions } = useExtensionSecurity(strictMonitoringEnabled);
 
   // Manage answers with localStorage
   const {
@@ -273,7 +275,7 @@ export default function ExamAttemptPage() {
     fullscreenWarning: fullscreenWarningState,
     enterFullscreen,
     exitFullscreen,
-  } = useFullscreenManagement(containerRef, attempt, handleAutoSubmit, isSubmitting);
+  } = useFullscreenManagement(containerRef, attempt, handleAutoSubmit, isSubmitting, strictMonitoringEnabled);
 
   // Update refs for submission hook
   useEffect(() => {
@@ -283,7 +285,7 @@ export default function ExamAttemptPage() {
 
   // Keyboard violation detection
   useEffect(() => {
-    if (!attempt || attempt.status !== 'IN_PROGRESS' || showKeyboardViolation || !socket?.connected) return;
+    if (!strictMonitoringEnabled || !attempt || attempt.status !== 'IN_PROGRESS' || showKeyboardViolation || !socket?.connected) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger on input fields (allow normal typing)
@@ -423,7 +425,7 @@ export default function ExamAttemptPage() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [attempt, socket, showKeyboardViolation, addViolation]);
+  }, [attempt, socket, showKeyboardViolation, addViolation, strictMonitoringEnabled]);
 
   // Cheating prevention
   const {
@@ -431,7 +433,7 @@ export default function ExamAttemptPage() {
     fullscreenWarning: cheatingWarning,
     warningMessage,
   } = useCheatingPrevention(
-    attempt,
+    strictMonitoringEnabled ? attempt : null,
     handleAutoSubmit,
     attempt?.exam?.maxTabSwitches ?? null
   );
@@ -471,16 +473,15 @@ export default function ExamAttemptPage() {
   // Section Navigation Hook
   const {
     selectedSectionId,
-    setSelectedSectionId,
     sectionsWithQuestions,
     handleSectionChange,
-  } = useSectionNavigation(attempt, questions, currentQuestionIndex, setCurrentQuestionIndex);
+  } = useSectionNavigation(attempt, questions, currentQuestionIndex, setCurrentQuestionIndex, answers);
 
   // Question Navigation Hook
   const {
     navigateQuestion,
     handleQuestionClick,
-  } = useQuestionNavigation(questions, currentQuestionIndex, setCurrentQuestionIndex, selectedSectionId, attempt);
+  } = useQuestionNavigation(questions, currentQuestionIndex, setCurrentQuestionIndex, selectedSectionId, attempt, answers);
 
   // Calculate answered count
   const answeredCount = calculateAnsweredCount(questions, answers);
@@ -637,7 +638,7 @@ export default function ExamAttemptPage() {
   }, {} as Record<string, { textAnswer?: string }>);
 
   // Show fullscreen requirement if exam is in progress but not in fullscreen (and not submitting)
-  const showFullscreenRequirement = attempt?.status === 'IN_PROGRESS' && !isFullscreen && !isSubmitting;
+  const showFullscreenRequirement = strictMonitoringEnabled && attempt?.status === 'IN_PROGRESS' && !isFullscreen && !isSubmitting;
 
   // Combine fullscreen warnings
   const showFullscreenWarning = fullscreenWarningState || cheatingWarning;
@@ -726,25 +727,7 @@ export default function ExamAttemptPage() {
             answers={answers}
             onQuestionClick={handleQuestionClick}
             onSectionClick={(sectionId) => {
-              setSelectedSectionId(sectionId);
-              // Get all questions in this section
-              const sectionQuestions = questions.filter(q => q.sectionId === sectionId);
-              if (sectionQuestions.length > 0) {
-                const sectionType = sectionQuestions[0].type;
-                // Find first question of this section and type
-                const firstQuestionIndex = questions.findIndex((q) =>
-                  q.sectionId === sectionId && q.type === sectionType
-                );
-                if (firstQuestionIndex !== -1) {
-                  setCurrentQuestionIndex(firstQuestionIndex);
-                } else {
-                  // Fallback to any question in section
-                  const fallbackIndex = questions.findIndex(q => q.sectionId === sectionId);
-                  if (fallbackIndex !== -1) {
-                    setCurrentQuestionIndex(fallbackIndex);
-                  }
-                }
-              }
+              handleSectionChange(sectionId);
             }}
             showQuestionNumbers={true}
             currentQuestionType={currentQuestion?.type}

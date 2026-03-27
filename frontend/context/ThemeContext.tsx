@@ -68,11 +68,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     resolvedTheme
   };
 
-  // Prevent flash of incorrect theme
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
   return (
     <ThemeContext.Provider value={value}>
       {children}

@@ -6,7 +6,8 @@ export function useFullscreenManagement(
   containerRef: React.RefObject<HTMLDivElement | null>,
   attempt: Attempt | null,
   onAutoSubmit: (reason: string) => void,
-  isSubmitting: boolean = false
+  isSubmitting: boolean = false,
+  strictMonitoringEnabled: boolean = false
 ) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenWarning, setFullscreenWarning] = useState(false);
@@ -88,7 +89,7 @@ export function useFullscreenManagement(
         exitTimeoutId = null;
       }
 
-      if (attempt?.status === 'IN_PROGRESS' && !isSubmittingRef.current) {
+      if (strictMonitoringEnabled && attempt?.status === 'IN_PROGRESS' && !isSubmittingRef.current) {
         // Entering fullscreen - set hasStarted after a small delay
         if (isCurrentlyFullscreen && !hasStarted) {
           setTimeout(() => {
@@ -126,7 +127,7 @@ export function useFullscreenManagement(
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
-  }, [attempt, isFullscreen, hasStarted, enterFullscreen]);
+  }, [attempt, isFullscreen, hasStarted, enterFullscreen, strictMonitoringEnabled]);
 
   return {
     isFullscreen,

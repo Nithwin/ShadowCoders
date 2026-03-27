@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { PieChart as PieIcon } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   PUBLISHED: { label: 'Published', color: '#2563eb', bg: 'bg-blue-50 text-blue-700' },
@@ -14,12 +15,13 @@ type Props = {
 };
 
 /* custom dark tooltip */
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload, resolvedTheme }: any) {
   if (!active || !payload?.length) return null;
   const entry = payload[0];
   const cfg = STATUS_CONFIG[entry.name] || { label: entry.name, color: '#666' };
+  const isDark = resolvedTheme === 'dark';
   return (
-    <div className="bg-[#0f172a] text-white text-xs rounded-lg px-3.5 py-2.5 shadow-xl border border-slate-700/50">
+    <div className={`text-xs rounded-lg px-3.5 py-2.5 shadow-xl border ${isDark ? 'bg-[#0f172a] text-white border-slate-700/50' : 'bg-white text-slate-800 border-slate-200'}`}>
       <p className="font-semibold">{cfg.label}</p>
       <p style={{ color: cfg.color }}>{entry.value} exam{entry.value !== 1 ? 's' : ''}</p>
     </div>
@@ -27,12 +29,13 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 export default function StatusPieChart({ data }: Props) {
+  const { resolvedTheme } = useTheme();
   const total = data.reduce((s, d) => s + d.value, 0);
 
   if (!data.some((d) => d.value > 0)) {
     return (
-      <div className="h-[280px] flex flex-col items-center justify-center text-gray-400">
-        <PieIcon className="w-10 h-10 text-gray-200 mb-3" />
+      <div className="h-[280px] flex flex-col items-center justify-center text-gray-400 dark:text-slate-400">
+        <PieIcon className="w-10 h-10 text-gray-200 dark:text-slate-700 mb-3" />
         <p className="text-sm font-medium">No exams yet</p>
       </div>
     );
@@ -60,7 +63,7 @@ export default function StatusPieChart({ data }: Props) {
               />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip resolvedTheme={resolvedTheme} />} />
         </PieChart>
       </ResponsiveContainer>
 
