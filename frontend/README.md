@@ -1,6 +1,6 @@
 # ShadowCoders Frontend
 
-A modern Next.js 15 application built with React 19, TypeScript, and Tailwind CSS. Features a comprehensive online examination system with support for multiple question types, real-time code execution, and AI-powered question generation.
+A modern Next.js 16 application built with React 18, TypeScript, and Tailwind CSS. Features a comprehensive online examination system with support for multiple question types, real-time code execution, and AI-powered question generation.
 
 ## 🚀 Quick Start
 
@@ -16,13 +16,10 @@ A modern Next.js 15 application built with React 19, TypeScript, and Tailwind CS
 # 1. Install dependencies
 npm install
 
-# 2. Create .env.local file
-cp .env.example .env.local
+# 2. Create .env.local file and configure environment variables
+# Set at minimum: NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/api
 
-# 3. Configure environment variables
-# Edit .env.local and set NEXT_PUBLIC_API_BASE_URL
-
-# 4. Start development server
+# 3. Start development server
 npm run dev
 ```
 
@@ -104,10 +101,7 @@ frontend/
 │   ├── fonts/                # Custom fonts
 │   ├── images/               # Images
 │   └── videos/               # Videos
-├── docs/                     # Documentation
-│   ├── EXAM_COMPONENTS.md    # Exam components documentation
-│   └── JUDGE0_INTEGRATION.md # Judge0 integration guide
-├── middleware.ts             # Next.js middleware
+├── proxy.ts                  # Next.js proxy configuration
 ├── next.config.ts            # Next.js configuration
 ├── package.json
 ├── tsconfig.json
@@ -144,7 +138,7 @@ GOOGLE_CLIENT_SECRET=
 - **Create Exams** - Create exams with multiple sections
 - **Manage Questions** - Add, edit, delete questions
 - **Question Types** - MCQ, Coding, Essay questions
-- **AI Question Generation** - Generate questions using GPT-5.2-Codex (with Gemini fallback)
+- **AI Question Generation** - Generate questions using Google Gemini with model fallback chain
 - **Assign Exams** - Assign exams to specific students or all students
 - **Publish Exams** - Publish exams for students to take
 - **View Submissions** - View and review student submissions
@@ -155,7 +149,7 @@ GOOGLE_CLIENT_SECRET=
 - **View Available Exams** - List all available exams
 - **Start Exam** - Start an exam attempt
 - **Answer Questions** - Answer MCQ, coding, and essay questions
-- **Run Code** - Test code against test cases (Judge0)
+- **Run Code** - Test code against test cases via backend queue execution APIs
 - **Timer** - Real-time exam timer
 - **Auto-save** - Auto-save answers to localStorage
 - **Fullscreen Mode** - Fullscreen requirement for exams
@@ -170,7 +164,7 @@ GOOGLE_CLIENT_SECRET=
 
 ### Code Execution
 
-- **Judge0 Integration** - Execute code using Judge0 API
+- **BullMQ + Docker Sandbox** - Execute code through backend queue workers
 - **Multiple Languages** - Support for JavaScript, Python, Java, C++, etc.
 - **Test Cases** - Run code against test cases
 - **Queue System** - Manage concurrent code executions
@@ -190,7 +184,7 @@ npm run lint       # Run ESLint
 
 ### Next.js App Router
 
-- **App Router** - Next.js 15 App Router with React Server Components
+- **App Router** - Next.js 16 App Router with React Server Components
 - **Server Components** - Server-side rendering for better performance
 - **Client Components** - Client-side interactivity where needed
 - **Route Protection** - Middleware-based route protection

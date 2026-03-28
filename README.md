@@ -83,7 +83,7 @@ A comprehensive online examination platform built with Next.js 16 and Express.js
    ```bash
    cd backend
    npm install
-   npm run setup:env
+   # Create backend/.env and configure DATABASE_URL/LOCAL_DATABASE_URL, JWT_SECRET
    npm run prisma:migrate
    npm run prisma:generate
    npm run create:user
@@ -273,12 +273,12 @@ ShadowCoders/
 - **Validation**: Zod 4.x
 - **Authentication**: JWT + bcrypt
 - **WebSocket**: Socket.IO 4.x
-- **Code Execution**: Judge0 API + Local Executor
+- **Code Execution**: BullMQ + Redis + Docker Sandbox (with optional local runner fallback)
 - **AI Service**: Google Generative AI (Gemini)
 
 ### Frontend
 
-- **Framework**: Next.js 16.x (React 19)
+- **Framework**: Next.js 16.x (React 18)
 - **Language**: TypeScript 5.x
 - **Styling**: Tailwind CSS 4.x
 - **UI Components**: Radix UI
@@ -408,7 +408,7 @@ JWT_SECRET="your-secret-key"
 
 # External Services
 GOOGLE_API_KEY="your-google-api-key"
-JUDGE0_API_KEY="your-judge0-api-key"  # Optional
+REDIS_URL="redis://127.0.0.1:6379"
 
 # CORS
 CORS_ORIGINS="https://yourdomain.com"

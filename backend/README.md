@@ -16,15 +16,15 @@ A modern, scalable TypeScript/Express REST API with Prisma (PostgreSQL) and Zod 
 # 1. Install dependencies
 npm install
 
-# 2. Setup environment variables
-npm run setup:env
+# 2. Create and configure .env (required)
+# Set DATABASE_URL or LOCAL_DATABASE_URL, JWT_SECRET, and FRONTEND_ORIGIN
 
 # 3. Run database migrations
 npx prisma migrate deploy
 npx prisma generate
 
 # 4. Create admin user
-npm run setup:admin
+npm run create:user
 
 # 5. Start development server
 npm run dev
@@ -58,9 +58,10 @@ backend/
 │   ├── lib/                 # Shared utilities
 │   │   ├── prisma.ts        # Prisma client
 │   │   ├── cookie-utils.ts  # Cookie utilities
-│   │   ├── judge0.ts        # Judge0 integration
+│   │   ├── redis.ts         # Redis connection management
 │   │   ├── local-executor.ts # Local code execution
-│   │   ├── execution-queue.ts # Code execution queue
+│   │   ├── queue.ts         # BullMQ queue producer/wait helpers
+│   │   ├── cache.ts         # Redis caching helpers
 │   │   ├── gemini.ts        # Google Gemini AI
 │   │   └── db-health.ts     # Database health check
 │   ├── types/               # TypeScript type definitions
@@ -103,10 +104,13 @@ FRONTEND_ORIGIN=http://localhost:3000
 # Google AI (Optional)
 GOOGLE_API_KEY=
 
+# Redis (required for BullMQ)
+REDIS_URL=redis://127.0.0.1:6379
+
 # Code Execution Configuration
 # OS for code execution: 'windows', 'linux', or 'darwin' (macOS)
 # This determines which commands to use (e.g., python vs python3)
-EXECUTION_OS=windows  # Use 'linux' or 'darwin' for Unix-based systems
+EXECUTION_OS=linux
 MAX_CONCURRENT_EXECUTIONS=5
 
 # File Uploads (Optional - defaults to 'uploads' in project root)
@@ -135,10 +139,13 @@ FRONTEND_ORIGIN=http://localhost:3000
 # Google AI (Optional)
 GOOGLE_API_KEY=
 
+# Redis (required for BullMQ)
+REDIS_URL=redis://127.0.0.1:6379
+
 # Code Execution Configuration
 # OS for code execution: 'windows', 'linux', or 'darwin' (macOS)
 # This determines which commands to use (e.g., python vs python3)
-EXECUTION_OS=windows  # Use 'linux' or 'darwin' for Unix-based systems
+EXECUTION_OS=linux
 MAX_CONCURRENT_EXECUTIONS=5
 
 # File Uploads (Optional - defaults to 'uploads' in project root)
@@ -146,26 +153,12 @@ MAX_CONCURRENT_EXECUTIONS=5
 # UPLOADS_DIR=/path/to/custom/uploads/directory
 ```
 
-### Setup Options
+### Setup Notes
 
-**Interactive Setup:**
-```bash
-npm run setup:env
-```
-
-**Local Database Setup (Recommended for Development):**
-```bash
-npm run setup:local-db
-```
-
-This will:
-1. Check if PostgreSQL is installed
-2. Create the database
-3. Run migrations
-4. Update .env file
-5. Generate Prisma Client
-
-**See [Prisma Documentation](https://www.prisma.io/docs) for detailed instructions.**
+- Create `backend/.env` manually (or from your own template).
+- For local PostgreSQL, set `USE_SUPABASE=false` and `LOCAL_DATABASE_URL`.
+- For Supabase, set `USE_SUPABASE=true`, `DATABASE_URL`, and optionally `DIRECT_URL`.
+- Redis must be reachable via `REDIS_URL` for code execution and queue status.
 
 ## 📚 API Documentation
 
@@ -228,7 +221,7 @@ This will:
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| POST | `/api/student/attempts/:attemptId/run-code` | Run code (Judge0) | Student |
+| POST | `/api/student/attempts/:attemptId/run-code` | Queue code execution (BullMQ + Docker worker) | Student |
 | GET | `/api/queue/status` | Get execution queue status | No |
 
 ### AI Question Generation (Staff Only)
@@ -284,7 +277,6 @@ npm run prisma:migrate   # Run database migrations
 npm run prisma:studio    # Open Prisma Studio (database GUI)
 
 # Utilities
-npm run setup:env        # Interactive environment setup (if available)
 npm run create:user      # Create admin user
 npm run add:students     # Add students
 ```
@@ -346,9 +338,9 @@ module/
 
 ### Code Execution
 
-- **Judge0**: External API for code execution (default)
-- **Local**: Local code execution (for development)
-- **Queue System**: Manages concurrent code executions
+- **Primary Path**: BullMQ queue + Docker sandbox worker
+- **Fallback Path**: Local executor (for development or controlled environments)
+- **Queue System**: Redis-backed job dispatch with queue status endpoint
 - **Supported Languages**: JavaScript, Python, Java, C++, etc.
 
 ## 🔒 Security

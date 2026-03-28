@@ -147,7 +147,7 @@ ShadowCoders is a production-grade online examination platform built to handle *
 | Component | Technology | Version |
 |-----------|-----------|---------|
 | Framework | Next.js | 16.x |
-| UI Library | React | 19.x |
+| UI Library | React | 18.x |
 | Language | TypeScript | 5.x |
 | Styling | Tailwind CSS | 4.x |
 | UI Components | Radix UI | — |
@@ -217,7 +217,6 @@ backend/src/
 │   ├── queue.ts                # BullMQ producer (submitCodeJob, waitForJobResult)
 │   ├── cache.ts                # Redis caching (leaderboard, exams, questions)
 │   ├── local-executor.ts       # Legacy local executor (fallback for dev)
-│   ├── judge0.ts               # Judge0 API integration
 │   ├── gemini.ts               # Gemini AI client
 │   ├── socket.ts               # Socket.IO setup
 │   ├── cookie-utils.ts         # Cookie helpers

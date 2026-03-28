@@ -28,15 +28,15 @@
 # 1. Install dependencies
 npm install
 
-# 2. Setup environment variables
-npm run setup:env
+# 2. Create and configure .env
+# Set DATABASE_URL or LOCAL_DATABASE_URL, JWT_SECRET, FRONTEND_ORIGIN
 
 # 3. Run database migrations
 npx prisma migrate deploy
 npx prisma generate
 
 # 4. Create admin user
-npm run setup:admin
+npm run create:user
 
 # 5. Start development server
 npm run dev
@@ -80,9 +80,10 @@ backend/
 │   ├── lib/                 # Shared utilities
 │   │   ├── prisma.ts        # Prisma client singleton
 │   │   ├── cookie-utils.ts  # Cookie helpers
-│   │   ├── judge0.ts        # Judge0 API integration
+│   │   ├── redis.ts         # Redis client and connection helpers
 │   │   ├── local-executor.ts # Local code execution
-│   │   ├── execution-queue.ts # Code execution queue
+│   │   ├── queue.ts         # BullMQ producer/wait helpers
+│   │   ├── cache.ts         # Redis cache helpers
 │   │   ├── gemini.ts        # Google Gemini AI
 │   │   ├── db-health.ts     # Database health checks
 │   │   ├── socket.ts        # Socket.IO setup
@@ -99,8 +100,7 @@ backend/
 │   └── migrations/          # Database migrations
 │
 ├── scripts/                 # Utility scripts
-│   ├── setup-env.js
-│   ├── create-admin-user.js
+│   ├── create-user.js
 │   ├── add-students.js
 │   └── ...
 │
@@ -130,13 +130,16 @@ JWT_SECRET="your-secret-key-here"
 
 # External Services
 GOOGLE_API_KEY="your-google-api-key"
-JUDGE0_API_KEY="your-judge0-api-key"  # Optional
+
+# Redis (required for BullMQ)
+REDIS_URL="redis://127.0.0.1:6379"
+
+# Code execution mode hints
+EXECUTION_OS="linux"
 
 # CORS
 ALLOW_ALL_ORIGINS=true  # Development only
 ```
-
-Use `npm run setup:env` for interactive setup.
 
 ### Database Setup
 
@@ -169,11 +172,11 @@ npm run prisma:studio
 ### Creating Admin User
 
 ```bash
-# Interactive admin creation
-npm run setup:admin
+# Admin creation script
+npm run create:user
 
-# Or use script directly
-node scripts/create-admin-user.js
+# Or run directly
+node scripts/create-user.js
 ```
 
 ## Module Architecture
@@ -481,16 +484,19 @@ try {
 
 ## Code Execution
 
-### Judge0 Integration
+### BullMQ Queue Integration
 
 ```typescript
-import { executeCode } from '../lib/judge0';
+import { submitCodeJob, waitForJobResult } from '../lib/queue';
 
-const result = await executeCode({
+const job = await submitCodeJob({
   code: 'print("Hello, World!")',
-  language: 'python3',
-  input: 'test input'
+  language: 'python',
+  testCases: [],
+  customInput: 'test input',
 });
+
+const result = await waitForJobResult(String(job.id), 30000);
 ```
 
 ### Local Executor
@@ -505,18 +511,19 @@ const result = await executeCodeLocally({
 });
 ```
 
-### Execution Queue
+### Local Executor (Fallback)
 
-For rate limiting and better performance:
+Used for development or controlled environments:
 
 ```typescript
-import { executionQueue } from '../lib/execution-queue';
+import { executeCodeLocally } from '../lib/local-executor';
 
-const result = await executionQueue.enqueue({
+const result = await executeCodeLocally(
   code,
   language,
-  input
-});
+  input,
+  10000
+);
 ```
 
 ## AI Integration
