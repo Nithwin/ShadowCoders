@@ -80,6 +80,7 @@ export default function LoginPage() {
             height={48}
             alt="ShadowCoders Logo"
             className="drop-shadow-sm w-10 h-10 sm:w-12 sm:h-12"
+            style={{ height: 'auto' }}
           />
           <h1>ShadowCoders</h1>
           <p className="text-center text-gray-500 dark:text-slate-400 text-xs -mt-0.5">

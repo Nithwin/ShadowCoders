@@ -328,13 +328,6 @@ export default function UserManagementPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
-                        <Link
-                          href={`/admin/users/${user.id}#github-details`}
-                          title="View GitHub Stats"
-                          className="p-1.5 hover:text-blue-600"
-                        >
-                          <Github className="w-4 h-4" />
-                        </Link>
                         <button
                           onClick={() => handleDelete(user.id)}
                           title="Delete User"

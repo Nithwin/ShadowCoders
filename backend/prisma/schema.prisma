@@ -8,67 +8,64 @@ datasource db {
 }
 
 model User {
-  id                    String               @id @default(cuid())
-  email                 String               @unique
-  name                  String?
-  pictureUrl            String?
-  role                  Role                 @default(STUDENT)
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  password              String?
-  department            String?
-  reg_no                String?              @unique
-  section               String?
-  year                  Int?
-  settings              Json?
-  leetcodeId            String?
-  leetcodeStats         Json?
-  githubUrl             String?
-  githubStats           Json?
-  githubStatsUpdatedAt  DateTime?
-  pictureData           Bytes?
-  pictureMimeType       String?
-  points                Int                  @default(0)
-  attempts              Attempt[]
-  assessments           Evaluation[]         @relation("EvaluationAssessor")
-  createdTemplates      ExamTemplate[]
-  notifications         Notification[]
-  pointsHistory         PointsHistory[]
-  invalidatedQuestions  Question[]           @relation("QuestionInvalidator")
-  reportedQuestions     QuestionReport[]
-  redeemOrders          RedeemOrder[]
-  dynamicSessions       DynamicExamSession[]
+  id                   String               @id @default(cuid())
+  email                String               @unique
+  name                 String?
+  pictureUrl           String?
+  role                 Role                 @default(STUDENT)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  password             String?
+  department           String?
+  reg_no               String?              @unique
+  section              String?
+  year                 Int?
+  settings             Json?
+  leetcodeId           String?
+  leetcodeStats        Json?
+  pictureData          Bytes?
+  pictureMimeType      String?
+  points               Int                  @default(0)
+  attempts             Attempt[]
+  dynamicSessions      DynamicExamSession[]
+  assessments          Evaluation[]         @relation("EvaluationAssessor")
+  createdTemplates     ExamTemplate[]
+  notifications        Notification[]
+  pointsHistory        PointsHistory[]
+  invalidatedQuestions Question[]           @relation("QuestionInvalidator")
+  reportedQuestions    QuestionReport[]
+  redeemOrders         RedeemOrder[]
 
   @@index([role])
   @@index([year, department, section])
 }
 
 model Exam {
-  id                   String            @id @default(cuid())
+  id                   String               @id @default(cuid())
   title                String
   description          String?
   startAt              DateTime
   endAt                DateTime
-  timingMode           TimingMode        @default(OVERALL_ONLY)
+  timingMode           TimingMode           @default(OVERALL_ONLY)
   durationMins         Int
-  sectionLockPolicy    SectionLockPolicy @default(NONE)
-  randomizeQuestions   Boolean           @default(false)
-  negativeMarkPerWrong Decimal?          @db.Decimal(5, 2)
-  status               ExamStatus        @default(DRAFT)
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  sectionLockPolicy    SectionLockPolicy    @default(NONE)
+  randomizeQuestions   Boolean              @default(false)
+  negativeMarkPerWrong Decimal?             @db.Decimal(5, 2)
+  status               ExamStatus           @default(DRAFT)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
   maxAttempts          Int?
   allowedLanguages     Json?
   maxTabSwitches       Int?
-  releaseResults       Boolean           @default(true)
-  enableProctoring     Boolean           @default(false)
-  mode                 ExamMode          @default(STANDARD)
-  dynamicQuestionCount Int?              @default(5)
+  releaseResults       Boolean              @default(true)
+  enableProctoring     Boolean              @default(false)
+  mode                 ExamMode             @default(STANDARD)
+  dynamicQuestionCount Int?                 @default(5)
   generationPrompt     String?
   dynamicTopics        String[]
   attempts             Attempt[]
-  assignments          ExamAssignment[]
   dynamicSessions      DynamicExamSession[]
+  assignments          ExamAssignment[]
   sections             ExamSection[]
   questions            Question[]
   questionPool         QuestionPool[]
@@ -185,8 +182,8 @@ model Attempt {
   exam                   Exam              @relation(fields: [examId], references: [id])
   student                User              @relation(fields: [studentId], references: [id])
   sections               AttemptSection[]
-  responses              Response[]
   proctoringEvents       ProctoringEvent[]
+  responses              Response[]
 
   @@unique([examId, studentId, attemptNo])
   @@index([examId])
@@ -267,7 +264,7 @@ model Evaluation {
   rubricId   String?
   score      Decimal?       @db.Decimal(6, 2)
   breakdown  Json?
-  complexity Json? // Stores { time: "O(n)", space: "O(1)", explanation: "..." }
+  complexity Json?
   comments   String?
   isFinal    Boolean        @default(false)
   createdAt  DateTime       @default(now())
@@ -327,8 +324,8 @@ model GradingJob {
   response   Response @relation(fields: [responseId], references: [id])
 
   @@index([responseId])
-  @@index([status, createdAt])  // For queue processing: find oldest QUEUED jobs
-  @@index([status])             // For queue stats queries
+  @@index([status, createdAt])
+  @@index([status])
 }
 
 model RefreshToken {
@@ -447,6 +444,37 @@ model Notification {
   @@index([isRead])
 }
 
+model QuestionPool {
+  id         String     @id @default(cuid())
+  topic      String
+  difficulty Difficulty
+  data       Json
+  isUsed     Boolean    @default(false)
+  examId     String?
+  createdAt  DateTime   @default(now())
+  exam       Exam?      @relation(fields: [examId], references: [id])
+
+  @@index([topic, difficulty])
+  @@index([examId])
+  @@index([isUsed])
+}
+
+model DynamicExamSession {
+  id                String     @id @default(cuid())
+  studentId         String
+  examId            String
+  currentDifficulty Difficulty @default(MEDIUM)
+  questionsAnswered Int        @default(0)
+  history           Json?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  exam              Exam       @relation(fields: [examId], references: [id])
+  student           User       @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, examId])
+  @@index([examId])
+}
+
 enum Role {
   STUDENT
   STAFF
@@ -558,36 +586,4 @@ enum Difficulty {
   EASY
   MEDIUM
   HARD
-}
-
-model QuestionPool {
-  id          String     @id @default(cuid())
-  topic       String
-  difficulty  Difficulty
-  data        Json
-  isUsed      Boolean    @default(false)
-  examId      String?
-  exam        Exam?      @relation(fields: [examId], references: [id])
-  createdAt   DateTime   @default(now())
-
-  @@index([topic, difficulty])
-  @@index([examId])
-  @@index([isUsed])
-}
-
-model DynamicExamSession {
-  id                String     @id @default(cuid())
-  studentId         String
-  examId            String
-  currentDifficulty Difficulty @default(MEDIUM)
-  questionsAnswered Int        @default(0)
-  history           Json?      // Log of [{ questionId, timeTaken, passed, difficulty }]
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-
-  student User @relation(fields: [studentId], references: [id])
-  exam    Exam @relation(fields: [examId], references: [id])
-
-  @@unique([studentId, examId])
-  @@index([examId])
 }

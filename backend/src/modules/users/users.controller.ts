@@ -43,19 +43,6 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-export const getUserGithubStats = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    if (!id) {
-      return res.status(400).json({ message: 'User ID is required' });
-    }
-    const data = await userService.getUserGithubStats(id);
-    res.json(data);
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;

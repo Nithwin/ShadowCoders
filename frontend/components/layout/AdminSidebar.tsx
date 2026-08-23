@@ -18,7 +18,6 @@ import {
   AlertTriangle,
   ShoppingCart,
   Activity
-  ,Github
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -33,7 +32,7 @@ const navLinks = [
   { name: 'Reattempts', href: '/admin/reattempts', icon: RefreshCw }, 
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { name: 'LeetCode Stats', href: '/admin/leetcode', icon: Code2 },
-  { name: 'Users & GitHub', href: '/admin/users', icon: Github },
+  { name: 'Users', href: '/admin/users', icon: UserIcon },
   { name: 'Resource Monitoring', href: '/admin/resources', icon: Activity },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
